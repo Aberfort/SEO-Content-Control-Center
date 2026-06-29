@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<ruleset name="SEO Content Control Center">
+  <description>WordPress Coding Standards for SEO Content Control Center.</description>
+  <rule ref="WordPress"/>
+  <file>.</file>
+  <exclude-pattern>vendor/*</exclude-pattern>
+</ruleset>
+

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+dist/
+coverage/
+.turbo/
+.env
+.env.local
+.env.*.local
+vendor/
+wordpress-plugin/vendor/
+*.log
+.DS_Store
+

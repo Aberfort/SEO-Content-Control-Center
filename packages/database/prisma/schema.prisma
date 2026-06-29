@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  SEO_MANAGER
+  EDITOR
+  WRITER
+  VIEWER
+  BILLING_MANAGER
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum SiteStatus {
+  PENDING_CONNECTION
+  CONNECTED
+  SYNCING
+  ERROR
+  DISCONNECTED
+}
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AuditIssueStatus {
+  OPEN
+  IGNORED
+  RESOLVED
+  SNOOZED
+}
+
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BacklogTaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  SNOOZED
+  IGNORED
+}
+
+enum BulkOperationStatus {
+  DRAFT
+  PREVIEWED
+  DRY_RUN_PASSED
+  CONFIRMED
+  RUNNING
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+}
+
+model User {
+  id             String               @id @default(uuid())
+  email          String               @unique
+  name           String?
+  passwordHash   String?
+  emailVerified  DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  memberships    OrganizationMember[]
+  comments       TaskComment[]
+  assignedTasks  BacklogTask[]        @relation("AssignedTasks")
+  activityLogs   ActivityLog[]
+}
+
+model Organization {
+  id             String               @id @default(uuid())
+  name           String
+  slug           String               @unique
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  members        OrganizationMember[]
+  subscriptions  Subscription[]
+  sites          Site[]
+  activityLogs   ActivityLog[]
+  apiKeys        ApiKey[]
+  notifications  Notification[]
+  usageMetrics   UsageMetric[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           Role
+  status         MemberStatus @default(ACTIVE)
+  invitedEmail   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  code          String         @unique
+  name          String
+  monthlyPrice  Int
+  limits        Json
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id             String             @id @default(uuid())
+  organizationId String
+  planId         String
+  status         SubscriptionStatus
+  trialEndsAt    DateTime?
+  currentPeriodEnd DateTime?
+  provider       String?
+  providerId     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           Plan               @relation(fields: [planId], references: [id])
+
+  @@index([organizationId, status])
+}
+
+model Site {
+  id                   String               @id @default(uuid())
+  organizationId       String
+  name                 String
+  url                  String
+  status               SiteStatus           @default(PENDING_CONNECTION)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  wordpressConnection  WordPressConnection?
+  gscConnections       GscConnection[]
+  audits               Audit[]
+  backlogTasks         BacklogTask[]
+  bulkOperations       BulkOperation[]
+  integrations         Integration[]
+
+  @@unique([organizationId, url])
+  @@index([organizationId, status])
+}
+
+model WordPressConnection {
+  id              String    @id @default(uuid())
+  siteId          String    @unique
+  tokenHash       String
+  tokenVersion    Int       @default(1)
+  lastSyncAt      DateTime?
+  disconnectedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  site            Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model GscConnection {
+  id                    String    @id @default(uuid())
+  siteId                String
+  googleAccountEmail    String
+  propertyUrl           String
+  encryptedRefreshToken String
+  disconnectedAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  site                  Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, propertyUrl])
+}
+
+model Audit {
+  id             String        @id @default(uuid())
+  siteId         String
+  organizationId String
+  status         AuditStatus   @default(QUEUED)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  site           Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  issues         AuditIssue[]
+
+  @@index([organizationId, siteId, status])
+}
+
+model AuditIssue {
+  id              String           @id @default(uuid())
+  auditId          String
+  siteId           String
+  organizationId   String
+  issueType        String
+  status           AuditIssueStatus @default(OPEN)
+  severity         IssueSeverity
+  affectedUrl      String
+  evidence         Json
+  explanation      String
+  recommendedAction String
+  potentialImpact  String?
+  fingerprint      String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  audit            Audit            @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  backlogTasks     BacklogTask[]
+
+  @@unique([organizationId, siteId, fingerprint])
+  @@index([organizationId, siteId, status, severity])
+}
+
+model BacklogTask {
+  id              String            @id @default(uuid())
+  organizationId  String
+  siteId          String
+  auditIssueId    String?
+  title           String
+  url             String
+  issueType       String
+  status          BacklogTaskStatus @default(TODO)
+  severity        IssueSeverity
+  potentialImpact String?
+  effortEstimate  Int?
+  assigneeId      String?
+  dueDate         DateTime?
+  tags            String[]          @default([])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  site            Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  auditIssue      AuditIssue?       @relation(fields: [auditIssueId], references: [id], onDelete: SetNull)
+  assignee        User?             @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments        TaskComment[]
+
+  @@index([organizationId, siteId, status])
+}
+
+model TaskComment {
+  id        String      @id @default(uuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime    @default(now())
+  task      BacklogTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model BulkOperation {
+  id             String              @id @default(uuid())
+  organizationId String
+  siteId         String
+  type           String
+  status         BulkOperationStatus @default(DRAFT)
+  preview        Json?
+  dryRunResult   Json?
+  confirmedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  site           Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  items          BulkOperationItem[]
+
+  @@index([organizationId, siteId, status])
+}
+
+model BulkOperationItem {
+  id              String        @id @default(uuid())
+  bulkOperationId String
+  externalId      String
+  status          String
+  beforeValue     Json?
+  afterValue      Json?
+  error           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  bulkOperation   BulkOperation @relation(fields: [bulkOperationId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+}
+
+model ApiKey {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  keyHash        String
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, revokedAt])
+}
+
+model Notification {
+  id             String       @id @default(uuid())
+  organizationId String
+  type           String
+  title          String
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Integration {
+  id        String   @id @default(uuid())
+  siteId    String
+  type      String
+  status    String
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, type])
+}
+
+model UsageMetric {
+  id             String       @id @default(uuid())
+  organizationId String
+  metric         String
+  value          Int
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, metric, periodStart])
+}
+

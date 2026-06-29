@@ -1,0 +1,20 @@
+{
+  "name": "sccc/seo-content-control-center",
+  "description": "WordPress plugin for SEO Content Control Center.",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "autoload": {
+    "psr-4": {
+      "SCCC\\Plugin\\": "includes/"
+    }
+  },
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "wp-coding-standards/wpcs": "^3.1"
+  },
+  "scripts": {
+    "lint": "find . -name '*.php' -print0 | xargs -0 -n1 php -l"
+  }
+}

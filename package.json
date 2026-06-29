@@ -1,0 +1,33 @@
+{
+  "name": "seo-content-control-center",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SEO Content Control Center for WordPress monorepo.",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present && npm run lint:php",
+    "lint:php": "find wordpress-plugin -name '*.php' -print0 | xargs -0 -n1 php -l",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "npm run test --workspaces --if-present && npm run test:php",
+    "test:php": "php wordpress-plugin/tests/bootstrap.php",
+    "db:validate": "npm run db:validate -w @sccc/database"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.27.0",
+    "eslint": "9.27.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "8.20.0",
+    "vitest": "^4.1.9"
+  }
+}

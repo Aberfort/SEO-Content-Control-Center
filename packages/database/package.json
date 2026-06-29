@@ -1,0 +1,17 @@
+{
+  "name": "@sccc/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public prisma validate --schema prisma/schema.prisma",
+    "db:validate": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public prisma validate --schema prisma/schema.prisma",
+    "lint": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public prisma validate --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.1"
+  }
+}
