@@ -125,7 +125,7 @@ Lists active, invited, suspended, and canceled members for the organization.
 
 `POST /api/organizations/:organizationId/members`
 
-Invites a member. `OWNER` cannot be assigned through this endpoint. The response includes the member summary and a one-time invite URL; store or send the raw URL immediately because only the token hash is persisted.
+Invites a member. `OWNER` cannot be assigned through this endpoint. The response includes the member summary, a one-time invite URL, and email delivery status. Store or send the raw URL immediately because only the token hash is persisted.
 
 Request:
 
@@ -138,7 +138,7 @@ Request:
 
 `POST /api/organizations/:organizationId/members/:memberId/resend`
 
-Rotates the token for a pending invite and returns a fresh invite URL.
+Rotates the token for a pending invite and returns a fresh invite URL. The response includes email delivery status for the resent invite.
 
 `POST /api/organizations/:organizationId/members/:memberId/cancel`
 

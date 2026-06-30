@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 6
+
+- Added invite email delivery boundary with noop and SMTP transports.
+- Added Mailpit-compatible SMTP configuration for local invite testing.
+- Connected invite creation and resend flows to email delivery.
+- Added email delivery status to invite API responses.
+- Added tests for email configuration, delivery fallback, and invite email rendering.
+- Documented local Mailpit setup, email environment variables, and delivery QA checks.
+
 ### Iteration 5
 
 - Added hashed invite tokens, invite expiry, accepted/canceled timestamps, and `CANCELED` member status.

@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { sendInviteEmail } from "@/lib/email";
 import { jsonError, unauthorizedError, validationError } from "@/lib/http";
 
 type RouteContext = {
@@ -47,8 +48,17 @@ export async function POST(request: Request, context: RouteContext) {
       email: readString(body, "email"),
       role: readString(body, "role") as never
     });
+    const organization = await repository.getOrganizationSummary(user.id, organizationId);
+    const emailDelivery = await sendInviteEmail({
+      to: invite.member.email,
+      inviteUrl: invite.inviteUrl,
+      organizationName: organization?.name ?? "your workspace",
+      inviterEmail: user.email,
+      role: invite.member.role,
+      expiresAt: invite.expiresAt
+    });
 
-    return Response.json({ data: invite }, { status: 201 });
+    return Response.json({ data: invite, emailDelivery }, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
       return validationError(error);

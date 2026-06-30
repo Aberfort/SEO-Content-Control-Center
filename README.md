@@ -56,6 +56,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - organization bootstrap UI/API;
 - site creation UI/API;
 - member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
+- SMTP invite email delivery with local Mailpit support;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
@@ -84,3 +85,16 @@ The SaaS app uses DB-backed credentials auth.
 - Logout: available from the SaaS sidebar after login.
 
 Passwords are hashed with `scrypt`. Session cookies are HTTP-only, same-site, and store only an opaque token while the database stores the token hash.
+
+## Email Delivery
+
+Invite emails use `noop` delivery by default. To send invites to local Mailpit:
+
+```bash
+SCCC_EMAIL_TRANSPORT=smtp
+SCCC_SMTP_HOST=localhost
+SCCC_SMTP_PORT=1025
+SCCC_EMAIL_FROM="SEO Content Control Center <no-reply@localhost>"
+```
+
+Mailpit's inbox is available at `http://localhost:8025`.

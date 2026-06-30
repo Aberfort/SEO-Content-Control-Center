@@ -1,5 +1,6 @@
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { sendInviteEmail } from "@/lib/email";
 import { jsonError, unauthorizedError } from "@/lib/http";
 
 type RouteContext = {
@@ -25,8 +26,17 @@ export async function POST(_request: Request, context: RouteContext) {
       organizationId,
       memberId
     });
+    const organization = await repository.getOrganizationSummary(user.id, organizationId);
+    const emailDelivery = await sendInviteEmail({
+      to: invite.member.email,
+      inviteUrl: invite.inviteUrl,
+      organizationName: organization?.name ?? "your workspace",
+      inviterEmail: user.email,
+      role: invite.member.role,
+      expiresAt: invite.expiresAt
+    });
 
-    return Response.json({ data: invite });
+    return Response.json({ data: invite, emailDelivery });
   } catch (error) {
     if (error instanceof Error && error.message === "MEMBER_NOT_FOUND") {
       return jsonError(404, "MEMBER_NOT_FOUND", "Member was not found.");

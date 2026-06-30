@@ -13,6 +13,12 @@
 - MinIO for S3-compatible storage.
 - Mailpit for local email testing.
 
+## Email Delivery
+
+- Development can use Mailpit through `SCCC_EMAIL_TRANSPORT=smtp`, `SCCC_SMTP_HOST=localhost`, and `SCCC_SMTP_PORT=1025`.
+- Staging and production should use managed SMTP credentials from the secret manager.
+- `SCCC_EMAIL_TRANSPORT=noop` disables delivery and should only be used for tests or local UI work.
+
 ## Database Commands
 
 ```bash

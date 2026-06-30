@@ -12,6 +12,7 @@ import {
   registerWithPassword,
   requireCurrentUser
 } from "@/lib/auth";
+import { sendInviteEmail } from "@/lib/email";
 
 export type ActionState = {
   ok: boolean;
@@ -70,12 +71,31 @@ export async function inviteMemberAction(
   const repository = getAppRepository();
 
   try {
-    await repository.inviteMember({
+    const invite = await repository.inviteMember({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
       email: String(formData.get("email") ?? ""),
       role: String(formData.get("role") ?? "VIEWER") as never
     });
+    const organization = await repository.getOrganizationSummary(
+      user.id,
+      invite.member.organizationId
+    );
+    const emailDelivery = await sendInviteEmail({
+      to: invite.member.email,
+      inviteUrl: invite.inviteUrl,
+      organizationName: organization?.name ?? "your workspace",
+      inviterEmail: user.email,
+      role: invite.member.role,
+      expiresAt: invite.expiresAt
+    });
+
+    if (emailDelivery.status === "failed") {
+      return {
+        ok: false,
+        message: "Invite was created, but the email could not be sent."
+      };
+    }
   } catch (error) {
     return actionError(error, "Could not invite member.");
   }
@@ -92,11 +112,30 @@ export async function resendInviteAction(
   const repository = getAppRepository();
 
   try {
-    await repository.resendInvite({
+    const invite = await repository.resendInvite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
       memberId: String(formData.get("memberId") ?? "")
     });
+    const organization = await repository.getOrganizationSummary(
+      user.id,
+      invite.member.organizationId
+    );
+    const emailDelivery = await sendInviteEmail({
+      to: invite.member.email,
+      inviteUrl: invite.inviteUrl,
+      organizationName: organization?.name ?? "your workspace",
+      inviterEmail: user.email,
+      role: invite.member.role,
+      expiresAt: invite.expiresAt
+    });
+
+    if (emailDelivery.status === "failed") {
+      return {
+        ok: false,
+        message: "Invite was rotated, but the email could not be sent."
+      };
+    }
   } catch (error) {
     return actionError(error, "Could not resend invite.");
   }

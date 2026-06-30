@@ -12,6 +12,7 @@
 - Session tokens must be stored as hashes in the database.
 - Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
+- Invite email bodies must not log raw tokens; raw invite URLs may appear only in the intended email/API response.
 - Rate limiting for auth, plugin API, forms, webhooks, and bulk operations.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.
