@@ -20,8 +20,8 @@
 - Password reset and email verification.
 - Organization creation. Status: Prisma-backed foundation implemented.
 - PostgreSQL persistence. Status: initial Prisma migration, seed, and repository implemented.
-- Invitations.
-- Roles and permissions. Status: RBAC utility and tenant access checks implemented.
+- Invitations. Status: member invite foundation implemented without email delivery.
+- Roles and permissions. Status: RBAC utility, tenant access checks, and member role management implemented.
 - Site creation. Status: Prisma-backed foundation implemented.
 - Dashboard empty states. Status: implemented for no-org/no-site/no-audit states.
 - Onboarding checklist.

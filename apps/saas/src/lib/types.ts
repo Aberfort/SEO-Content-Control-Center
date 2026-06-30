@@ -19,6 +19,14 @@ export type OrganizationMember = {
   userId: string;
   role: Role;
   status: "ACTIVE" | "INVITED" | "SUSPENDED";
+  invitedEmail?: string | null;
+};
+
+export type OrganizationMemberSummary = OrganizationMember & {
+  email: string;
+  name: string | null;
+  invitedEmail: string | null;
+  createdAt: string;
 };
 
 export type Site = {

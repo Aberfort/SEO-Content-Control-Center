@@ -40,4 +40,37 @@ describe("app repository", () => {
       "site.created"
     ]);
   });
+
+  it("invites members and updates non-owner roles through the repository contract", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Member Ops"
+    });
+
+    const invited = await repository.inviteMember({
+      user,
+      organizationId: organization.id,
+      email: "editor@example.com",
+      role: "EDITOR"
+    });
+
+    expect(invited.status).toBe("INVITED");
+    expect(invited.role).toBe("EDITOR");
+
+    const updated = await repository.updateMemberRole({
+      user,
+      organizationId: organization.id,
+      memberId: invited.id,
+      role: "SEO_MANAGER"
+    });
+
+    expect(updated.role).toBe("SEO_MANAGER");
+
+    const members = await repository.listMembersForOrganization(user.id, organization.id);
+    expect(members.map((member) => member.email).sort()).toEqual([
+      "editor@example.com",
+      "repository@example.com"
+    ]);
+  });
 });

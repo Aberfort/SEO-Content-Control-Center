@@ -28,16 +28,64 @@ export async function registerWithPassword(input: unknown): Promise<AppUser> {
     }
   });
 
-  if (existing) {
+  if (existing?.passwordHash) {
     throw new Error("EMAIL_ALREADY_REGISTERED");
   }
 
-  const user = await prisma.user.create({
-    data: {
-      email: parsed.email,
-      name: parsed.name,
-      passwordHash: hashPassword(parsed.password)
+  const user = await prisma.$transaction(async (tx) => {
+    if (!existing) {
+      return tx.user.create({
+        data: {
+          email: parsed.email,
+          name: parsed.name,
+          passwordHash: hashPassword(parsed.password)
+        }
+      });
     }
+
+    const invitedMemberships = await tx.organizationMember.findMany({
+      where: {
+        userId: existing.id,
+        status: "INVITED"
+      }
+    });
+
+    const updatedUser = await tx.user.update({
+      where: {
+        id: existing.id
+      },
+      data: {
+        name: parsed.name,
+        passwordHash: hashPassword(parsed.password),
+        memberships: {
+          updateMany: {
+            where: {
+              status: "INVITED"
+            },
+            data: {
+              status: "ACTIVE"
+            }
+          }
+        }
+      }
+    });
+
+    if (invitedMemberships.length > 0) {
+      await tx.activityLog.createMany({
+        data: invitedMemberships.map((member) => ({
+          organizationId: member.organizationId,
+          userId: existing.id,
+          action: "member.accepted_invite",
+          entityType: "OrganizationMember",
+          entityId: member.id,
+          metadata: {
+            email: parsed.email
+          }
+        }))
+      });
+    }
+
+    return updatedUser;
   });
 
   const appUser = mapUser(user);

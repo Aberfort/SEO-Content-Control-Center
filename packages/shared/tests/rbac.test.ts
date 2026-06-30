@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { assertPermission, hasPermission } from "../src/rbac";
 import {
+  inviteMemberSchema,
   loginSchema,
   organizationCreateSchema,
   registerSchema,
-  siteCreateSchema
+  siteCreateSchema,
+  updateMemberRoleSchema
 } from "../src/schemas";
 
 describe("RBAC", () => {
@@ -67,5 +69,31 @@ describe("shared schemas", () => {
         password: "x"
       }).email
     ).toBe("user@example.com");
+  });
+
+  it("validates member invite and role update inputs", () => {
+    expect(
+      inviteMemberSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        email: "EDITOR@EXAMPLE.COM",
+        role: "EDITOR"
+      }).email
+    ).toBe("editor@example.com");
+
+    expect(() =>
+      inviteMemberSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        email: "owner@example.com",
+        role: "OWNER"
+      })
+    ).toThrow();
+
+    expect(() =>
+      updateMemberRoleSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        memberId: "22222222-2222-4222-8222-222222222222",
+        role: "SEO_MANAGER"
+      })
+    ).not.toThrow();
   });
 });

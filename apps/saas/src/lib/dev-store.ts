@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import {
   assertPermission,
   hasPermission,
+  inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateMemberRoleSchema,
+  type InviteMemberInput,
   type Permission,
   type Role,
-  type SiteCreateInput
+  type SiteCreateInput,
+  type UpdateMemberRoleInput
 } from "@sccc/shared";
 
 import type {
@@ -15,6 +19,7 @@ import type {
   AppUser,
   Organization,
   OrganizationMember,
+  OrganizationMemberSummary,
   OrganizationSummary,
   Site
 } from "./types";
@@ -37,6 +42,20 @@ type CreateSiteInput = {
   organizationId: string;
   name: string;
   url: string;
+};
+
+type InviteMemberInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  email: string;
+  role: Role;
+};
+
+type UpdateMemberRoleInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  role: Role;
 };
 
 type AccessInput = {
@@ -96,6 +115,24 @@ export function ensureUser(user: AppUser): AppUser {
   if (existing) {
     return existing;
   }
+
+  store.users.push(user);
+  return user;
+}
+
+function ensurePlaceholderUser(email: string): AppUser {
+  const store = getDevStore();
+  const existing = store.users.find((candidate) => candidate.email === email);
+
+  if (existing) {
+    return existing;
+  }
+
+  const user: AppUser = {
+    id: randomUUID(),
+    email,
+    name: email
+  };
 
   store.users.push(user);
   return user;
@@ -302,6 +339,131 @@ export function listActivityLogsForOrganization(
   return getDevStore()
     .activityLogs.filter((log) => log.organizationId === organizationId)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export function listMembersForOrganization(
+  userId: string,
+  organizationId: string
+): OrganizationMemberSummary[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "organization:read"
+  });
+
+  const store = getDevStore();
+
+  return store.members
+    .filter((member) => member.organizationId === organizationId)
+    .map((member) => {
+      const user = store.users.find((candidate) => candidate.id === member.userId);
+
+      return {
+        ...member,
+        email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
+        name: user?.name ?? null,
+        invitedEmail: member.invitedEmail ?? null,
+        createdAt: nowIso()
+      };
+    });
+}
+
+export function inviteMember(input: InviteMemberInputWithUser): OrganizationMemberSummary {
+  const parsed: InviteMemberInput = inviteMemberSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "members:invite"
+  });
+
+  const invitedUser = ensurePlaceholderUser(parsed.email);
+  const existing = store.members.find(
+    (member) => member.organizationId === parsed.organizationId && member.userId === invitedUser.id
+  );
+
+  if (existing) {
+    throw new Error("MEMBER_ALREADY_EXISTS");
+  }
+
+  const member: OrganizationMember = {
+    id: randomUUID(),
+    organizationId: parsed.organizationId,
+    userId: invitedUser.id,
+    role: parsed.role,
+    status: "INVITED",
+    invitedEmail: parsed.email
+  };
+
+  store.members.push(member);
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "member.invited",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      email: parsed.email,
+      role: parsed.role
+    }
+  });
+
+  return {
+    ...member,
+    email: invitedUser.email,
+    name: invitedUser.name,
+    invitedEmail: parsed.email,
+    createdAt: nowIso()
+  };
+}
+
+export function updateMemberRole(input: UpdateMemberRoleInputWithUser): OrganizationMemberSummary {
+  const parsed: UpdateMemberRoleInput = updateMemberRoleSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "members:manage"
+  });
+
+  const member = store.members.find(
+    (candidate) =>
+      candidate.id === parsed.memberId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!member) {
+    throw new Error("MEMBER_NOT_FOUND");
+  }
+
+  if (member.userId === input.user.id) {
+    throw new Error("CANNOT_CHANGE_OWN_ROLE");
+  }
+
+  if (member.role === "OWNER") {
+    throw new Error("OWNER_ROLE_IS_PROTECTED");
+  }
+
+  member.role = parsed.role;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "member.role_updated",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      role: parsed.role
+    }
+  });
+
+  const user = store.users.find((candidate) => candidate.id === member.userId);
+
+  return {
+    ...member,
+    email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
+    name: user?.name ?? null,
+    invitedEmail: member.invitedEmail ?? null,
+    createdAt: nowIso()
+  };
 }
 
 export function addMemberForTest(input: {

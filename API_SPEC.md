@@ -111,6 +111,40 @@ Current MVP activity actions:
 
 - `organization.created`
 - `site.created`
+- `member.invited`
+- `member.role_updated`
+- `member.accepted_invite`
+
+## Members
+
+`GET /api/organizations/:organizationId/members`
+
+Lists active and invited members for the organization.
+
+`POST /api/organizations/:organizationId/members`
+
+Invites a member. `OWNER` cannot be assigned through this endpoint.
+
+Request:
+
+```json
+{
+  "email": "editor@example.com",
+  "role": "EDITOR"
+}
+```
+
+`PATCH /api/organizations/:organizationId/members/:memberId`
+
+Updates a non-owner member role. Users cannot change their own role.
+
+Request:
+
+```json
+{
+  "role": "SEO_MANAGER"
+}
+```
 
 ## WordPress Connection
 

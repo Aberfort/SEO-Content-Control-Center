@@ -28,6 +28,11 @@
 - Current user can create an organization.
 - Organization creator becomes Owner.
 - Current user can list only their organizations.
+- Owner/Admin can invite members.
+- Viewer cannot invite members.
+- Owner/Admin can update non-owner member roles.
+- User cannot change their own role.
+- Owner role cannot be changed through generic role management.
 - Owner can create a site inside their organization.
 - Viewer cannot create a site.
 - Duplicate site URLs are rejected inside an organization.

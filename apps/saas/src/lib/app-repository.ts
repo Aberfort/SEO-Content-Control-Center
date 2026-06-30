@@ -2,21 +2,34 @@ import { prisma } from "@sccc/database";
 import {
   assertPermission,
   hasPermission,
+  inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateMemberRoleSchema,
+  type InviteMemberInput,
   type Permission,
-  type SiteCreateInput
+  type SiteCreateInput,
+  type UpdateMemberRoleInput
 } from "@sccc/shared";
 
 import {
   createOrganization as createDevOrganization,
   createSite as createDevSite,
   getOrganizationSummary as getDevOrganizationSummary,
+  inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
-  listSitesForOrganization as listDevSitesForOrganization
+  listSitesForOrganization as listDevSitesForOrganization,
+  updateMemberRole as updateDevMemberRole
 } from "./dev-store";
-import type { ActivityLog, AppUser, OrganizationSummary, Site } from "./types";
+import type {
+  ActivityLog,
+  AppUser,
+  OrganizationMemberSummary,
+  OrganizationSummary,
+  Site
+} from "./types";
 
 type CreateOrganizationInput = {
   user: AppUser;
@@ -30,6 +43,20 @@ type CreateSiteInput = {
   url: string;
 };
 
+type InviteMemberInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  email: string;
+  role: InviteMemberInput["role"];
+};
+
+type UpdateMemberRoleInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  role: UpdateMemberRoleInput["role"];
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -40,6 +67,12 @@ type AppRepository = {
   createSite(input: CreateSiteInput): Promise<Site>;
   listSitesForOrganization(userId: string, organizationId: string): Promise<Site[]>;
   listActivityLogsForOrganization(userId: string, organizationId: string): Promise<ActivityLog[]>;
+  listMembersForOrganization(
+    userId: string,
+    organizationId: string
+  ): Promise<OrganizationMemberSummary[]>;
+  inviteMember(input: InviteMemberInputWithUser): Promise<OrganizationMemberSummary>;
+  updateMemberRole(input: UpdateMemberRoleInputWithUser): Promise<OrganizationMemberSummary>;
 };
 
 export function getAppRepository(): AppRepository {
@@ -66,6 +99,15 @@ const devStoreRepository: AppRepository = {
   },
   async listActivityLogsForOrganization(userId, organizationId) {
     return listDevActivityLogsForOrganization(userId, organizationId);
+  },
+  async listMembersForOrganization(userId, organizationId) {
+    return listDevMembersForOrganization(userId, organizationId);
+  },
+  async inviteMember(input) {
+    return inviteDevMember(input);
+  },
+  async updateMemberRole(input) {
+    return updateDevMemberRole(input);
   }
 };
 
@@ -285,6 +327,148 @@ const prismaRepository: AppRepository = {
     });
 
     return logs.map(mapActivityLog);
+  },
+
+  async listMembersForOrganization(userId, organizationId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "organization:read"
+    });
+
+    const members = await prisma.organizationMember.findMany({
+      where: {
+        organizationId
+      },
+      include: {
+        user: true
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    return members.map(mapMember);
+  },
+
+  async inviteMember(input) {
+    const parsed: InviteMemberInput = inviteMemberSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "members:invite"
+    });
+
+    try {
+      const member = await prisma.$transaction(async (tx) => {
+        const invitedUser = await tx.user.upsert({
+          where: {
+            email: parsed.email
+          },
+          update: {},
+          create: {
+            email: parsed.email,
+            name: parsed.email
+          }
+        });
+
+        const created = await tx.organizationMember.create({
+          data: {
+            organizationId: parsed.organizationId,
+            userId: invitedUser.id,
+            role: parsed.role,
+            status: invitedUser.passwordHash ? "ACTIVE" : "INVITED",
+            invitedEmail: parsed.email
+          },
+          include: {
+            user: true
+          }
+        });
+
+        await tx.activityLog.create({
+          data: {
+            organizationId: parsed.organizationId,
+            userId: input.user.id,
+            action: "member.invited",
+            entityType: "OrganizationMember",
+            entityId: created.id,
+            metadata: {
+              email: parsed.email,
+              role: parsed.role
+            }
+          }
+        });
+
+        return created;
+      });
+
+      return mapMember(member);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new Error("MEMBER_ALREADY_EXISTS");
+      }
+
+      throw error;
+    }
+  },
+
+  async updateMemberRole(input) {
+    const parsed: UpdateMemberRoleInput = updateMemberRoleSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "members:manage"
+    });
+
+    const existing = await prisma.organizationMember.findFirst({
+      where: {
+        id: parsed.memberId,
+        organizationId: parsed.organizationId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MEMBER_NOT_FOUND");
+    }
+
+    if (existing.userId === input.user.id) {
+      throw new Error("CANNOT_CHANGE_OWN_ROLE");
+    }
+
+    if (existing.role === "OWNER") {
+      throw new Error("OWNER_ROLE_IS_PROTECTED");
+    }
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: parsed.memberId
+        },
+        data: {
+          role: parsed.role
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "member.role_updated",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            role: parsed.role
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMember(member);
   }
 };
 
@@ -408,6 +592,32 @@ function mapActivityLog(log: {
     entityId: log.entityId,
     metadata: isMetadataObject(log.metadata) ? log.metadata : {},
     createdAt: log.createdAt.toISOString()
+  };
+}
+
+function mapMember(member: {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: OrganizationMemberSummary["role"];
+  status: OrganizationMemberSummary["status"];
+  invitedEmail: string | null;
+  createdAt: Date;
+  user: {
+    email: string;
+    name: string | null;
+  };
+}): OrganizationMemberSummary {
+  return {
+    id: member.id,
+    organizationId: member.organizationId,
+    userId: member.userId,
+    role: member.role,
+    status: member.status,
+    email: member.user.email,
+    name: member.user.name,
+    invitedEmail: member.invitedEmail,
+    createdAt: member.createdAt.toISOString()
   };
 }
 

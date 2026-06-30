@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 4
+
+- Added member invite validation and assignable role schemas.
+- Added organization member listing, invite, and role update repository methods.
+- Added members UI on the SaaS setup dashboard.
+- Added protected members API routes.
+- Added role update controls with owner/self-change guardrails.
+- Added invited-user registration activation.
+- Added tests for repository invite and role update behavior.
+
 ### Iteration 3
 
 - Added `Session` data model and migration.

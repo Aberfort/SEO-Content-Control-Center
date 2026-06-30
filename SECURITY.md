@@ -4,6 +4,8 @@
 
 - Organization-scoped authorization on every SaaS data access.
 - RBAC for Owner, Admin, SEO Manager, Editor, Writer, Viewer, Billing Manager.
+- Owner role changes require a dedicated ownership transfer flow.
+- Generic member role management must not allow self-demotion.
 - CSRF protection for browser mutations.
 - Password hashes use `scrypt`; plaintext passwords must never be stored.
 - Session cookies must be HTTP-only, same-site, and secure in production.

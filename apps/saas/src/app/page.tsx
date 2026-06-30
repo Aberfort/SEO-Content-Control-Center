@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
+import { MemberRoleForm } from "@/components/member-role-form";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -19,6 +21,9 @@ export default async function AppHomePage() {
   const repository = getAppRepository();
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
+  const activeMembers = activeOrganization
+    ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
+    : [];
   const totalSites = organizations.reduce(
     (count, organization) => count + organization.sites.length,
     0
@@ -151,6 +156,54 @@ export default async function AppHomePage() {
             </ul>
           ) : (
             <p className="empty-copy">Activity will appear after organization and site actions.</p>
+          )}
+        </section>
+
+        <section className="panel" aria-labelledby="members-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="members-title">Members</h2>
+              <p>Invite teammates and manage non-owner roles inside the current organization.</p>
+            </div>
+          </div>
+
+          {activeOrganization ? (
+            <>
+              <InviteMemberForm organizationId={activeOrganization.id} />
+              <div className="table-wrap members-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Status</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeMembers.map((member) => (
+                      <tr key={member.id}>
+                        <td>
+                          <strong>{member.name ?? member.email}</strong>
+                          <span>{member.email}</span>
+                        </td>
+                        <td>
+                          <span className="status-pill">{member.status.toLowerCase()}</span>
+                        </td>
+                        <td>
+                          <MemberRoleForm
+                            organizationId={activeOrganization.id}
+                            member={member}
+                            currentUserId={user.id}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <p className="empty-copy">Create an organization before inviting members.</p>
           )}
         </section>
       </main>

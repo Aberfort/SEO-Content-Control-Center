@@ -40,6 +40,27 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128)
 });
 
+export const assignableMemberRoleSchema = z.enum([
+  "ADMIN",
+  "SEO_MANAGER",
+  "EDITOR",
+  "WRITER",
+  "VIEWER",
+  "BILLING_MANAGER"
+]);
+
+export const inviteMemberSchema = z.object({
+  organizationId: organizationIdSchema,
+  email: authEmailSchema,
+  role: assignableMemberRoleSchema
+});
+
+export const updateMemberRoleSchema = z.object({
+  organizationId: organizationIdSchema,
+  memberId: z.string().uuid(),
+  role: assignableMemberRoleSchema
+});
+
 export const pluginSyncItemSchema = z.object({
   externalId: z.string().min(1).max(191),
   type: z.enum(["post", "page", "custom_post_type", "taxonomy"]),
@@ -60,5 +81,8 @@ export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
+export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
