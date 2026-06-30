@@ -1,6 +1,7 @@
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, unauthorizedError } from "@/lib/http";
+import { assertRequestSameOrigin } from "@/lib/csrf";
+import { jsonError, securityError, unauthorizedError } from "@/lib/http";
 
 type RouteContext = {
   params: Promise<{
@@ -9,7 +10,19 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
@@ -28,6 +41,12 @@ export async function POST(_request: Request, context: RouteContext) {
 
     return Response.json({ data: member });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof Error && error.message === "MEMBER_NOT_FOUND") {
       return jsonError(404, "MEMBER_NOT_FOUND", "Member was not found.");
     }

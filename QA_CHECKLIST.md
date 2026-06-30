@@ -25,6 +25,8 @@
 - User can log in with email/password.
 - Logout clears the active session.
 - Protected SaaS APIs return 401 without a session.
+- Mutating SaaS APIs reject missing or cross-origin `Origin` headers.
+- Login and registration are rate limited by client/IP and email.
 - Current user can create an organization.
 - Organization creator becomes Owner.
 - Current user can list only their organizations.
@@ -32,6 +34,7 @@
 - Invite creation returns a one-time URL while only the token hash is stored.
 - Invite creation sends an email when SMTP delivery is enabled.
 - Invite resend rotates the token and sends a new email when SMTP delivery is enabled.
+- Invite creation, resend, and acceptance are rate limited.
 - Invited user can register or log in and accept the invite with the token.
 - User cannot accept an invite for a different email address.
 - Expired, canceled, or already accepted invite tokens are rejected.

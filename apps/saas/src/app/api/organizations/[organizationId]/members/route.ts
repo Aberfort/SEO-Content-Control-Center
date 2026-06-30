@@ -2,8 +2,10 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { assertRequestSameOrigin } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
-import { jsonError, unauthorizedError, validationError } from "@/lib/http";
+import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{
@@ -31,6 +33,18 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
@@ -42,6 +56,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as unknown;
+    assertRateLimit(
+      "invite-send",
+      rateLimitKeyFromHeaders(
+        request.headers,
+        `${user.id}:${organizationId}:${readString(body, "email")}`
+      )
+    );
     const invite = await repository.inviteMember({
       user,
       organizationId,
@@ -60,6 +81,12 @@ export async function POST(request: Request, context: RouteContext) {
 
     return Response.json({ data: invite, emailDelivery }, { status: 201 });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof ZodError) {
       return validationError(error);
     }

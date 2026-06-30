@@ -1,0 +1,40 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  assertRateLimit,
+  checkRateLimit,
+  rateLimitKeyFromHeaders,
+  RateLimitError,
+  resetRateLimitStore
+} from "./rate-limit";
+
+describe("rate limit", () => {
+  beforeEach(() => {
+    resetRateLimitStore();
+  });
+
+  it("allows requests inside the fixed window limit", () => {
+    expect(checkRateLimit("auth-register", "ip:email", 1000)).toMatchObject({
+      allowed: true,
+      remaining: 4
+    });
+  });
+
+  it("blocks requests after the policy limit", () => {
+    for (let index = 0; index < 5; index += 1) {
+      assertRateLimit("auth-register", "ip:email", 1000);
+    }
+
+    expect(() => assertRateLimit("auth-register", "ip:email", 1000)).toThrow(RateLimitError);
+  });
+
+  it("builds keys from forwarded client IP and discriminator", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "203.0.113.10, 10.0.0.1"
+    });
+
+    expect(rateLimitKeyFromHeaders(headers, "USER@EXAMPLE.COM")).toBe(
+      "203.0.113.10:user@example.com"
+    );
+  });
+});

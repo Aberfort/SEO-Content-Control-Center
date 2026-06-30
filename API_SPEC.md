@@ -8,6 +8,8 @@
 - Validation: Zod schemas in the SaaS application and shared packages.
 - Errors: structured JSON with `code`, `message`, and optional `details`.
 - Tenant scope: every organization/site resource is checked against the authenticated principal.
+- Browser mutations require a same-origin `Origin` header that matches `Host`, `X-Forwarded-Host`, or `NEXT_PUBLIC_APP_URL`.
+- Login, registration, invite creation/resend, and invite acceptance are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
 - Persistence: organization, site, and activity APIs use the repository abstraction. Set `SCCC_DATA_STORE=prisma` with `DATABASE_URL` to use PostgreSQL.
 
 ## Health

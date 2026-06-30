@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
@@ -12,7 +13,14 @@ import {
   registerWithPassword,
   requireCurrentUser
 } from "@/lib/auth";
+import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
+import {
+  assertRateLimit,
+  isRateLimitError,
+  rateLimitKeyFromHeaders,
+  type RateLimitPolicy
+} from "@/lib/rate-limit";
 
 export type ActionState = {
   ok: boolean;
@@ -27,6 +35,7 @@ export async function createOrganizationAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
     await repository.createOrganization({
       user,
       name: String(formData.get("name") ?? "")
@@ -48,6 +57,7 @@ export async function createSiteAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
     await repository.createSite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -71,6 +81,11 @@ export async function inviteMemberAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit(
+      "invite-send",
+      `${user.id}:${String(formData.get("organizationId") ?? "")}:${String(formData.get("email") ?? "")}`
+    );
     const invite = await repository.inviteMember({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -112,6 +127,11 @@ export async function resendInviteAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit(
+      "invite-send",
+      `${user.id}:${String(formData.get("organizationId") ?? "")}:${String(formData.get("memberId") ?? "")}`
+    );
     const invite = await repository.resendInvite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -152,6 +172,7 @@ export async function cancelInviteAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
     await repository.cancelInvite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -173,6 +194,8 @@ export async function acceptInviteAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("invite-accept", String(formData.get("token") ?? ""));
     await repository.acceptInvite({
       user,
       token: String(formData.get("token") ?? "")
@@ -193,6 +216,7 @@ export async function updateMemberRoleAction(
   const repository = getAppRepository();
 
   try {
+    await assertServerActionSameOrigin();
     await repository.updateMemberRole({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -212,6 +236,8 @@ export async function registerAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-register", String(formData.get("email") ?? ""));
     await registerWithPassword({
       name: String(formData.get("name") ?? ""),
       email: String(formData.get("email") ?? ""),
@@ -230,6 +256,8 @@ export async function loginAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-login", String(formData.get("email") ?? ""));
     await loginWithPassword({
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? "")
@@ -243,12 +271,27 @@ export async function loginAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  await assertServerActionSameOrigin();
   await logoutCurrentSession();
   revalidatePath("/");
   redirect("/auth/login");
 }
 
 function actionError(error: unknown, fallback: string): ActionState {
+  if (isCsrfError(error)) {
+    return {
+      ok: false,
+      message: "Request origin is not allowed. Refresh the page and try again."
+    };
+  }
+
+  if (isRateLimitError(error)) {
+    return {
+      ok: false,
+      message: "Too many attempts. Please try again later."
+    };
+  }
+
   if (error instanceof ZodError) {
     return {
       ok: false,
@@ -361,4 +404,12 @@ function readRedirectTo(formData: FormData): string {
   }
 
   return redirectTo;
+}
+
+async function assertServerActionRateLimit(
+  policy: RateLimitPolicy,
+  discriminator: string
+): Promise<void> {
+  const headerStore = await headers();
+  assertRateLimit(policy, rateLimitKeyFromHeaders(headerStore, discriminator));
 }

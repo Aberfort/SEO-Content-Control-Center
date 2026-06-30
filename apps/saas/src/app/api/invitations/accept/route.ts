@@ -2,26 +2,51 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, unauthorizedError, validationError } from "@/lib/http";
+import { assertRequestSameOrigin } from "@/lib/csrf";
+import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
+import { hashInviteToken } from "@/lib/invite-token";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
     return unauthorizedError();
   }
 
-  const repository = getAppRepository();
-
   try {
     const body = (await request.json()) as unknown;
+    const token = readString(body, "token");
+    assertRateLimit(
+      "invite-accept",
+      rateLimitKeyFromHeaders(request.headers, hashInviteToken(token))
+    );
+    const repository = getAppRepository();
     const member = await repository.acceptInvite({
       user,
-      token: readString(body, "token")
+      token
     });
 
     return Response.json({ data: member });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof ZodError) {
       return validationError(error);
     }

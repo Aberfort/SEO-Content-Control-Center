@@ -2,7 +2,8 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, unauthorizedError, validationError } from "@/lib/http";
+import { assertRequestSameOrigin } from "@/lib/csrf";
+import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -16,6 +17,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
@@ -33,6 +46,12 @@ export async function POST(request: Request) {
 
     return Response.json({ data: organization }, { status: 201 });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof ZodError) {
       return validationError(error);
     }

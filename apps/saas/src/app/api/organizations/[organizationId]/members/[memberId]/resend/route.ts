@@ -1,7 +1,9 @@
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { assertRequestSameOrigin } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
-import { jsonError, unauthorizedError } from "@/lib/http";
+import { jsonError, securityError, unauthorizedError } from "@/lib/http";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{
@@ -10,7 +12,19 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
@@ -21,6 +35,10 @@ export async function POST(_request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
+    assertRateLimit(
+      "invite-send",
+      rateLimitKeyFromHeaders(request.headers, `${user.id}:${organizationId}:${memberId}`)
+    );
     const invite = await repository.resendInvite({
       user,
       organizationId,
@@ -38,6 +56,12 @@ export async function POST(_request: Request, context: RouteContext) {
 
     return Response.json({ data: invite, emailDelivery });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof Error && error.message === "MEMBER_NOT_FOUND") {
       return jsonError(404, "MEMBER_NOT_FOUND", "Member was not found.");
     }

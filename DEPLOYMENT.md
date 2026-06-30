@@ -52,6 +52,11 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Database: connection and migration status.
 - Redis: connection and queue health.
 
+## Security Controls
+
+- Mutating browser/API requests require same-origin `Origin` headers.
+- Current rate limits are process-local fixed windows for the MVP. Move them to Redis before running more than one SaaS instance.
+
 ## Scaling Plan
 
 - 10 sites: single web instance, single worker, managed PostgreSQL and Redis.

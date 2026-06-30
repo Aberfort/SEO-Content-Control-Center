@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 7
+
+- Added same-origin CSRF guard for mutating JSON API routes and server actions.
+- Added fixed-window rate limiting for login, registration, invite creation/resend, and invite acceptance.
+- Added structured `CSRF_INVALID` and `RATE_LIMITED` API errors with `Retry-After` for rate limits.
+- Added tests for CSRF origin matching and rate-limit behavior.
+- Documented browser mutation security checks and MVP rate-limit scope.
+
 ### Iteration 6
 
 - Added invite email delivery boundary with noop and SMTP transports.
