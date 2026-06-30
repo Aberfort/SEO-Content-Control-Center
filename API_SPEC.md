@@ -30,9 +30,21 @@ Response:
 
 Creates an organization for the current user.
 
+Request:
+
+```json
+{
+  "name": "Acme SEO"
+}
+```
+
 `GET /api/organizations/:organizationId`
 
 Returns an organization only when the user is a member.
+
+`GET /api/organizations`
+
+Lists organizations for the current user. The response includes the current member role, tenant-scoped sites, and recent activity logs.
 
 ## Sites
 
@@ -40,9 +52,29 @@ Returns an organization only when the user is a member.
 
 Creates a WordPress site.
 
+Request:
+
+```json
+{
+  "name": "Main Blog",
+  "url": "https://example.com"
+}
+```
+
 `GET /api/organizations/:organizationId/sites`
 
 Lists sites scoped to the organization.
+
+## Activity Log
+
+`GET /api/organizations/:organizationId/activity`
+
+Lists activity log entries for an organization when the current user is an active member.
+
+Current MVP activity actions:
+
+- `organization.created`
+- `site.created`
 
 ## WordPress Connection
 

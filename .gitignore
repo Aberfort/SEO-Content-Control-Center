@@ -9,5 +9,5 @@ coverage/
 vendor/
 wordpress-plugin/vendor/
 *.log
+*.tsbuildinfo
 .DS_Store
-

@@ -42,15 +42,34 @@ The marketing app runs on `http://localhost:3001`.
 
 ## Current Iteration
 
-This repository currently contains the Phase 0 foundation:
+This repository currently contains the Phase 0 foundation and the first SaaS MVP slice:
 
 - product and architecture documents;
 - monorepo package boundaries;
 - Prisma data model draft for multi-tenant SaaS;
 - health endpoint;
 - shared RBAC/plan utilities with tests;
+- development auth context;
+- tenant-scoped organization and site access layer;
+- organization bootstrap UI/API;
+- site creation UI/API;
+- basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
 - CI workflow.
 
 No destructive SEO automation is implemented in this iteration.
+
+## Development Auth
+
+The SaaS app currently uses a local development auth context while the real Auth.js flow is not wired yet.
+
+Optional environment variables:
+
+```bash
+SCCC_DEV_USER_ID=00000000-0000-4000-8000-000000000001
+SCCC_DEV_USER_EMAIL=owner@example.com
+SCCC_DEV_USER_NAME="Dev Owner"
+```
+
+This is intentionally limited to local MVP development and must be replaced by real authentication before production use.

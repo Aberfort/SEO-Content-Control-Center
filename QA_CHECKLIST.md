@@ -19,6 +19,17 @@
 - Worker jobs include organization/site scope.
 - Cache/storage/log patterns include organization/site scope.
 
+## SaaS MVP Foundation
+
+- Current user can create an organization.
+- Organization creator becomes Owner.
+- Current user can list only their organizations.
+- Owner can create a site inside their organization.
+- Viewer cannot create a site.
+- Duplicate site URLs are rejected inside an organization.
+- Organization and site creation write activity log entries.
+- Empty dashboard states do not pretend audits or integrations are connected.
+
 ## WordPress Plugin
 
 - PHP files pass syntax checks.

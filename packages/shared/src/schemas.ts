@@ -14,6 +14,17 @@ export const siteCreateSchema = z.object({
   url: z.string().url().max(2048)
 });
 
+export const organizationCreateSchema = z.object({
+  name: z.string().trim().min(2).max(120)
+});
+
+export const organizationSlugSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
 export const pluginSyncItemSchema = z.object({
   externalId: z.string().min(1).max(191),
   type: z.enum(["post", "page", "custom_post_type", "taxonomy"]),
@@ -31,5 +42,6 @@ export const pluginSyncBatchSchema = z.object({
 });
 
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
+export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;

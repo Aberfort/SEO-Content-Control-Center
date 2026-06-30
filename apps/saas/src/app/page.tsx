@@ -1,12 +1,27 @@
 import Link from "next/link";
 
+import { CreateOrganizationForm } from "@/components/create-organization-form";
+import { CreateSiteForm } from "@/components/create-site-form";
+import { requireCurrentUser } from "@/lib/auth";
+import { listOrganizationSummariesForUser } from "@/lib/dev-store";
+
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
-export default function AppHomePage() {
+export default async function AppHomePage() {
+  const { user } = await requireCurrentUser();
+  const organizations = listOrganizationSummariesForUser(user);
+  const activeOrganization = organizations[0] ?? null;
+  const totalSites = organizations.reduce(
+    (count, organization) => count + organization.sites.length,
+    0
+  );
+  const latestActivity = activeOrganization?.activityLogs.slice(0, 5) ?? [];
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">SEO Content Control Center</div>
+        <p className="sidebar-note">{user.email}</p>
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => (
             <Link
@@ -23,7 +38,11 @@ export default function AppHomePage() {
         <div className="page-header">
           <div>
             <p className="eyebrow">Workspace setup</p>
-            <h1>Connect WordPress, then turn audits into work.</h1>
+            <h1>
+              {activeOrganization
+                ? `${activeOrganization.name} is ready for WordPress connection.`
+                : "Create your workspace, then connect WordPress."}
+            </h1>
           </div>
           <Link className="button" href="/dashboard">
             View dashboard
@@ -32,12 +51,12 @@ export default function AppHomePage() {
 
         <section className="grid" aria-label="Setup summary">
           <article className="panel">
-            <h2>No sites connected</h2>
-            <p>Add a WordPress site to start sync, audit checks, and backlog generation.</p>
+            <h2>{organizations.length} organizations</h2>
+            <p>Current dev session user can only see organizations where they are a member.</p>
           </article>
           <article className="panel">
-            <h2>No GSC property</h2>
-            <p>Google Search Console insights will stay empty until OAuth is configured.</p>
+            <h2>{totalSites} WordPress sites</h2>
+            <p>Sites are tenant-scoped and start in pending connection status.</p>
           </article>
           <article className="panel">
             <h2>Safe operations only</h2>
@@ -45,26 +64,85 @@ export default function AppHomePage() {
           </article>
         </section>
 
-        <section className="panel empty-state" aria-labelledby="checklist-title">
-          <h2 id="checklist-title">Onboarding checklist</h2>
-          <ul className="checklist">
-            <li>
-              <span className="status-dot" aria-hidden="true" />
-              Create organization
-            </li>
-            <li>
-              <span className="status-dot" aria-hidden="true" />
-              Add first WordPress site
-            </li>
-            <li>
-              <span className="status-dot" aria-hidden="true" />
-              Install plugin and complete connection flow
-            </li>
-            <li>
-              <span className="status-dot" aria-hidden="true" />
-              Run the first sync and audit
-            </li>
-          </ul>
+        <section className="workspace-grid" aria-label="Workspace setup forms">
+          <article className="panel">
+            <h2>Create organization</h2>
+            <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>
+            <CreateOrganizationForm />
+          </article>
+
+          <article className="panel">
+            <h2>Add WordPress site</h2>
+            {activeOrganization ? (
+              <>
+                <p>
+                  Add the first site to {activeOrganization.name}. Plugin connection comes next.
+                </p>
+                <CreateSiteForm organizationId={activeOrganization.id} />
+              </>
+            ) : (
+              <p className="empty-copy">Create an organization before adding a WordPress site.</p>
+            )}
+          </article>
+        </section>
+
+        <section className="panel empty-state" aria-labelledby="sites-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="sites-title">Sites</h2>
+              <p>Only sites in the selected tenant are listed here.</p>
+            </div>
+          </div>
+
+          {activeOrganization && activeOrganization.sites.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeOrganization.sites.map((site) => (
+                    <tr key={site.id}>
+                      <td>{site.name}</td>
+                      <td>{site.url}</td>
+                      <td>
+                        <span className="status-pill">{site.status.replaceAll("_", " ")}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-copy">
+              No sites yet. Add a WordPress site to prepare plugin setup.
+            </p>
+          )}
+        </section>
+
+        <section className="panel" aria-labelledby="activity-title">
+          <h2 id="activity-title">Audit log</h2>
+          {latestActivity.length > 0 ? (
+            <ul className="activity-list">
+              {latestActivity.map((activity) => (
+                <li key={activity.id}>
+                  <span>{activity.action}</span>
+                  <time dateTime={activity.createdAt}>
+                    {new Intl.DateTimeFormat("en", {
+                      dateStyle: "medium",
+                      timeStyle: "short"
+                    }).format(new Date(activity.createdAt))}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-copy">Activity will appear after organization and site actions.</p>
+          )}
         </section>
       </main>
     </div>

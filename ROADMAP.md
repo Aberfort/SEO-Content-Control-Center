@@ -18,13 +18,13 @@
 
 - Register, login, logout.
 - Password reset and email verification.
-- Organization creation.
+- Organization creation. Status: local development foundation implemented.
 - Invitations.
-- Roles and permissions.
-- Site creation.
-- Dashboard empty states.
+- Roles and permissions. Status: RBAC utility and tenant access checks implemented.
+- Site creation. Status: local development foundation implemented.
+- Dashboard empty states. Status: implemented for no-org/no-site/no-audit states.
 - Onboarding checklist.
-- Basic audit log.
+- Basic audit log. Status: organization/site activity writes implemented.
 - Trial plan without real charges.
 - Plugin API documentation.
 
