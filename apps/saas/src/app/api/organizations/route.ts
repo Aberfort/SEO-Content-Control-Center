@@ -1,20 +1,22 @@
 import { ZodError } from "zod";
 
+import { getAppRepository } from "@/lib/app-repository";
 import { requireCurrentUser } from "@/lib/auth";
-import { createOrganization, listOrganizationSummariesForUser } from "@/lib/dev-store";
 import { jsonError, validationError } from "@/lib/http";
 
 export async function GET() {
   const { user } = await requireCurrentUser();
-  return Response.json({ data: listOrganizationSummariesForUser(user) });
+  const repository = getAppRepository();
+  return Response.json({ data: await repository.listOrganizationSummariesForUser(user) });
 }
 
 export async function POST(request: Request) {
   const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
 
   try {
     const body = (await request.json()) as unknown;
-    const organization = createOrganization({
+    const organization = await repository.createOrganization({
       user,
       name: readString(body, "name")
     });

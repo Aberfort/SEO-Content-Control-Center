@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
 import { requireCurrentUser } from "@/lib/auth";
-import { createOrganization, createSite } from "@/lib/dev-store";
+import { getAppRepository } from "@/lib/app-repository";
 
 export type ActionState = {
   ok: boolean;
@@ -17,9 +17,10 @@ export async function createOrganizationAction(
   formData: FormData
 ): Promise<ActionState> {
   const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
 
   try {
-    createOrganization({
+    await repository.createOrganization({
       user,
       name: String(formData.get("name") ?? "")
     });
@@ -37,9 +38,10 @@ export async function createSiteAction(
   formData: FormData
 ): Promise<ActionState> {
   const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
 
   try {
-    createSite({
+    await repository.createSite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
       name: String(formData.get("name") ?? ""),

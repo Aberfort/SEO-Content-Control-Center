@@ -1,7 +1,7 @@
 import { ZodError } from "zod";
 
+import { getAppRepository } from "@/lib/app-repository";
 import { requireCurrentUser } from "@/lib/auth";
-import { createSite, listSitesForOrganization } from "@/lib/dev-store";
 import { jsonError, validationError } from "@/lib/http";
 
 type RouteContext = {
@@ -13,9 +13,12 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const { user } = await requireCurrentUser();
   const { organizationId } = await context.params;
+  const repository = getAppRepository();
 
   try {
-    return Response.json({ data: listSitesForOrganization(user.id, organizationId) });
+    return Response.json({
+      data: await repository.listSitesForOrganization(user.id, organizationId)
+    });
   } catch {
     return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
   }
@@ -24,10 +27,11 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   const { user } = await requireCurrentUser();
   const { organizationId } = await context.params;
+  const repository = getAppRepository();
 
   try {
     const body = (await request.json()) as unknown;
-    const site = createSite({
+    const site = await repository.createSite({
       user,
       organizationId,
       name: readString(body, "name"),

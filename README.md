@@ -25,7 +25,8 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 npm install
 cp .env.example .env
 docker compose up -d postgres redis minio mailpit
-npm run db:validate
+DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:migrate:deploy
+DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:seed
 npm run lint
 npm test
 npm run build
@@ -47,10 +48,11 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - product and architecture documents;
 - monorepo package boundaries;
 - Prisma data model draft for multi-tenant SaaS;
+- initial database migration and plan seed script;
 - health endpoint;
 - shared RBAC/plan utilities with tests;
 - development auth context;
-- tenant-scoped organization and site access layer;
+- tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
 - organization bootstrap UI/API;
 - site creation UI/API;
 - basic activity log writes;
@@ -59,6 +61,17 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - CI workflow.
 
 No destructive SEO automation is implemented in this iteration.
+
+## Database
+
+Use Prisma-backed SaaS persistence by setting:
+
+```bash
+SCCC_DATA_STORE=prisma
+DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public
+```
+
+Without those variables, the app falls back to the in-memory repository for tests and lightweight local UI work.
 
 ## Development Auth
 

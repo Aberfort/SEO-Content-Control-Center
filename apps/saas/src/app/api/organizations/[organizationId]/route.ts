@@ -1,5 +1,5 @@
+import { getAppRepository } from "@/lib/app-repository";
 import { requireCurrentUser } from "@/lib/auth";
-import { getOrganizationSummary } from "@/lib/dev-store";
 import { jsonError } from "@/lib/http";
 
 type RouteContext = {
@@ -11,9 +11,10 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const { user } = await requireCurrentUser();
   const { organizationId } = await context.params;
+  const repository = getAppRepository();
 
   try {
-    const organization = getOrganizationSummary(user.id, organizationId);
+    const organization = await repository.getOrganizationSummary(user.id, organizationId);
 
     if (!organization) {
       return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");

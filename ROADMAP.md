@@ -18,13 +18,14 @@
 
 - Register, login, logout.
 - Password reset and email verification.
-- Organization creation. Status: local development foundation implemented.
+- Organization creation. Status: Prisma-backed foundation implemented.
+- PostgreSQL persistence. Status: initial Prisma migration, seed, and repository implemented.
 - Invitations.
 - Roles and permissions. Status: RBAC utility and tenant access checks implemented.
-- Site creation. Status: local development foundation implemented.
+- Site creation. Status: Prisma-backed foundation implemented.
 - Dashboard empty states. Status: implemented for no-org/no-site/no-audit states.
 - Onboarding checklist.
-- Basic audit log. Status: organization/site activity writes implemented.
+- Basic audit log. Status: organization/site activity writes implemented through repository layer.
 - Trial plan without real charges.
 - Plugin API documentation.
 

@@ -13,6 +13,16 @@
 - MinIO for S3-compatible storage.
 - Mailpit for local email testing.
 
+## Database Commands
+
+```bash
+npm run db:generate
+npm run db:migrate:deploy
+npm run db:seed
+```
+
+In production, `DATABASE_URL` must be supplied by the environment or secret manager. Local examples use the Docker Compose credentials from `.env.example`.
+
 ## Deployment Units
 
 - SaaS web application.

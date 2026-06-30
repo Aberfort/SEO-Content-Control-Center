@@ -2,14 +2,15 @@ import Link from "next/link";
 
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { getAppRepository } from "@/lib/app-repository";
 import { requireCurrentUser } from "@/lib/auth";
-import { listOrganizationSummariesForUser } from "@/lib/dev-store";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
 export default async function AppHomePage() {
   const { user } = await requireCurrentUser();
-  const organizations = listOrganizationSummariesForUser(user);
+  const repository = getAppRepository();
+  const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
   const totalSites = organizations.reduce(
     (count, organization) => count + organization.sites.length,

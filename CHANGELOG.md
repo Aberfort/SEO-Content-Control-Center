@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 2
+
+- Added Prisma client workspace exports.
+- Added initial SQL migration generated from the Prisma schema.
+- Added plan seed script.
+- Added Prisma-backed SaaS repository for organizations, memberships, sites, and activity logs.
+- Switched SaaS pages, server actions, and API routes to the repository abstraction.
+- Kept in-memory repository fallback for unit tests and no-DB local rendering.
+- Added repository fallback tests.
+
 ### Iteration 1
 
 - Added local development auth context.
