@@ -55,6 +55,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
 - organization bootstrap UI/API;
 - site creation UI/API;
+- member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
@@ -79,6 +80,7 @@ The SaaS app uses DB-backed credentials auth.
 
 - Register: `http://localhost:3000/auth/register`
 - Login: `http://localhost:3000/auth/login`
+- Accept invite: `http://localhost:3000/auth/accept-invite?token=...`
 - Logout: available from the SaaS sidebar after login.
 
 Passwords are hashed with `scrypt`. Session cookies are HTTP-only, same-site, and store only an opaque token while the database stores the token hash.

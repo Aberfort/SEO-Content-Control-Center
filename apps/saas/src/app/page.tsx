@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
@@ -177,6 +178,7 @@ export default async function AppHomePage() {
                       <th>Member</th>
                       <th>Status</th>
                       <th>Role</th>
+                      <th>Invite</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -194,6 +196,12 @@ export default async function AppHomePage() {
                             organizationId={activeOrganization.id}
                             member={member}
                             currentUserId={user.id}
+                          />
+                        </td>
+                        <td>
+                          <InviteActionsForm
+                            organizationId={activeOrganization.id}
+                            member={member}
                           />
                         </td>
                       </tr>

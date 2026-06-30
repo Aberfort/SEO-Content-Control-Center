@@ -29,6 +29,12 @@
 - Organization creator becomes Owner.
 - Current user can list only their organizations.
 - Owner/Admin can invite members.
+- Invite creation returns a one-time URL while only the token hash is stored.
+- Invited user can register or log in and accept the invite with the token.
+- User cannot accept an invite for a different email address.
+- Expired, canceled, or already accepted invite tokens are rejected.
+- Owner/Admin can resend a pending invite and rotate the token.
+- Owner/Admin can cancel a pending invite.
 - Viewer cannot invite members.
 - Owner/Admin can update non-owner member roles.
 - User cannot change their own role.

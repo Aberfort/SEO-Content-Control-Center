@@ -21,6 +21,7 @@ enum MemberStatus {
   INVITED
   ACTIVE
   SUSPENDED
+  CANCELED
 }
 
 enum SubscriptionStatus {
@@ -124,16 +125,20 @@ model Organization {
 }
 
 model OrganizationMember {
-  id             String       @id @default(uuid())
-  organizationId String
-  userId         String
-  role           Role
-  status         MemberStatus @default(ACTIVE)
-  invitedEmail   String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  organizationId     String
+  userId             String
+  role               Role
+  status             MemberStatus @default(ACTIVE)
+  invitedEmail       String?
+  inviteTokenHash    String?      @unique
+  inviteExpiresAt    DateTime?
+  inviteAcceptedAt   DateTime?
+  inviteCanceledAt   DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
   @@index([userId])

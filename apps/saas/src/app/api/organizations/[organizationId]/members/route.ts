@@ -41,14 +41,14 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as unknown;
-    const member = await repository.inviteMember({
+    const invite = await repository.inviteMember({
       user,
       organizationId,
       email: readString(body, "email"),
       role: readString(body, "role") as never
     });
 
-    return Response.json({ data: member }, { status: 201 });
+    return Response.json({ data: invite }, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
       return validationError(error);

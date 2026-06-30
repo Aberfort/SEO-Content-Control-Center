@@ -112,6 +112,8 @@ Current MVP activity actions:
 - `organization.created`
 - `site.created`
 - `member.invited`
+- `member.invite_resent`
+- `member.invite_canceled`
 - `member.role_updated`
 - `member.accepted_invite`
 
@@ -119,11 +121,11 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/members`
 
-Lists active and invited members for the organization.
+Lists active, invited, suspended, and canceled members for the organization.
 
 `POST /api/organizations/:organizationId/members`
 
-Invites a member. `OWNER` cannot be assigned through this endpoint.
+Invites a member. `OWNER` cannot be assigned through this endpoint. The response includes the member summary and a one-time invite URL; store or send the raw URL immediately because only the token hash is persisted.
 
 Request:
 
@@ -131,6 +133,26 @@ Request:
 {
   "email": "editor@example.com",
   "role": "EDITOR"
+}
+```
+
+`POST /api/organizations/:organizationId/members/:memberId/resend`
+
+Rotates the token for a pending invite and returns a fresh invite URL.
+
+`POST /api/organizations/:organizationId/members/:memberId/cancel`
+
+Cancels a pending invite and clears the stored token hash.
+
+`POST /api/invitations/accept`
+
+Accepts an invite for the currently signed-in user. The signed-in email must match the invited email.
+
+Request:
+
+```json
+{
+  "token": "opaque-invite-token"
 }
 ```
 

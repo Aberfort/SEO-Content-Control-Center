@@ -4,11 +4,17 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { getCurrentUser } from "@/lib/auth";
 
-export default async function RegisterPage() {
+type AuthPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function RegisterPage({ searchParams }: AuthPageProps) {
+  const params = await searchParams;
+  const redirectTo = readRedirectTo(params);
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/");
+    redirect(redirectTo);
   }
 
   return (
@@ -19,8 +25,19 @@ export default async function RegisterPage() {
         </Link>
         <h1>Create your account.</h1>
         <p>Start with a secure account, then create an organization and connect WordPress.</p>
-        <AuthForm mode="register" />
+        <AuthForm mode="register" redirectTo={redirectTo} />
       </section>
     </main>
   );
+}
+
+function readRedirectTo(params: Record<string, string | string[] | undefined> | undefined): string {
+  const next = params?.next;
+  const value = Array.isArray(next) ? next[0] : next;
+
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  return value;
 }

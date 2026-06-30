@@ -1,11 +1,13 @@
 import { prisma } from "@sccc/database";
 import {
+  acceptInviteSchema,
   assertPermission,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
   updateMemberRoleSchema,
+  type AcceptInviteInput,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
@@ -13,6 +15,8 @@ import {
 } from "@sccc/shared";
 
 import {
+  acceptInvite as acceptDevInvite,
+  cancelInvite as cancelDevInvite,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
   getOrganizationSummary as getDevOrganizationSummary,
@@ -21,11 +25,14 @@ import {
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
+  resendInvite as resendDevInvite,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
+import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
   ActivityLog,
   AppUser,
+  InviteResult,
   OrganizationMemberSummary,
   OrganizationSummary,
   Site
@@ -57,6 +64,17 @@ type UpdateMemberRoleInputWithUser = {
   role: UpdateMemberRoleInput["role"];
 };
 
+type MemberMutationInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+};
+
+type AcceptInviteInputWithUser = {
+  user: AppUser;
+  token: AcceptInviteInput["token"];
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -71,7 +89,10 @@ type AppRepository = {
     userId: string,
     organizationId: string
   ): Promise<OrganizationMemberSummary[]>;
-  inviteMember(input: InviteMemberInputWithUser): Promise<OrganizationMemberSummary>;
+  inviteMember(input: InviteMemberInputWithUser): Promise<InviteResult>;
+  resendInvite(input: MemberMutationInputWithUser): Promise<InviteResult>;
+  cancelInvite(input: MemberMutationInputWithUser): Promise<OrganizationMemberSummary>;
+  acceptInvite(input: AcceptInviteInputWithUser): Promise<OrganizationMemberSummary>;
   updateMemberRole(input: UpdateMemberRoleInputWithUser): Promise<OrganizationMemberSummary>;
 };
 
@@ -105,6 +126,15 @@ const devStoreRepository: AppRepository = {
   },
   async inviteMember(input) {
     return inviteDevMember(input);
+  },
+  async resendInvite(input) {
+    return resendDevInvite(input);
+  },
+  async cancelInvite(input) {
+    return cancelDevInvite(input);
+  },
+  async acceptInvite(input) {
+    return acceptDevInvite(input);
   },
   async updateMemberRole(input) {
     return updateDevMemberRole(input);
@@ -359,6 +389,8 @@ const prismaRepository: AppRepository = {
       permission: "members:invite"
     });
 
+    const invite = createInviteToken();
+
     try {
       const member = await prisma.$transaction(async (tx) => {
         const invitedUser = await tx.user.upsert({
@@ -377,8 +409,10 @@ const prismaRepository: AppRepository = {
             organizationId: parsed.organizationId,
             userId: invitedUser.id,
             role: parsed.role,
-            status: invitedUser.passwordHash ? "ACTIVE" : "INVITED",
-            invitedEmail: parsed.email
+            status: "INVITED",
+            invitedEmail: parsed.email,
+            inviteTokenHash: invite.tokenHash,
+            inviteExpiresAt: invite.expiresAt
           },
           include: {
             user: true
@@ -402,7 +436,11 @@ const prismaRepository: AppRepository = {
         return created;
       });
 
-      return mapMember(member);
+      return {
+        member: mapMember(member),
+        inviteUrl: buildInviteUrl(invite.token),
+        expiresAt: invite.expiresAt.toISOString()
+      };
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         throw new Error("MEMBER_ALREADY_EXISTS");
@@ -410,6 +448,194 @@ const prismaRepository: AppRepository = {
 
       throw error;
     }
+  },
+
+  async resendInvite(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "members:invite"
+    });
+
+    const existing = await prisma.organizationMember.findFirst({
+      where: {
+        id: input.memberId,
+        organizationId: input.organizationId
+      },
+      include: {
+        user: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MEMBER_NOT_FOUND");
+    }
+
+    if (existing.status !== "INVITED") {
+      throw new Error("INVITE_NOT_PENDING");
+    }
+
+    const invite = createInviteToken();
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: input.memberId
+        },
+        data: {
+          inviteTokenHash: invite.tokenHash,
+          inviteExpiresAt: invite.expiresAt,
+          inviteAcceptedAt: null,
+          inviteCanceledAt: null
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: input.organizationId,
+          userId: input.user.id,
+          action: "member.invite_resent",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            email: updated.invitedEmail ?? updated.user.email,
+            role: updated.role
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return {
+      member: mapMember(member),
+      inviteUrl: buildInviteUrl(invite.token),
+      expiresAt: invite.expiresAt.toISOString()
+    };
+  },
+
+  async cancelInvite(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "members:manage"
+    });
+
+    const existing = await prisma.organizationMember.findFirst({
+      where: {
+        id: input.memberId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MEMBER_NOT_FOUND");
+    }
+
+    if (existing.status !== "INVITED") {
+      throw new Error("INVITE_NOT_PENDING");
+    }
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: input.memberId
+        },
+        data: {
+          status: "CANCELED",
+          inviteTokenHash: null,
+          inviteExpiresAt: null,
+          inviteCanceledAt: new Date()
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: input.organizationId,
+          userId: input.user.id,
+          action: "member.invite_canceled",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            email: updated.invitedEmail ?? updated.user.email,
+            role: updated.role
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMember(member);
+  },
+
+  async acceptInvite(input) {
+    const parsed = acceptInviteSchema.parse({ token: input.token });
+    const tokenHash = hashInviteToken(parsed.token);
+    const existing = await prisma.organizationMember.findUnique({
+      where: {
+        inviteTokenHash: tokenHash
+      },
+      include: {
+        user: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("INVITE_NOT_FOUND");
+    }
+
+    if (existing.status !== "INVITED") {
+      throw new Error("INVITE_NOT_PENDING");
+    }
+
+    if (!existing.inviteExpiresAt || existing.inviteExpiresAt <= new Date()) {
+      throw new Error("INVITE_EXPIRED");
+    }
+
+    if (existing.user.email !== input.user.email) {
+      throw new Error("INVITE_EMAIL_MISMATCH");
+    }
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "ACTIVE",
+          inviteTokenHash: null,
+          inviteExpiresAt: null,
+          inviteAcceptedAt: new Date()
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: existing.organizationId,
+          userId: input.user.id,
+          action: "member.accepted_invite",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            email: input.user.email,
+            role: updated.role
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMember(member);
   },
 
   async updateMemberRole(input) {
@@ -602,6 +828,9 @@ function mapMember(member: {
   role: OrganizationMemberSummary["role"];
   status: OrganizationMemberSummary["status"];
   invitedEmail: string | null;
+  inviteExpiresAt?: Date | null;
+  inviteAcceptedAt?: Date | null;
+  inviteCanceledAt?: Date | null;
   createdAt: Date;
   user: {
     email: string;
@@ -617,6 +846,9 @@ function mapMember(member: {
     email: member.user.email,
     name: member.user.name,
     invitedEmail: member.invitedEmail,
+    inviteExpiresAt: member.inviteExpiresAt?.toISOString() ?? null,
+    inviteAcceptedAt: member.inviteAcceptedAt?.toISOString() ?? null,
+    inviteCanceledAt: member.inviteCanceledAt?.toISOString() ?? null,
     createdAt: member.createdAt.toISOString()
   };
 }

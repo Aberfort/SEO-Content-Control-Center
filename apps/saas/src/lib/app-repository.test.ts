@@ -48,15 +48,17 @@ describe("app repository", () => {
       name: "Member Ops"
     });
 
-    const invited = await repository.inviteMember({
+    const invite = await repository.inviteMember({
       user,
       organizationId: organization.id,
       email: "editor@example.com",
       role: "EDITOR"
     });
+    const invited = invite.member;
 
     expect(invited.status).toBe("INVITED");
     expect(invited.role).toBe("EDITOR");
+    expect(invite.inviteUrl).toContain("/auth/accept-invite?token=");
 
     const updated = await repository.updateMemberRole({
       user,
@@ -72,5 +74,56 @@ describe("app repository", () => {
       "editor@example.com",
       "repository@example.com"
     ]);
+  });
+
+  it("accepts, resends, and cancels pending invites through the repository contract", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Invite Lifecycle"
+    });
+
+    const invite = await repository.inviteMember({
+      user,
+      organizationId: organization.id,
+      email: "writer@example.com",
+      role: "WRITER"
+    });
+    const token = new URL(invite.inviteUrl).searchParams.get("token");
+
+    expect(token).toBeTruthy();
+
+    const accepted = await repository.acceptInvite({
+      user: {
+        id: "00000000-0000-4000-8000-000000000202",
+        email: "writer@example.com",
+        name: "Writer User"
+      },
+      token: token ?? ""
+    });
+
+    expect(accepted.status).toBe("ACTIVE");
+
+    const secondInvite = await repository.inviteMember({
+      user,
+      organizationId: organization.id,
+      email: "viewer@example.com",
+      role: "VIEWER"
+    });
+    const resentInvite = await repository.resendInvite({
+      user,
+      organizationId: organization.id,
+      memberId: secondInvite.member.id
+    });
+
+    expect(resentInvite.inviteUrl).not.toBe(secondInvite.inviteUrl);
+
+    const canceled = await repository.cancelInvite({
+      user,
+      organizationId: organization.id,
+      memberId: secondInvite.member.id
+    });
+
+    expect(canceled.status).toBe("CANCELED");
   });
 });

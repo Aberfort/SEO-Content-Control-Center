@@ -36,6 +36,14 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Unique constraints prevent duplicate site URLs and duplicate issue/task records inside a tenant.
 - SaaS repository access must query through membership-scoped methods before returning organization, site, or activity data.
 - Session tokens are stored as hashes in the database. Raw session tokens exist only in HTTP-only cookies.
+- Invite tokens are stored as hashes on `OrganizationMember`; raw invite tokens only appear in create/resend responses and accept-invite URLs.
+
+## Organization Member Lifecycle
+
+- `INVITED`
+- `ACTIVE`
+- `SUSPENDED`
+- `CANCELED`
 
 ## RBAC Roles
 

@@ -18,8 +18,11 @@ export type OrganizationMember = {
   organizationId: string;
   userId: string;
   role: Role;
-  status: "ACTIVE" | "INVITED" | "SUSPENDED";
+  status: "ACTIVE" | "INVITED" | "SUSPENDED" | "CANCELED";
   invitedEmail?: string | null;
+  inviteExpiresAt?: string | null;
+  inviteAcceptedAt?: string | null;
+  inviteCanceledAt?: string | null;
 };
 
 export type OrganizationMemberSummary = OrganizationMember & {
@@ -27,6 +30,12 @@ export type OrganizationMemberSummary = OrganizationMember & {
   name: string | null;
   invitedEmail: string | null;
   createdAt: string;
+};
+
+export type InviteResult = {
+  member: OrganizationMemberSummary;
+  inviteUrl: string;
+  expiresAt: string;
 };
 
 export type Site = {

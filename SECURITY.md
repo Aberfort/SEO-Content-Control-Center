@@ -10,6 +10,8 @@
 - Password hashes use `scrypt`; plaintext passwords must never be stored.
 - Session cookies must be HTTP-only, same-site, and secure in production.
 - Session tokens must be stored as hashes in the database.
+- Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
+- Pending invite resend must rotate the token; cancel must clear the stored token hash.
 - Rate limiting for auth, plugin API, forms, webhooks, and bulk operations.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.

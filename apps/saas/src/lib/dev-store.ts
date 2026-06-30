@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  acceptInviteSchema,
   assertPermission,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
   updateMemberRoleSchema,
+  type AcceptInviteInput,
   type InviteMemberInput,
   type Permission,
   type Role,
@@ -14,9 +16,11 @@ import {
   type UpdateMemberRoleInput
 } from "@sccc/shared";
 
+import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
   ActivityLog,
   AppUser,
+  InviteResult,
   Organization,
   OrganizationMember,
   OrganizationMemberSummary,
@@ -27,9 +31,13 @@ import type {
 type DevStoreState = {
   users: AppUser[];
   organizations: Organization[];
-  members: OrganizationMember[];
+  members: StoreOrganizationMember[];
   sites: Site[];
   activityLogs: ActivityLog[];
+};
+
+type StoreOrganizationMember = OrganizationMember & {
+  inviteTokenHash?: string | null;
 };
 
 type CreateOrganizationInput = {
@@ -56,6 +64,17 @@ type UpdateMemberRoleInputWithUser = {
   organizationId: string;
   memberId: string;
   role: Role;
+};
+
+type MemberMutationInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+};
+
+type AcceptInviteInputWithUser = {
+  user: AppUser;
+  token: AcceptInviteInput["token"];
 };
 
 type AccessInput = {
@@ -185,7 +204,7 @@ export function createOrganization(input: CreateOrganizationInput): Organization
     createdAt: nowIso()
   };
 
-  const member: OrganizationMember = {
+  const member: StoreOrganizationMember = {
     id: randomUUID(),
     organizationId: organization.id,
     userId: input.user.id,
@@ -358,17 +377,11 @@ export function listMembersForOrganization(
     .map((member) => {
       const user = store.users.find((candidate) => candidate.id === member.userId);
 
-      return {
-        ...member,
-        email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
-        name: user?.name ?? null,
-        invitedEmail: member.invitedEmail ?? null,
-        createdAt: nowIso()
-      };
+      return mapMemberSummary(member, user);
     });
 }
 
-export function inviteMember(input: InviteMemberInputWithUser): OrganizationMemberSummary {
+export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
   const parsed: InviteMemberInput = inviteMemberSchema.parse(input);
   const store = getDevStore();
   requireOrganizationAccess({
@@ -386,15 +399,18 @@ export function inviteMember(input: InviteMemberInputWithUser): OrganizationMemb
     throw new Error("MEMBER_ALREADY_EXISTS");
   }
 
-  const member: OrganizationMember = {
+  const invite = createInviteToken();
+  const member: StoreOrganizationMember = {
     id: randomUUID(),
     organizationId: parsed.organizationId,
     userId: invitedUser.id,
     role: parsed.role,
     status: "INVITED",
-    invitedEmail: parsed.email
+    invitedEmail: parsed.email,
+    inviteExpiresAt: invite.expiresAt.toISOString()
   };
 
+  member.inviteTokenHash = invite.tokenHash;
   store.members.push(member);
   writeActivityLog({
     organizationId: parsed.organizationId,
@@ -409,12 +425,149 @@ export function inviteMember(input: InviteMemberInputWithUser): OrganizationMemb
   });
 
   return {
-    ...member,
-    email: invitedUser.email,
-    name: invitedUser.name,
-    invitedEmail: parsed.email,
-    createdAt: nowIso()
+    member: mapMemberSummary(member, invitedUser),
+    inviteUrl: buildInviteUrl(invite.token),
+    expiresAt: invite.expiresAt.toISOString()
   };
+}
+
+export function resendInvite(input: MemberMutationInputWithUser): InviteResult {
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "members:invite"
+  });
+
+  const member = store.members.find(
+    (candidate) =>
+      candidate.id === input.memberId && candidate.organizationId === input.organizationId
+  );
+
+  if (!member) {
+    throw new Error("MEMBER_NOT_FOUND");
+  }
+
+  if (member.status !== "INVITED") {
+    throw new Error("INVITE_NOT_PENDING");
+  }
+
+  const invite = createInviteToken();
+  member.inviteTokenHash = invite.tokenHash;
+  member.inviteExpiresAt = invite.expiresAt.toISOString();
+  member.inviteAcceptedAt = null;
+  member.inviteCanceledAt = null;
+
+  const invitedUser = store.users.find((candidate) => candidate.id === member.userId);
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "member.invite_resent",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      email: member.invitedEmail ?? invitedUser?.email ?? "unknown@example.com",
+      role: member.role
+    }
+  });
+
+  return {
+    member: mapMemberSummary(member, invitedUser),
+    inviteUrl: buildInviteUrl(invite.token),
+    expiresAt: invite.expiresAt.toISOString()
+  };
+}
+
+export function cancelInvite(input: MemberMutationInputWithUser): OrganizationMemberSummary {
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "members:manage"
+  });
+
+  const member = store.members.find(
+    (candidate) =>
+      candidate.id === input.memberId && candidate.organizationId === input.organizationId
+  );
+
+  if (!member) {
+    throw new Error("MEMBER_NOT_FOUND");
+  }
+
+  if (member.status !== "INVITED") {
+    throw new Error("INVITE_NOT_PENDING");
+  }
+
+  member.status = "CANCELED";
+  member.inviteTokenHash = null;
+  member.inviteExpiresAt = null;
+  member.inviteCanceledAt = nowIso();
+
+  const invitedUser = store.users.find((candidate) => candidate.id === member.userId);
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "member.invite_canceled",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      email: member.invitedEmail ?? invitedUser?.email ?? "unknown@example.com",
+      role: member.role
+    }
+  });
+
+  return mapMemberSummary(member, invitedUser);
+}
+
+export function acceptInvite(input: AcceptInviteInputWithUser): OrganizationMemberSummary {
+  const parsed = acceptInviteSchema.parse({ token: input.token });
+  const store = getDevStore();
+  const tokenHash = hashInviteToken(parsed.token);
+  const member = store.members.find((candidate) => candidate.inviteTokenHash === tokenHash);
+
+  if (!member) {
+    throw new Error("INVITE_NOT_FOUND");
+  }
+
+  if (member.status !== "INVITED") {
+    throw new Error("INVITE_NOT_PENDING");
+  }
+
+  if (!member.inviteExpiresAt || new Date(member.inviteExpiresAt) <= new Date()) {
+    throw new Error("INVITE_EXPIRED");
+  }
+
+  let invitedUser = store.users.find((candidate) => candidate.id === member.userId);
+
+  if (invitedUser?.email !== input.user.email) {
+    throw new Error("INVITE_EMAIL_MISMATCH");
+  }
+
+  if (member.userId !== input.user.id) {
+    member.userId = input.user.id;
+    invitedUser = ensureUser(input.user);
+  }
+
+  member.status = "ACTIVE";
+  member.inviteTokenHash = null;
+  member.inviteExpiresAt = null;
+  member.inviteAcceptedAt = nowIso();
+  ensureUser(input.user);
+
+  writeActivityLog({
+    organizationId: member.organizationId,
+    userId: input.user.id,
+    action: "member.accepted_invite",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      email: input.user.email,
+      role: member.role
+    }
+  });
+
+  return mapMemberSummary(member, invitedUser);
 }
 
 export function updateMemberRole(input: UpdateMemberRoleInputWithUser): OrganizationMemberSummary {
@@ -457,13 +610,7 @@ export function updateMemberRole(input: UpdateMemberRoleInputWithUser): Organiza
 
   const user = store.users.find((candidate) => candidate.id === member.userId);
 
-  return {
-    ...member,
-    email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
-    name: user?.name ?? null,
-    invitedEmail: member.invitedEmail ?? null,
-    createdAt: nowIso()
-  };
+  return mapMemberSummary(member, user);
 }
 
 export function addMemberForTest(input: {
@@ -492,4 +639,24 @@ function writeActivityLog(input: Omit<ActivityLog, "id" | "createdAt">): Activit
 
   getDevStore().activityLogs.push(activityLog);
   return activityLog;
+}
+
+function mapMemberSummary(
+  member: StoreOrganizationMember,
+  user: AppUser | undefined
+): OrganizationMemberSummary {
+  return {
+    id: member.id,
+    organizationId: member.organizationId,
+    userId: member.userId,
+    role: member.role,
+    status: member.status,
+    email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
+    name: user?.name ?? null,
+    invitedEmail: member.invitedEmail ?? null,
+    inviteExpiresAt: member.inviteExpiresAt ?? null,
+    inviteAcceptedAt: member.inviteAcceptedAt ?? null,
+    inviteCanceledAt: member.inviteCanceledAt ?? null,
+    createdAt: nowIso()
+  };
 }

@@ -84,6 +84,68 @@ export async function inviteMemberAction(
   redirect("/");
 }
 
+export async function resendInviteAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await repository.resendInvite({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      memberId: String(formData.get("memberId") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not resend invite.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function cancelInviteAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await repository.cancelInvite({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      memberId: String(formData.get("memberId") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not cancel invite.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function acceptInviteAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await repository.acceptInvite({
+      user,
+      token: String(formData.get("token") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not accept invite.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
 export async function updateMemberRoleAction(
   _previousState: ActionState,
   formData: FormData
@@ -121,7 +183,7 @@ export async function registerAction(
   }
 
   revalidatePath("/");
-  redirect("/");
+  redirect(readRedirectTo(formData));
 }
 
 export async function loginAction(
@@ -138,7 +200,7 @@ export async function loginAction(
   }
 
   revalidatePath("/");
-  redirect("/");
+  redirect(readRedirectTo(formData));
 }
 
 export async function logoutAction(): Promise<void> {
@@ -190,6 +252,34 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "INVITE_NOT_PENDING") {
+    return {
+      ok: false,
+      message: "This invite is no longer pending."
+    };
+  }
+
+  if (error instanceof Error && error.message === "INVITE_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This invite link was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "INVITE_EXPIRED") {
+    return {
+      ok: false,
+      message: "This invite link has expired. Ask an admin to resend it."
+    };
+  }
+
+  if (error instanceof Error && error.message === "INVITE_EMAIL_MISMATCH") {
+    return {
+      ok: false,
+      message: "Sign in with the email address that received this invite."
+    };
+  }
+
   if (error instanceof Error && error.message === "EMAIL_ALREADY_REGISTERED") {
     return {
       ok: false,
@@ -222,4 +312,14 @@ function actionError(error: unknown, fallback: string): ActionState {
     ok: false,
     message: fallback
   };
+}
+
+function readRedirectTo(formData: FormData): string {
+  const redirectTo = String(formData.get("redirectTo") ?? "");
+
+  if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/";
+  }
+
+  return redirectTo;
 }

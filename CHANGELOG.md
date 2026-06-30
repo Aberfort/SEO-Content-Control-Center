@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 5
+
+- Added hashed invite tokens, invite expiry, accepted/canceled timestamps, and `CANCELED` member status.
+- Added accept-invite flow at `/auth/accept-invite` with login/register return handling.
+- Added repository and API methods for invite accept, resend, and cancel.
+- Changed registration so pending invites require token acceptance instead of automatic activation.
+- Added pending invite controls in the members UI.
+- Added tests for invite token lifecycle behavior and shared accept-invite validation.
+
 ### Iteration 4
 
 - Added member invite validation and assignable role schemas.
@@ -9,7 +18,6 @@
 - Added members UI on the SaaS setup dashboard.
 - Added protected members API routes.
 - Added role update controls with owner/self-change guardrails.
-- Added invited-user registration activation.
 - Added tests for repository invite and role update behavior.
 
 ### Iteration 3

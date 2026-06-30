@@ -61,6 +61,12 @@ export const updateMemberRoleSchema = z.object({
   role: assignableMemberRoleSchema
 });
 
+export const inviteTokenSchema = z.string().trim().min(32).max(256);
+
+export const acceptInviteSchema = z.object({
+  token: inviteTokenSchema
+});
+
 export const pluginSyncItemSchema = z.object({
   externalId: z.string().min(1).max(191),
   type: z.enum(["post", "page", "custom_post_type", "taxonomy"]),
@@ -84,5 +90,6 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;

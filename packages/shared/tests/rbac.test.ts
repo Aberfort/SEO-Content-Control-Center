@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { assertPermission, hasPermission } from "../src/rbac";
 import {
+  acceptInviteSchema,
   inviteMemberSchema,
   loginSchema,
   organizationCreateSchema,
@@ -95,5 +96,10 @@ describe("shared schemas", () => {
         role: "SEO_MANAGER"
       })
     ).not.toThrow();
+  });
+
+  it("validates invite acceptance input", () => {
+    expect(() => acceptInviteSchema.parse({ token: "a".repeat(43) })).not.toThrow();
+    expect(() => acceptInviteSchema.parse({ token: "short" })).toThrow();
   });
 });
