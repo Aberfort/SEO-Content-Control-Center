@@ -5,6 +5,9 @@
 - Organization-scoped authorization on every SaaS data access.
 - RBAC for Owner, Admin, SEO Manager, Editor, Writer, Viewer, Billing Manager.
 - CSRF protection for browser mutations.
+- Password hashes use `scrypt`; plaintext passwords must never be stored.
+- Session cookies must be HTTP-only, same-site, and secure in production.
+- Session tokens must be stored as hashes in the database.
 - Rate limiting for auth, plugin API, forms, webhooks, and bulk operations.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.

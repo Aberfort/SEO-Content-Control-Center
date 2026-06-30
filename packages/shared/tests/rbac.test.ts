@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { assertPermission, hasPermission } from "../src/rbac";
-import { organizationCreateSchema, siteCreateSchema } from "../src/schemas";
+import {
+  loginSchema,
+  organizationCreateSchema,
+  registerSchema,
+  siteCreateSchema
+} from "../src/schemas";
 
 describe("RBAC", () => {
   it("allows owners to manage billing", () => {
@@ -37,5 +42,30 @@ describe("shared schemas", () => {
         url: "https://example.com"
       })
     ).not.toThrow();
+  });
+
+  it("validates auth inputs", () => {
+    expect(
+      registerSchema.parse({
+        name: "Serhii",
+        email: "USER@EXAMPLE.COM",
+        password: "very-secure-password"
+      }).email
+    ).toBe("user@example.com");
+
+    expect(() =>
+      registerSchema.parse({
+        name: "S",
+        email: "not-email",
+        password: "short"
+      })
+    ).toThrow();
+
+    expect(
+      loginSchema.parse({
+        email: "USER@EXAMPLE.COM",
+        password: "x"
+      }).email
+    ).toBe("user@example.com");
   });
 });

@@ -56,7 +56,7 @@ a {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
-  margin: 10px 0 0;
+  margin: 10px 0 12px;
   overflow-wrap: anywhere;
 }
 
@@ -122,6 +122,17 @@ h1 {
   opacity: 0.65;
 }
 
+.text-button {
+  background: transparent;
+  border: 0;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 0;
+}
+
 .grid {
   display: grid;
   gap: 16px;
@@ -185,6 +196,85 @@ h1 {
 .form-grid input:focus {
   border-color: var(--accent);
   outline: 3px solid #c7ebe5;
+}
+
+.auth-page {
+  align-items: center;
+  display: grid;
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.auth-panel {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(17, 24, 39, 0.08);
+  margin: 0 auto;
+  max-width: 460px;
+  padding: 28px;
+  width: 100%;
+}
+
+.auth-brand {
+  color: var(--accent-strong);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 850;
+  margin-bottom: 28px;
+}
+
+.auth-panel h1 {
+  font-size: 30px;
+}
+
+.auth-panel p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-form label span {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.auth-form input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  min-height: 42px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.auth-form input:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
+.auth-switch {
+  font-size: 14px;
+  margin: 2px 0 0;
+}
+
+.auth-switch a {
+  color: var(--accent-strong);
+  font-weight: 800;
 }
 
 .form-error {

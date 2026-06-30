@@ -2,6 +2,17 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 3
+
+- Added `Session` data model and migration.
+- Added credentials registration, login, and logout.
+- Added `scrypt` password hashing and verification.
+- Added HTTP-only session cookies backed by hashed DB tokens.
+- Added auth pages and JSON auth API routes.
+- Protected SaaS dashboard/setup pages behind session checks.
+- Changed protected organization/site/activity APIs to return `401 AUTH_REQUIRED` without a session.
+- Added password hashing tests.
+
 ### Iteration 2
 
 - Added Prisma client workspace exports.

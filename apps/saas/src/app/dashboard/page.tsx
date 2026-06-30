@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { getAppRepository } from "@/lib/app-repository";
-import { requireCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export default async function DashboardPage() {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
   const repository = getAppRepository();
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;

@@ -25,6 +25,21 @@ export const organizationSlugSchema = z
   .max(80)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
+export const authEmailSchema = z.string().trim().email().max(254).toLowerCase();
+
+export const passwordSchema = z.string().min(10).max(128);
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: authEmailSchema,
+  password: passwordSchema
+});
+
+export const loginSchema = z.object({
+  email: authEmailSchema,
+  password: z.string().min(1).max(128)
+});
+
 export const pluginSyncItemSchema = z.object({
   externalId: z.string().min(1).max(191),
   type: z.enum(["post", "page", "custom_post_type", "taxonomy"]),
@@ -43,5 +58,7 @@ export const pluginSyncBatchSchema = z.object({
 
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;

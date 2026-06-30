@@ -21,6 +21,10 @@
 
 ## SaaS MVP Foundation
 
+- User can register with email/password.
+- User can log in with email/password.
+- Logout clears the active session.
+- Protected SaaS APIs return 401 without a session.
 - Current user can create an organization.
 - Organization creator becomes Owner.
 - Current user can list only their organizations.

@@ -1,8 +1,8 @@
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
-import { requireCurrentUser } from "@/lib/auth";
-import { jsonError, validationError } from "@/lib/http";
+import { getCurrentUser } from "@/lib/auth";
+import { jsonError, unauthorizedError, validationError } from "@/lib/http";
 
 type RouteContext = {
   params: Promise<{
@@ -11,7 +11,12 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
   const { organizationId } = await context.params;
   const repository = getAppRepository();
 
@@ -25,7 +30,12 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
   const { organizationId } = await context.params;
   const repository = getAppRepository();
 

@@ -25,6 +25,41 @@ Response:
 }
 ```
 
+## Authentication
+
+`POST /api/auth/register`
+
+Creates a user account, hashes the password, creates a DB-backed session, and sets an HTTP-only session cookie.
+
+Request:
+
+```json
+{
+  "name": "Serhii",
+  "email": "serhii@example.com",
+  "password": "very-secure-password"
+}
+```
+
+`POST /api/auth/login`
+
+Verifies credentials, creates a DB-backed session, and sets an HTTP-only session cookie.
+
+Request:
+
+```json
+{
+  "email": "serhii@example.com",
+  "password": "very-secure-password"
+}
+```
+
+`POST /api/auth/logout`
+
+Deletes the current session token hash from the database and clears the session cookie.
+
+Protected endpoints return `401 AUTH_REQUIRED` when the session is missing or expired.
+
 ## Organizations
 
 `POST /api/organizations`

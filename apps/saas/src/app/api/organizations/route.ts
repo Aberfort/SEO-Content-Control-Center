@@ -1,17 +1,27 @@
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
-import { requireCurrentUser } from "@/lib/auth";
-import { jsonError, validationError } from "@/lib/http";
+import { getCurrentUser } from "@/lib/auth";
+import { jsonError, unauthorizedError, validationError } from "@/lib/http";
 
 export async function GET() {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
   const repository = getAppRepository();
   return Response.json({ data: await repository.listOrganizationSummariesForUser(user) });
 }
 
 export async function POST(request: Request) {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
   const repository = getAppRepository();
 
   try {

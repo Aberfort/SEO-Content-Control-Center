@@ -6,6 +6,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 ## Core Entities
 
 - User
+- Session
 - Organization
 - OrganizationMember
 - Role
@@ -34,6 +35,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Worker jobs carry `organizationId` and `siteId`.
 - Unique constraints prevent duplicate site URLs and duplicate issue/task records inside a tenant.
 - SaaS repository access must query through membership-scoped methods before returning organization, site, or activity data.
+- Session tokens are stored as hashes in the database. Raw session tokens exist only in HTTP-only cookies.
 
 ## RBAC Roles
 

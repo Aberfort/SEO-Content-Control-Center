@@ -1,6 +1,6 @@
 import { getAppRepository } from "@/lib/app-repository";
-import { requireCurrentUser } from "@/lib/auth";
-import { jsonError } from "@/lib/http";
+import { getCurrentUser } from "@/lib/auth";
+import { jsonError, unauthorizedError } from "@/lib/http";
 
 type RouteContext = {
   params: Promise<{
@@ -9,7 +9,12 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
   const { organizationId } = await context.params;
   const repository = getAppRepository();
 

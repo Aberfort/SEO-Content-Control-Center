@@ -16,7 +16,7 @@
 
 ## Phase 1 - SaaS MVP Foundation
 
-- Register, login, logout.
+- Register, login, logout. Status: DB-backed credentials/session foundation implemented.
 - Password reset and email verification.
 - Organization creation. Status: Prisma-backed foundation implemented.
 - PostgreSQL persistence. Status: initial Prisma migration, seed, and repository implemented.

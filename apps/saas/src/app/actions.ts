@@ -4,8 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
-import { requireCurrentUser } from "@/lib/auth";
 import { getAppRepository } from "@/lib/app-repository";
+import {
+  isAuthRequiredError,
+  loginWithPassword,
+  logoutCurrentSession,
+  registerWithPassword,
+  requireCurrentUser
+} from "@/lib/auth";
 
 export type ActionState = {
   ok: boolean;
@@ -56,6 +62,47 @@ export async function createSiteAction(
   redirect("/");
 }
 
+export async function registerAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    await registerWithPassword({
+      name: String(formData.get("name") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not create account.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function loginAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    await loginWithPassword({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not sign in.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function logoutAction(): Promise<void> {
+  await logoutCurrentSession();
+  revalidatePath("/");
+  redirect("/auth/login");
+}
+
 function actionError(error: unknown, fallback: string): ActionState {
   if (error instanceof ZodError) {
     return {
@@ -71,10 +118,31 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "EMAIL_ALREADY_REGISTERED") {
+    return {
+      ok: false,
+      message: "An account with this email already exists."
+    };
+  }
+
+  if (error instanceof Error && error.message === "INVALID_CREDENTIALS") {
+    return {
+      ok: false,
+      message: "Email or password is incorrect."
+    };
+  }
+
   if (error instanceof Error && error.message.startsWith("Role ")) {
     return {
       ok: false,
       message: "Your role does not allow this action."
+    };
+  }
+
+  if (isAuthRequiredError(error)) {
+    return {
+      ok: false,
+      message: "Please sign in before continuing."
     };
   }
 

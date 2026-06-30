@@ -51,7 +51,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - initial database migration and plan seed script;
 - health endpoint;
 - shared RBAC/plan utilities with tests;
-- development auth context;
+- DB-backed credentials auth and hashed session cookies;
 - tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
 - organization bootstrap UI/API;
 - site creation UI/API;
@@ -73,16 +73,12 @@ DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public
 
 Without those variables, the app falls back to the in-memory repository for tests and lightweight local UI work.
 
-## Development Auth
+## Authentication
 
-The SaaS app currently uses a local development auth context while the real Auth.js flow is not wired yet.
+The SaaS app uses DB-backed credentials auth.
 
-Optional environment variables:
+- Register: `http://localhost:3000/auth/register`
+- Login: `http://localhost:3000/auth/login`
+- Logout: available from the SaaS sidebar after login.
 
-```bash
-SCCC_DEV_USER_ID=00000000-0000-4000-8000-000000000001
-SCCC_DEV_USER_EMAIL=owner@example.com
-SCCC_DEV_USER_NAME="Dev Owner"
-```
-
-This is intentionally limited to local MVP development and must be replaced by real authentication before production use.
+Passwords are hashed with `scrypt`. Session cookies are HTTP-only, same-site, and store only an opaque token while the database stores the token hash.

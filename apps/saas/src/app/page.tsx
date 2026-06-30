@@ -1,14 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { LogoutButton } from "@/components/logout-button";
 import { getAppRepository } from "@/lib/app-repository";
-import { requireCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
 export default async function AppHomePage() {
-  const { user } = await requireCurrentUser();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
   const repository = getAppRepository();
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
@@ -23,6 +30,7 @@ export default async function AppHomePage() {
       <aside className="sidebar">
         <div className="brand">SEO Content Control Center</div>
         <p className="sidebar-note">{user.email}</p>
+        <LogoutButton />
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => (
             <Link
