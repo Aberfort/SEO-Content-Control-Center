@@ -25,6 +25,7 @@ import {
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
+  listSyncedContentForSite as listDevSyncedContentForSite,
   resendInvite as resendDevInvite,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
@@ -35,7 +36,8 @@ import type {
   InviteResult,
   OrganizationMemberSummary,
   OrganizationSummary,
-  Site
+  Site,
+  SyncedContentItem
 } from "./types";
 
 type CreateOrganizationInput = {
@@ -85,6 +87,11 @@ type AppRepository = {
   createSite(input: CreateSiteInput): Promise<Site>;
   listSitesForOrganization(userId: string, organizationId: string): Promise<Site[]>;
   listActivityLogsForOrganization(userId: string, organizationId: string): Promise<ActivityLog[]>;
+  listSyncedContentForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<SyncedContentItem[]>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -120,6 +127,9 @@ const devStoreRepository: AppRepository = {
   },
   async listActivityLogsForOrganization(userId, organizationId) {
     return listDevActivityLogsForOrganization(userId, organizationId);
+  },
+  async listSyncedContentForSite(userId, organizationId, siteId) {
+    return listDevSyncedContentForSite(userId, organizationId, siteId);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -357,6 +367,38 @@ const prismaRepository: AppRepository = {
     });
 
     return logs.map(mapActivityLog);
+  },
+
+  async listSyncedContentForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const items = await prisma.syncedContentItem.findMany({
+      where: {
+        organizationId,
+        siteId
+      },
+      orderBy: {
+        modifiedAt: "desc"
+      },
+      take: 50
+    });
+
+    return items.map(mapSyncedContentItem);
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -818,6 +860,34 @@ function mapActivityLog(log: {
     entityId: log.entityId,
     metadata: isMetadataObject(log.metadata) ? log.metadata : {},
     createdAt: log.createdAt.toISOString()
+  };
+}
+
+function mapSyncedContentItem(item: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  externalId: string;
+  type: string;
+  url: string;
+  title: string | null;
+  status: string;
+  modifiedAt: Date;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+}): SyncedContentItem {
+  return {
+    id: item.id,
+    organizationId: item.organizationId,
+    siteId: item.siteId,
+    externalId: item.externalId,
+    type: item.type,
+    url: item.url,
+    title: item.title,
+    status: item.status,
+    modifiedAt: item.modifiedAt.toISOString(),
+    firstSeenAt: item.firstSeenAt.toISOString(),
+    lastSeenAt: item.lastSeenAt.toISOString()
   };
 }
 

@@ -72,8 +72,10 @@
 - Plugin admin stores exchanged organization/site/token/endpoint connection data without autoloading the option.
 - Used, expired, or unknown challenges are rejected.
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
+- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, and modified timestamp.
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
-- Plugin sync accepts a valid signed batch and records `lastSyncAt`.
+- Plugin sync accepts a valid signed batch, upserts synced content items, and records `lastSyncAt`.
+- SaaS users can list only synced content for sites inside their organization.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

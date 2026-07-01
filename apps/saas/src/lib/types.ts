@@ -58,6 +58,20 @@ export type ActivityLog = {
   createdAt: string;
 };
 
+export type SyncedContentItem = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  externalId: string;
+  type: string;
+  url: string;
+  title: string | null;
+  status: string;
+  modifiedAt: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
+
 export type OrganizationSummary = Organization & {
   role: Role;
   sites: Site[];

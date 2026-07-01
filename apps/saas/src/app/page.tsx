@@ -22,9 +22,14 @@ export default async function AppHomePage() {
   const repository = getAppRepository();
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
+  const activeSite = activeOrganization?.sites[0] ?? null;
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
+  const syncedContent =
+    activeOrganization && activeSite
+      ? await repository.listSyncedContentForSite(user.id, activeOrganization.id, activeSite.id)
+      : [];
   const totalSites = organizations.reduce(
     (count, organization) => count + organization.sites.length,
     0
@@ -157,6 +162,58 @@ export default async function AppHomePage() {
             </ul>
           ) : (
             <p className="empty-copy">Activity will appear after organization and site actions.</p>
+          )}
+        </section>
+
+        <section className="panel empty-state" aria-labelledby="synced-content-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="synced-content-title">Synced content</h2>
+              <p>Latest WordPress posts and pages received from the plugin sync.</p>
+            </div>
+          </div>
+
+          {activeSite && syncedContent.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Modified</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncedContent.slice(0, 10).map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{item.title ?? item.externalId}</strong>
+                        <span>{item.url}</span>
+                      </td>
+                      <td>{item.type.replaceAll("_", " ")}</td>
+                      <td>
+                        <span className="status-pill">{item.status}</span>
+                      </td>
+                      <td>
+                        <time dateTime={item.modifiedAt}>
+                          {new Intl.DateTimeFormat("en", {
+                            dateStyle: "medium",
+                            timeStyle: "short"
+                          }).format(new Date(item.modifiedAt))}
+                        </time>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-copy">
+              {activeSite
+                ? "No content synced yet. Connect the plugin and run manual sync."
+                : "Add a WordPress site before syncing content."}
+            </p>
           )}
         </section>
 

@@ -25,7 +25,8 @@ import type {
   OrganizationMember,
   OrganizationMemberSummary,
   OrganizationSummary,
-  Site
+  Site,
+  SyncedContentItem
 } from "./types";
 
 type DevStoreState = {
@@ -358,6 +359,22 @@ export function listActivityLogsForOrganization(
   return getDevStore()
     .activityLogs.filter((log) => log.organizationId === organizationId)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export function listSyncedContentForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): SyncedContentItem[] {
+  void siteId;
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+
+  return [];
 }
 
 export function listMembersForOrganization(

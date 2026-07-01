@@ -2,6 +2,21 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 11
+
+- Added `SyncedContentItem` model and migration for plugin-synced WordPress inventory.
+- Changed signed plugin sync to upsert content items and update `lastSyncAt` transactionally.
+- Added tenant-scoped synced content repository method and JSON listing endpoint.
+- Added synced content preview table to the SaaS setup dashboard.
+- Added fallback repository coverage for synced content listing.
+
+### Iteration 10
+
+- Added WordPress `ContentCollector` for posts/pages inventory.
+- Changed plugin manual sync to send collected content items instead of an empty batch.
+- Normalized synced items to external ID, type, URL, title, status, and modified timestamp.
+- Added PHP smoke coverage for content mapping and sync body item serialization.
+
 ### Iteration 9
 
 - Added WordPress plugin API client for challenge exchange and signed sync requests.

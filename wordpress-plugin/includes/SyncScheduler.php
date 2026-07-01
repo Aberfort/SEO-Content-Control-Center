@@ -15,7 +15,8 @@ final class SyncScheduler
 
     public function __construct(
         private readonly ConnectionStore $connectionStore,
-        private readonly ApiClient $apiClient
+        private readonly ApiClient $apiClient,
+        private readonly ContentCollector $contentCollector
     ) {
     }
 
@@ -41,7 +42,7 @@ final class SyncScheduler
         }
 
         try {
-            $this->apiClient->sendSync($connection);
+            $this->apiClient->sendSync($connection, $this->contentCollector->collect());
         } catch (\RuntimeException) {
             return;
         }

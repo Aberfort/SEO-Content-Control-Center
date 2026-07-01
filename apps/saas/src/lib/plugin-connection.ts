@@ -249,13 +249,49 @@ export async function acceptPluginSyncBatch(input: {
     throw new Error("PLUGIN_SYNC_SCOPE_MISMATCH");
   }
 
-  await prisma.wordPressConnection.update({
-    where: {
-      siteId: parsed.siteId
-    },
-    data: {
-      lastSyncAt: new Date()
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of parsed.items) {
+      await tx.syncedContentItem.upsert({
+        where: {
+          siteId_externalId: {
+            siteId: parsed.siteId,
+            externalId: item.externalId
+          }
+        },
+        update: {
+          organizationId: parsed.organizationId,
+          type: item.type,
+          url: item.url,
+          title: item.title,
+          status: item.status,
+          modifiedAt: new Date(item.modifiedAt),
+          lastSeenAt: now
+        },
+        create: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          externalId: item.externalId,
+          type: item.type,
+          url: item.url,
+          title: item.title,
+          status: item.status,
+          modifiedAt: new Date(item.modifiedAt),
+          firstSeenAt: now,
+          lastSeenAt: now
+        }
+      });
     }
+
+    await tx.wordPressConnection.update({
+      where: {
+        siteId: parsed.siteId
+      },
+      data: {
+        lastSyncAt: now
+      }
+    });
   });
 
   return {

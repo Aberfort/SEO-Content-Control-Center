@@ -71,10 +71,13 @@ final class ApiClient
     /**
      * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
      */
-    public function sendSync(array $connection): void
+    /**
+     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string}> $items
+     */
+    public function sendSync(array $connection, array $items): void
     {
         $path = '/api/plugin/sync';
-        $body = $this->buildSyncBody($connection);
+        $body = $this->buildSyncBody($connection, $items);
         $timestamp = time();
         $headers = $this->buildSignedHeaders($connection, $path, $body, $timestamp);
         $response = wp_remote_post(
@@ -108,14 +111,17 @@ final class ApiClient
     /**
      * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
      */
-    public function buildSyncBody(array $connection): string
+    /**
+     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string}> $items
+     */
+    public function buildSyncBody(array $connection, array $items = []): string
     {
         return $this->encodeJson(
             [
                 'organizationId' => $connection['organization_id'],
                 'siteId' => $connection['site_id'],
                 'cursor' => null,
-                'items' => [],
+                'items' => $items,
             ]
         );
     }

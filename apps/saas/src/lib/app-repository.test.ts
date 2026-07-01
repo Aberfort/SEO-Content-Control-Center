@@ -35,6 +35,13 @@ describe("app repository", () => {
 
     expect(organizations).toHaveLength(1);
     expect(organizations[0]?.sites).toHaveLength(1);
+    expect(
+      await repository.listSyncedContentForSite(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? ""
+      )
+    ).toEqual([]);
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

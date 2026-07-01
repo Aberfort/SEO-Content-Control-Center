@@ -35,6 +35,8 @@
 - Prepared queries if direct SQL is ever used.
 - Options containing secrets use `autoload = false`.
 - Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
+- Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload.
+- Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

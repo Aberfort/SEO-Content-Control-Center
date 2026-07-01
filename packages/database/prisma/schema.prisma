@@ -182,6 +182,7 @@ model Site {
   organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   wordpressConnection  WordPressConnection?
   connectionChallenges WordPressConnectionChallenge[]
+  syncedContentItems   SyncedContentItem[]
   gscConnections       GscConnection[]
   audits               Audit[]
   backlogTasks         BacklogTask[]
@@ -214,6 +215,27 @@ model WordPressConnectionChallenge {
   site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([siteId, expiresAt])
+}
+
+model SyncedContentItem {
+  id             String   @id @default(uuid())
+  organizationId String
+  siteId         String
+  externalId     String
+  type           String
+  url            String
+  title          String?
+  status         String
+  modifiedAt     DateTime
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  site           Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, externalId])
+  @@index([organizationId, siteId, modifiedAt])
+  @@index([organizationId, lastSeenAt])
 }
 
 model GscConnection {

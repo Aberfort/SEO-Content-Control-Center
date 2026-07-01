@@ -202,7 +202,7 @@ Request:
 
 `POST /api/plugin/sync`
 
-Receives signed sync batches from WordPress. The endpoint currently authenticates and validates the batch, records `lastSyncAt`, and returns the accepted item count.
+Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, and modified timestamp. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
 
 Required headers:
 
@@ -216,6 +216,10 @@ Signature input:
 ```text
 METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + SHA256(BODY)
 ```
+
+`GET /api/organizations/:organizationId/sites/:siteId/content`
+
+Lists the latest synced WordPress content items for a tenant-scoped site.
 
 ## Audits
 

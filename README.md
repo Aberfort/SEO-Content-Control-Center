@@ -60,6 +60,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - same-origin CSRF guard and MVP rate limits for auth/invite mutations;
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - WordPress plugin admin challenge exchange and signed manual sync request;
+- WordPress plugin posts/pages inventory payload for signed sync;
+- SaaS persistence and dashboard preview for synced WordPress content;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
