@@ -699,7 +699,7 @@ const prismaRepository: AppRepository = {
             id: "desc"
           }
         ],
-        take: 50
+        take: normalizedOptions.limit ?? 50
       }),
       prisma.backlogTask.count({
         where: baseWhere
@@ -1416,7 +1416,8 @@ function normalizeBacklogTaskListOptions(
 ): BacklogTaskListQuery {
   return backlogTaskListQuerySchema.parse({
     status: options?.status,
-    severity: options?.severity
+    severity: options?.severity,
+    limit: options?.limit ?? 50
   });
 }
 

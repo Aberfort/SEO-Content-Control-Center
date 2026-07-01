@@ -460,6 +460,7 @@ export function listBacklogTasksForSite(
         const severityMatches = options.severity ? task.severity === options.severity : true;
         return statusMatches && severityMatches;
       })
+      .slice(0, options.limit ?? 50)
       .map((task) => withBacklogComments(task, store.backlogComments, 3)),
     summary: summarizeBacklogTasks(scopedTasks)
   };

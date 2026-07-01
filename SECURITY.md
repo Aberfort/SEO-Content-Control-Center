@@ -47,6 +47,7 @@
 - Updating backlog task status requires backlog update permission and organization/site/task scoping.
 - Updating backlog assignee or due date requires backlog update permission and active same-organization assignee validation.
 - Creating or listing backlog comments requires resolving the parent task inside organization/site scope.
+- Exporting backlog tasks requires backlog read permission and organization/site-scoped filters.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

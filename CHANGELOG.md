@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 22
+
+- Added a tenant-scoped backlog CSV export endpoint with status and severity filters.
+- Added an "Export CSV" action to the SaaS backlog filter bar.
+- Extended backlog list options with a bounded export limit.
+- Documented backlog CSV export behavior and QA coverage.
+
 ### Iteration 21
 
 - Added tenant-scoped backlog task comments through repository methods and JSON endpoints.

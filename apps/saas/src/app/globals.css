@@ -719,7 +719,7 @@ th {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(160px, 220px)) auto auto;
+  grid-template-columns: repeat(2, minmax(160px, 220px)) auto auto auto;
   margin-bottom: 16px;
 }
 

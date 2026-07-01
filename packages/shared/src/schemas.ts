@@ -115,7 +115,8 @@ export const backlogTaskSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITI
 
 export const backlogTaskListQuerySchema = z.object({
   status: backlogTaskStatusSchema.optional(),
-  severity: backlogTaskSeveritySchema.optional()
+  severity: backlogTaskSeveritySchema.optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional()
 });
 
 export const updateBacklogTaskStatusSchema = z.object({

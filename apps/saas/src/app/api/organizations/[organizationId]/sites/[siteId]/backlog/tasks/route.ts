@@ -26,7 +26,8 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const query = backlogTaskListQuerySchema.parse({
       status: readSearchParam(request, "status") || undefined,
-      severity: readSearchParam(request, "severity") || undefined
+      severity: readSearchParam(request, "severity") || undefined,
+      limit: readSearchParam(request, "limit") || undefined
     });
     const tasks = await repository.listBacklogTasksForSite(user.id, organizationId, siteId, query);
     return Response.json({ data: tasks });

@@ -322,6 +322,7 @@ Lists the latest persisted backlog tasks for a tenant-scoped site. Optional quer
 
 - `status`: one of `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`
 - `severity`: one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+- `limit`: number from `1` to `500`
 
 Response:
 
@@ -367,6 +368,15 @@ Response:
   }
 }
 ```
+
+`GET /api/organizations/:organizationId/sites/:siteId/backlog/tasks/export`
+
+Exports latest persisted backlog tasks for a tenant-scoped site as CSV. Optional query params:
+
+- `status`: one of `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`
+- `severity`: one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+
+Response content type: `text/csv; charset=utf-8`.
 
 `PATCH /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId`
 

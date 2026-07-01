@@ -140,6 +140,7 @@ export type BacklogTaskComment = {
 export type BacklogTaskListOptions = {
   status?: BacklogTask["status"];
   severity?: BacklogTask["severity"];
+  limit?: number;
 };
 
 export type BacklogTaskSummary = {

@@ -624,6 +624,19 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                 >
                   Reset
                 </Link>
+                {activeOrganization ? (
+                  <Link
+                    className="secondary-button"
+                    href={buildBacklogExportHref({
+                      organizationId: activeOrganization.id,
+                      siteId: activeSite.id,
+                      status: backlogFilters.status,
+                      severity: backlogFilters.severity
+                    })}
+                  >
+                    Export CSV
+                  </Link>
+                ) : null}
               </form>
 
               {backlogTasks.items.length > 0 ? (
@@ -881,6 +894,27 @@ function buildContentHref(
 
   const query = nextParams.toString();
   return query ? `/?${query}` : "/";
+}
+
+function buildBacklogExportHref(input: {
+  organizationId: string;
+  siteId: string;
+  status?: string;
+  severity?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  if (input.status) {
+    params.set("status", input.status);
+  }
+
+  if (input.severity) {
+    params.set("severity", input.severity);
+  }
+
+  const query = params.toString();
+  const path = `/api/organizations/${input.organizationId}/sites/${input.siteId}/backlog/tasks/export`;
+  return query ? `${path}?${query}` : path;
 }
 
 function formatDateTime(value: string): string {

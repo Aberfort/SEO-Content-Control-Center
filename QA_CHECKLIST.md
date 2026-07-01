@@ -88,6 +88,7 @@
 - SaaS users with backlog update permission can change backlog task status and generate an activity log entry.
 - SaaS users with backlog update permission can assign backlog tasks to active organization members and set or clear due dates.
 - SaaS users with backlog update permission can comment on scoped backlog tasks and see recent comments in the dashboard.
+- SaaS users with backlog read permission can export filtered site backlog tasks as CSV.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
