@@ -8,12 +8,14 @@ import {
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
   type BacklogTaskFromCandidateInput,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
+  type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput
 } from "@sccc/shared";
 
@@ -33,6 +35,7 @@ import {
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
   resendInvite as resendDevInvite,
+  updateBacklogTaskStatus as updateDevBacklogTaskStatus,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
 import {
@@ -66,6 +69,10 @@ type CreateSiteInput = {
 };
 
 type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
+  user: AppUser;
+};
+
+type UpdateBacklogTaskStatusInputWithUser = UpdateBacklogTaskStatusInput & {
   user: AppUser;
 };
 
@@ -122,6 +129,7 @@ type AppRepository = {
     organizationId: string,
     siteId: string
   ): Promise<BacklogTask[]>;
+  updateBacklogTaskStatus(input: UpdateBacklogTaskStatusInputWithUser): Promise<BacklogTask>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -169,6 +177,9 @@ const devStoreRepository: AppRepository = {
   },
   async listBacklogTasksForSite(userId, organizationId, siteId) {
     return listDevBacklogTasksForSite(userId, organizationId, siteId);
+  },
+  async updateBacklogTaskStatus(input) {
+    return updateDevBacklogTaskStatus(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -641,6 +652,61 @@ const prismaRepository: AppRepository = {
     });
 
     return tasks.map(mapBacklogTask);
+  },
+
+  async updateBacklogTaskStatus(input) {
+    const parsed = updateBacklogTaskStatusSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const existing = await prisma.backlogTask.findFirst({
+      where: {
+        id: parsed.taskId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    if (existing.status === parsed.status) {
+      return mapBacklogTask(existing);
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      const updated = await tx.backlogTask.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: parsed.status
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "backlog_task.status_updated",
+          entityType: "BacklogTask",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            previousStatus: existing.status,
+            status: parsed.status
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBacklogTask(task);
   },
 
   async listMembersForOrganization(userId, organizationId) {

@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 18
+
+- Added backlog task status update repository method, JSON endpoint, and server action.
+- Added inline status controls to the SaaS backlog table.
+- Added activity log writes for backlog task status transitions.
+- Added fallback repository coverage for backlog status updates.
+
 ### Iteration 17
 
 - Added tenant-scoped backlog task listing repository method and JSON endpoint.

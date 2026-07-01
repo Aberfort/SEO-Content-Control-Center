@@ -328,6 +328,20 @@ Response:
 }
 ```
 
+`PATCH /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId`
+
+Updates a persisted backlog task status inside a tenant-scoped site.
+
+Request:
+
+```json
+{
+  "status": "IN_PROGRESS"
+}
+```
+
+Allowed statuses: `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`.
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

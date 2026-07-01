@@ -249,6 +249,24 @@ export async function createBacklogTaskFromCandidateAction(formData: FormData): 
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function updateBacklogTaskStatusAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.updateBacklogTaskStatus({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    taskId: String(formData.get("taskId") ?? ""),
+    status: String(formData.get("status") ?? "TODO") as never
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function registerAction(
   _previousState: ActionState,
   formData: FormData

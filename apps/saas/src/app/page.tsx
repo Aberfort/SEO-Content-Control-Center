@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createBacklogTaskFromCandidateAction } from "@/app/actions";
+import { createBacklogTaskFromCandidateAction, updateBacklogTaskStatusAction } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { InviteActionsForm } from "@/components/invite-actions-form";
@@ -37,6 +37,8 @@ const contentStatuses = [
   { label: "Pending", value: "pending" },
   { label: "Future", value: "future" }
 ];
+
+const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"];
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -549,7 +551,28 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                         <span>{task.issueType.replaceAll("_", " ")}</span>
                       </td>
                       <td>
-                        <span className="status-pill">{task.status.replaceAll("_", " ")}</span>
+                        <form className="status-form" action={updateBacklogTaskStatusAction}>
+                          <input name="organizationId" type="hidden" value={task.organizationId} />
+                          <input name="siteId" type="hidden" value={task.siteId} />
+                          <input name="taskId" type="hidden" value={task.id} />
+                          <input
+                            name="redirectTo"
+                            type="hidden"
+                            value={buildContentHref(params, {
+                              site: activeSite.id
+                            })}
+                          />
+                          <select name="status" defaultValue={task.status}>
+                            {backlogStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status.replaceAll("_", " ")}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="secondary-button" type="submit">
+                            Apply
+                          </button>
+                        </form>
                       </td>
                       <td>
                         <span className={`severity-pill severity-${task.severity.toLowerCase()}`}>

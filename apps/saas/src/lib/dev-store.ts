@@ -442,6 +442,52 @@ export function listBacklogTasksForSite(
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
+export function updateBacklogTaskStatus(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  taskId: string;
+  status: BacklogTask["status"];
+}): BacklogTask {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "backlog:update"
+  });
+
+  const task = getDevStore().backlogTasks.find(
+    (candidate) =>
+      candidate.id === input.taskId &&
+      candidate.organizationId === input.organizationId &&
+      candidate.siteId === input.siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  const previousStatus = task.status;
+  task.status = input.status;
+  task.updatedAt = nowIso();
+
+  if (previousStatus !== input.status) {
+    writeActivityLog({
+      organizationId: input.organizationId,
+      userId: input.user.id,
+      action: "backlog_task.status_updated",
+      entityType: "BacklogTask",
+      entityId: task.id,
+      metadata: {
+        siteId: input.siteId,
+        previousStatus,
+        status: input.status
+      }
+    });
+  }
+
+  return task;
+}
+
 export function listMembersForOrganization(
   userId: string,
   organizationId: string

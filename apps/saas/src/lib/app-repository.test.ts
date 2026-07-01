@@ -70,6 +70,15 @@ describe("app repository", () => {
         organizations[0]?.sites[0]?.id ?? ""
       )
     ).toEqual([]);
+    await expect(
+      repository.updateBacklogTaskStatus({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        taskId: "00000000-0000-4000-8000-000000000404",
+        status: "DONE"
+      })
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

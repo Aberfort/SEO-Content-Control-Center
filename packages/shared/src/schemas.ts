@@ -102,6 +102,22 @@ export const backlogTaskFromCandidateSchema = z.object({
   candidateId: z.string().min(1).max(256)
 });
 
+export const backlogTaskStatusSchema = z.enum([
+  "TODO",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "DONE",
+  "SNOOZED",
+  "IGNORED"
+]);
+
+export const updateBacklogTaskStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  taskId: z.string().uuid(),
+  status: backlogTaskStatusSchema
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -117,3 +133,4 @@ export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExcha
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
+export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;
