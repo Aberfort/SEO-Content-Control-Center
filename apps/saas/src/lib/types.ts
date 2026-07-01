@@ -72,6 +72,22 @@ export type SyncedContentItem = {
   lastSeenAt: string;
 };
 
+export type SyncedContentHealthSignal = {
+  id: string;
+  label: string;
+  severity: "success" | "info" | "warning" | "critical";
+  message: string;
+};
+
+export type SyncedContentBacklogCandidate = {
+  id: string;
+  title: string;
+  priority: "low" | "medium" | "high";
+  sourceSignalId: string;
+  rationale: string;
+  nextStep: string;
+};
+
 export type SyncedContentListOptions = {
   query?: string;
   type?: string;
@@ -84,6 +100,11 @@ export type SyncedContentList = {
   items: SyncedContentItem[];
   nextCursor: string | null;
   total: number;
+};
+
+export type SyncedContentDetail = SyncedContentItem & {
+  healthSignals: SyncedContentHealthSignal[];
+  backlogCandidates: SyncedContentBacklogCandidate[];
 };
 
 export type OrganizationSummary = Organization & {

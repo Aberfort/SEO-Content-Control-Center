@@ -26,6 +26,7 @@ import type {
   OrganizationMemberSummary,
   OrganizationSummary,
   Site,
+  SyncedContentItem,
   SyncedContentList,
   SyncedContentListOptions
 } from "./types";
@@ -382,6 +383,24 @@ export function listSyncedContentForSite(
     nextCursor: null,
     total: 0
   };
+}
+
+export function getSyncedContentItem(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  contentItemId: string
+): SyncedContentItem | null {
+  void siteId;
+  void contentItemId;
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+
+  return null;
 }
 
 export function listMembersForOrganization(

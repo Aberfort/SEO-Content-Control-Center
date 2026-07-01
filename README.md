@@ -63,6 +63,9 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin posts/pages inventory payload for signed sync;
 - SaaS persistence and dashboard inventory for synced WordPress content;
 - SaaS synced content inventory with search, filters, and cursor pagination;
+- SaaS synced content detail panel and tenant-scoped detail API;
+- computed synced content health signals from WordPress sync metadata;
+- computed backlog candidate tasks from synced content health signals;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

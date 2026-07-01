@@ -241,6 +241,48 @@ Response:
 }
 ```
 
+`GET /api/organizations/:organizationId/sites/:siteId/content/:contentItemId`
+
+Returns one synced WordPress content item when it belongs to the requested organization and site.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "33333333-3333-4333-8333-333333333333",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "externalId": "post:123",
+    "type": "post",
+    "url": "https://example.com/post",
+    "title": "Example post",
+    "status": "publish",
+    "modifiedAt": "2026-07-01T07:00:00.000Z",
+    "firstSeenAt": "2026-07-01T07:05:00.000Z",
+    "lastSeenAt": "2026-07-01T07:05:00.000Z",
+    "healthSignals": [
+      {
+        "id": "published",
+        "label": "Published",
+        "severity": "success",
+        "message": "WordPress reports this item as published."
+      }
+    ],
+    "backlogCandidates": [
+      {
+        "id": "33333333-3333-4333-8333-333333333333:refresh",
+        "title": "Review freshness of Example post",
+        "priority": "low",
+        "sourceSignalId": "content-stale",
+        "rationale": "WordPress modified timestamp is 200 days old.",
+        "nextStep": "Check whether the page still matches search intent and update it if needed."
+      }
+    ]
+  }
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

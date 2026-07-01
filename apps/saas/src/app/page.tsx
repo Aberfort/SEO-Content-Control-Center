@@ -9,6 +9,10 @@ import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  buildSyncedContentBacklogCandidates,
+  buildSyncedContentHealthSignals
+} from "@/lib/content-health";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
@@ -56,6 +60,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     cursor: readQueryParam(params, "cursor"),
     limit: 10
   };
+  const selectedContentId = readQueryParam(params, "content");
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
@@ -72,6 +77,21 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           nextCursor: null,
           total: 0
         };
+  const selectedContentItem =
+    activeOrganization && activeSite && selectedContentId
+      ? await repository.getSyncedContentItem(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          selectedContentId
+        )
+      : null;
+  const selectedContentHealthSignals = selectedContentItem
+    ? buildSyncedContentHealthSignals(selectedContentItem)
+    : [];
+  const selectedContentBacklogCandidates = selectedContentItem
+    ? buildSyncedContentBacklogCandidates(selectedContentItem, selectedContentHealthSignals)
+    : [];
   const totalSites = organizations.reduce(
     (count, organization) => count + organization.sites.length,
     0
@@ -277,6 +297,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                           <th>Status</th>
                           <th>Modified</th>
                           <th>Seen</th>
+                          <th>Details</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -303,6 +324,17 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                                 Last {formatDateTime(item.lastSeenAt)}
                               </span>
                             </td>
+                            <td>
+                              <Link
+                                className="text-button"
+                                href={buildContentHref(params, {
+                                  site: activeSite.id,
+                                  content: item.id
+                                })}
+                              >
+                                Open
+                              </Link>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -326,6 +358,127 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
               ) : (
                 <p className="empty-copy">No content matches the current inventory filters.</p>
               )}
+
+              {selectedContentId ? (
+                <div className="content-detail-panel" aria-labelledby="content-detail-title">
+                  {selectedContentItem ? (
+                    <>
+                      <div className="section-heading">
+                        <div>
+                          <h3 id="content-detail-title">
+                            {selectedContentItem.title ?? selectedContentItem.externalId}
+                          </h3>
+                          <p>{selectedContentItem.url}</p>
+                        </div>
+                        <Link
+                          className="secondary-button inventory-reset"
+                          href={buildContentHref(params, {
+                            content: null
+                          })}
+                        >
+                          Close
+                        </Link>
+                      </div>
+
+                      <dl className="detail-grid">
+                        <div>
+                          <dt>External ID</dt>
+                          <dd>{selectedContentItem.externalId}</dd>
+                        </div>
+                        <div>
+                          <dt>Type</dt>
+                          <dd>{selectedContentItem.type.replaceAll("_", " ")}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>
+                            <span className="status-pill">{selectedContentItem.status}</span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Modified</dt>
+                          <dd>{formatDateTime(selectedContentItem.modifiedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>First seen</dt>
+                          <dd>{formatDateTime(selectedContentItem.firstSeenAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Last seen</dt>
+                          <dd>{formatDateTime(selectedContentItem.lastSeenAt)}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="health-signal-list" aria-label="Content health signals">
+                        {selectedContentHealthSignals.map((signal) => (
+                          <article
+                            className={`health-signal health-signal-${signal.severity}`}
+                            key={signal.id}
+                          >
+                            <span>{signal.severity}</span>
+                            <strong>{signal.label}</strong>
+                            <p>{signal.message}</p>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="candidate-task-list" aria-label="Backlog candidate tasks">
+                        <div className="candidate-task-heading">
+                          <h4>Candidate tasks</h4>
+                          <span>{selectedContentBacklogCandidates.length}</span>
+                        </div>
+                        {selectedContentBacklogCandidates.length > 0 ? (
+                          selectedContentBacklogCandidates.map((candidate) => (
+                            <article className="candidate-task" key={candidate.id}>
+                              <div>
+                                <span className={`priority-pill priority-${candidate.priority}`}>
+                                  {candidate.priority}
+                                </span>
+                                <strong>{candidate.title}</strong>
+                              </div>
+                              <p>{candidate.rationale}</p>
+                              <p>{candidate.nextStep}</p>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="empty-copy">
+                            No candidate tasks generated from the current metadata signals.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="detail-actions">
+                        <a
+                          className="secondary-button inventory-reset"
+                          href={selectedContentItem.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Visit URL
+                        </a>
+                        <span className="muted-text">
+                          Signals are computed from synced WordPress metadata.
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="section-heading">
+                      <div>
+                        <h3 id="content-detail-title">Content item not found</h3>
+                        <p>The selected item is not available for this site.</p>
+                      </div>
+                      <Link
+                        className="secondary-button inventory-reset"
+                        href={buildContentHref(params, {
+                          content: null
+                        })}
+                      >
+                        Clear
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </>
           ) : (
             <p className="empty-copy">Add a WordPress site before syncing content.</p>

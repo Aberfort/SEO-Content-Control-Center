@@ -77,6 +77,9 @@
 - Plugin sync accepts a valid signed batch, upserts synced content items, and records `lastSyncAt`.
 - SaaS users can list only synced content for sites inside their organization.
 - SaaS synced content inventory supports search, type/status filters, and cursor pagination without leaking cross-tenant data.
+- SaaS synced content detail opens only for an item inside the requested organization and site.
+- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, and modified-date freshness.
+- SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

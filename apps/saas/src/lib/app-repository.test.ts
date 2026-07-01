@@ -46,6 +46,14 @@ describe("app repository", () => {
       nextCursor: null,
       total: 0
     });
+    expect(
+      await repository.getSyncedContentItem(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? "",
+        "00000000-0000-4000-8000-000000000303"
+      )
+    ).toBeNull();
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

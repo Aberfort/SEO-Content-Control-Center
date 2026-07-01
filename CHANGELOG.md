@@ -2,6 +2,27 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 15
+
+- Added computed backlog candidate tasks from synced content health signals.
+- Added backlog candidates to the synced content detail API response.
+- Added a candidate tasks section to the synced content detail panel with priority, rationale, and next step.
+- Added unit coverage for health-signal-to-backlog-candidate mapping.
+
+### Iteration 14
+
+- Added computed synced content health signals for title coverage, publish status, sync freshness, and modified-date freshness.
+- Added health signals to the synced content detail API response.
+- Added health signal cards to the synced content detail panel.
+- Added unit coverage for synced content health signal severity mapping.
+
+### Iteration 13
+
+- Added a tenant-scoped synced content detail repository method and JSON endpoint.
+- Added a synced content detail panel to the SaaS inventory table with metadata, first/last seen timestamps, and visit URL action.
+- Added inventory row deep links through the `content` query parameter while preserving active filters.
+- Documented synced content detail lookup security and QA coverage.
+
 ### Iteration 12
 
 - Changed synced content listing to return paginated inventory results with `items`, `nextCursor`, and `total`.

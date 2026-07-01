@@ -20,6 +20,7 @@ import {
   cancelInvite as cancelDevInvite,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
+  getSyncedContentItem as getDevSyncedContentItem,
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
@@ -96,6 +97,12 @@ type AppRepository = {
     siteId: string,
     options?: SyncedContentListOptions
   ): Promise<SyncedContentList>;
+  getSyncedContentItem(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    contentItemId: string
+  ): Promise<SyncedContentItem | null>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -134,6 +141,9 @@ const devStoreRepository: AppRepository = {
   },
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
+  },
+  async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
+    return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -464,6 +474,27 @@ const prismaRepository: AppRepository = {
           : null,
       total
     };
+  },
+
+  async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const item = await prisma.syncedContentItem.findFirst({
+      where: {
+        id: contentItemId,
+        organizationId,
+        siteId,
+        site: {
+          organizationId
+        }
+      }
+    });
+
+    return item ? mapSyncedContentItem(item) : null;
   },
 
   async listMembersForOrganization(userId, organizationId) {

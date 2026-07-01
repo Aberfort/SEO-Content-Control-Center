@@ -38,6 +38,9 @@
 - Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
+- Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
+- Computed content health signals must use synced metadata only and must not fetch external URLs inline.
+- Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 
