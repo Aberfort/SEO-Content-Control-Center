@@ -219,7 +219,27 @@ METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + SHA256(BODY)
 
 `GET /api/organizations/:organizationId/sites/:siteId/content`
 
-Lists the latest synced WordPress content items for a tenant-scoped site.
+Lists synced WordPress content items for a tenant-scoped site.
+
+Query parameters:
+
+- `q` - optional case-insensitive search across title, URL, and external ID.
+- `type` - optional exact content type filter, such as `post` or `page`.
+- `status` - optional exact WordPress status filter, such as `publish` or `draft`.
+- `cursor` - optional item ID cursor returned by the previous response.
+- `limit` - optional page size from 1 to 100.
+
+Response:
+
+```json
+{
+  "data": {
+    "items": [],
+    "nextCursor": null,
+    "total": 0
+  }
+}
+```
 
 ## Audits
 

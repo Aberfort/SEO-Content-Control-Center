@@ -72,6 +72,20 @@ export type SyncedContentItem = {
   lastSeenAt: string;
 };
 
+export type SyncedContentListOptions = {
+  query?: string;
+  type?: string;
+  status?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type SyncedContentList = {
+  items: SyncedContentItem[];
+  nextCursor: string | null;
+  total: number;
+};
+
 export type OrganizationSummary = Organization & {
   role: Role;
   sites: Site[];

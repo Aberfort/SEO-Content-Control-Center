@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
@@ -37,6 +38,8 @@ import type {
   OrganizationMemberSummary,
   OrganizationSummary,
   Site,
+  SyncedContentList,
+  SyncedContentListOptions,
   SyncedContentItem
 } from "./types";
 
@@ -90,8 +93,9 @@ type AppRepository = {
   listSyncedContentForSite(
     userId: string,
     organizationId: string,
-    siteId: string
-  ): Promise<SyncedContentItem[]>;
+    siteId: string,
+    options?: SyncedContentListOptions
+  ): Promise<SyncedContentList>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -128,8 +132,8 @@ const devStoreRepository: AppRepository = {
   async listActivityLogsForOrganization(userId, organizationId) {
     return listDevActivityLogsForOrganization(userId, organizationId);
   },
-  async listSyncedContentForSite(userId, organizationId, siteId) {
-    return listDevSyncedContentForSite(userId, organizationId, siteId);
+  async listSyncedContentForSite(userId, organizationId, siteId, options) {
+    return listDevSyncedContentForSite(userId, organizationId, siteId, options);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -369,7 +373,7 @@ const prismaRepository: AppRepository = {
     return logs.map(mapActivityLog);
   },
 
-  async listSyncedContentForSite(userId, organizationId, siteId) {
+  async listSyncedContentForSite(userId, organizationId, siteId, options) {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
@@ -387,18 +391,79 @@ const prismaRepository: AppRepository = {
       throw new Error("SITE_NOT_FOUND");
     }
 
-    const items = await prisma.syncedContentItem.findMany({
-      where: {
-        organizationId,
-        siteId
-      },
-      orderBy: {
-        modifiedAt: "desc"
-      },
-      take: 50
-    });
+    const normalizedOptions = normalizeSyncedContentListOptions(options);
+    const where: Prisma.SyncedContentItemWhereInput = {
+      organizationId,
+      siteId
+    };
 
-    return items.map(mapSyncedContentItem);
+    if (normalizedOptions.type) {
+      where.type = normalizedOptions.type;
+    }
+
+    if (normalizedOptions.status) {
+      where.status = normalizedOptions.status;
+    }
+
+    if (normalizedOptions.query) {
+      where.OR = [
+        {
+          title: {
+            contains: normalizedOptions.query,
+            mode: "insensitive"
+          }
+        },
+        {
+          url: {
+            contains: normalizedOptions.query,
+            mode: "insensitive"
+          }
+        },
+        {
+          externalId: {
+            contains: normalizedOptions.query,
+            mode: "insensitive"
+          }
+        }
+      ];
+    }
+
+    const [items, total] = await prisma.$transaction([
+      prisma.syncedContentItem.findMany({
+        where,
+        orderBy: [
+          {
+            modifiedAt: "desc"
+          },
+          {
+            id: "desc"
+          }
+        ],
+        ...(normalizedOptions.cursor
+          ? {
+              cursor: {
+                id: normalizedOptions.cursor
+              },
+              skip: 1
+            }
+          : {}),
+        take: normalizedOptions.limit + 1
+      }),
+      prisma.syncedContentItem.count({
+        where
+      })
+    ]);
+
+    const visibleItems = items.slice(0, normalizedOptions.limit);
+
+    return {
+      items: visibleItems.map(mapSyncedContentItem),
+      nextCursor:
+        items.length > normalizedOptions.limit
+          ? (visibleItems[visibleItems.length - 1]?.id ?? null)
+          : null,
+      total
+    };
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -821,6 +886,26 @@ function normalizeUrl(url: string): string {
   parsed.hash = "";
   parsed.pathname = parsed.pathname.replace(/\/+$/, "");
   return parsed.toString();
+}
+
+function normalizeSyncedContentListOptions(
+  options: SyncedContentListOptions | undefined
+): Required<SyncedContentListOptions> {
+  const limit = Number.isFinite(options?.limit)
+    ? Math.min(Math.max(Math.trunc(options?.limit ?? 25), 1), 100)
+    : 25;
+
+  return {
+    query: normalizeOptionalFilter(options?.query, 160),
+    type: normalizeOptionalFilter(options?.type, 64),
+    status: normalizeOptionalFilter(options?.status, 64),
+    cursor: normalizeOptionalFilter(options?.cursor, 191),
+    limit
+  };
+}
+
+function normalizeOptionalFilter(value: string | undefined, maxLength: number): string {
+  return value?.trim().slice(0, maxLength) ?? "";
 }
 
 function mapSite(site: {

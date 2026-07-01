@@ -41,6 +41,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Invite tokens are stored as hashes on `OrganizationMember`; raw invite tokens only appear in create/resend responses and accept-invite URLs.
 - WordPress connection challenges and plugin tokens are stored as hashes. Raw challenge/token values are returned only at creation/exchange time.
 - Synced content items are unique by `siteId + externalId` and scoped by `organizationId`.
+- Synced content inventory queries must keep filters inside the organization/site scope before applying search or pagination.
 
 ## Organization Member Lifecycle
 

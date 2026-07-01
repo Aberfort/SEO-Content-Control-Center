@@ -76,6 +76,7 @@
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
 - Plugin sync accepts a valid signed batch, upserts synced content items, and records `lastSyncAt`.
 - SaaS users can list only synced content for sites inside their organization.
+- SaaS synced content inventory supports search, type/status filters, and cursor pagination without leaking cross-tenant data.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

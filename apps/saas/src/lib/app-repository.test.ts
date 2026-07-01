@@ -41,7 +41,11 @@ describe("app repository", () => {
         organization.id,
         organizations[0]?.sites[0]?.id ?? ""
       )
-    ).toEqual([]);
+    ).toEqual({
+      items: [],
+      nextCursor: null,
+      total: 0
+    });
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

@@ -37,6 +37,7 @@
 - Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
 - Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
+- Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

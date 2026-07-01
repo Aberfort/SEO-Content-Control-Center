@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 12
+
+- Changed synced content listing to return paginated inventory results with `items`, `nextCursor`, and `total`.
+- Added search, type filter, status filter, site selector, and cursor pagination to the SaaS synced content dashboard section.
+- Added query parameter support to the tenant-scoped synced content API endpoint.
+- Kept synced content filters tenant-scoped through the repository access boundary.
+
 ### Iteration 11
 
 - Added `SyncedContentItem` model and migration for plugin-synced WordPress inventory.

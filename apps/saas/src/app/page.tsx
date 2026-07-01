@@ -12,24 +12,66 @@ import { getCurrentUser } from "@/lib/auth";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
-export default async function AppHomePage() {
+type AppHomePageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const contentTypes = [
+  { label: "All types", value: "" },
+  { label: "Posts", value: "post" },
+  { label: "Pages", value: "page" },
+  { label: "Custom post types", value: "custom_post_type" },
+  { label: "Taxonomies", value: "taxonomy" }
+];
+
+const contentStatuses = [
+  { label: "All statuses", value: "" },
+  { label: "Published", value: "publish" },
+  { label: "Draft", value: "draft" },
+  { label: "Private", value: "private" },
+  { label: "Pending", value: "pending" },
+  { label: "Future", value: "future" }
+];
+
+export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/auth/login");
   }
 
+  const params = (await searchParams) ?? {};
   const repository = getAppRepository();
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
-  const activeSite = activeOrganization?.sites[0] ?? null;
+  const selectedSiteId = readQueryParam(params, "site");
+  const activeSite =
+    activeOrganization?.sites.find((site) => site.id === selectedSiteId) ??
+    activeOrganization?.sites[0] ??
+    null;
+  const contentFilters = {
+    query: readQueryParam(params, "q"),
+    type: readQueryParam(params, "type"),
+    status: readQueryParam(params, "status"),
+    cursor: readQueryParam(params, "cursor"),
+    limit: 10
+  };
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
   const syncedContent =
     activeOrganization && activeSite
-      ? await repository.listSyncedContentForSite(user.id, activeOrganization.id, activeSite.id)
-      : [];
+      ? await repository.listSyncedContentForSite(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          contentFilters
+        )
+      : {
+          items: [],
+          nextCursor: null,
+          total: 0
+        };
   const totalSites = organizations.reduce(
     (count, organization) => count + organization.sites.length,
     0
@@ -169,51 +211,124 @@ export default async function AppHomePage() {
           <div className="section-heading">
             <div>
               <h2 id="synced-content-title">Synced content</h2>
-              <p>Latest WordPress posts and pages received from the plugin sync.</p>
+              <p>Search and review WordPress inventory received from plugin sync.</p>
             </div>
+            <span className="metric-pill">{syncedContent.total} items</span>
           </div>
 
-          {activeSite && syncedContent.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Modified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {syncedContent.slice(0, 10).map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <strong>{item.title ?? item.externalId}</strong>
-                        <span>{item.url}</span>
-                      </td>
-                      <td>{item.type.replaceAll("_", " ")}</td>
-                      <td>
-                        <span className="status-pill">{item.status}</span>
-                      </td>
-                      <td>
-                        <time dateTime={item.modifiedAt}>
-                          {new Intl.DateTimeFormat("en", {
-                            dateStyle: "medium",
-                            timeStyle: "short"
-                          }).format(new Date(item.modifiedAt))}
-                        </time>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {activeSite ? (
+            <>
+              <form className="inventory-filters" method="get">
+                <label>
+                  <span>Site</span>
+                  <select name="site" defaultValue={activeSite.id}>
+                    {activeOrganization?.sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Search</span>
+                  <input
+                    name="q"
+                    type="search"
+                    placeholder="Title, URL, external ID"
+                    defaultValue={contentFilters.query}
+                  />
+                </label>
+                <label>
+                  <span>Type</span>
+                  <select name="type" defaultValue={contentFilters.type}>
+                    {contentTypes.map((type) => (
+                      <option key={type.value || "all"} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select name="status" defaultValue={contentFilters.status}>
+                    {contentStatuses.map((status) => (
+                      <option key={status.value || "all"} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="button" type="submit">
+                  Apply
+                </button>
+                <Link className="secondary-button inventory-reset" href="/">
+                  Reset
+                </Link>
+              </form>
+
+              {syncedContent.items.length > 0 ? (
+                <>
+                  <div className="table-wrap">
+                    <table className="content-table">
+                      <thead>
+                        <tr>
+                          <th>Title</th>
+                          <th>Type</th>
+                          <th>Status</th>
+                          <th>Modified</th>
+                          <th>Seen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {syncedContent.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <strong>{item.title ?? item.externalId}</strong>
+                              <span>{item.url}</span>
+                            </td>
+                            <td>{item.type.replaceAll("_", " ")}</td>
+                            <td>
+                              <span className="status-pill">{item.status}</span>
+                            </td>
+                            <td>
+                              <time dateTime={item.modifiedAt}>
+                                {formatDateTime(item.modifiedAt)}
+                              </time>
+                            </td>
+                            <td>
+                              <span className="stacked-meta">
+                                First {formatDateTime(item.firstSeenAt)}
+                              </span>
+                              <span className="stacked-meta">
+                                Last {formatDateTime(item.lastSeenAt)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {syncedContent.nextCursor ? (
+                    <div className="pagination-row">
+                      <Link
+                        className="secondary-button"
+                        href={buildContentHref(params, {
+                          site: activeSite.id,
+                          cursor: syncedContent.nextCursor
+                        })}
+                      >
+                        Next page
+                      </Link>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="empty-copy">No content matches the current inventory filters.</p>
+              )}
+            </>
           ) : (
-            <p className="empty-copy">
-              {activeSite
-                ? "No content synced yet. Connect the plugin and run manual sync."
-                : "Add a WordPress site before syncing content."}
-            </p>
+            <p className="empty-copy">Add a WordPress site before syncing content.</p>
           )}
         </section>
 
@@ -274,4 +389,45 @@ export default async function AppHomePage() {
       </main>
     </div>
   );
+}
+
+function readQueryParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string
+): string {
+  const value = params[key];
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+function buildContentHref(
+  params: Record<string, string | string[] | undefined>,
+  overrides: Record<string, string | null>
+): string {
+  const nextParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    const normalizedValue = Array.isArray(value) ? value[0] : value;
+
+    if (normalizedValue) {
+      nextParams.set(key, normalizedValue);
+    }
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value) {
+      nextParams.set(key, value);
+    } else {
+      nextParams.delete(key);
+    }
+  }
+
+  const query = nextParams.toString();
+  return query ? `/?${query}` : "/";
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

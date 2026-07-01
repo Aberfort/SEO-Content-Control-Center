@@ -61,7 +61,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - WordPress plugin admin challenge exchange and signed manual sync request;
 - WordPress plugin posts/pages inventory payload for signed sync;
-- SaaS persistence and dashboard preview for synced WordPress content;
+- SaaS persistence and dashboard inventory for synced WordPress content;
+- SaaS synced content inventory with search, filters, and cursor pagination;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
