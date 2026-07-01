@@ -6,6 +6,8 @@ import {
   inviteMemberSchema,
   loginSchema,
   organizationCreateSchema,
+  pluginConnectionChallengeCreateSchema,
+  pluginConnectionExchangeSchema,
   registerSchema,
   siteCreateSchema,
   updateMemberRoleSchema
@@ -101,5 +103,28 @@ describe("shared schemas", () => {
   it("validates invite acceptance input", () => {
     expect(() => acceptInviteSchema.parse({ token: "a".repeat(43) })).not.toThrow();
     expect(() => acceptInviteSchema.parse({ token: "short" })).toThrow();
+  });
+
+  it("validates plugin connection inputs", () => {
+    expect(() =>
+      pluginConnectionChallengeCreateSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        siteId: "22222222-2222-4222-8222-222222222222"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      pluginConnectionExchangeSchema.parse({
+        challenge: "a".repeat(43),
+        endpoint: "https://app.example.com"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      pluginConnectionExchangeSchema.parse({
+        challenge: "short",
+        endpoint: "not-url"
+      })
+    ).toThrow();
   });
 });

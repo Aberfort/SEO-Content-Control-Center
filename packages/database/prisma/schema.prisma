@@ -181,6 +181,7 @@ model Site {
   updatedAt            DateTime             @updatedAt
   organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   wordpressConnection  WordPressConnection?
+  connectionChallenges WordPressConnectionChallenge[]
   gscConnections       GscConnection[]
   audits               Audit[]
   backlogTasks         BacklogTask[]
@@ -194,13 +195,25 @@ model Site {
 model WordPressConnection {
   id              String    @id @default(uuid())
   siteId          String    @unique
-  tokenHash       String
+  tokenHash       String    @unique
   tokenVersion    Int       @default(1)
   lastSyncAt      DateTime?
   disconnectedAt  DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   site            Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model WordPressConnectionChallenge {
+  id          String    @id @default(uuid())
+  siteId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, expiresAt])
 }
 
 model GscConnection {

@@ -13,6 +13,7 @@
 - Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
 - Invite email bodies must not log raw tokens; raw invite URLs may appear only in the intended email/API response.
+- WordPress connection challenges and plugin tokens must be stored as hashes; sync requests must be timestamped and HMAC-signed.
 - Rate limiting for auth and invite flows; plugin API, webhooks, and bulk operations need dedicated limits before launch.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.

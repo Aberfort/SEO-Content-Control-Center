@@ -174,21 +174,40 @@ Request:
 
 `POST /api/plugin/connections/challenges`
 
-Creates a one-time challenge for a site connection.
+Creates a one-time challenge for a site connection. Requires a signed-in user with `integration:manage` permission for the organization.
+
+Request:
+
+```json
+{
+  "organizationId": "11111111-1111-4111-8111-111111111111",
+  "siteId": "22222222-2222-4222-8222-222222222222"
+}
+```
 
 `POST /api/plugin/connections/exchange`
 
-Exchanges a challenge for plugin credentials. The challenge is one-time use and short-lived.
+Exchanges a challenge for plugin credentials. The challenge is one-time use and expires after 10 minutes. The response includes the raw plugin token once; the database stores only the token hash.
+
+Request:
+
+```json
+{
+  "challenge": "opaque-challenge-token",
+  "endpoint": "https://app.example.com"
+}
+```
 
 `POST /api/plugin/sync`
 
-Receives signed sync batches from WordPress.
+Receives signed sync batches from WordPress. The endpoint currently authenticates and validates the batch, records `lastSyncAt`, and returns the accepted item count.
 
 Required headers:
 
 - `X-SCCC-Site-Id`
 - `X-SCCC-Timestamp`
 - `X-SCCC-Signature`
+- `X-SCCC-Token`
 
 Signature input:
 

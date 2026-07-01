@@ -67,6 +67,11 @@
 - Inputs are sanitized.
 - Outputs are escaped.
 - Secret options are not autoloaded.
+- SaaS user with integration permission can create a short-lived plugin connection challenge.
+- Plugin can exchange a valid challenge once for connection credentials.
+- Used, expired, or unknown challenges are rejected.
+- Plugin sync rejects missing, expired, mismatched, or invalid signatures.
+- Plugin sync accepts a valid signed batch and records `lastSyncAt`.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

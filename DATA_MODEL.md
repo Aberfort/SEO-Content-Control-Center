@@ -14,6 +14,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Plan
 - Site
 - WordPressConnection
+- WordPressConnectionChallenge
 - GscConnection
 - Audit
 - AuditIssue
@@ -37,6 +38,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - SaaS repository access must query through membership-scoped methods before returning organization, site, or activity data.
 - Session tokens are stored as hashes in the database. Raw session tokens exist only in HTTP-only cookies.
 - Invite tokens are stored as hashes on `OrganizationMember`; raw invite tokens only appear in create/resend responses and accept-invite URLs.
+- WordPress connection challenges and plugin tokens are stored as hashes. Raw challenge/token values are returned only at creation/exchange time.
 
 ## Organization Member Lifecycle
 

@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 8
+
+- Added `WordPressConnectionChallenge` model and migration for short-lived one-time plugin connection challenges.
+- Added authenticated challenge creation endpoint for tenant sites.
+- Added public challenge exchange endpoint that returns plugin credentials once and stores only token hashes.
+- Added signed plugin sync endpoint with timestamp tolerance, token hash verification, and HMAC signature verification.
+- Added plugin connection and sync validation schemas plus signing tests.
+- Documented plugin connection headers, challenge exchange, and sync QA checks.
+
 ### Iteration 7
 
 - Added same-origin CSRF guard for mutating JSON API routes and server actions.

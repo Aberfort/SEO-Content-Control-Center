@@ -58,6 +58,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
 - SMTP invite email delivery with local Mailpit support;
 - same-origin CSRF guard and MVP rate limits for auth/invite mutations;
+- WordPress plugin challenge/exchange and signed sync API foundation;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
