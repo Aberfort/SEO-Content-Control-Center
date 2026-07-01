@@ -69,7 +69,28 @@ describe("app repository", () => {
         organization.id,
         organizations[0]?.sites[0]?.id ?? ""
       )
-    ).toEqual([]);
+    ).toEqual({
+      items: [],
+      summary: {
+        total: 0,
+        open: 0,
+        done: 0,
+        byStatus: {
+          TODO: 0,
+          IN_PROGRESS: 0,
+          IN_REVIEW: 0,
+          DONE: 0,
+          SNOOZED: 0,
+          IGNORED: 0
+        },
+        bySeverity: {
+          LOW: 0,
+          MEDIUM: 0,
+          HIGH: 0,
+          CRITICAL: 0
+        }
+      }
+    });
     await expect(
       repository.updateBacklogTaskStatus({
         user,

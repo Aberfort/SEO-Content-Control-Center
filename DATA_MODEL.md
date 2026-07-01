@@ -47,6 +47,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Backlog candidates generated from synced content signals are computed previews until a user creates a persisted `BacklogTask`.
 - Backlog tasks created from synced content candidates use `synced_content.*` issue types and remain scoped by organization and site.
 - Backlog task lists must be queried by organization and site scope before display.
+- Backlog task filters and summary counts must be computed inside the same organization/site scope.
 - Backlog task status transitions update the task record and write organization-scoped activity logs.
 
 ## Organization Member Lifecycle

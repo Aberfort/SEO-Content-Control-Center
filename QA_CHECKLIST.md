@@ -83,6 +83,8 @@
 - SaaS users with backlog update permission can persist a backlog task from a synced content candidate.
 - Persisting the same synced content candidate again returns the existing backlog task instead of creating duplicates.
 - SaaS users with backlog read permission can list persisted backlog tasks for a site inside their organization.
+- SaaS backlog listing supports tenant-scoped status and severity filters.
+- SaaS backlog dashboard shows site-wide summary counts while displaying filtered task rows.
 - SaaS users with backlog update permission can change backlog task status and generate an activity log entry.
 - Manual sync does not run a large sync inline.
 

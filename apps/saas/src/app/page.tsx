@@ -38,7 +38,8 @@ const contentStatuses = [
   { label: "Future", value: "future" }
 ];
 
-const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"];
+const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
+const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -63,6 +64,10 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     cursor: readQueryParam(params, "cursor"),
     limit: 10
   };
+  const backlogFilters = {
+    status: readEnumQueryParam(params, "backlogStatus", backlogStatuses),
+    severity: readEnumQueryParam(params, "backlogSeverity", backlogSeverities)
+  };
   const selectedContentId = readQueryParam(params, "content");
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
@@ -82,8 +87,34 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
         };
   const backlogTasks =
     activeOrganization && activeSite
-      ? await repository.listBacklogTasksForSite(user.id, activeOrganization.id, activeSite.id)
-      : [];
+      ? await repository.listBacklogTasksForSite(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          backlogFilters
+        )
+      : {
+          items: [],
+          summary: {
+            total: 0,
+            open: 0,
+            done: 0,
+            byStatus: {
+              TODO: 0,
+              IN_PROGRESS: 0,
+              IN_REVIEW: 0,
+              DONE: 0,
+              SNOOZED: 0,
+              IGNORED: 0
+            },
+            bySeverity: {
+              LOW: 0,
+              MEDIUM: 0,
+              HIGH: 0,
+              CRITICAL: 0
+            }
+          }
+        };
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -527,73 +558,142 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
               <h2 id="backlog-title">Backlog</h2>
               <p>Persisted SEO tasks created from synced content candidates.</p>
             </div>
-            <span className="metric-pill">{backlogTasks.length} tasks</span>
+            <span className="metric-pill">{backlogTasks.summary.total} tasks</span>
           </div>
 
-          {activeSite && backlogTasks.length > 0 ? (
-            <div className="table-wrap">
-              <table className="backlog-table">
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Status</th>
-                    <th>Severity</th>
-                    <th>Effort</th>
-                    <th>Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {backlogTasks.map((task) => (
-                    <tr key={task.id}>
-                      <td>
-                        <strong>{task.title}</strong>
-                        <span>{task.url}</span>
-                        <span>{task.issueType.replaceAll("_", " ")}</span>
-                      </td>
-                      <td>
-                        <form className="status-form" action={updateBacklogTaskStatusAction}>
-                          <input name="organizationId" type="hidden" value={task.organizationId} />
-                          <input name="siteId" type="hidden" value={task.siteId} />
-                          <input name="taskId" type="hidden" value={task.id} />
-                          <input
-                            name="redirectTo"
-                            type="hidden"
-                            value={buildContentHref(params, {
-                              site: activeSite.id
-                            })}
-                          />
-                          <select name="status" defaultValue={task.status}>
-                            {backlogStatuses.map((status) => (
-                              <option key={status} value={status}>
-                                {status.replaceAll("_", " ")}
-                              </option>
-                            ))}
-                          </select>
-                          <button className="secondary-button" type="submit">
-                            Apply
-                          </button>
-                        </form>
-                      </td>
-                      <td>
-                        <span className={`severity-pill severity-${task.severity.toLowerCase()}`}>
-                          {task.severity}
-                        </span>
-                      </td>
-                      <td>{task.effortEstimate ?? "n/a"}</td>
-                      <td>
-                        <time dateTime={task.updatedAt}>{formatDateTime(task.updatedAt)}</time>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {activeSite ? (
+            <>
+              <div className="backlog-summary" aria-label="Backlog summary">
+                <span>Open {backlogTasks.summary.open}</span>
+                <span>Done {backlogTasks.summary.done}</span>
+                <span>High {backlogTasks.summary.bySeverity.HIGH}</span>
+                <span>Critical {backlogTasks.summary.bySeverity.CRITICAL}</span>
+              </div>
+
+              <form className="backlog-filters" action="/" method="get">
+                <input name="site" type="hidden" value={activeSite.id} />
+                {contentFilters.query ? (
+                  <input name="q" type="hidden" value={contentFilters.query} />
+                ) : null}
+                {contentFilters.type ? (
+                  <input name="type" type="hidden" value={contentFilters.type} />
+                ) : null}
+                {contentFilters.status ? (
+                  <input name="status" type="hidden" value={contentFilters.status} />
+                ) : null}
+                {selectedContentId ? (
+                  <input name="content" type="hidden" value={selectedContentId} />
+                ) : null}
+                <label>
+                  <span>Status</span>
+                  <select name="backlogStatus" defaultValue={backlogFilters.status ?? ""}>
+                    <option value="">All statuses</option>
+                    {backlogStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Severity</span>
+                  <select name="backlogSeverity" defaultValue={backlogFilters.severity ?? ""}>
+                    <option value="">All severities</option>
+                    {backlogSeverities.map((severity) => (
+                      <option key={severity} value={severity}>
+                        {severity}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="secondary-button" type="submit">
+                  Filter
+                </button>
+                <Link
+                  className="secondary-button"
+                  href={buildContentHref(params, {
+                    backlogStatus: null,
+                    backlogSeverity: null
+                  })}
+                >
+                  Reset
+                </Link>
+              </form>
+
+              {backlogTasks.items.length > 0 ? (
+                <div className="table-wrap">
+                  <table className="backlog-table">
+                    <thead>
+                      <tr>
+                        <th>Task</th>
+                        <th>Status</th>
+                        <th>Severity</th>
+                        <th>Effort</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backlogTasks.items.map((task) => (
+                        <tr key={task.id}>
+                          <td>
+                            <strong>{task.title}</strong>
+                            <span>{task.url}</span>
+                            <span>{task.issueType.replaceAll("_", " ")}</span>
+                          </td>
+                          <td>
+                            <form className="status-form" action={updateBacklogTaskStatusAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={task.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={task.siteId} />
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <select name="status" defaultValue={task.status}>
+                                {backlogStatuses.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status.replaceAll("_", " ")}
+                                  </option>
+                                ))}
+                              </select>
+                              <button className="secondary-button" type="submit">
+                                Apply
+                              </button>
+                            </form>
+                          </td>
+                          <td>
+                            <span
+                              className={`severity-pill severity-${task.severity.toLowerCase()}`}
+                            >
+                              {task.severity}
+                            </span>
+                          </td>
+                          <td>{task.effortEstimate ?? "n/a"}</td>
+                          <td>
+                            <time dateTime={task.updatedAt}>{formatDateTime(task.updatedAt)}</time>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="empty-copy">
+                  {backlogTasks.summary.total > 0
+                    ? "No backlog tasks match the selected filters."
+                    : "No backlog tasks yet. Create one from a synced content candidate."}
+                </p>
+              )}
+            </>
           ) : (
-            <p className="empty-copy">
-              {activeSite
-                ? "No backlog tasks yet. Create one from a synced content candidate."
-                : "Add a WordPress site before building a backlog."}
-            </p>
+            <p className="empty-copy">Add a WordPress site before building a backlog.</p>
           )}
         </section>
 
@@ -662,6 +762,15 @@ function readQueryParam(
 ): string {
   const value = params[key];
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+function readEnumQueryParam<TValue extends string>(
+  params: Record<string, string | string[] | undefined>,
+  key: string,
+  allowedValues: readonly TValue[]
+): TValue | undefined {
+  const value = readQueryParam(params, key);
+  return allowedValues.includes(value as TValue) ? (value as TValue) : undefined;
 }
 
 function buildContentHref(

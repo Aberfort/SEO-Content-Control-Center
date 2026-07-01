@@ -698,6 +698,59 @@ th {
   min-width: 820px;
 }
 
+.backlog-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.backlog-summary span {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 10px;
+}
+
+.backlog-filters {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(160px, 220px)) auto auto;
+  margin-bottom: 16px;
+}
+
+.backlog-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.backlog-filters label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.backlog-filters select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  min-height: 38px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.backlog-filters select:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
 .backlog-table strong,
 .backlog-table td > span:not(.status-pill):not(.severity-pill) {
   display: block;
@@ -880,6 +933,7 @@ th {
   .inline-form,
   .role-form,
   .inventory-filters,
+  .backlog-filters,
   .detail-grid,
   .health-signal-list {
     grid-template-columns: 1fr;

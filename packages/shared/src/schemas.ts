@@ -111,6 +111,13 @@ export const backlogTaskStatusSchema = z.enum([
   "IGNORED"
 ]);
 
+export const backlogTaskSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+
+export const backlogTaskListQuerySchema = z.object({
+  status: backlogTaskStatusSchema.optional(),
+  severity: backlogTaskSeveritySchema.optional()
+});
+
 export const updateBacklogTaskStatusSchema = z.object({
   organizationId: organizationIdSchema,
   siteId: siteIdSchema,
@@ -133,4 +140,5 @@ export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExcha
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
+export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

@@ -21,6 +21,9 @@ import type {
   ActivityLog,
   AppUser,
   BacklogTask,
+  BacklogTaskList,
+  BacklogTaskListOptions,
+  BacklogTaskSummary,
   InviteResult,
   Organization,
   OrganizationMember,
@@ -429,17 +432,27 @@ export function createBacklogTaskFromCandidate(input: {
 export function listBacklogTasksForSite(
   userId: string,
   organizationId: string,
-  siteId: string
-): BacklogTask[] {
+  siteId: string,
+  options: BacklogTaskListOptions = {}
+): BacklogTaskList {
   requireOrganizationAccess({
     userId,
     organizationId,
     permission: "backlog:read"
   });
 
-  return getDevStore()
+  const scopedTasks = getDevStore()
     .backlogTasks.filter((task) => task.organizationId === organizationId && task.siteId === siteId)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+  return {
+    items: scopedTasks.filter((task) => {
+      const statusMatches = options.status ? task.status === options.status : true;
+      const severityMatches = options.severity ? task.severity === options.severity : true;
+      return statusMatches && severityMatches;
+    }),
+    summary: summarizeBacklogTasks(scopedTasks)
+  };
 }
 
 export function updateBacklogTaskStatus(input: {
@@ -486,6 +499,47 @@ export function updateBacklogTaskStatus(input: {
   }
 
   return task;
+}
+
+const backlogTaskStatuses = [
+  "TODO",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "DONE",
+  "SNOOZED",
+  "IGNORED"
+] satisfies BacklogTask["status"][];
+
+const backlogTaskSeverities = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL"
+] satisfies BacklogTask["severity"][];
+
+function summarizeBacklogTasks(tasks: BacklogTask[]): BacklogTaskSummary {
+  const summary: BacklogTaskSummary = {
+    total: tasks.length,
+    open: 0,
+    done: 0,
+    byStatus: Object.fromEntries(backlogTaskStatuses.map((status) => [status, 0])) as Record<
+      BacklogTask["status"],
+      number
+    >,
+    bySeverity: Object.fromEntries(
+      backlogTaskSeverities.map((severity) => [severity, 0])
+    ) as Record<BacklogTask["severity"], number>
+  };
+
+  for (const task of tasks) {
+    summary.byStatus[task.status] += 1;
+    summary.bySeverity[task.severity] += 1;
+  }
+
+  summary.open = summary.byStatus.TODO + summary.byStatus.IN_PROGRESS + summary.byStatus.IN_REVIEW;
+  summary.done = summary.byStatus.DONE;
+
+  return summary;
 }
 
 export function listMembersForOrganization(

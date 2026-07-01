@@ -3,6 +3,7 @@ import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
   assertPermission,
+  backlogTaskListQuerySchema,
   backlogTaskFromCandidateSchema,
   hasPermission,
   inviteMemberSchema,
@@ -11,6 +12,7 @@ import {
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type BacklogTaskListQuery,
   type BacklogTaskFromCandidateInput,
   type InviteMemberInput,
   type Permission,
@@ -47,6 +49,9 @@ import type {
   ActivityLog,
   AppUser,
   BacklogTask,
+  BacklogTaskList,
+  BacklogTaskListOptions,
+  BacklogTaskSummary,
   InviteResult,
   OrganizationMemberSummary,
   OrganizationSummary,
@@ -127,8 +132,9 @@ type AppRepository = {
   listBacklogTasksForSite(
     userId: string,
     organizationId: string,
-    siteId: string
-  ): Promise<BacklogTask[]>;
+    siteId: string,
+    options?: BacklogTaskListOptions
+  ): Promise<BacklogTaskList>;
   updateBacklogTaskStatus(input: UpdateBacklogTaskStatusInputWithUser): Promise<BacklogTask>;
   listMembersForOrganization(
     userId: string,
@@ -175,8 +181,8 @@ const devStoreRepository: AppRepository = {
   async createBacklogTaskFromCandidate(input) {
     return createDevBacklogTaskFromCandidate(input);
   },
-  async listBacklogTasksForSite(userId, organizationId, siteId) {
-    return listDevBacklogTasksForSite(userId, organizationId, siteId);
+  async listBacklogTasksForSite(userId, organizationId, siteId, options) {
+    return listDevBacklogTasksForSite(userId, organizationId, siteId, options);
   },
   async updateBacklogTaskStatus(input) {
     return updateDevBacklogTaskStatus(input);
@@ -617,7 +623,8 @@ const prismaRepository: AppRepository = {
     return mapBacklogTask(task);
   },
 
-  async listBacklogTasksForSite(userId, organizationId, siteId) {
+  async listBacklogTasksForSite(userId, organizationId, siteId, options) {
+    const normalizedOptions = normalizeBacklogTaskListOptions(options);
     await requireDbOrganizationAccess({
       userId,
       organizationId,
@@ -635,23 +642,58 @@ const prismaRepository: AppRepository = {
       throw new Error("SITE_NOT_FOUND");
     }
 
-    const tasks = await prisma.backlogTask.findMany({
-      where: {
-        organizationId,
-        siteId
-      },
-      orderBy: [
-        {
-          updatedAt: "desc"
-        },
-        {
-          id: "desc"
-        }
-      ],
-      take: 50
-    });
+    const baseWhere: Prisma.BacklogTaskWhereInput = {
+      organizationId,
+      siteId
+    };
+    const filteredWhere: Prisma.BacklogTaskWhereInput = {
+      ...baseWhere,
+      ...(normalizedOptions.status ? { status: normalizedOptions.status } : {}),
+      ...(normalizedOptions.severity ? { severity: normalizedOptions.severity } : {})
+    };
 
-    return tasks.map(mapBacklogTask);
+    const [tasks, total, statusGroups, severityGroups] = await prisma.$transaction([
+      prisma.backlogTask.findMany({
+        where: filteredWhere,
+        orderBy: [
+          {
+            updatedAt: "desc"
+          },
+          {
+            id: "desc"
+          }
+        ],
+        take: 50
+      }),
+      prisma.backlogTask.count({
+        where: baseWhere
+      }),
+      prisma.backlogTask.groupBy({
+        by: ["status"],
+        where: baseWhere,
+        orderBy: {
+          status: "asc"
+        },
+        _count: {
+          _all: true
+        }
+      }),
+      prisma.backlogTask.groupBy({
+        by: ["severity"],
+        where: baseWhere,
+        orderBy: {
+          severity: "asc"
+        },
+        _count: {
+          _all: true
+        }
+      })
+    ]);
+
+    return {
+      items: tasks.map(mapBacklogTask),
+      summary: buildBacklogSummary(total, statusGroups, severityGroups)
+    };
   },
 
   async updateBacklogTaskStatus(input) {
@@ -1149,6 +1191,78 @@ function normalizeSyncedContentListOptions(
 
 function normalizeOptionalFilter(value: string | undefined, maxLength: number): string {
   return value?.trim().slice(0, maxLength) ?? "";
+}
+
+function normalizeBacklogTaskListOptions(
+  options: BacklogTaskListOptions | undefined
+): BacklogTaskListQuery {
+  return backlogTaskListQuerySchema.parse({
+    status: options?.status,
+    severity: options?.severity
+  });
+}
+
+const backlogTaskStatuses = [
+  "TODO",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "DONE",
+  "SNOOZED",
+  "IGNORED"
+] satisfies BacklogTask["status"][];
+
+const backlogTaskSeverities = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL"
+] satisfies BacklogTask["severity"][];
+
+function buildEmptyBacklogSummary(): BacklogTaskSummary {
+  return {
+    total: 0,
+    open: 0,
+    done: 0,
+    byStatus: Object.fromEntries(backlogTaskStatuses.map((status) => [status, 0])) as Record<
+      BacklogTask["status"],
+      number
+    >,
+    bySeverity: Object.fromEntries(
+      backlogTaskSeverities.map((severity) => [severity, 0])
+    ) as Record<BacklogTask["severity"], number>
+  };
+}
+
+function buildBacklogSummary(
+  total: number,
+  statusGroups: Array<{
+    status: BacklogTask["status"];
+    _count?: true | { _all?: number };
+  }>,
+  severityGroups: Array<{
+    severity: BacklogTask["severity"];
+    _count?: true | { _all?: number };
+  }>
+): BacklogTaskSummary {
+  const summary = buildEmptyBacklogSummary();
+  summary.total = total;
+
+  for (const group of statusGroups) {
+    summary.byStatus[group.status] = readBacklogGroupCount(group);
+  }
+
+  for (const group of severityGroups) {
+    summary.bySeverity[group.severity] = readBacklogGroupCount(group);
+  }
+
+  summary.open = summary.byStatus.TODO + summary.byStatus.IN_PROGRESS + summary.byStatus.IN_REVIEW;
+  summary.done = summary.byStatus.DONE;
+
+  return summary;
+}
+
+function readBacklogGroupCount(group: { _count?: true | { _all?: number } }): number {
+  return typeof group._count === "object" ? (group._count._all ?? 0) : 0;
 }
 
 function mapSite(site: {

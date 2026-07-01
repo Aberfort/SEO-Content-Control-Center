@@ -126,6 +126,24 @@ export type BacklogTask = {
   updatedAt: string;
 };
 
+export type BacklogTaskListOptions = {
+  status?: BacklogTask["status"];
+  severity?: BacklogTask["severity"];
+};
+
+export type BacklogTaskSummary = {
+  total: number;
+  open: number;
+  done: number;
+  byStatus: Record<BacklogTask["status"], number>;
+  bySeverity: Record<BacklogTask["severity"], number>;
+};
+
+export type BacklogTaskList = {
+  items: BacklogTask[];
+  summary: BacklogTaskSummary;
+};
+
 export type OrganizationSummary = Organization & {
   role: Role;
   sites: Site[];

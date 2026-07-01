@@ -43,6 +43,7 @@
 - Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
 - Creating persisted backlog tasks from candidates requires backlog update permission and server-side candidate recomputation.
 - Listing persisted backlog tasks requires backlog read permission and organization/site scoping.
+- Backlog filters and summary counts must be applied only after organization/site scope is fixed.
 - Updating backlog task status requires backlog update permission and organization/site/task scoping.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.

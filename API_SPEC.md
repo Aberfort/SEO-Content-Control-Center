@@ -318,13 +318,53 @@ Response:
 
 `GET /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
 
-Lists the latest persisted backlog tasks for a tenant-scoped site.
+Lists the latest persisted backlog tasks for a tenant-scoped site. Optional query params:
+
+- `status`: one of `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`
+- `severity`: one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
 
 Response:
 
 ```json
 {
-  "data": []
+  "data": {
+    "items": [
+      {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "organizationId": "11111111-1111-4111-8111-111111111111",
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "title": "Review freshness of Example post",
+        "url": "https://example.com/post",
+        "issueType": "synced_content.content-stale",
+        "status": "TODO",
+        "severity": "LOW",
+        "potentialImpact": "WordPress modified timestamp is 200 days old.",
+        "effortEstimate": 1,
+        "tags": ["synced-content", "content-stale"],
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
+      }
+    ],
+    "summary": {
+      "total": 1,
+      "open": 1,
+      "done": 0,
+      "byStatus": {
+        "TODO": 1,
+        "IN_PROGRESS": 0,
+        "IN_REVIEW": 0,
+        "DONE": 0,
+        "SNOOZED": 0,
+        "IGNORED": 0
+      },
+      "bySeverity": {
+        "LOW": 1,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "CRITICAL": 0
+      }
+    }
+  }
 }
 ```
 

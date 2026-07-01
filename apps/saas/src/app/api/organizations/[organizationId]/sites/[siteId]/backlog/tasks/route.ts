@@ -1,3 +1,4 @@
+import { backlogTaskListQuerySchema } from "@sccc/shared";
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
@@ -12,7 +13,7 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -23,9 +24,17 @@ export async function GET(_request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
-    const tasks = await repository.listBacklogTasksForSite(user.id, organizationId, siteId);
+    const query = backlogTaskListQuerySchema.parse({
+      status: readSearchParam(request, "status") || undefined,
+      severity: readSearchParam(request, "severity") || undefined
+    });
+    const tasks = await repository.listBacklogTasksForSite(user.id, organizationId, siteId, query);
     return Response.json({ data: tasks });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return validationError(error);
+    }
+
     if (error instanceof Error && error.message === "SITE_NOT_FOUND") {
       return jsonError(404, "SITE_NOT_FOUND", "Site was not found.");
     }
@@ -101,4 +110,8 @@ export async function POST(request: Request, context: RouteContext) {
 function readString(input: Record<string, unknown>, key: string): string {
   const value = input[key];
   return typeof value === "string" ? value : "";
+}
+
+function readSearchParam(request: Request, key: string): string {
+  return new URL(request.url).searchParams.get(key) ?? "";
 }

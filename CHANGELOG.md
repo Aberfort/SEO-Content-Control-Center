@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 19
+
+- Added backlog task status and severity filters to the tenant-scoped list repository and JSON endpoint.
+- Changed backlog task listing responses to include filtered `items` plus site-wide status/severity summary counts.
+- Added dashboard backlog summary pills and filter controls.
+- Updated fallback repository coverage for the backlog list response contract.
+
 ### Iteration 18
 
 - Added backlog task status update repository method, JSON endpoint, and server action.
