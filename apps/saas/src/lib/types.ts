@@ -124,6 +124,17 @@ export type BacklogTask = {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  comments: BacklogTaskComment[];
+};
+
+export type BacklogTaskComment = {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorEmail: string;
+  authorName: string | null;
+  body: string;
+  createdAt: string;
 };
 
 export type BacklogTaskListOptions = {

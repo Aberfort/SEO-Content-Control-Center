@@ -267,6 +267,45 @@ export async function updateBacklogTaskStatusAction(formData: FormData): Promise
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function updateBacklogTaskAssignmentAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+  const assigneeId = String(formData.get("assigneeId") ?? "");
+  const dueDate = String(formData.get("dueDate") ?? "");
+
+  await assertServerActionSameOrigin();
+  await repository.updateBacklogTaskAssignment({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    taskId: String(formData.get("taskId") ?? ""),
+    assigneeId: assigneeId || null,
+    dueDate: dueDate || null
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function createBacklogTaskCommentAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.createBacklogTaskComment({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    taskId: String(formData.get("taskId") ?? ""),
+    body: String(formData.get("body") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function registerAction(
   _previousState: ActionState,
   formData: FormData

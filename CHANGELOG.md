@@ -2,6 +2,20 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 21
+
+- Added tenant-scoped backlog task comments through repository methods and JSON endpoints.
+- Added inline backlog comment display and creation controls to the SaaS dashboard.
+- Added activity log writes for created backlog task comments.
+- Added fallback repository coverage for missing-task comment operations.
+
+### Iteration 20
+
+- Added backlog task assignment and due date update support through the repository and task PATCH endpoint.
+- Added inline assignee and due date controls to the SaaS backlog table.
+- Added organization-scoped assignee validation and assignment activity log writes.
+- Added fallback repository coverage for backlog assignment errors.
+
 ### Iteration 19
 
 - Added backlog task status and severity filters to the tenant-scoped list repository and JSON endpoint.

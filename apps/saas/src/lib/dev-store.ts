@@ -3,16 +3,20 @@ import { randomUUID } from "node:crypto";
 import {
   acceptInviteSchema,
   assertPermission,
+  backlogTaskCommentCreateSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type BacklogTaskCommentCreateInput,
   type InviteMemberInput,
   type Permission,
   type Role,
   type SiteCreateInput,
+  type UpdateBacklogTaskAssignmentInput,
   type UpdateMemberRoleInput
 } from "@sccc/shared";
 
@@ -21,6 +25,7 @@ import type {
   ActivityLog,
   AppUser,
   BacklogTask,
+  BacklogTaskComment,
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
@@ -41,6 +46,7 @@ type DevStoreState = {
   members: StoreOrganizationMember[];
   sites: Site[];
   backlogTasks: BacklogTask[];
+  backlogComments: BacklogTaskComment[];
   activityLogs: ActivityLog[];
 };
 
@@ -123,6 +129,7 @@ function initialState(): DevStoreState {
     members: [],
     sites: [],
     backlogTasks: [],
+    backlogComments: [],
     activityLogs: []
   };
 }
@@ -441,16 +448,19 @@ export function listBacklogTasksForSite(
     permission: "backlog:read"
   });
 
-  const scopedTasks = getDevStore()
-    .backlogTasks.filter((task) => task.organizationId === organizationId && task.siteId === siteId)
+  const store = getDevStore();
+  const scopedTasks = store.backlogTasks
+    .filter((task) => task.organizationId === organizationId && task.siteId === siteId)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
   return {
-    items: scopedTasks.filter((task) => {
-      const statusMatches = options.status ? task.status === options.status : true;
-      const severityMatches = options.severity ? task.severity === options.severity : true;
-      return statusMatches && severityMatches;
-    }),
+    items: scopedTasks
+      .filter((task) => {
+        const statusMatches = options.status ? task.status === options.status : true;
+        const severityMatches = options.severity ? task.severity === options.severity : true;
+        return statusMatches && severityMatches;
+      })
+      .map((task) => withBacklogComments(task, store.backlogComments, 3)),
     summary: summarizeBacklogTasks(scopedTasks)
   };
 }
@@ -499,6 +509,181 @@ export function updateBacklogTaskStatus(input: {
   }
 
   return task;
+}
+
+export function updateBacklogTaskAssignment(
+  input: UpdateBacklogTaskAssignmentInput & {
+    user: AppUser;
+  }
+): BacklogTask {
+  const parsed = updateBacklogTaskAssignmentSchema.parse(input);
+  const store = getDevStore();
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "backlog:update"
+  });
+
+  const task = store.backlogTasks.find(
+    (candidate) =>
+      candidate.id === parsed.taskId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  if (parsed.assigneeId) {
+    const assignee = store.members.find(
+      (member) =>
+        member.organizationId === parsed.organizationId &&
+        member.userId === parsed.assigneeId &&
+        member.status === "ACTIVE"
+    );
+
+    if (!assignee) {
+      throw new Error("BACKLOG_ASSIGNEE_NOT_FOUND");
+    }
+  }
+
+  const nextAssigneeId = parsed.assigneeId === undefined ? task.assigneeId : parsed.assigneeId;
+  const nextDueDate =
+    parsed.dueDate === undefined
+      ? task.dueDate
+      : parsed.dueDate
+        ? new Date(`${parsed.dueDate}T00:00:00.000Z`).toISOString()
+        : null;
+
+  if (nextAssigneeId === task.assigneeId && nextDueDate === task.dueDate) {
+    return task;
+  }
+
+  const previousAssigneeId = task.assigneeId;
+  const previousDueDate = task.dueDate;
+  task.assigneeId = nextAssigneeId;
+  task.dueDate = nextDueDate;
+  task.updatedAt = nowIso();
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "backlog_task.assignment_updated",
+    entityType: "BacklogTask",
+    entityId: task.id,
+    metadata: {
+      siteId: parsed.siteId,
+      previousAssigneeId,
+      assigneeId: task.assigneeId,
+      previousDueDate,
+      dueDate: task.dueDate
+    }
+  });
+
+  return task;
+}
+
+export function listBacklogTaskComments(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  taskId: string
+): BacklogTaskComment[] {
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "backlog:read"
+  });
+
+  const task = store.backlogTasks.find(
+    (candidate) =>
+      candidate.id === taskId &&
+      candidate.organizationId === organizationId &&
+      candidate.siteId === siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  return getBacklogCommentsForTask(taskId, store.backlogComments, 50);
+}
+
+export function createBacklogTaskComment(
+  input: BacklogTaskCommentCreateInput & {
+    user: AppUser;
+  }
+): BacklogTaskComment {
+  const parsed = backlogTaskCommentCreateSchema.parse(input);
+  const store = getDevStore();
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "backlog:update"
+  });
+
+  const task = store.backlogTasks.find(
+    (candidate) =>
+      candidate.id === parsed.taskId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  const comment: BacklogTaskComment = {
+    id: randomUUID(),
+    taskId: task.id,
+    authorId: input.user.id,
+    authorEmail: input.user.email,
+    authorName: input.user.name,
+    body: parsed.body,
+    createdAt: nowIso()
+  };
+
+  store.backlogComments.push(comment);
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "backlog_task.comment_created",
+    entityType: "TaskComment",
+    entityId: comment.id,
+    metadata: {
+      siteId: parsed.siteId,
+      taskId: task.id
+    }
+  });
+
+  return comment;
+}
+
+function withBacklogComments(
+  task: BacklogTask,
+  comments: BacklogTaskComment[],
+  limit: number
+): BacklogTask {
+  return {
+    ...task,
+    comments: getBacklogCommentsForTask(task.id, comments, limit)
+  };
+}
+
+function getBacklogCommentsForTask(
+  taskId: string,
+  comments: BacklogTaskComment[],
+  limit: number
+): BacklogTaskComment[] {
+  return comments
+    .filter((comment) => comment.taskId === taskId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, limit);
 }
 
 const backlogTaskStatuses = [

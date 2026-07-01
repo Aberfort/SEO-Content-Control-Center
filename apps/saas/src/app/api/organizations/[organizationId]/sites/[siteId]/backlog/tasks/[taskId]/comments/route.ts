@@ -13,7 +13,38 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(request: Request, context: RouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
+  const { organizationId, siteId, taskId } = await context.params;
+  const repository = getAppRepository();
+
+  try {
+    const comments = await repository.listBacklogTaskComments(
+      user.id,
+      organizationId,
+      siteId,
+      taskId
+    );
+    return Response.json({ data: comments });
+  } catch (error) {
+    if (error instanceof Error && error.message === "BACKLOG_TASK_NOT_FOUND") {
+      return jsonError(404, "BACKLOG_TASK_NOT_FOUND", "Backlog task was not found.");
+    }
+
+    if (error instanceof Error && error.message.startsWith("Role ")) {
+      return jsonError(403, "FORBIDDEN", "Your role does not allow reading backlog comments.");
+    }
+
+    return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
+  }
+}
+
+export async function POST(request: Request, context: RouteContext) {
   try {
     assertRequestSameOrigin(request);
   } catch (error) {
@@ -37,25 +68,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const task =
-      hasAssignmentInput(body) && !readString(body, "status")
-        ? await repository.updateBacklogTaskAssignment({
-            user,
-            organizationId,
-            siteId,
-            taskId,
-            assigneeId: readNullableString(body, "assigneeId"),
-            dueDate: readNullableString(body, "dueDate")
-          })
-        : await repository.updateBacklogTaskStatus({
-            user,
-            organizationId,
-            siteId,
-            taskId,
-            status: readString(body, "status") as never
-          });
+    const comment = await repository.createBacklogTaskComment({
+      user,
+      organizationId,
+      siteId,
+      taskId,
+      body: readString(body, "body")
+    });
 
-    return Response.json({ data: task });
+    return Response.json({ data: comment }, { status: 201 });
   } catch (error) {
     const response = securityError(error);
 
@@ -71,12 +92,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError(404, "BACKLOG_TASK_NOT_FOUND", "Backlog task was not found.");
     }
 
-    if (error instanceof Error && error.message === "BACKLOG_ASSIGNEE_NOT_FOUND") {
-      return jsonError(404, "BACKLOG_ASSIGNEE_NOT_FOUND", "Backlog assignee was not found.");
-    }
-
     if (error instanceof Error && error.message.startsWith("Role ")) {
-      return jsonError(403, "FORBIDDEN", "Your role does not allow updating backlog tasks.");
+      return jsonError(403, "FORBIDDEN", "Your role does not allow updating backlog comments.");
     }
 
     return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
@@ -86,13 +103,4 @@ export async function PATCH(request: Request, context: RouteContext) {
 function readString(input: Record<string, unknown>, key: string): string {
   const value = input[key];
   return typeof value === "string" ? value : "";
-}
-
-function readNullableString(input: Record<string, unknown>, key: string): string | null {
-  const value = input[key];
-  return typeof value === "string" && value ? value : null;
-}
-
-function hasAssignmentInput(input: Record<string, unknown>): boolean {
-  return "assigneeId" in input || "dueDate" in input;
 }

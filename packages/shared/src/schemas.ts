@@ -125,6 +125,25 @@ export const updateBacklogTaskStatusSchema = z.object({
   status: backlogTaskStatusSchema
 });
 
+export const updateBacklogTaskAssignmentSchema = z
+  .object({
+    organizationId: organizationIdSchema,
+    siteId: siteIdSchema,
+    taskId: z.string().uuid(),
+    assigneeId: z.string().uuid().nullable().optional(),
+    dueDate: z.string().date().nullable().optional()
+  })
+  .refine((input) => "assigneeId" in input || "dueDate" in input, {
+    message: "At least one assignment field is required."
+  });
+
+export const backlogTaskCommentCreateSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  taskId: z.string().uuid(),
+  body: z.string().trim().min(1).max(2000)
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -141,4 +160,6 @@ export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
 export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;
+export type BacklogTaskCommentCreateInput = z.infer<typeof backlogTaskCommentCreateSchema>;
+export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

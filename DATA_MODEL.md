@@ -49,6 +49,8 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Backlog task lists must be queried by organization and site scope before display.
 - Backlog task filters and summary counts must be computed inside the same organization/site scope.
 - Backlog task status transitions update the task record and write organization-scoped activity logs.
+- Backlog task assignment changes must target active members of the same organization.
+- Backlog task comments must be created only after resolving the parent task through organization/site scope.
 
 ## Organization Member Lifecycle
 

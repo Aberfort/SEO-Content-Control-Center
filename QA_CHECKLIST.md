@@ -86,6 +86,8 @@
 - SaaS backlog listing supports tenant-scoped status and severity filters.
 - SaaS backlog dashboard shows site-wide summary counts while displaying filtered task rows.
 - SaaS users with backlog update permission can change backlog task status and generate an activity log entry.
+- SaaS users with backlog update permission can assign backlog tasks to active organization members and set or clear due dates.
+- SaaS users with backlog update permission can comment on scoped backlog tasks and see recent comments in the dashboard.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

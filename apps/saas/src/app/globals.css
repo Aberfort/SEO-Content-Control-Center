@@ -695,7 +695,7 @@ th {
 }
 
 .backlog-table {
-  min-width: 820px;
+  min-width: 1040px;
 }
 
 .backlog-summary {
@@ -763,6 +763,64 @@ th {
   overflow-wrap: anywhere;
 }
 
+.backlog-comments {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.backlog-comments article {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+}
+
+.backlog-comments article strong {
+  font-size: 12px;
+}
+
+.backlog-comments article p {
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.backlog-comments article time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.comment-form {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  margin-top: 12px;
+}
+
+.comment-form textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 58px;
+  padding: 8px 9px;
+  resize: vertical;
+  width: 100%;
+}
+
+.comment-form textarea:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
 .status-form {
   align-items: center;
   display: grid;
@@ -782,6 +840,30 @@ th {
 }
 
 .status-form select:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
+.assignment-form {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.8fr) auto;
+}
+
+.assignment-form input,
+.assignment-form select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  min-height: 36px;
+  padding: 7px 9px;
+  width: 100%;
+}
+
+.assignment-form input:focus,
+.assignment-form select:focus {
   border-color: var(--accent);
   outline: 3px solid #c7ebe5;
 }
@@ -934,6 +1016,8 @@ th {
   .role-form,
   .inventory-filters,
   .backlog-filters,
+  .assignment-form,
+  .comment-form,
   .detail-grid,
   .health-signal-list {
     grid-template-columns: 1fr;

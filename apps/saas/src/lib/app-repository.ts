@@ -3,20 +3,24 @@ import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
   assertPermission,
-  backlogTaskListQuerySchema,
+  backlogTaskCommentCreateSchema,
   backlogTaskFromCandidateSchema,
+  backlogTaskListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateBacklogTaskAssignmentSchema,
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
-  type BacklogTaskListQuery,
+  type BacklogTaskCommentCreateInput,
   type BacklogTaskFromCandidateInput,
+  type BacklogTaskListQuery,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
+  type UpdateBacklogTaskAssignmentInput,
   type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput
 } from "@sccc/shared";
@@ -24,6 +28,7 @@ import {
 import {
   acceptInvite as acceptDevInvite,
   cancelInvite as cancelDevInvite,
+  createBacklogTaskComment as createDevBacklogTaskComment,
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
@@ -31,12 +36,14 @@ import {
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
   resendInvite as resendDevInvite,
+  updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
@@ -49,6 +56,7 @@ import type {
   ActivityLog,
   AppUser,
   BacklogTask,
+  BacklogTaskComment,
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
@@ -77,7 +85,15 @@ type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
   user: AppUser;
 };
 
+type CreateBacklogTaskCommentInput = BacklogTaskCommentCreateInput & {
+  user: AppUser;
+};
+
 type UpdateBacklogTaskStatusInputWithUser = UpdateBacklogTaskStatusInput & {
+  user: AppUser;
+};
+
+type UpdateBacklogTaskAssignmentInputWithUser = UpdateBacklogTaskAssignmentInput & {
   user: AppUser;
 };
 
@@ -136,6 +152,16 @@ type AppRepository = {
     options?: BacklogTaskListOptions
   ): Promise<BacklogTaskList>;
   updateBacklogTaskStatus(input: UpdateBacklogTaskStatusInputWithUser): Promise<BacklogTask>;
+  updateBacklogTaskAssignment(
+    input: UpdateBacklogTaskAssignmentInputWithUser
+  ): Promise<BacklogTask>;
+  listBacklogTaskComments(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    taskId: string
+  ): Promise<BacklogTaskComment[]>;
+  createBacklogTaskComment(input: CreateBacklogTaskCommentInput): Promise<BacklogTaskComment>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -186,6 +212,15 @@ const devStoreRepository: AppRepository = {
   },
   async updateBacklogTaskStatus(input) {
     return updateDevBacklogTaskStatus(input);
+  },
+  async updateBacklogTaskAssignment(input) {
+    return updateDevBacklogTaskAssignment(input);
+  },
+  async listBacklogTaskComments(userId, organizationId, siteId, taskId) {
+    return listDevBacklogTaskComments(userId, organizationId, siteId, taskId);
+  },
+  async createBacklogTaskComment(input) {
+    return createDevBacklogTaskComment(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -655,6 +690,7 @@ const prismaRepository: AppRepository = {
     const [tasks, total, statusGroups, severityGroups] = await prisma.$transaction([
       prisma.backlogTask.findMany({
         where: filteredWhere,
+        include: backlogTaskCommentInclude,
         orderBy: [
           {
             updatedAt: "desc"
@@ -749,6 +785,188 @@ const prismaRepository: AppRepository = {
     });
 
     return mapBacklogTask(task);
+  },
+
+  async updateBacklogTaskAssignment(input) {
+    const parsed = updateBacklogTaskAssignmentSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const existing = await prisma.backlogTask.findFirst({
+      where: {
+        id: parsed.taskId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    if (parsed.assigneeId) {
+      const assignee = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: parsed.organizationId,
+          userId: parsed.assigneeId,
+          status: "ACTIVE"
+        }
+      });
+
+      if (!assignee) {
+        throw new Error("BACKLOG_ASSIGNEE_NOT_FOUND");
+      }
+    }
+
+    const nextDueDate =
+      parsed.dueDate === undefined ? undefined : normalizeBacklogDueDate(parsed.dueDate);
+    const assigneeChanged =
+      parsed.assigneeId !== undefined && parsed.assigneeId !== existing.assigneeId;
+    const dueDateChanged =
+      nextDueDate !== undefined &&
+      formatNullableDate(nextDueDate) !== formatNullableDate(existing.dueDate);
+
+    if (!assigneeChanged && !dueDateChanged) {
+      return mapBacklogTask(existing);
+    }
+
+    const updateData: Prisma.BacklogTaskUpdateInput = {};
+
+    if (parsed.assigneeId !== undefined) {
+      updateData.assignee = parsed.assigneeId
+        ? {
+            connect: {
+              id: parsed.assigneeId
+            }
+          }
+        : {
+            disconnect: true
+          };
+    }
+
+    if (nextDueDate !== undefined) {
+      updateData.dueDate = nextDueDate;
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      const updated = await tx.backlogTask.update({
+        where: {
+          id: existing.id
+        },
+        data: updateData
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "backlog_task.assignment_updated",
+          entityType: "BacklogTask",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            previousAssigneeId: existing.assigneeId,
+            assigneeId: updated.assigneeId,
+            previousDueDate: existing.dueDate?.toISOString() ?? null,
+            dueDate: updated.dueDate?.toISOString() ?? null
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBacklogTask(task);
+  },
+
+  async listBacklogTaskComments(userId, organizationId, siteId, taskId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "backlog:read"
+    });
+
+    const task = await prisma.backlogTask.findFirst({
+      where: {
+        id: taskId,
+        organizationId,
+        siteId
+      }
+    });
+
+    if (!task) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    const comments = await prisma.taskComment.findMany({
+      where: {
+        taskId: task.id
+      },
+      include: {
+        author: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 50
+    });
+
+    return comments.map(mapBacklogTaskComment);
+  },
+
+  async createBacklogTaskComment(input) {
+    const parsed = backlogTaskCommentCreateSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const task = await prisma.backlogTask.findFirst({
+      where: {
+        id: parsed.taskId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!task) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    const comment = await prisma.$transaction(async (tx) => {
+      const created = await tx.taskComment.create({
+        data: {
+          taskId: task.id,
+          authorId: input.user.id,
+          body: parsed.body
+        },
+        include: {
+          author: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "backlog_task.comment_created",
+          entityType: "TaskComment",
+          entityId: created.id,
+          metadata: {
+            siteId: parsed.siteId,
+            taskId: task.id
+          }
+        }
+      });
+
+      return created;
+    });
+
+    return mapBacklogTaskComment(comment);
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -1202,6 +1420,26 @@ function normalizeBacklogTaskListOptions(
   });
 }
 
+function normalizeBacklogDueDate(value: string | null): Date | null {
+  return value ? new Date(`${value}T00:00:00.000Z`) : null;
+}
+
+function formatNullableDate(value: Date | null): string | null {
+  return value?.toISOString() ?? null;
+}
+
+const backlogTaskCommentInclude = {
+  comments: {
+    include: {
+      author: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: 3
+  }
+} satisfies Prisma.BacklogTaskInclude;
+
 const backlogTaskStatuses = [
   "TODO",
   "IN_PROGRESS",
@@ -1350,6 +1588,17 @@ function mapBacklogTask(task: {
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
+  comments?: Array<{
+    id: string;
+    taskId: string;
+    authorId: string;
+    body: string;
+    createdAt: Date;
+    author: {
+      email: string;
+      name: string | null;
+    };
+  }>;
 }): BacklogTask {
   return {
     id: task.id,
@@ -1367,7 +1616,30 @@ function mapBacklogTask(task: {
     dueDate: task.dueDate?.toISOString() ?? null,
     tags: task.tags,
     createdAt: task.createdAt.toISOString(),
-    updatedAt: task.updatedAt.toISOString()
+    updatedAt: task.updatedAt.toISOString(),
+    comments: task.comments?.map(mapBacklogTaskComment) ?? []
+  };
+}
+
+function mapBacklogTaskComment(comment: {
+  id: string;
+  taskId: string;
+  authorId: string;
+  body: string;
+  createdAt: Date;
+  author: {
+    email: string;
+    name: string | null;
+  };
+}): BacklogTaskComment {
+  return {
+    id: comment.id,
+    taskId: comment.taskId,
+    authorId: comment.authorId,
+    authorEmail: comment.author.email,
+    authorName: comment.author.name,
+    body: comment.body,
+    createdAt: comment.createdAt.toISOString()
   };
 }
 

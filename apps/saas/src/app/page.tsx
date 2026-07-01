@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createBacklogTaskFromCandidateAction, updateBacklogTaskStatusAction } from "@/app/actions";
+import {
+  createBacklogTaskCommentAction,
+  createBacklogTaskFromCandidateAction,
+  updateBacklogTaskAssignmentAction,
+  updateBacklogTaskStatusAction
+} from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { InviteActionsForm } from "@/components/invite-actions-form";
@@ -72,6 +77,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
+  const assignableMembers = activeMembers.filter((member) => member.status === "ACTIVE");
   const syncedContent =
     activeOrganization && activeSite
       ? await repository.listSyncedContentForSite(
@@ -627,6 +633,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       <tr>
                         <th>Task</th>
                         <th>Status</th>
+                        <th>Assignment</th>
                         <th>Severity</th>
                         <th>Effort</th>
                         <th>Updated</th>
@@ -639,6 +646,45 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                             <strong>{task.title}</strong>
                             <span>{task.url}</span>
                             <span>{task.issueType.replaceAll("_", " ")}</span>
+                            {task.comments.length > 0 ? (
+                              <div className="backlog-comments" aria-label="Recent comments">
+                                {task.comments.map((comment) => (
+                                  <article key={comment.id}>
+                                    <strong>{comment.authorName ?? comment.authorEmail}</strong>
+                                    <p>{comment.body}</p>
+                                    <time dateTime={comment.createdAt}>
+                                      {formatDateTime(comment.createdAt)}
+                                    </time>
+                                  </article>
+                                ))}
+                              </div>
+                            ) : null}
+                            <form className="comment-form" action={createBacklogTaskCommentAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={task.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={task.siteId} />
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <textarea
+                                aria-label="Comment"
+                                maxLength={2000}
+                                name="body"
+                                required
+                                rows={2}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Comment
+                              </button>
+                            </form>
                           </td>
                           <td>
                             <form className="status-form" action={updateBacklogTaskStatusAction}>
@@ -663,6 +709,44 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                                   </option>
                                 ))}
                               </select>
+                              <button className="secondary-button" type="submit">
+                                Apply
+                              </button>
+                            </form>
+                          </td>
+                          <td>
+                            <form
+                              className="assignment-form"
+                              action={updateBacklogTaskAssignmentAction}
+                            >
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={task.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={task.siteId} />
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <select name="assigneeId" defaultValue={task.assigneeId ?? ""}>
+                                <option value="">Unassigned</option>
+                                {assignableMembers.map((member) => (
+                                  <option key={member.userId} value={member.userId}>
+                                    {member.name ?? member.email}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                aria-label="Due date"
+                                defaultValue={formatDateInput(task.dueDate)}
+                                name="dueDate"
+                                type="date"
+                              />
                               <button className="secondary-button" type="submit">
                                 Apply
                               </button>
@@ -804,4 +888,8 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatDateInput(value: string | null): string {
+  return value ? value.slice(0, 10) : "";
 }

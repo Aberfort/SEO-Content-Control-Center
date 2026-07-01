@@ -70,6 +70,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - SaaS backlog task listing for persisted candidate-created tasks;
 - backlog status/severity filtering with summary counts;
 - backlog task status updates with audit logging;
+- backlog assignment and due date updates with audit logging;
+- backlog task comments with audit logging;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

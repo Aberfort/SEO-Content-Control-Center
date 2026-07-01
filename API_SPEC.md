@@ -370,9 +370,9 @@ Response:
 
 `PATCH /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId`
 
-Updates a persisted backlog task status inside a tenant-scoped site.
+Updates a persisted backlog task status or assignment metadata inside a tenant-scoped site.
 
-Request:
+Status request:
 
 ```json
 {
@@ -381,6 +381,51 @@ Request:
 ```
 
 Allowed statuses: `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`.
+
+Assignment request:
+
+```json
+{
+  "assigneeId": "55555555-5555-4555-8555-555555555555",
+  "dueDate": "2026-07-10"
+}
+```
+
+Set `assigneeId` or `dueDate` to `null` to clear the field. Assignees must be active members of the same organization.
+
+`GET /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId/comments`
+
+Lists latest comments for a tenant-scoped backlog task.
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "taskId": "44444444-4444-4444-8444-444444444444",
+      "authorId": "55555555-5555-4555-8555-555555555555",
+      "authorEmail": "owner@example.com",
+      "authorName": "Owner",
+      "body": "Check the SERP before rewriting the title.",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId/comments`
+
+Creates a comment on a tenant-scoped backlog task.
+
+Request:
+
+```json
+{
+  "body": "Check the SERP before rewriting the title."
+}
+```
 
 ## Audits
 

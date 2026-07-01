@@ -100,6 +100,33 @@ describe("app repository", () => {
         status: "DONE"
       })
     ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    await expect(
+      repository.updateBacklogTaskAssignment({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        taskId: "00000000-0000-4000-8000-000000000404",
+        assigneeId: user.id,
+        dueDate: "2026-07-10"
+      })
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    await expect(
+      repository.listBacklogTaskComments(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? "",
+        "00000000-0000-4000-8000-000000000404"
+      )
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    await expect(
+      repository.createBacklogTaskComment({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        taskId: "00000000-0000-4000-8000-000000000404",
+        body: "Check metadata before publishing."
+      })
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"
