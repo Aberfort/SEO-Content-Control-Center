@@ -283,6 +283,39 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
+
+Creates a persisted backlog task from a synced content backlog candidate. The server recomputes the candidate from the scoped content item and ignores user-supplied task titles or priority. Repeated requests for the same organization, site, URL, and issue type return the existing task.
+
+Request:
+
+```json
+{
+  "contentItemId": "33333333-3333-4333-8333-333333333333",
+  "candidateId": "33333333-3333-4333-8333-333333333333:refresh"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "44444444-4444-4444-8444-444444444444",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "title": "Review freshness of Example post",
+    "url": "https://example.com/post",
+    "issueType": "synced_content.content-stale",
+    "status": "TODO",
+    "severity": "LOW",
+    "potentialImpact": "WordPress modified timestamp is 200 days old.",
+    "effortEstimate": 1,
+    "tags": ["synced-content", "content-stale"]
+  }
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

@@ -3,12 +3,14 @@ import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
   assertPermission,
+  backlogTaskFromCandidateSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type BacklogTaskFromCandidateInput,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
@@ -18,6 +20,7 @@ import {
 import {
   acceptInvite as acceptDevInvite,
   cancelInvite as cancelDevInvite,
+  createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
   getSyncedContentItem as getDevSyncedContentItem,
@@ -31,10 +34,15 @@ import {
   resendInvite as resendDevInvite,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
+import {
+  buildSyncedContentBacklogCandidates,
+  buildSyncedContentHealthSignals
+} from "./content-health";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
   ActivityLog,
   AppUser,
+  BacklogTask,
   InviteResult,
   OrganizationMemberSummary,
   OrganizationSummary,
@@ -54,6 +62,10 @@ type CreateSiteInput = {
   organizationId: string;
   name: string;
   url: string;
+};
+
+type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
+  user: AppUser;
 };
 
 type InviteMemberInputWithUser = {
@@ -103,6 +115,7 @@ type AppRepository = {
     siteId: string,
     contentItemId: string
   ): Promise<SyncedContentItem | null>;
+  createBacklogTaskFromCandidate(input: CreateBacklogTaskFromCandidateInput): Promise<BacklogTask>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -144,6 +157,9 @@ const devStoreRepository: AppRepository = {
   },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
+  },
+  async createBacklogTaskFromCandidate(input) {
+    return createDevBacklogTaskFromCandidate(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -495,6 +511,90 @@ const prismaRepository: AppRepository = {
     });
 
     return item ? mapSyncedContentItem(item) : null;
+  },
+
+  async createBacklogTaskFromCandidate(input) {
+    const parsed = backlogTaskFromCandidateSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const item = await prisma.syncedContentItem.findFirst({
+      where: {
+        id: parsed.contentItemId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        site: {
+          organizationId: parsed.organizationId
+        }
+      }
+    });
+
+    if (!item) {
+      throw new Error("CONTENT_ITEM_NOT_FOUND");
+    }
+
+    const syncedItem = mapSyncedContentItem(item);
+    const healthSignals = buildSyncedContentHealthSignals(syncedItem);
+    const candidate = buildSyncedContentBacklogCandidates(syncedItem, healthSignals).find(
+      (backlogCandidate) => backlogCandidate.id === parsed.candidateId
+    );
+
+    if (!candidate) {
+      throw new Error("BACKLOG_CANDIDATE_NOT_FOUND");
+    }
+
+    const issueType = `synced_content.${candidate.sourceSignalId}`;
+    const task = await prisma.$transaction(async (tx) => {
+      const existing = await tx.backlogTask.findFirst({
+        where: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          url: syncedItem.url,
+          issueType
+        }
+      });
+
+      if (existing) {
+        return existing;
+      }
+
+      const created = await tx.backlogTask.create({
+        data: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          title: candidate.title,
+          url: syncedItem.url,
+          issueType,
+          severity: mapCandidatePriorityToSeverity(candidate.priority),
+          potentialImpact: candidate.rationale,
+          effortEstimate: mapCandidatePriorityToEffort(candidate.priority),
+          tags: ["synced-content", candidate.sourceSignalId]
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "backlog_task.created_from_candidate",
+          entityType: "BacklogTask",
+          entityId: created.id,
+          metadata: {
+            siteId: parsed.siteId,
+            contentItemId: parsed.contentItemId,
+            candidateId: parsed.candidateId,
+            sourceSignalId: candidate.sourceSignalId
+          }
+        }
+      });
+
+      return created;
+    });
+
+    return mapBacklogTask(task);
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -1005,6 +1105,68 @@ function mapSyncedContentItem(item: {
     firstSeenAt: item.firstSeenAt.toISOString(),
     lastSeenAt: item.lastSeenAt.toISOString()
   };
+}
+
+function mapBacklogTask(task: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  auditIssueId: string | null;
+  title: string;
+  url: string;
+  issueType: string;
+  status: BacklogTask["status"];
+  severity: BacklogTask["severity"];
+  potentialImpact: string | null;
+  effortEstimate: number | null;
+  assigneeId: string | null;
+  dueDate: Date | null;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}): BacklogTask {
+  return {
+    id: task.id,
+    organizationId: task.organizationId,
+    siteId: task.siteId,
+    auditIssueId: task.auditIssueId,
+    title: task.title,
+    url: task.url,
+    issueType: task.issueType,
+    status: task.status,
+    severity: task.severity,
+    potentialImpact: task.potentialImpact,
+    effortEstimate: task.effortEstimate,
+    assigneeId: task.assigneeId,
+    dueDate: task.dueDate?.toISOString() ?? null,
+    tags: task.tags,
+    createdAt: task.createdAt.toISOString(),
+    updatedAt: task.updatedAt.toISOString()
+  };
+}
+
+function mapCandidatePriorityToSeverity(priority: "low" | "medium" | "high") {
+  if (priority === "high") {
+    return "HIGH";
+  }
+
+  if (priority === "medium") {
+    return "MEDIUM";
+  }
+
+  return "LOW";
+}
+
+function mapCandidatePriorityToEffort(priority: "low" | "medium" | "high"): number {
+  if (priority === "high") {
+    return 3;
+  }
+
+  if (priority === "medium") {
+    return 2;
+  }
+
+  return 1;
 }
 
 function mapMember(member: {

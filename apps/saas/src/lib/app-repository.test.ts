@@ -54,6 +54,15 @@ describe("app repository", () => {
         "00000000-0000-4000-8000-000000000303"
       )
     ).toBeNull();
+    await expect(
+      repository.createBacklogTaskFromCandidate({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        contentItemId: "00000000-0000-4000-8000-000000000303",
+        candidateId: "00000000-0000-4000-8000-000000000303:title"
+      })
+    ).rejects.toThrow("CONTENT_ITEM_NOT_FOUND");
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

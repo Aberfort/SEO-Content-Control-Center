@@ -690,6 +690,10 @@ th {
   line-height: 1.45;
 }
 
+.candidate-task form {
+  margin-top: 2px;
+}
+
 .priority-pill {
   border-radius: 999px;
   display: inline-flex;

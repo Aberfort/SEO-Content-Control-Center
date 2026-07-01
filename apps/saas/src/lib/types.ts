@@ -107,6 +107,25 @@ export type SyncedContentDetail = SyncedContentItem & {
   backlogCandidates: SyncedContentBacklogCandidate[];
 };
 
+export type BacklogTask = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  auditIssueId: string | null;
+  title: string;
+  url: string;
+  issueType: string;
+  status: "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | "SNOOZED" | "IGNORED";
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  potentialImpact: string | null;
+  effortEstimate: number | null;
+  assigneeId: string | null;
+  dueDate: string | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type OrganizationSummary = Organization & {
   role: Role;
   sites: Site[];

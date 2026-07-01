@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { createBacklogTaskFromCandidateAction } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { InviteActionsForm } from "@/components/invite-actions-form";
@@ -438,6 +439,35 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                               </div>
                               <p>{candidate.rationale}</p>
                               <p>{candidate.nextStep}</p>
+                              <form action={createBacklogTaskFromCandidateAction}>
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={selectedContentItem.organizationId}
+                                />
+                                <input
+                                  name="siteId"
+                                  type="hidden"
+                                  value={selectedContentItem.siteId}
+                                />
+                                <input
+                                  name="contentItemId"
+                                  type="hidden"
+                                  value={selectedContentItem.id}
+                                />
+                                <input name="candidateId" type="hidden" value={candidate.id} />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildContentHref(params, {
+                                    site: activeSite.id,
+                                    content: selectedContentItem.id
+                                  })}
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Create task
+                                </button>
+                              </form>
                             </article>
                           ))
                         ) : (

@@ -95,6 +95,13 @@ export const pluginSyncBatchSchema = z.object({
   items: z.array(pluginSyncItemSchema).max(250)
 });
 
+export const backlogTaskFromCandidateSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  contentItemId: z.string().uuid(),
+  candidateId: z.string().min(1).max(256)
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -109,3 +116,4 @@ export type PluginConnectionChallengeCreateInput = z.infer<
 export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExchangeSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
+export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;

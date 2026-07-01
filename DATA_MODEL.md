@@ -44,7 +44,8 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Synced content inventory queries must keep filters inside the organization/site scope before applying search or pagination.
 - Synced content detail lookups must include organization, site, and item IDs in the same scoped query.
 - Synced content health signals are computed from synced metadata and are not persisted in the MVP.
-- Backlog candidate tasks generated from synced content signals are computed previews and are not persisted in the MVP.
+- Backlog candidates generated from synced content signals are computed previews until a user creates a persisted `BacklogTask`.
+- Backlog tasks created from synced content candidates use `synced_content.*` issue types and remain scoped by organization and site.
 
 ## Organization Member Lifecycle
 

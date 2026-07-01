@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 16
+
+- Added persisted backlog task creation from synced content backlog candidates.
+- Added tenant-scoped JSON endpoint and server action for creating tasks from candidates.
+- Added "Create task" controls to synced content candidate task rows.
+- Added idempotent task creation behavior and activity log writes for candidate-created backlog tasks.
+
 ### Iteration 15
 
 - Added computed backlog candidate tasks from synced content health signals.

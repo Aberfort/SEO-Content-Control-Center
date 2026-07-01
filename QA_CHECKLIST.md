@@ -80,6 +80,8 @@
 - SaaS synced content detail opens only for an item inside the requested organization and site.
 - SaaS synced content detail shows computed health signals for title, publish status, sync freshness, and modified-date freshness.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
+- SaaS users with backlog update permission can persist a backlog task from a synced content candidate.
+- Persisting the same synced content candidate again returns the existing backlog task instead of creating duplicates.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

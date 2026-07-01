@@ -20,6 +20,7 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  BacklogTask,
   InviteResult,
   Organization,
   OrganizationMember,
@@ -36,6 +37,7 @@ type DevStoreState = {
   organizations: Organization[];
   members: StoreOrganizationMember[];
   sites: Site[];
+  backlogTasks: BacklogTask[];
   activityLogs: ActivityLog[];
 };
 
@@ -117,6 +119,7 @@ function initialState(): DevStoreState {
     organizations: [],
     members: [],
     sites: [],
+    backlogTasks: [],
     activityLogs: []
   };
 }
@@ -401,6 +404,26 @@ export function getSyncedContentItem(
   });
 
   return null;
+}
+
+export function createBacklogTaskFromCandidate(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  contentItemId: string;
+  candidateId: string;
+}): BacklogTask {
+  void input.siteId;
+  void input.contentItemId;
+  void input.candidateId;
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "backlog:update"
+  });
+
+  throw new Error("CONTENT_ITEM_NOT_FOUND");
 }
 
 export function listMembersForOrganization(
