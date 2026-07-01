@@ -12,6 +12,32 @@ type RouteContext = {
   }>;
 };
 
+export async function GET(_request: Request, context: RouteContext) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
+  const { organizationId, siteId } = await context.params;
+  const repository = getAppRepository();
+
+  try {
+    const tasks = await repository.listBacklogTasksForSite(user.id, organizationId, siteId);
+    return Response.json({ data: tasks });
+  } catch (error) {
+    if (error instanceof Error && error.message === "SITE_NOT_FOUND") {
+      return jsonError(404, "SITE_NOT_FOUND", "Site was not found.");
+    }
+
+    if (error instanceof Error && error.message.startsWith("Role ")) {
+      return jsonError(403, "FORBIDDEN", "Your role does not allow reading backlog tasks.");
+    }
+
+    return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
+  }
+}
+
 export async function POST(request: Request, context: RouteContext) {
   try {
     assertRequestSameOrigin(request);

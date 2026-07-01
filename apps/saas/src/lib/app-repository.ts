@@ -27,6 +27,7 @@ import {
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listBacklogTasksForSite as listDevBacklogTasksForSite,
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
@@ -116,6 +117,11 @@ type AppRepository = {
     contentItemId: string
   ): Promise<SyncedContentItem | null>;
   createBacklogTaskFromCandidate(input: CreateBacklogTaskFromCandidateInput): Promise<BacklogTask>;
+  listBacklogTasksForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<BacklogTask[]>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -160,6 +166,9 @@ const devStoreRepository: AppRepository = {
   },
   async createBacklogTaskFromCandidate(input) {
     return createDevBacklogTaskFromCandidate(input);
+  },
+  async listBacklogTasksForSite(userId, organizationId, siteId) {
+    return listDevBacklogTasksForSite(userId, organizationId, siteId);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -595,6 +604,43 @@ const prismaRepository: AppRepository = {
     });
 
     return mapBacklogTask(task);
+  },
+
+  async listBacklogTasksForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "backlog:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const tasks = await prisma.backlogTask.findMany({
+      where: {
+        organizationId,
+        siteId
+      },
+      orderBy: [
+        {
+          updatedAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      take: 50
+    });
+
+    return tasks.map(mapBacklogTask);
   },
 
   async listMembersForOrganization(userId, organizationId) {

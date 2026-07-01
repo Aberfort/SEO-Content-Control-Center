@@ -426,6 +426,22 @@ export function createBacklogTaskFromCandidate(input: {
   throw new Error("CONTENT_ITEM_NOT_FOUND");
 }
 
+export function listBacklogTasksForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): BacklogTask[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "backlog:read"
+  });
+
+  return getDevStore()
+    .backlogTasks.filter((task) => task.organizationId === organizationId && task.siteId === siteId)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
 export function listMembersForOrganization(
   userId: string,
   organizationId: string

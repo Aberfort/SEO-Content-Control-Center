@@ -316,6 +316,18 @@ Response:
 }
 ```
 
+`GET /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
+
+Lists the latest persisted backlog tasks for a tenant-scoped site.
+
+Response:
+
+```json
+{
+  "data": []
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

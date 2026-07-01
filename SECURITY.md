@@ -42,6 +42,7 @@
 - Computed content health signals must use synced metadata only and must not fetch external URLs inline.
 - Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
 - Creating persisted backlog tasks from candidates requires backlog update permission and server-side candidate recomputation.
+- Listing persisted backlog tasks requires backlog read permission and organization/site scoping.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

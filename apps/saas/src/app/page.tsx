@@ -78,6 +78,10 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           nextCursor: null,
           total: 0
         };
+  const backlogTasks =
+    activeOrganization && activeSite
+      ? await repository.listBacklogTasksForSite(user.id, activeOrganization.id, activeSite.id)
+      : [];
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -512,6 +516,61 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             </>
           ) : (
             <p className="empty-copy">Add a WordPress site before syncing content.</p>
+          )}
+        </section>
+
+        <section className="panel empty-state" aria-labelledby="backlog-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="backlog-title">Backlog</h2>
+              <p>Persisted SEO tasks created from synced content candidates.</p>
+            </div>
+            <span className="metric-pill">{backlogTasks.length} tasks</span>
+          </div>
+
+          {activeSite && backlogTasks.length > 0 ? (
+            <div className="table-wrap">
+              <table className="backlog-table">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>Status</th>
+                    <th>Severity</th>
+                    <th>Effort</th>
+                    <th>Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backlogTasks.map((task) => (
+                    <tr key={task.id}>
+                      <td>
+                        <strong>{task.title}</strong>
+                        <span>{task.url}</span>
+                        <span>{task.issueType.replaceAll("_", " ")}</span>
+                      </td>
+                      <td>
+                        <span className="status-pill">{task.status.replaceAll("_", " ")}</span>
+                      </td>
+                      <td>
+                        <span className={`severity-pill severity-${task.severity.toLowerCase()}`}>
+                          {task.severity}
+                        </span>
+                      </td>
+                      <td>{task.effortEstimate ?? "n/a"}</td>
+                      <td>
+                        <time dateTime={task.updatedAt}>{formatDateTime(task.updatedAt)}</time>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-copy">
+              {activeSite
+                ? "No backlog tasks yet. Create one from a synced content candidate."
+                : "Add a WordPress site before building a backlog."}
+            </p>
           )}
         </section>
 

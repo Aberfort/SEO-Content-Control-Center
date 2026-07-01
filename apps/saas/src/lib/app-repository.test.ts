@@ -63,6 +63,13 @@ describe("app repository", () => {
         candidateId: "00000000-0000-4000-8000-000000000303:title"
       })
     ).rejects.toThrow("CONTENT_ITEM_NOT_FOUND");
+    expect(
+      await repository.listBacklogTasksForSite(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? ""
+      )
+    ).toEqual([]);
     expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
       "organization.created",
       "site.created"

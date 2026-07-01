@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 17
+
+- Added tenant-scoped backlog task listing repository method and JSON endpoint.
+- Added a backlog table to the SaaS dashboard for tasks created from synced content candidates.
+- Added backlog list fallback coverage for the in-memory repository.
+- Documented backlog task listing QA and API behavior.
+
 ### Iteration 16
 
 - Added persisted backlog task creation from synced content backlog candidates.

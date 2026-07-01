@@ -82,6 +82,7 @@
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - SaaS users with backlog update permission can persist a backlog task from a synced content candidate.
 - Persisting the same synced content candidate again returns the existing backlog task instead of creating duplicates.
+- SaaS users with backlog read permission can list persisted backlog tasks for a site inside their organization.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety

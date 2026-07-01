@@ -67,6 +67,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - computed synced content health signals from WordPress sync metadata;
 - computed backlog candidate tasks from synced content health signals;
 - persisted backlog task creation from synced content candidates;
+- SaaS backlog task listing for persisted candidate-created tasks;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
