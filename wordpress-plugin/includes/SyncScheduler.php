@@ -13,6 +13,12 @@ final class SyncScheduler
 {
     private const ACTION = 'sccc_run_incremental_sync';
 
+    public function __construct(
+        private readonly ConnectionStore $connectionStore,
+        private readonly ApiClient $apiClient
+    ) {
+    }
+
     public function handleManualSync(): void
     {
         if (! current_user_can('manage_options')) {
@@ -24,6 +30,21 @@ final class SyncScheduler
 
         wp_safe_redirect(add_query_arg('sccc_status', 'sync_queued', admin_url('options-general.php?page=sccc')));
         exit;
+    }
+
+    public function runSync(): void
+    {
+        $connection = $this->connectionStore->get();
+
+        if (null === $connection) {
+            return;
+        }
+
+        try {
+            $this->apiClient->sendSync($connection);
+        } catch (\RuntimeException) {
+            return;
+        }
     }
 
     public function queueSync(): void
@@ -38,4 +59,3 @@ final class SyncScheduler
         }
     }
 }
-

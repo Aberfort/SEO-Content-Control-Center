@@ -37,8 +37,8 @@ final class AdminPage
             <?php if (null === $connection) : ?>
                 <p><?php echo esc_html__('Connect this WordPress site to begin safe SEO sync.', 'seo-content-control-center'); ?></p>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <input type="hidden" name="action" value="sccc_save_connection" />
-                    <?php wp_nonce_field('sccc_save_connection'); ?>
+                    <input type="hidden" name="action" value="sccc_exchange_connection" />
+                    <?php wp_nonce_field('sccc_exchange_connection'); ?>
                     <table class="form-table" role="presentation">
                         <tr>
                             <th scope="row">
@@ -48,15 +48,9 @@ final class AdminPage
                         </tr>
                         <tr>
                             <th scope="row">
-                                <label for="sccc_site_id"><?php echo esc_html__('Site ID', 'seo-content-control-center'); ?></label>
+                                <label for="sccc_challenge"><?php echo esc_html__('Connection challenge', 'seo-content-control-center'); ?></label>
                             </th>
-                            <td><input class="regular-text" id="sccc_site_id" name="sccc_site_id" type="text" required /></td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="sccc_token"><?php echo esc_html__('Connection token', 'seo-content-control-center'); ?></label>
-                            </th>
-                            <td><input class="regular-text" id="sccc_token" name="sccc_token" type="password" required /></td>
+                            <td><input class="regular-text" id="sccc_challenge" name="sccc_challenge" type="password" required /></td>
                         </tr>
                     </table>
                     <?php submit_button(__('Connect site', 'seo-content-control-center')); ?>
@@ -88,4 +82,3 @@ final class AdminPage
         <?php
     }
 }
-

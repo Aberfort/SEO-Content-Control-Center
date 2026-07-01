@@ -14,36 +14,49 @@ final class Plugin
     public function __construct(
         private readonly ConnectionStore $connectionStore,
         private readonly AdminPage $adminPage,
-        private readonly SyncScheduler $syncScheduler
+        private readonly SyncScheduler $syncScheduler,
+        private readonly ApiClient $apiClient
     ) {
     }
 
     public function register(): void
     {
         add_action('admin_menu', [$this->adminPage, 'registerMenu']);
-        add_action('admin_post_sccc_save_connection', [$this, 'saveConnection']);
+        add_action('admin_post_sccc_exchange_connection', [$this, 'exchangeConnection']);
         add_action('admin_post_sccc_disconnect', [$this, 'disconnect']);
         add_action('admin_post_sccc_manual_sync', [$this->syncScheduler, 'handleManualSync']);
+        add_action('sccc_run_incremental_sync', [$this->syncScheduler, 'runSync']);
     }
 
-    public function saveConnection(): void
+    public function exchangeConnection(): void
     {
         if (! current_user_can('manage_options')) {
             wp_die(esc_html__('You do not have permission to connect this site.', 'seo-content-control-center'));
         }
 
-        check_admin_referer('sccc_save_connection');
+        check_admin_referer('sccc_exchange_connection');
 
-        $site_id = isset($_POST['sccc_site_id']) ? sanitize_text_field(wp_unslash($_POST['sccc_site_id'])) : '';
-        $token = isset($_POST['sccc_token']) ? sanitize_text_field(wp_unslash($_POST['sccc_token'])) : '';
         $endpoint = isset($_POST['sccc_endpoint']) ? esc_url_raw(wp_unslash($_POST['sccc_endpoint'])) : '';
+        $challenge = isset($_POST['sccc_challenge']) ? sanitize_text_field(wp_unslash($_POST['sccc_challenge'])) : '';
 
-        if ('' === $site_id || '' === $token || '' === $endpoint) {
+        if ('' === $challenge || '' === $endpoint) {
             wp_safe_redirect(add_query_arg('sccc_error', 'missing_fields', admin_url('options-general.php?page=sccc')));
             exit;
         }
 
-        $this->connectionStore->save($site_id, $token, $endpoint);
+        try {
+            $connection = $this->apiClient->exchangeConnection($endpoint, $challenge);
+        } catch (\RuntimeException) {
+            wp_safe_redirect(add_query_arg('sccc_error', 'connection_exchange_failed', admin_url('options-general.php?page=sccc')));
+            exit;
+        }
+
+        $this->connectionStore->save(
+            $connection['organization_id'],
+            $connection['site_id'],
+            $connection['token'],
+            $connection['endpoint']
+        );
 
         wp_safe_redirect(add_query_arg('sccc_status', 'connected', admin_url('options-general.php?page=sccc')));
         exit;
@@ -62,4 +75,3 @@ final class Plugin
         exit;
     }
 }
-

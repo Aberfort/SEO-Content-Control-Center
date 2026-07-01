@@ -34,6 +34,7 @@
 - `esc_*` for outputs.
 - Prepared queries if direct SQL is ever used.
 - Options containing secrets use `autoload = false`.
+- Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

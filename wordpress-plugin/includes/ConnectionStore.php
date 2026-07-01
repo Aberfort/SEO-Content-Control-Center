@@ -14,7 +14,7 @@ final class ConnectionStore
     private const OPTION = 'sccc_connection';
 
     /**
-     * @return array{site_id:string, token:string, endpoint:string, connected_at:int}|null
+     * @return array{organization_id:string, site_id:string, token:string, endpoint:string, connected_at:int}|null
      */
     public function get(): ?array
     {
@@ -24,11 +24,12 @@ final class ConnectionStore
             return null;
         }
 
-        if (empty($value['site_id']) || empty($value['token']) || empty($value['endpoint'])) {
+        if (empty($value['organization_id']) || empty($value['site_id']) || empty($value['token']) || empty($value['endpoint'])) {
             return null;
         }
 
         return [
+            'organization_id' => (string) $value['organization_id'],
             'site_id' => (string) $value['site_id'],
             'token' => (string) $value['token'],
             'endpoint' => (string) $value['endpoint'],
@@ -36,9 +37,10 @@ final class ConnectionStore
         ];
     }
 
-    public function save(string $siteId, string $token, string $endpoint): void
+    public function save(string $organizationId, string $siteId, string $token, string $endpoint): void
     {
         $payload = [
+            'organization_id' => $organizationId,
             'site_id' => $siteId,
             'token' => $token,
             'endpoint' => $endpoint,
@@ -58,4 +60,3 @@ final class ConnectionStore
         return null !== $this->get();
     }
 }
-

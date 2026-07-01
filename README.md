@@ -59,6 +59,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - SMTP invite email delivery with local Mailpit support;
 - same-origin CSRF guard and MVP rate limits for auth/invite mutations;
 - WordPress plugin challenge/exchange and signed sync API foundation;
+- WordPress plugin admin challenge exchange and signed manual sync request;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

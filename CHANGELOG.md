@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 9
+
+- Added WordPress plugin API client for challenge exchange and signed sync requests.
+- Changed plugin admin connection form to accept SaaS endpoint and connection challenge instead of raw site/token fields.
+- Stored exchanged organization ID, site ID, token, endpoint, and connection timestamp in non-autoloaded options.
+- Added queued manual sync execution that sends a signed minimal sync batch to SaaS.
+- Added PHP smoke coverage for API URL building, sync body generation, and signed sync headers.
+
 ### Iteration 8
 
 - Added `WordPressConnectionChallenge` model and migration for short-lived one-time plugin connection challenges.

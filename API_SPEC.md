@@ -189,6 +189,8 @@ Request:
 
 Exchanges a challenge for plugin credentials. The challenge is one-time use and expires after 10 minutes. The response includes the raw plugin token once; the database stores only the token hash.
 
+The WordPress plugin admin connection form posts the SaaS endpoint and challenge to this endpoint, then stores the returned organization ID, site ID, token, and endpoint locally.
+
 Request:
 
 ```json

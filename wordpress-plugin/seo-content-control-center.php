@@ -29,18 +29,22 @@ if (file_exists($autoload)) {
     require_once SCCC_PLUGIN_DIR . 'includes/ConnectionStore.php';
     require_once SCCC_PLUGIN_DIR . 'includes/AdminPage.php';
     require_once SCCC_PLUGIN_DIR . 'includes/RequestSigner.php';
+    require_once SCCC_PLUGIN_DIR . 'includes/ApiClient.php';
     require_once SCCC_PLUGIN_DIR . 'includes/SyncScheduler.php';
 }
 
 add_action(
     'plugins_loaded',
     static function (): void {
+        $requestSigner = new SCCC\Plugin\RequestSigner();
+        $apiClient = new SCCC\Plugin\ApiClient($requestSigner);
+        $connectionStore = new SCCC\Plugin\ConnectionStore();
         $plugin = new SCCC\Plugin\Plugin(
-            new SCCC\Plugin\ConnectionStore(),
+            $connectionStore,
             new SCCC\Plugin\AdminPage(),
-            new SCCC\Plugin\SyncScheduler()
+            new SCCC\Plugin\SyncScheduler($connectionStore, $apiClient),
+            $apiClient
         );
         $plugin->register();
     }
 );
-

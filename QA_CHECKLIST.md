@@ -69,7 +69,9 @@
 - Secret options are not autoloaded.
 - SaaS user with integration permission can create a short-lived plugin connection challenge.
 - Plugin can exchange a valid challenge once for connection credentials.
+- Plugin admin stores exchanged organization/site/token/endpoint connection data without autoloading the option.
 - Used, expired, or unknown challenges are rejected.
+- Manual sync queues work and sends a signed sync request when the scheduled job runs.
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
 - Plugin sync accepts a valid signed batch and records `lastSyncAt`.
 - Manual sync does not run a large sync inline.
