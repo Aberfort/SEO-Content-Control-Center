@@ -102,6 +102,40 @@ export const backlogTaskFromCandidateSchema = z.object({
   candidateId: z.string().min(1).max(256)
 });
 
+export const backlogTaskFromAuditIssueSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  auditIssueId: z.string().uuid()
+});
+
+export const auditIdSchema = z.string().uuid();
+
+export const auditStatusSchema = z.enum(["QUEUED", "RUNNING", "COMPLETED", "FAILED"]);
+
+export const auditListQuerySchema = z.object({
+  status: auditStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional()
+});
+
+export const auditIssueStatusSchema = z.enum(["OPEN", "IGNORED", "RESOLVED", "SNOOZED"]);
+
+export const auditIssueSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+
+export const auditIssueListQuerySchema = z.object({
+  query: z.string().trim().max(160).optional(),
+  status: auditIssueStatusSchema.optional(),
+  severity: auditIssueSeveritySchema.optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional()
+});
+
+export const updateAuditIssueStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  auditId: auditIdSchema,
+  issueId: z.string().uuid(),
+  status: auditIssueStatusSchema
+});
+
 export const backlogTaskStatusSchema = z.enum([
   "TODO",
   "IN_PROGRESS",
@@ -111,9 +145,10 @@ export const backlogTaskStatusSchema = z.enum([
   "IGNORED"
 ]);
 
-export const backlogTaskSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export const backlogTaskSeveritySchema = auditIssueSeveritySchema;
 
 export const backlogTaskListQuerySchema = z.object({
+  query: z.string().trim().max(160).optional(),
   status: backlogTaskStatusSchema.optional(),
   severity: backlogTaskSeveritySchema.optional(),
   limit: z.coerce.number().int().min(1).max(500).optional()
@@ -160,7 +195,11 @@ export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExcha
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
+export type BacklogTaskFromAuditIssueInput = z.infer<typeof backlogTaskFromAuditIssueSchema>;
+export type AuditListQuery = z.infer<typeof auditListQuerySchema>;
+export type AuditIssueListQuery = z.infer<typeof auditIssueListQuerySchema>;
 export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;
 export type BacklogTaskCommentCreateInput = z.infer<typeof backlogTaskCommentCreateSchema>;
+export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

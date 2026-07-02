@@ -285,14 +285,22 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
 
-Creates a persisted backlog task from a synced content backlog candidate. The server recomputes the candidate from the scoped content item and ignores user-supplied task titles or priority. Repeated requests for the same organization, site, URL, and issue type return the existing task.
+Creates a persisted backlog task from a synced content backlog candidate or scoped audit issue. The server recomputes candidate details from the scoped content item and ignores user-supplied task titles or priority. Repeated candidate requests for the same organization, site, URL, and issue type return the existing task. Repeated audit issue requests for the same `auditIssueId` return the existing task.
 
-Request:
+Candidate request:
 
 ```json
 {
   "contentItemId": "33333333-3333-4333-8333-333333333333",
   "candidateId": "33333333-3333-4333-8333-333333333333:refresh"
+}
+```
+
+Audit issue request:
+
+```json
+{
+  "auditIssueId": "77777777-7777-4777-8777-777777777777"
 }
 ```
 
@@ -320,6 +328,7 @@ Response:
 
 Lists the latest persisted backlog tasks for a tenant-scoped site. Optional query params:
 
+- `q`: text search over title, URL, and issue type
 - `status`: one of `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`
 - `severity`: one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
 - `limit`: number from `1` to `500`
@@ -373,6 +382,7 @@ Response:
 
 Exports latest persisted backlog tasks for a tenant-scoped site as CSV. Optional query params:
 
+- `q`: text search over title, URL, and issue type
 - `status`: one of `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`, `SNOOZED`, `IGNORED`
 - `severity`: one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
 
@@ -441,11 +451,134 @@ Request:
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`
 
-Queues an audit.
+Queues an audit when the member has `audit:run`. The MVP creates a tenant-scoped `QUEUED` audit record and activity log entry; it does not crawl or mutate WordPress content inline.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "66666666-6666-4666-8666-666666666666",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "status": "QUEUED",
+    "startedAt": null,
+    "completedAt": null,
+    "createdAt": "2026-07-02T10:00:00.000Z"
+  }
+}
+```
+
+`GET /api/organizations/:organizationId/sites/:siteId/audits`
+
+Lists audit runs for a site when the member has `audit:read`.
+
+Query parameters:
+
+- `status` filters by `QUEUED`, `RUNNING`, `COMPLETED`, or `FAILED`.
+- `limit` is bounded from 1 to 100 and defaults to 25.
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "status": "QUEUED",
+      "startedAt": null,
+      "completedAt": null,
+      "createdAt": "2026-07-02T10:00:00.000Z"
+    }
+  ]
+}
+```
 
 `GET /api/organizations/:organizationId/sites/:siteId/audits/:auditId/issues`
 
-Lists issues for an audit.
+Lists issues for an audit when the member has `audit:read`.
+
+Query parameters:
+
+- `q` searches issue type, affected URL, explanation, and recommended action.
+- `status` filters by `OPEN`, `IGNORED`, `RESOLVED`, or `SNOOZED`.
+- `severity` filters by `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+- `limit` is bounded from 1 to 500 and defaults to 100.
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "77777777-7777-4777-8777-777777777777",
+      "auditId": "66666666-6666-4666-8666-666666666666",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "issueType": "meta_description_missing",
+      "status": "OPEN",
+      "severity": "HIGH",
+      "affectedUrl": "https://example.com/page",
+      "evidence": {
+        "selector": "head meta[name=description]"
+      },
+      "explanation": "The page does not expose a meta description.",
+      "recommendedAction": "Add a concise meta description.",
+      "potentialImpact": "Search snippets may be less relevant.",
+      "fingerprint": "meta-description-missing:https://example.com/page",
+      "createdAt": "2026-07-01T10:00:00.000Z",
+      "updatedAt": "2026-07-01T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+`PATCH /api/organizations/:organizationId/sites/:siteId/audits/:auditId/issues/:issueId`
+
+Updates an audit issue status when the member has `audit:run`. The issue is resolved through the requested organization, site, and audit before mutation. Repeating the same status returns the current issue without writing another activity log.
+
+Request:
+
+```json
+{
+  "status": "RESOLVED"
+}
+```
+
+Allowed statuses:
+
+- `OPEN`
+- `IGNORED`
+- `RESOLVED`
+- `SNOOZED`
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "77777777-7777-4777-8777-777777777777",
+    "auditId": "66666666-6666-4666-8666-666666666666",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "issueType": "meta_description_missing",
+    "status": "RESOLVED",
+    "severity": "HIGH",
+    "affectedUrl": "https://example.com/page",
+    "evidence": {
+      "selector": "head meta[name=description]"
+    },
+    "explanation": "The page does not expose a meta description.",
+    "recommendedAction": "Add a concise meta description.",
+    "potentialImpact": "Search snippets may be less relevant.",
+    "fingerprint": "meta-description-missing:https://example.com/page",
+    "createdAt": "2026-07-01T10:00:00.000Z",
+    "updatedAt": "2026-07-01T10:05:00.000Z"
+  }
+}
+```
 
 ## Backlog
 

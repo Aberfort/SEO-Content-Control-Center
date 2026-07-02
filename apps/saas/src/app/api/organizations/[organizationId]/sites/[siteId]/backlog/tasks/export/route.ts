@@ -41,6 +41,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   try {
     const query = backlogTaskListQuerySchema.parse({
+      query: readSearchParam(request, "q") || undefined,
       status: readSearchParam(request, "status") || undefined,
       severity: readSearchParam(request, "severity") || undefined,
       limit: 500

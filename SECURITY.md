@@ -41,9 +41,14 @@
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
 - Computed content health signals must use synced metadata only and must not fetch external URLs inline.
 - Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
+- Queueing audits requires audit run permission and organization/site scoping.
+- Listing audits requires audit read permission and organization/site scoping before status filters are applied.
+- Listing audit issues requires audit read permission and organization/site/audit scoping before filters are applied.
+- Updating audit issue status requires audit run permission and organization/site/audit/issue scoping.
 - Creating persisted backlog tasks from candidates requires backlog update permission and server-side candidate recomputation.
+- Creating persisted backlog tasks from audit issues requires backlog update permission and organization/site/issue scoping.
 - Listing persisted backlog tasks requires backlog read permission and organization/site scoping.
-- Backlog filters and summary counts must be applied only after organization/site scope is fixed.
+- Backlog search, filters, and summary counts must be applied only after organization/site scope is fixed.
 - Updating backlog task status requires backlog update permission and organization/site/task scoping.
 - Updating backlog assignee or due date requires backlog update permission and active same-organization assignee validation.
 - Creating or listing backlog comments requires resolving the parent task inside organization/site scope.

@@ -45,9 +45,13 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Synced content detail lookups must include organization, site, and item IDs in the same scoped query.
 - Synced content health signals are computed from synced metadata and are not persisted in the MVP.
 - Backlog candidates generated from synced content signals are computed previews until a user creates a persisted `BacklogTask`.
+- Audit runs are queued and listed through organization and site scope before status filters are applied.
+- Audit issues are listed through the parent audit, organization, and site scope before any search or filters are applied.
+- Audit issue status changes update the issue record and write organization-scoped activity logs.
 - Backlog tasks created from synced content candidates use `synced_content.*` issue types and remain scoped by organization and site.
+- Backlog tasks created from audit issues use `audit.*` issue types and retain the source `auditIssueId`.
 - Backlog task lists must be queried by organization and site scope before display.
-- Backlog task filters and summary counts must be computed inside the same organization/site scope.
+- Backlog task search, filters, and summary counts must be computed inside the same organization/site scope.
 - Backlog task status transitions update the task record and write organization-scoped activity logs.
 - Backlog task assignment changes must target active members of the same organization.
 - Backlog task comments must be created only after resolving the parent task through organization/site scope.

@@ -66,9 +66,14 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata;
 - computed backlog candidate tasks from synced content health signals;
+- tenant-scoped audit run queueing and listing;
+- SaaS dashboard audit panel with queue action and recent run status;
+- tenant-scoped audit issue listing with status, severity, and text filters;
+- tenant-scoped audit issue status updates with audit logging;
 - persisted backlog task creation from synced content candidates;
+- persisted backlog task creation from scoped audit issues;
 - SaaS backlog task listing for persisted candidate-created tasks;
-- backlog status/severity filtering with summary counts;
+- backlog text search and status/severity filtering with summary counts;
 - backlog task status updates with audit logging;
 - backlog assignment and due date updates with audit logging;
 - backlog task comments with audit logging;

@@ -3,23 +3,31 @@ import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
   assertPermission,
+  auditIssueListQuerySchema,
+  auditListQuerySchema,
   backlogTaskCommentCreateSchema,
+  backlogTaskFromAuditIssueSchema,
   backlogTaskFromCandidateSchema,
   backlogTaskListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type AuditIssueListQuery,
+  type AuditListQuery,
   type BacklogTaskCommentCreateInput,
+  type BacklogTaskFromAuditIssueInput,
   type BacklogTaskFromCandidateInput,
   type BacklogTaskListQuery,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
+  type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
   type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput
@@ -29,6 +37,7 @@ import {
   acceptInvite as acceptDevInvite,
   cancelInvite as cancelDevInvite,
   createBacklogTaskComment as createDevBacklogTaskComment,
+  createBacklogTaskFromAuditIssue as createDevBacklogTaskFromAuditIssue,
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
@@ -36,6 +45,8 @@ import {
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listAuditIssuesForAudit as listDevAuditIssuesForAudit,
+  listAuditsForSite as listDevAuditsForSite,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listMembersForOrganization as listDevMembersForOrganization,
@@ -43,6 +54,8 @@ import {
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
   resendInvite as resendDevInvite,
+  createAuditForSite as createDevAuditForSite,
+  updateAuditIssueStatus as updateDevAuditIssueStatus,
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
   updateMemberRole as updateDevMemberRole
@@ -55,6 +68,10 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  Audit,
+  AuditIssue,
+  AuditIssueListOptions,
+  AuditListOptions,
   BacklogTask,
   BacklogTaskComment,
   BacklogTaskList,
@@ -81,7 +98,21 @@ type CreateSiteInput = {
   url: string;
 };
 
+type CreateAuditForSiteInput = {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+};
+
 type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
+  user: AppUser;
+};
+
+type CreateBacklogTaskFromAuditIssueWithUser = BacklogTaskFromAuditIssueInput & {
+  user: AppUser;
+};
+
+type UpdateAuditIssueStatusInputWithUser = UpdateAuditIssueStatusInput & {
   user: AppUser;
 };
 
@@ -138,6 +169,21 @@ type AppRepository = {
     siteId: string,
     options?: SyncedContentListOptions
   ): Promise<SyncedContentList>;
+  listAuditsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: AuditListOptions
+  ): Promise<Audit[]>;
+  createAuditForSite(input: CreateAuditForSiteInput): Promise<Audit>;
+  listAuditIssuesForAudit(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    auditId: string,
+    options?: AuditIssueListOptions
+  ): Promise<AuditIssue[]>;
+  updateAuditIssueStatus(input: UpdateAuditIssueStatusInputWithUser): Promise<AuditIssue>;
   getSyncedContentItem(
     userId: string,
     organizationId: string,
@@ -145,6 +191,9 @@ type AppRepository = {
     contentItemId: string
   ): Promise<SyncedContentItem | null>;
   createBacklogTaskFromCandidate(input: CreateBacklogTaskFromCandidateInput): Promise<BacklogTask>;
+  createBacklogTaskFromAuditIssue(
+    input: CreateBacklogTaskFromAuditIssueWithUser
+  ): Promise<BacklogTask>;
   listBacklogTasksForSite(
     userId: string,
     organizationId: string,
@@ -201,11 +250,26 @@ const devStoreRepository: AppRepository = {
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
   },
+  async listAuditsForSite(userId, organizationId, siteId, options) {
+    return listDevAuditsForSite(userId, organizationId, siteId, options);
+  },
+  async createAuditForSite(input) {
+    return createDevAuditForSite(input);
+  },
+  async listAuditIssuesForAudit(userId, organizationId, siteId, auditId, options) {
+    return listDevAuditIssuesForAudit(userId, organizationId, siteId, auditId, options);
+  },
+  async updateAuditIssueStatus(input) {
+    return updateDevAuditIssueStatus(input);
+  },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
   },
   async createBacklogTaskFromCandidate(input) {
     return createDevBacklogTaskFromCandidate(input);
+  },
+  async createBacklogTaskFromAuditIssue(input) {
+    return createDevBacklogTaskFromAuditIssue(input);
   },
   async listBacklogTasksForSite(userId, organizationId, siteId, options) {
     return listDevBacklogTasksForSite(userId, organizationId, siteId, options);
@@ -553,6 +617,226 @@ const prismaRepository: AppRepository = {
     };
   },
 
+  async listAuditsForSite(userId, organizationId, siteId, options) {
+    const normalizedOptions = normalizeAuditListOptions(options);
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "audit:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const audits = await prisma.audit.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(normalizedOptions.status ? { status: normalizedOptions.status } : {})
+      },
+      orderBy: [
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      take: normalizedOptions.limit ?? 25
+    });
+
+    return audits.map(mapAudit);
+  },
+
+  async createAuditForSite(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "audit:run"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: input.siteId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const audit = await prisma.$transaction(async (tx) => {
+      const created = await tx.audit.create({
+        data: {
+          organizationId: input.organizationId,
+          siteId: input.siteId,
+          status: "QUEUED"
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: input.organizationId,
+          userId: input.user.id,
+          action: "audit.queued",
+          entityType: "Audit",
+          entityId: created.id,
+          metadata: {
+            siteId: input.siteId
+          }
+        }
+      });
+
+      return created;
+    });
+
+    return mapAudit(audit);
+  },
+
+  async listAuditIssuesForAudit(userId, organizationId, siteId, auditId, options) {
+    const normalizedOptions = normalizeAuditIssueListOptions(options);
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "audit:read"
+    });
+
+    const audit = await prisma.audit.findFirst({
+      where: {
+        id: auditId,
+        organizationId,
+        siteId
+      }
+    });
+
+    if (!audit) {
+      throw new Error("AUDIT_NOT_FOUND");
+    }
+
+    const where: Prisma.AuditIssueWhereInput = {
+      auditId: audit.id,
+      organizationId,
+      siteId,
+      ...(normalizedOptions.status ? { status: normalizedOptions.status } : {}),
+      ...(normalizedOptions.severity ? { severity: normalizedOptions.severity } : {}),
+      ...(normalizedOptions.query
+        ? {
+            OR: [
+              {
+                issueType: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              },
+              {
+                affectedUrl: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              },
+              {
+                explanation: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              },
+              {
+                recommendedAction: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              }
+            ]
+          }
+        : {})
+    };
+
+    const issues = await prisma.auditIssue.findMany({
+      where,
+      orderBy: [
+        {
+          severity: "desc"
+        },
+        {
+          updatedAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      take: normalizedOptions.limit ?? 100
+    });
+
+    return issues.map(mapAuditIssue);
+  },
+
+  async updateAuditIssueStatus(input) {
+    const parsed = updateAuditIssueStatusSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "audit:run"
+    });
+
+    const issue = await prisma.auditIssue.findFirst({
+      where: {
+        id: parsed.issueId,
+        auditId: parsed.auditId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!issue) {
+      throw new Error("AUDIT_ISSUE_NOT_FOUND");
+    }
+
+    if (issue.status === parsed.status) {
+      return mapAuditIssue(issue);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextIssue = await tx.auditIssue.update({
+        where: {
+          id: issue.id
+        },
+        data: {
+          status: parsed.status
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "audit_issue.status_updated",
+          entityType: "AuditIssue",
+          entityId: nextIssue.id,
+          metadata: {
+            siteId: parsed.siteId,
+            auditId: parsed.auditId,
+            issueType: nextIssue.issueType,
+            previousStatus: issue.status,
+            status: nextIssue.status
+          }
+        }
+      });
+
+      return nextIssue;
+    });
+
+    return mapAuditIssue(updated);
+  },
+
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     await requireDbOrganizationAccess({
       userId,
@@ -658,6 +942,75 @@ const prismaRepository: AppRepository = {
     return mapBacklogTask(task);
   },
 
+  async createBacklogTaskFromAuditIssue(input) {
+    const parsed = backlogTaskFromAuditIssueSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const issue = await prisma.auditIssue.findFirst({
+      where: {
+        id: parsed.auditIssueId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!issue) {
+      throw new Error("AUDIT_ISSUE_NOT_FOUND");
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      const existing = await tx.backlogTask.findFirst({
+        where: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          auditIssueId: issue.id
+        }
+      });
+
+      if (existing) {
+        return existing;
+      }
+
+      const created = await tx.backlogTask.create({
+        data: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          auditIssueId: issue.id,
+          title: issue.recommendedAction,
+          url: issue.affectedUrl,
+          issueType: `audit.${issue.issueType}`,
+          severity: issue.severity,
+          potentialImpact: issue.potentialImpact ?? issue.explanation,
+          effortEstimate: mapIssueSeverityToEffort(issue.severity),
+          tags: ["audit", issue.issueType]
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "backlog_task.created_from_audit_issue",
+          entityType: "BacklogTask",
+          entityId: created.id,
+          metadata: {
+            siteId: parsed.siteId,
+            auditIssueId: issue.id,
+            issueType: issue.issueType
+          }
+        }
+      });
+
+      return created;
+    });
+
+    return mapBacklogTask(task);
+  },
+
   async listBacklogTasksForSite(userId, organizationId, siteId, options) {
     const normalizedOptions = normalizeBacklogTaskListOptions(options);
     await requireDbOrganizationAccess({
@@ -684,7 +1037,31 @@ const prismaRepository: AppRepository = {
     const filteredWhere: Prisma.BacklogTaskWhereInput = {
       ...baseWhere,
       ...(normalizedOptions.status ? { status: normalizedOptions.status } : {}),
-      ...(normalizedOptions.severity ? { severity: normalizedOptions.severity } : {})
+      ...(normalizedOptions.severity ? { severity: normalizedOptions.severity } : {}),
+      ...(normalizedOptions.query
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              },
+              {
+                url: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              },
+              {
+                issueType: {
+                  contains: normalizedOptions.query,
+                  mode: "insensitive"
+                }
+              }
+            ]
+          }
+        : {})
     };
 
     const [tasks, total, statusGroups, severityGroups] = await prisma.$transaction([
@@ -1415,9 +1792,28 @@ function normalizeBacklogTaskListOptions(
   options: BacklogTaskListOptions | undefined
 ): BacklogTaskListQuery {
   return backlogTaskListQuerySchema.parse({
+    query: options?.query,
     status: options?.status,
     severity: options?.severity,
     limit: options?.limit ?? 50
+  });
+}
+
+function normalizeAuditListOptions(options: AuditListOptions | undefined): AuditListQuery {
+  return auditListQuerySchema.parse({
+    status: options?.status,
+    limit: options?.limit ?? 25
+  });
+}
+
+function normalizeAuditIssueListOptions(
+  options: AuditIssueListOptions | undefined
+): AuditIssueListQuery {
+  return auditIssueListQuerySchema.parse({
+    query: options?.query,
+    status: options?.status,
+    severity: options?.severity,
+    limit: options?.limit ?? 100
   });
 }
 
@@ -1572,6 +1968,62 @@ function mapSyncedContentItem(item: {
   };
 }
 
+function mapAudit(audit: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  status: Audit["status"];
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+}): Audit {
+  return {
+    id: audit.id,
+    organizationId: audit.organizationId,
+    siteId: audit.siteId,
+    status: audit.status,
+    startedAt: audit.startedAt?.toISOString() ?? null,
+    completedAt: audit.completedAt?.toISOString() ?? null,
+    createdAt: audit.createdAt.toISOString()
+  };
+}
+
+function mapAuditIssue(issue: {
+  id: string;
+  auditId: string;
+  organizationId: string;
+  siteId: string;
+  issueType: string;
+  status: AuditIssue["status"];
+  severity: AuditIssue["severity"];
+  affectedUrl: string;
+  evidence: unknown;
+  explanation: string;
+  recommendedAction: string;
+  potentialImpact: string | null;
+  fingerprint: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): AuditIssue {
+  return {
+    id: issue.id,
+    auditId: issue.auditId,
+    organizationId: issue.organizationId,
+    siteId: issue.siteId,
+    issueType: issue.issueType,
+    status: issue.status,
+    severity: issue.severity,
+    affectedUrl: issue.affectedUrl,
+    evidence: issue.evidence,
+    explanation: issue.explanation,
+    recommendedAction: issue.recommendedAction,
+    potentialImpact: issue.potentialImpact,
+    fingerprint: issue.fingerprint,
+    createdAt: issue.createdAt.toISOString(),
+    updatedAt: issue.updatedAt.toISOString()
+  };
+}
+
 function mapBacklogTask(task: {
   id: string;
   organizationId: string;
@@ -1662,6 +2114,18 @@ function mapCandidatePriorityToEffort(priority: "low" | "medium" | "high"): numb
   }
 
   if (priority === "medium") {
+    return 2;
+  }
+
+  return 1;
+}
+
+function mapIssueSeverityToEffort(severity: BacklogTask["severity"]): number {
+  if (severity === "CRITICAL" || severity === "HIGH") {
+    return 3;
+  }
+
+  if (severity === "MEDIUM") {
     return 2;
   }
 

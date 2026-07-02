@@ -231,6 +231,22 @@ export async function updateMemberRoleAction(
   redirect("/");
 }
 
+export async function createAuditForSiteAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.createAuditForSite({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function createBacklogTaskFromCandidateAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();

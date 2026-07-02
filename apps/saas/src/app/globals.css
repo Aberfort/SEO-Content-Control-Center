@@ -694,6 +694,46 @@ th {
   margin-top: 2px;
 }
 
+.audit-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.audit-table {
+  min-width: 760px;
+}
+
+.audit-status {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 4px 8px;
+}
+
+.audit-status-queued {
+  background: #fff7e6;
+  color: #93370d;
+}
+
+.audit-status-running {
+  background: #eef4ff;
+  color: #3538cd;
+}
+
+.audit-status-completed {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.audit-status-failed {
+  background: #fff1f3;
+  color: #b42318;
+}
+
 .backlog-table {
   min-width: 1040px;
 }
@@ -719,7 +759,7 @@ th {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(160px, 220px)) auto auto auto;
+  grid-template-columns: minmax(180px, 260px) repeat(2, minmax(160px, 220px)) auto auto auto;
   margin-bottom: 16px;
 }
 
@@ -735,6 +775,7 @@ th {
   text-transform: uppercase;
 }
 
+.backlog-filters input,
 .backlog-filters select {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -746,6 +787,7 @@ th {
   width: 100%;
 }
 
+.backlog-filters input:focus,
 .backlog-filters select:focus {
   border-color: var(--accent);
   outline: 3px solid #c7ebe5;

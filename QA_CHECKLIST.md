@@ -80,10 +80,17 @@
 - SaaS synced content detail opens only for an item inside the requested organization and site.
 - SaaS synced content detail shows computed health signals for title, publish status, sync freshness, and modified-date freshness.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
+- SaaS users with audit run permission can queue a site audit and generate an activity log entry.
+- SaaS users with audit read permission can list only audit runs for a site inside their organization.
+- SaaS dashboard users can queue an audit for the selected site and see the recent queued run.
+- SaaS users with audit read permission can list only issues for an audit inside the requested organization and site.
+- SaaS audit issue listing supports tenant-scoped text search plus status and severity filters.
+- SaaS users with audit run permission can change audit issue status and generate an activity log entry.
 - SaaS users with backlog update permission can persist a backlog task from a synced content candidate.
 - Persisting the same synced content candidate again returns the existing backlog task instead of creating duplicates.
+- SaaS users with backlog update permission can persist a backlog task from a scoped audit issue without duplicates.
 - SaaS users with backlog read permission can list persisted backlog tasks for a site inside their organization.
-- SaaS backlog listing supports tenant-scoped status and severity filters.
+- SaaS backlog listing supports tenant-scoped text search plus status and severity filters.
 - SaaS backlog dashboard shows site-wide summary counts while displaying filtered task rows.
 - SaaS users with backlog update permission can change backlog task status and generate an activity log entry.
 - SaaS users with backlog update permission can assign backlog tasks to active organization members and set or clear due dates.

@@ -127,6 +127,46 @@ export type BacklogTask = {
   comments: BacklogTaskComment[];
 };
 
+export type Audit = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+export type AuditListOptions = {
+  status?: Audit["status"];
+  limit?: number;
+};
+
+export type AuditIssue = {
+  id: string;
+  auditId: string;
+  organizationId: string;
+  siteId: string;
+  issueType: string;
+  status: "OPEN" | "IGNORED" | "RESOLVED" | "SNOOZED";
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  affectedUrl: string;
+  evidence: unknown;
+  explanation: string;
+  recommendedAction: string;
+  potentialImpact: string | null;
+  fingerprint: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuditIssueListOptions = {
+  query?: string;
+  status?: AuditIssue["status"];
+  severity?: AuditIssue["severity"];
+  limit?: number;
+};
+
 export type BacklogTaskComment = {
   id: string;
   taskId: string;
@@ -138,6 +178,7 @@ export type BacklogTaskComment = {
 };
 
 export type BacklogTaskListOptions = {
+  query?: string;
   status?: BacklogTask["status"];
   severity?: BacklogTask["severity"];
   limit?: number;

@@ -3,19 +3,27 @@ import { randomUUID } from "node:crypto";
 import {
   acceptInviteSchema,
   assertPermission,
+  auditIssueListQuerySchema,
+  auditListQuerySchema,
   backlogTaskCommentCreateSchema,
+  backlogTaskFromAuditIssueSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
   siteCreateSchema,
+  updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type AuditIssueListQuery,
+  type AuditListQuery,
   type BacklogTaskCommentCreateInput,
+  type BacklogTaskFromAuditIssueInput,
   type InviteMemberInput,
   type Permission,
   type Role,
   type SiteCreateInput,
+  type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
   type UpdateMemberRoleInput
 } from "@sccc/shared";
@@ -24,6 +32,10 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  Audit,
+  AuditIssue,
+  AuditIssueListOptions,
+  AuditListOptions,
   BacklogTask,
   BacklogTaskComment,
   BacklogTaskList,
@@ -45,6 +57,7 @@ type DevStoreState = {
   organizations: Organization[];
   members: StoreOrganizationMember[];
   sites: Site[];
+  audits: Audit[];
   backlogTasks: BacklogTask[];
   backlogComments: BacklogTaskComment[];
   activityLogs: ActivityLog[];
@@ -128,6 +141,7 @@ function initialState(): DevStoreState {
     organizations: [],
     members: [],
     sites: [],
+    audits: [],
     backlogTasks: [],
     backlogComments: [],
     activityLogs: []
@@ -416,6 +430,114 @@ export function getSyncedContentItem(
   return null;
 }
 
+export function listAuditsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: AuditListOptions
+): Audit[] {
+  const parsed: AuditListQuery = auditListQuerySchema.parse(options ?? {});
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "audit:read"
+  });
+
+  return getDevStore()
+    .audits.filter((audit) => {
+      const scopeMatches = audit.organizationId === organizationId && audit.siteId === siteId;
+      const statusMatches = parsed.status ? audit.status === parsed.status : true;
+      return scopeMatches && statusMatches;
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, parsed.limit ?? 25);
+}
+
+export function createAuditForSite(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+}): Audit {
+  const store = getDevStore();
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "audit:run"
+  });
+
+  const site = store.sites.find(
+    (candidate) =>
+      candidate.id === input.siteId && candidate.organizationId === input.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const audit: Audit = {
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    siteId: input.siteId,
+    status: "QUEUED",
+    startedAt: null,
+    completedAt: null,
+    createdAt: nowIso()
+  };
+
+  store.audits.push(audit);
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "audit.queued",
+    entityType: "Audit",
+    entityId: audit.id,
+    metadata: {
+      siteId: input.siteId
+    }
+  });
+
+  return audit;
+}
+
+export function listAuditIssuesForAudit(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  auditId: string,
+  options?: AuditIssueListOptions
+): AuditIssue[] {
+  const parsed: AuditIssueListQuery = auditIssueListQuerySchema.parse(options ?? {});
+  void parsed;
+  void siteId;
+  void auditId;
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "audit:read"
+  });
+
+  throw new Error("AUDIT_NOT_FOUND");
+}
+
+export function updateAuditIssueStatus(
+  input: UpdateAuditIssueStatusInput & {
+    user: AppUser;
+  }
+): AuditIssue {
+  const parsed = updateAuditIssueStatusSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "audit:run"
+  });
+
+  throw new Error("AUDIT_ISSUE_NOT_FOUND");
+}
+
 export function createBacklogTaskFromCandidate(input: {
   user: AppUser;
   organizationId: string;
@@ -434,6 +556,22 @@ export function createBacklogTaskFromCandidate(input: {
   });
 
   throw new Error("CONTENT_ITEM_NOT_FOUND");
+}
+
+export function createBacklogTaskFromAuditIssue(
+  input: BacklogTaskFromAuditIssueInput & {
+    user: AppUser;
+  }
+): BacklogTask {
+  const parsed = backlogTaskFromAuditIssueSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "backlog:update"
+  });
+
+  throw new Error("AUDIT_ISSUE_NOT_FOUND");
 }
 
 export function listBacklogTasksForSite(
@@ -456,14 +594,27 @@ export function listBacklogTasksForSite(
   return {
     items: scopedTasks
       .filter((task) => {
+        const queryMatches = options.query ? backlogTaskMatchesQuery(task, options.query) : true;
         const statusMatches = options.status ? task.status === options.status : true;
         const severityMatches = options.severity ? task.severity === options.severity : true;
-        return statusMatches && severityMatches;
+        return queryMatches && statusMatches && severityMatches;
       })
       .slice(0, options.limit ?? 50)
       .map((task) => withBacklogComments(task, store.backlogComments, 3)),
     summary: summarizeBacklogTasks(scopedTasks)
   };
+}
+
+function backlogTaskMatchesQuery(task: BacklogTask, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [task.title, task.url, task.issueType].some((value) =>
+    value.toLowerCase().includes(normalizedQuery)
+  );
 }
 
 export function updateBacklogTaskStatus(input: {

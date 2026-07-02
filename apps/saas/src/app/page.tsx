@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
+  createAuditForSiteAction,
   createBacklogTaskCommentAction,
   createBacklogTaskFromCandidateAction,
   updateBacklogTaskAssignmentAction,
@@ -70,6 +71,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     limit: 10
   };
   const backlogFilters = {
+    query: readQueryParam(params, "backlogQ"),
     status: readEnumQueryParam(params, "backlogStatus", backlogStatuses),
     severity: readEnumQueryParam(params, "backlogSeverity", backlogSeverities)
   };
@@ -121,6 +123,12 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             }
           }
         };
+  const auditRuns =
+    activeOrganization && activeSite
+      ? await repository.listAuditsForSite(user.id, activeOrganization.id, activeSite.id, {
+          limit: 5
+        })
+      : [];
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -558,6 +566,95 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           )}
         </section>
 
+        <section className="panel empty-state" aria-labelledby="audits-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="audits-title">Audits</h2>
+              <p>Recent audit runs for the selected WordPress site.</p>
+            </div>
+            <span className="metric-pill">{auditRuns.length} recent</span>
+          </div>
+
+          {activeOrganization && activeSite ? (
+            <>
+              <div className="audit-actions">
+                <form action={createAuditForSiteAction}>
+                  <input name="organizationId" type="hidden" value={activeOrganization.id} />
+                  <input name="siteId" type="hidden" value={activeSite.id} />
+                  <input
+                    name="redirectTo"
+                    type="hidden"
+                    value={buildContentHref(params, {
+                      site: activeSite.id
+                    })}
+                  />
+                  <button className="button" type="submit">
+                    Queue audit
+                  </button>
+                </form>
+                <span className="muted-text">
+                  The MVP creates a queued run; crawling will attach issues later.
+                </span>
+              </div>
+
+              {auditRuns.length > 0 ? (
+                <div className="table-wrap">
+                  <table className="audit-table">
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Started</th>
+                        <th>Completed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditRuns.map((audit) => (
+                        <tr key={audit.id}>
+                          <td>
+                            <span
+                              className={`audit-status audit-status-${audit.status.toLowerCase()}`}
+                            >
+                              {audit.status.toLowerCase()}
+                            </span>
+                          </td>
+                          <td>
+                            <time dateTime={audit.createdAt}>
+                              {formatDateTime(audit.createdAt)}
+                            </time>
+                          </td>
+                          <td>
+                            {audit.startedAt ? (
+                              <time dateTime={audit.startedAt}>
+                                {formatDateTime(audit.startedAt)}
+                              </time>
+                            ) : (
+                              <span className="muted-text">Not started</span>
+                            )}
+                          </td>
+                          <td>
+                            {audit.completedAt ? (
+                              <time dateTime={audit.completedAt}>
+                                {formatDateTime(audit.completedAt)}
+                              </time>
+                            ) : (
+                              <span className="muted-text">Pending</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="empty-copy">No audit runs yet for this site.</p>
+              )}
+            </>
+          ) : (
+            <p className="empty-copy">Add a WordPress site before queueing audits.</p>
+          )}
+        </section>
+
         <section className="panel empty-state" aria-labelledby="backlog-title">
           <div className="section-heading">
             <div>
@@ -591,6 +688,15 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                   <input name="content" type="hidden" value={selectedContentId} />
                 ) : null}
                 <label>
+                  <span>Search</span>
+                  <input
+                    defaultValue={backlogFilters.query}
+                    name="backlogQ"
+                    placeholder="Title, URL, issue"
+                    type="search"
+                  />
+                </label>
+                <label>
                   <span>Status</span>
                   <select name="backlogStatus" defaultValue={backlogFilters.status ?? ""}>
                     <option value="">All statuses</option>
@@ -618,6 +724,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                 <Link
                   className="secondary-button"
                   href={buildContentHref(params, {
+                    backlogQ: null,
                     backlogStatus: null,
                     backlogSeverity: null
                   })}
@@ -630,6 +737,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     href={buildBacklogExportHref({
                       organizationId: activeOrganization.id,
                       siteId: activeSite.id,
+                      query: backlogFilters.query,
                       status: backlogFilters.status,
                       severity: backlogFilters.severity
                     })}
@@ -899,10 +1007,15 @@ function buildContentHref(
 function buildBacklogExportHref(input: {
   organizationId: string;
   siteId: string;
+  query?: string;
   status?: string;
   severity?: string;
 }): string {
   const params = new URLSearchParams();
+
+  if (input.query) {
+    params.set("q", input.query);
+  }
 
   if (input.status) {
     params.set("status", input.status);

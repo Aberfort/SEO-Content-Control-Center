@@ -2,6 +2,48 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 28
+
+- Added a SaaS dashboard audit panel for the selected site.
+- Added a dashboard action to queue a site audit run.
+- Added recent audit run status display with created, started, and completed timestamps.
+- Documented dashboard QA coverage for audit queue/list workflows.
+
+### Iteration 27
+
+- Added tenant-scoped audit queueing for site audit runs.
+- Added tenant-scoped audit run listing with status and limit filters.
+- Added in-memory repository support for queued audits.
+- Documented audit queue/list API behavior and QA coverage.
+
+### Iteration 26
+
+- Added a tenant-scoped audit issue status update endpoint.
+- Added shared validation for audit issue lifecycle transitions.
+- Added activity log writes for changed audit issue statuses.
+- Documented audit issue lifecycle permissions and QA coverage.
+
+### Iteration 25
+
+- Added a tenant-scoped audit issue listing endpoint for a specific audit.
+- Added audit issue query validation for text search, status, severity, and bounded limits.
+- Added repository mapping and fallback coverage for audit issue listing.
+- Documented audit issue listing security and QA coverage.
+
+### Iteration 24
+
+- Added tenant-scoped audit issue to backlog task conversion through the repository and task creation endpoint.
+- Added idempotent conversion by `auditIssueId`.
+- Added activity log writes for backlog tasks created from audit issues.
+- Added fallback repository coverage for missing audit issue conversion.
+
+### Iteration 23
+
+- Added tenant-scoped text search for backlog task listing by title, URL, and issue type.
+- Added backlog search input to the SaaS dashboard filter bar.
+- Preserved backlog search terms in filtered CSV exports.
+- Documented backlog search API behavior and QA coverage.
+
 ### Iteration 22
 
 - Added a tenant-scoped backlog CSV export endpoint with status and severity filters.

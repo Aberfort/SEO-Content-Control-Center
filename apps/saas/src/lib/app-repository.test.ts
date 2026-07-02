@@ -54,6 +54,50 @@ describe("app repository", () => {
         "00000000-0000-4000-8000-000000000303"
       )
     ).toBeNull();
+    const audit = await repository.createAuditForSite({
+      user,
+      organizationId: organization.id,
+      siteId: organizations[0]?.sites[0]?.id ?? ""
+    });
+
+    expect(audit).toMatchObject({
+      organizationId: organization.id,
+      siteId: organizations[0]?.sites[0]?.id,
+      status: "QUEUED",
+      startedAt: null,
+      completedAt: null
+    });
+    expect(
+      await repository.listAuditsForSite(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? "",
+        { status: "QUEUED" }
+      )
+    ).toEqual([audit]);
+    await expect(
+      repository.listAuditIssuesForAudit(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? "",
+        "00000000-0000-4000-8000-000000000606",
+        {
+          query: "meta",
+          status: "OPEN",
+          severity: "HIGH"
+        }
+      )
+    ).rejects.toThrow("AUDIT_NOT_FOUND");
+    await expect(
+      repository.updateAuditIssueStatus({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        auditId: "00000000-0000-4000-8000-000000000606",
+        issueId: "00000000-0000-4000-8000-000000000707",
+        status: "RESOLVED"
+      })
+    ).rejects.toThrow("AUDIT_ISSUE_NOT_FOUND");
     await expect(
       repository.createBacklogTaskFromCandidate({
         user,
@@ -63,6 +107,14 @@ describe("app repository", () => {
         candidateId: "00000000-0000-4000-8000-000000000303:title"
       })
     ).rejects.toThrow("CONTENT_ITEM_NOT_FOUND");
+    await expect(
+      repository.createBacklogTaskFromAuditIssue({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        auditIssueId: "00000000-0000-4000-8000-000000000505"
+      })
+    ).rejects.toThrow("AUDIT_ISSUE_NOT_FOUND");
     expect(
       await repository.listBacklogTasksForSite(
         user.id,
@@ -127,7 +179,9 @@ describe("app repository", () => {
         body: "Check metadata before publishing."
       })
     ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
-    expect(organizations[0]?.activityLogs.map((log) => log.action).sort()).toEqual([
+    const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
+    expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
+      "audit.queued",
       "organization.created",
       "site.created"
     ]);
