@@ -171,6 +171,14 @@ describe("app repository", () => {
       )
     ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
     await expect(
+      repository.listBacklogTaskActivity(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? "",
+        "00000000-0000-4000-8000-000000000404"
+      )
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    await expect(
       repository.createBacklogTaskComment({
         user,
         organizationId: organization.id,
@@ -179,6 +187,38 @@ describe("app repository", () => {
         body: "Check metadata before publishing."
       })
     ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    expect(
+      await repository.listBulkOperationsForSite(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? ""
+      )
+    ).toEqual([]);
+    await expect(
+      repository.createBulkOperationPreview({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        taskId: "00000000-0000-4000-8000-000000000404"
+      })
+    ).rejects.toThrow("BACKLOG_TASK_NOT_FOUND");
+    await expect(
+      repository.runBulkOperationDryRun({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
+    await expect(
+      repository.confirmBulkOperation({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909",
+        confirmation: "CONFIRM"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
     expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
       "audit.queued",

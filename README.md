@@ -68,7 +68,12 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - computed backlog candidate tasks from synced content health signals;
 - tenant-scoped audit run queueing and listing;
 - SaaS dashboard audit panel with queue action and recent run status;
+- SaaS dashboard audit issue triage with status updates and backlog task creation;
+- SaaS dashboard audit issue summary counts for selected audit runs;
+- SaaS dashboard audit issue search and status/severity filtering;
+- SaaS dashboard audit issue CSV export with current filters;
 - tenant-scoped audit issue listing with status, severity, and text filters;
+- tenant-scoped audit issue CSV export;
 - tenant-scoped audit issue status updates with audit logging;
 - persisted backlog task creation from synced content candidates;
 - persisted backlog task creation from scoped audit issues;
@@ -77,7 +82,11 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - backlog task status updates with audit logging;
 - backlog assignment and due date updates with audit logging;
 - backlog task comments with audit logging;
+- backlog task change history for creation, status, assignment, due date, and comments;
 - backlog CSV export for filtered site tasks;
+- preview-only safe content operations created from scoped backlog tasks;
+- dry run support for previewed safe content operations without WordPress writes;
+- explicit confirmation for dry-run-passed safe content operations;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

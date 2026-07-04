@@ -44,6 +44,7 @@
 - Queueing audits requires audit run permission and organization/site scoping.
 - Listing audits requires audit read permission and organization/site scoping before status filters are applied.
 - Listing audit issues requires audit read permission and organization/site/audit scoping before filters are applied.
+- Exporting audit issues requires audit read permission and organization/site/audit-scoped filters.
 - Updating audit issue status requires audit run permission and organization/site/audit/issue scoping.
 - Creating persisted backlog tasks from candidates requires backlog update permission and server-side candidate recomputation.
 - Creating persisted backlog tasks from audit issues requires backlog update permission and organization/site/issue scoping.
@@ -52,7 +53,14 @@
 - Updating backlog task status requires backlog update permission and organization/site/task scoping.
 - Updating backlog assignee or due date requires backlog update permission and active same-organization assignee validation.
 - Creating or listing backlog comments requires resolving the parent task inside organization/site scope.
+- Listing backlog task activity requires backlog read permission and organization/site/task scoping.
 - Exporting backlog tasks requires backlog read permission and organization/site-scoped filters.
+- Creating or listing bulk operation previews requires content operation preview permission and organization/site/task scoping.
+- Bulk operation previews must persist planned values only and must not write to WordPress.
+- Running bulk operation dry runs requires content operation preview permission and organization/site/operation scoping.
+- Bulk operation dry runs must persist result metadata only and must not write to WordPress.
+- Confirming bulk operations requires content operation confirm permission, organization/site/operation scoping, and the literal `CONFIRM` acknowledgement.
+- Confirmed bulk operations must remain pending execution until a separate execution step validates confirmation state.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

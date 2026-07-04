@@ -435,6 +435,34 @@ Response:
 }
 ```
 
+`GET /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId/activity`
+
+Lists latest change history entries for a tenant-scoped backlog task when the member has `backlog:read`.
+The response includes task creation, status updates, assignment or due-date updates, and comment-created events scoped to the requested organization, site, and task.
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "99999999-9999-4999-8999-999999999999",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "userId": "33333333-3333-4333-8333-333333333333",
+      "action": "backlog_task.status_updated",
+      "entityType": "BacklogTask",
+      "entityId": "88888888-8888-4888-8888-888888888888",
+      "metadata": {
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "previousStatus": "TODO",
+        "status": "IN_PROGRESS"
+      },
+      "createdAt": "2026-07-03T10:00:00.000Z"
+    }
+  ]
+}
+```
+
 `POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks/:taskId/comments`
 
 Creates a comment on a tenant-scoped backlog task.
@@ -444,6 +472,127 @@ Request:
 ```json
 {
   "body": "Check the SERP before rewriting the title."
+}
+```
+
+## Safe Content Operations
+
+`GET /api/organizations/:organizationId/sites/:siteId/bulk-operations`
+
+Lists latest tenant-scoped bulk operations when the member has `content_operation:preview`.
+
+Optional query params:
+
+- `status`: one of `DRAFT`, `PREVIEWED`, `DRY_RUN_PASSED`, `CONFIRMED`, `RUNNING`, `COMPLETED`, `FAILED`, `ROLLED_BACK`
+- `limit`: number from `1` to `100`
+
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations`
+
+Creates a preview-only bulk operation from a scoped backlog task when the member has `content_operation:preview`.
+This endpoint persists `PREVIEWED` operation metadata and planned item values, but does not write to WordPress or execute a dry run.
+
+Request:
+
+```json
+{
+  "taskId": "44444444-4444-4444-8444-444444444444"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "type": "BACKLOG_TASK_PREVIEW",
+    "status": "PREVIEWED",
+    "preview": {
+      "noMutation": true,
+      "summary": "Preview recommended SEO work for https://example.com/post.",
+      "taskId": "44444444-4444-4444-8444-444444444444",
+      "safeguards": [
+        "preview_only",
+        "no_wordpress_write",
+        "dry_run_required",
+        "confirmation_required"
+      ]
+    },
+    "dryRunResult": null,
+    "confirmedAt": null,
+    "items": [
+      {
+        "externalId": "https://example.com/post",
+        "status": "PREVIEWED",
+        "error": null
+      }
+    ]
+  }
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/dry-run`
+
+Runs a dry run for a scoped `PREVIEWED` bulk operation when the member has `content_operation:preview`.
+The dry run updates SaaS operation records to `DRY_RUN_PASSED`, persists a `dryRunResult`, and keeps WordPress writes disabled. Confirmation remains required before any future execution endpoint can run.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "DRY_RUN_PASSED",
+    "dryRunResult": {
+      "noMutation": true,
+      "status": "passed",
+      "itemCount": 1,
+      "passedItems": 1,
+      "failedItems": 0,
+      "nextRequiredStep": "confirmation"
+    },
+    "items": [
+      {
+        "externalId": "https://example.com/post",
+        "status": "DRY_RUN_PASSED",
+        "error": null
+      }
+    ]
+  }
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/confirm`
+
+Confirms a scoped `DRY_RUN_PASSED` bulk operation when the member has `content_operation:confirm`.
+The request must include the literal acknowledgement `CONFIRM`. Confirmation marks SaaS operation records as `CONFIRMED` and records `confirmedAt`, but still does not write to WordPress or execute the operation.
+
+Request:
+
+```json
+{
+  "confirmation": "CONFIRM"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "CONFIRMED",
+    "confirmedAt": "2026-07-04T10:00:00.000Z",
+    "items": [
+      {
+        "externalId": "https://example.com/post",
+        "status": "CONFIRMED",
+        "error": null
+      }
+    ]
+  }
 }
 ```
 
@@ -534,6 +683,18 @@ Response:
   ]
 }
 ```
+
+`GET /api/organizations/:organizationId/sites/:siteId/audits/:auditId/issues/export`
+
+Exports issues for a tenant-scoped audit run as CSV when the member has `audit:read`.
+
+Optional query params:
+
+- `q` searches issue type, affected URL, explanation, and recommended action.
+- `status` filters by `OPEN`, `IGNORED`, `RESOLVED`, or `SNOOZED`.
+- `severity` filters by `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+
+Response content type: `text/csv; charset=utf-8`.
 
 `PATCH /api/organizations/:organizationId/sites/:siteId/audits/:auditId/issues/:issueId`
 

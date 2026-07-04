@@ -2,6 +2,62 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 36
+
+- Added explicit confirmation for dry-run-passed bulk operations.
+- Added a tenant-scoped confirmation API endpoint and dashboard confirmation form.
+- Required the literal `CONFIRM` acknowledgement before marking a bulk operation confirmed.
+- Documented confirmation behavior, permissions, and QA coverage.
+
+### Iteration 35
+
+- Added dry run support for previewed bulk operations.
+- Added a tenant-scoped dry run API endpoint and dashboard action.
+- Persisted dry run results without WordPress writes and kept confirmation as the next required step.
+- Documented dry run behavior, permissions, and QA coverage.
+
+### Iteration 34
+
+- Added tenant-scoped safe operation previews created from backlog tasks.
+- Added a bulk operation listing and preview creation API endpoint.
+- Added dashboard preview actions and a recent previews panel for backlog tasks.
+- Documented preview-only behavior, permissions, and QA coverage.
+
+### Iteration 33
+
+- Added tenant-scoped backlog task change history.
+- Added a backlog task activity API endpoint for status, assignment, creation, and comment events.
+- Added dashboard change history for visible backlog tasks.
+- Documented backlog task activity API behavior and QA coverage.
+
+### Iteration 32
+
+- Added tenant-scoped CSV export for selected audit run issues.
+- Preserved audit issue search, status, and severity filters in CSV exports.
+- Added an "Export CSV" action to the dashboard audit issue filter bar.
+- Documented audit issue CSV export behavior and QA coverage.
+
+### Iteration 31
+
+- Added dashboard summary counts for selected audit run issues.
+- Added total, open, resolved, high, and critical audit issue counters.
+- Kept audit issue summary counts scoped to the selected audit run.
+- Documented dashboard QA coverage for audit issue summary counts.
+
+### Iteration 30
+
+- Added dashboard filters for selected audit run issues.
+- Added audit issue search by issue text, URL, explanation, or recommended action.
+- Added dashboard audit issue status and severity filters.
+- Documented dashboard QA coverage for filtered audit issue triage.
+
+### Iteration 29
+
+- Added dashboard audit issue triage for the selected audit run.
+- Added dashboard controls for audit issue status updates.
+- Added dashboard backlog task creation from audit issues.
+- Documented dashboard QA coverage for audit issue triage.
+
 ### Iteration 28
 
 - Added a SaaS dashboard audit panel for the selected site.

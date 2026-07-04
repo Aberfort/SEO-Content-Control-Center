@@ -7,6 +7,10 @@ import {
   auditListQuerySchema,
   backlogTaskCommentCreateSchema,
   backlogTaskFromAuditIssueSchema,
+  bulkOperationConfirmSchema,
+  bulkOperationDryRunSchema,
+  bulkOperationListQuerySchema,
+  bulkOperationPreviewCreateSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
@@ -19,6 +23,10 @@ import {
   type AuditListQuery,
   type BacklogTaskCommentCreateInput,
   type BacklogTaskFromAuditIssueInput,
+  type BulkOperationConfirmInput,
+  type BulkOperationDryRunInput,
+  type BulkOperationListQuery,
+  type BulkOperationPreviewCreateInput,
   type InviteMemberInput,
   type Permission,
   type Role,
@@ -41,6 +49,9 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BulkOperation,
+  BulkOperationItem,
+  BulkOperationListOptions,
   InviteResult,
   Organization,
   OrganizationMember,
@@ -60,6 +71,8 @@ type DevStoreState = {
   audits: Audit[];
   backlogTasks: BacklogTask[];
   backlogComments: BacklogTaskComment[];
+  bulkOperations: BulkOperation[];
+  bulkOperationItems: BulkOperationItem[];
   activityLogs: ActivityLog[];
 };
 
@@ -144,6 +157,8 @@ function initialState(): DevStoreState {
     audits: [],
     backlogTasks: [],
     backlogComments: [],
+    bulkOperations: [],
+    bulkOperationItems: [],
     activityLogs: []
   };
 }
@@ -600,7 +615,7 @@ export function listBacklogTasksForSite(
         return queryMatches && statusMatches && severityMatches;
       })
       .slice(0, options.limit ?? 50)
-      .map((task) => withBacklogComments(task, store.backlogComments, 3)),
+      .map((task) => withBacklogDetails(task, store.backlogComments, store.activityLogs, 3)),
     summary: summarizeBacklogTasks(scopedTasks)
   };
 }
@@ -764,6 +779,33 @@ export function listBacklogTaskComments(
   return getBacklogCommentsForTask(taskId, store.backlogComments, 50);
 }
 
+export function listBacklogTaskActivity(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  taskId: string
+): ActivityLog[] {
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "backlog:read"
+  });
+
+  const task = store.backlogTasks.find(
+    (candidate) =>
+      candidate.id === taskId &&
+      candidate.organizationId === organizationId &&
+      candidate.siteId === siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  return getBacklogActivityForTask(taskId, siteId, store.activityLogs, 25);
+}
+
 export function createBacklogTaskComment(
   input: BacklogTaskCommentCreateInput & {
     user: AppUser;
@@ -816,14 +858,243 @@ export function createBacklogTaskComment(
   return comment;
 }
 
-function withBacklogComments(
+export function listBulkOperationsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: BulkOperationListOptions
+): BulkOperation[] {
+  const parsed: BulkOperationListQuery = bulkOperationListQuerySchema.parse(options ?? {});
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "content_operation:preview"
+  });
+
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  return store.bulkOperations
+    .filter((operation) => {
+      const scopeMatches =
+        operation.organizationId === organizationId && operation.siteId === siteId;
+      const statusMatches = parsed.status ? operation.status === parsed.status : true;
+      return scopeMatches && statusMatches;
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, parsed.limit ?? 5)
+    .map((operation) => ({
+      ...operation,
+      items: store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id)
+    }));
+}
+
+export function createBulkOperationPreview(
+  input: BulkOperationPreviewCreateInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationPreviewCreateSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:preview"
+  });
+
+  const task = store.backlogTasks.find(
+    (candidate) =>
+      candidate.id === parsed.taskId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!task) {
+    throw new Error("BACKLOG_TASK_NOT_FOUND");
+  }
+
+  const timestamp = nowIso();
+  const preview = buildDevBulkOperationPreview(task);
+  const operation: BulkOperation = {
+    id: randomUUID(),
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    type: "BACKLOG_TASK_PREVIEW",
+    status: "PREVIEWED",
+    preview,
+    dryRunResult: null,
+    confirmedAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    items: []
+  };
+  const item: BulkOperationItem = {
+    id: randomUUID(),
+    bulkOperationId: operation.id,
+    externalId: task.url,
+    status: "PREVIEWED",
+    beforeValue: preview.beforeValue,
+    afterValue: preview.afterValue,
+    error: null,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+
+  operation.items = [item];
+  store.bulkOperations.push(operation);
+  store.bulkOperationItems.push(item);
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.preview_created",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      taskId: task.id,
+      type: operation.type,
+      itemCount: 1
+    }
+  });
+
+  return operation;
+}
+
+export function runBulkOperationDryRun(
+  input: BulkOperationDryRunInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationDryRunSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:preview"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "PREVIEWED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const dryRunResult = buildDevBulkOperationDryRunResult(operation, items);
+  const timestamp = nowIso();
+
+  operation.status = "DRY_RUN_PASSED";
+  operation.dryRunResult = dryRunResult;
+  operation.updatedAt = timestamp;
+
+  for (const item of items) {
+    item.status = "DRY_RUN_PASSED";
+    item.error = null;
+    item.updatedAt = timestamp;
+  }
+
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.dry_run_passed",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      itemCount: items.length,
+      noMutation: true
+    }
+  });
+
+  return operation;
+}
+
+export function confirmBulkOperation(
+  input: BulkOperationConfirmInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationConfirmSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "DRY_RUN_PASSED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const timestamp = nowIso();
+
+  operation.status = "CONFIRMED";
+  operation.confirmedAt = timestamp;
+  operation.updatedAt = timestamp;
+
+  for (const item of items) {
+    item.status = "CONFIRMED";
+    item.error = null;
+    item.updatedAt = timestamp;
+  }
+
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.confirmed",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      itemCount: items.length,
+      noMutation: true
+    }
+  });
+
+  return operation;
+}
+
+function withBacklogDetails(
   task: BacklogTask,
   comments: BacklogTaskComment[],
+  activityLogs: ActivityLog[],
   limit: number
 ): BacklogTask {
   return {
     ...task,
-    comments: getBacklogCommentsForTask(task.id, comments, limit)
+    comments: getBacklogCommentsForTask(task.id, comments, limit),
+    activityLogs: getBacklogActivityForTask(task.id, task.siteId, activityLogs, limit)
   };
 }
 
@@ -836,6 +1107,104 @@ function getBacklogCommentsForTask(
     .filter((comment) => comment.taskId === taskId)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, limit);
+}
+
+function getBacklogActivityForTask(
+  taskId: string,
+  siteId: string,
+  activityLogs: ActivityLog[],
+  limit: number
+): ActivityLog[] {
+  return activityLogs
+    .filter((log) => {
+      if (readMetadataString(log.metadata, "siteId") !== siteId) {
+        return false;
+      }
+
+      if (log.entityType === "BacklogTask") {
+        return log.entityId === taskId;
+      }
+
+      return (
+        log.entityType === "TaskComment" && readMetadataString(log.metadata, "taskId") === taskId
+      );
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, limit);
+}
+
+function buildDevBulkOperationPreview(task: BacklogTask): {
+  noMutation: true;
+  summary: string;
+  taskId: string;
+  beforeValue: Record<string, string | number | boolean | null>;
+  afterValue: Record<string, string | boolean>;
+  safeguards: string[];
+} {
+  return {
+    noMutation: true,
+    summary: `Preview recommended SEO work for ${task.url}.`,
+    taskId: task.id,
+    beforeValue: {
+      url: task.url,
+      issueType: task.issueType,
+      status: task.status,
+      severity: task.severity,
+      potentialImpact: task.potentialImpact,
+      effortEstimate: task.effortEstimate,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt
+    },
+    afterValue: {
+      recommendedAction: task.title,
+      expectedWorkflow: "manual_review_then_dry_run",
+      nextRequiredStep: "dry_run",
+      noMutation: true
+    },
+    safeguards: ["preview_only", "no_wordpress_write", "dry_run_required", "confirmation_required"]
+  };
+}
+
+function buildDevBulkOperationDryRunResult(
+  operation: BulkOperation,
+  items: BulkOperationItem[]
+): {
+  noMutation: true;
+  operationId: string;
+  type: string;
+  status: "passed";
+  checkedAt: string;
+  itemCount: number;
+  passedItems: number;
+  failedItems: 0;
+  checks: string[];
+  nextRequiredStep: "confirmation";
+} {
+  return {
+    noMutation: true,
+    operationId: operation.id,
+    type: operation.type,
+    status: "passed",
+    checkedAt: nowIso(),
+    itemCount: items.length,
+    passedItems: items.length,
+    failedItems: 0,
+    checks: [
+      "tenant_scope_valid",
+      "preview_payload_present",
+      "wordpress_write_skipped",
+      "confirmation_still_required"
+    ],
+    nextRequiredStep: "confirmation"
+  };
+}
+
+function readMetadataString(
+  metadata: Record<string, string | number | boolean | null>,
+  key: string
+): string | null {
+  const value = metadata[key];
+  return typeof value === "string" ? value : null;
 }
 
 const backlogTaskStatuses = [

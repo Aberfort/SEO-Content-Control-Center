@@ -247,6 +247,42 @@ export async function createAuditForSiteAction(formData: FormData): Promise<void
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function updateAuditIssueStatusAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.updateAuditIssueStatus({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    auditId: String(formData.get("auditId") ?? ""),
+    issueId: String(formData.get("issueId") ?? ""),
+    status: String(formData.get("status") ?? "OPEN") as never
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function createBacklogTaskFromAuditIssueAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.createBacklogTaskFromAuditIssue({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    auditIssueId: String(formData.get("auditIssueId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function createBacklogTaskFromCandidateAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();
@@ -316,6 +352,58 @@ export async function createBacklogTaskCommentAction(formData: FormData): Promis
     siteId: String(formData.get("siteId") ?? ""),
     taskId: String(formData.get("taskId") ?? ""),
     body: String(formData.get("body") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function createBulkOperationPreviewAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.createBulkOperationPreview({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    taskId: String(formData.get("taskId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function runBulkOperationDryRunAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.runBulkOperationDryRun({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    operationId: String(formData.get("operationId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function confirmBulkOperationAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.confirmBulkOperation({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    operationId: String(formData.get("operationId") ?? ""),
+    confirmation: String(formData.get("confirmation") ?? "") as never
   });
 
   revalidatePath("/");

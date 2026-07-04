@@ -84,8 +84,14 @@
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.
 - SaaS dashboard users can queue an audit for the selected site and see the recent queued run.
 - SaaS users with audit read permission can list only issues for an audit inside the requested organization and site.
+- SaaS dashboard users can inspect audit issues for a selected audit run.
 - SaaS audit issue listing supports tenant-scoped text search plus status and severity filters.
+- SaaS dashboard audit issue triage supports text search plus status and severity filters.
+- SaaS dashboard audit issue summary counts stay scoped to the selected audit run.
+- SaaS dashboard audit issue CSV export preserves the selected audit run and current issue filters.
+- SaaS users with audit read permission can export only audit issues for an audit inside the requested organization and site.
 - SaaS users with audit run permission can change audit issue status and generate an activity log entry.
+- SaaS dashboard users can create a backlog task from an audit issue.
 - SaaS users with backlog update permission can persist a backlog task from a synced content candidate.
 - Persisting the same synced content candidate again returns the existing backlog task instead of creating duplicates.
 - SaaS users with backlog update permission can persist a backlog task from a scoped audit issue without duplicates.
@@ -95,14 +101,22 @@
 - SaaS users with backlog update permission can change backlog task status and generate an activity log entry.
 - SaaS users with backlog update permission can assign backlog tasks to active organization members and set or clear due dates.
 - SaaS users with backlog update permission can comment on scoped backlog tasks and see recent comments in the dashboard.
+- SaaS users with backlog read permission can view scoped backlog task change history in the dashboard and API.
 - SaaS users with backlog read permission can export filtered site backlog tasks as CSV.
+- SaaS users with content operation preview permission can create preview-only bulk operations from scoped backlog tasks.
+- SaaS dashboard users can see recent safe operation previews without triggering WordPress writes.
+- SaaS users with content operation preview permission can dry run previewed bulk operations without triggering WordPress writes.
+- SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
 
 - No risky mutation happens without preview.
+- Preview-only bulk operations persist planned values and explicitly avoid WordPress writes.
 - No risky mutation happens without dry run.
+- Dry runs persist result metadata and keep confirmation as the next required step.
 - No risky mutation happens without explicit confirmation.
+- Confirmed bulk operations remain pending execution and still do not write to WordPress.
 - Every risky mutation writes an audit log.
 - Rollback or previous values exist before execution.
 

@@ -2,9 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
+  confirmBulkOperationAction,
   createAuditForSiteAction,
   createBacklogTaskCommentAction,
+  createBacklogTaskFromAuditIssueAction,
   createBacklogTaskFromCandidateAction,
+  createBulkOperationPreviewAction,
+  runBulkOperationDryRunAction,
+  updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
   updateBacklogTaskStatusAction
 } from "@/app/actions";
@@ -46,6 +51,7 @@ const contentStatuses = [
 
 const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -75,7 +81,13 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     status: readEnumQueryParam(params, "backlogStatus", backlogStatuses),
     severity: readEnumQueryParam(params, "backlogSeverity", backlogSeverities)
   };
+  const auditIssueFilters = {
+    query: readQueryParam(params, "auditIssueQ"),
+    status: readEnumQueryParam(params, "auditIssueStatus", auditIssueStatuses),
+    severity: readEnumQueryParam(params, "auditIssueSeverity", backlogSeverities)
+  };
   const selectedContentId = readQueryParam(params, "content");
+  const selectedAuditId = readQueryParam(params, "audit");
   const activeMembers = activeOrganization
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
@@ -123,12 +135,46 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             }
           }
         };
+  const bulkOperations =
+    activeOrganization && activeSite
+      ? await repository.listBulkOperationsForSite(user.id, activeOrganization.id, activeSite.id, {
+          limit: 5
+        })
+      : [];
   const auditRuns =
     activeOrganization && activeSite
       ? await repository.listAuditsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 5
         })
       : [];
+  const activeAudit =
+    auditRuns.find((audit) => audit.id === selectedAuditId) ?? auditRuns[0] ?? null;
+  const auditIssues =
+    activeOrganization && activeSite && activeAudit
+      ? await repository.listAuditIssuesForAudit(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          activeAudit.id,
+          {
+            query: auditIssueFilters.query,
+            status: auditIssueFilters.status,
+            severity: auditIssueFilters.severity,
+            limit: 20
+          }
+        )
+      : [];
+  const auditIssueSummaryItems =
+    activeOrganization && activeSite && activeAudit
+      ? await repository.listAuditIssuesForAudit(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          activeAudit.id,
+          { limit: 500 }
+        )
+      : [];
+  const auditIssueSummary = buildAuditIssueSummary(auditIssueSummaryItems);
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -606,6 +652,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                         <th>Created</th>
                         <th>Started</th>
                         <th>Completed</th>
+                        <th>Issues</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -641,6 +688,17 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                               <span className="muted-text">Pending</span>
                             )}
                           </td>
+                          <td>
+                            <Link
+                              className="text-button"
+                              href={buildContentHref(params, {
+                                site: activeSite.id,
+                                audit: audit.id
+                              })}
+                            >
+                              Open issues
+                            </Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -649,6 +707,187 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
               ) : (
                 <p className="empty-copy">No audit runs yet for this site.</p>
               )}
+
+              {activeAudit ? (
+                <div className="audit-issue-panel" aria-labelledby="audit-issues-title">
+                  <div className="section-heading">
+                    <div>
+                      <h3 id="audit-issues-title">Audit issues</h3>
+                      <p>
+                        {auditIssues.length} findings for audit queued{" "}
+                        {formatDateTime(activeAudit.createdAt)}.
+                      </p>
+                    </div>
+                    <span
+                      className={`audit-status audit-status-${activeAudit.status.toLowerCase()}`}
+                    >
+                      {activeAudit.status.toLowerCase()}
+                    </span>
+                  </div>
+
+                  <div className="audit-issue-summary" aria-label="Audit issue summary">
+                    <span>Total {auditIssueSummary.total}</span>
+                    <span>Open {auditIssueSummary.open}</span>
+                    <span>Resolved {auditIssueSummary.resolved}</span>
+                    <span>High {auditIssueSummary.high}</span>
+                    <span>Critical {auditIssueSummary.critical}</span>
+                  </div>
+
+                  <form className="audit-issue-filters" action="/" method="get">
+                    <input name="site" type="hidden" value={activeSite.id} />
+                    <input name="audit" type="hidden" value={activeAudit.id} />
+                    <label>
+                      <span>Search</span>
+                      <input
+                        defaultValue={auditIssueFilters.query}
+                        name="auditIssueQ"
+                        placeholder="Issue, URL, action"
+                        type="search"
+                      />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select name="auditIssueStatus" defaultValue={auditIssueFilters.status ?? ""}>
+                        <option value="">All statuses</option>
+                        {auditIssueStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status.toLowerCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Severity</span>
+                      <select
+                        name="auditIssueSeverity"
+                        defaultValue={auditIssueFilters.severity ?? ""}
+                      >
+                        <option value="">All severities</option>
+                        {backlogSeverities.map((severity) => (
+                          <option key={severity} value={severity}>
+                            {severity}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="secondary-button" type="submit">
+                      Filter
+                    </button>
+                    <Link
+                      className="secondary-button inventory-reset"
+                      href={buildContentHref(params, {
+                        site: activeSite.id,
+                        audit: activeAudit.id,
+                        auditIssueQ: null,
+                        auditIssueStatus: null,
+                        auditIssueSeverity: null
+                      })}
+                    >
+                      Reset
+                    </Link>
+                    <Link
+                      className="secondary-button"
+                      href={buildAuditIssueExportHref({
+                        organizationId: activeOrganization.id,
+                        siteId: activeSite.id,
+                        auditId: activeAudit.id,
+                        query: auditIssueFilters.query,
+                        status: auditIssueFilters.status,
+                        severity: auditIssueFilters.severity
+                      })}
+                    >
+                      Export CSV
+                    </Link>
+                  </form>
+
+                  {auditIssues.length > 0 ? (
+                    <div className="table-wrap">
+                      <table className="audit-issue-table">
+                        <thead>
+                          <tr>
+                            <th>Issue</th>
+                            <th>Status</th>
+                            <th>Severity</th>
+                            <th>Backlog</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditIssues.map((issue) => (
+                            <tr key={issue.id}>
+                              <td>
+                                <strong>{issue.recommendedAction}</strong>
+                                <span>{issue.affectedUrl}</span>
+                                <span>{issue.issueType.replaceAll("_", " ")}</span>
+                              </td>
+                              <td>
+                                <form className="status-form" action={updateAuditIssueStatusAction}>
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={issue.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={issue.siteId} />
+                                  <input name="auditId" type="hidden" value={issue.auditId} />
+                                  <input name="issueId" type="hidden" value={issue.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildContentHref(params, {
+                                      site: activeSite.id,
+                                      audit: activeAudit.id
+                                    })}
+                                  />
+                                  <select name="status" defaultValue={issue.status}>
+                                    {auditIssueStatuses.map((status) => (
+                                      <option key={status} value={status}>
+                                        {status.toLowerCase()}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button className="secondary-button" type="submit">
+                                    Apply
+                                  </button>
+                                </form>
+                              </td>
+                              <td>
+                                <span
+                                  className={`severity-pill severity-${issue.severity.toLowerCase()}`}
+                                >
+                                  {issue.severity}
+                                </span>
+                              </td>
+                              <td>
+                                <form action={createBacklogTaskFromAuditIssueAction}>
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={issue.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={issue.siteId} />
+                                  <input name="auditIssueId" type="hidden" value={issue.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildContentHref(params, {
+                                      site: activeSite.id,
+                                      audit: activeAudit.id
+                                    })}
+                                  />
+                                  <button className="secondary-button" type="submit">
+                                    Create task
+                                  </button>
+                                </form>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-copy">No issues have been attached to this audit yet.</p>
+                  )}
+                </div>
+              ) : null}
             </>
           ) : (
             <p className="empty-copy">Add a WordPress site before queueing audits.</p>
@@ -780,6 +1019,43 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                                 ))}
                               </div>
                             ) : null}
+                            {task.activityLogs?.length ? (
+                              <div className="backlog-activity" aria-label="Change history">
+                                <strong>Change history</strong>
+                                <ul>
+                                  {task.activityLogs.map((log) => (
+                                    <li key={log.id}>
+                                      <span>{formatBacklogActivity(log)}</span>
+                                      <time dateTime={log.createdAt}>
+                                        {formatDateTime(log.createdAt)}
+                                      </time>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                            <form
+                              className="preview-form"
+                              action={createBulkOperationPreviewAction}
+                            >
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={task.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={task.siteId} />
+                              <input name="taskId" type="hidden" value={task.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Preview
+                              </button>
+                            </form>
                             <form className="comment-form" action={createBacklogTaskCommentAction}>
                               <input
                                 name="organizationId"
@@ -896,6 +1172,80 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     : "No backlog tasks yet. Create one from a synced content candidate."}
                 </p>
               )}
+
+              {bulkOperations.length > 0 ? (
+                <div className="bulk-preview-panel" aria-label="Recent safe operation previews">
+                  <h3>Recent previews</h3>
+                  <div className="bulk-preview-list">
+                    {bulkOperations.map((operation) => (
+                      <article key={operation.id}>
+                        <div>
+                          <strong>{operation.type.replaceAll("_", " ")}</strong>
+                          <span>{formatBulkOperationPreview(operation.preview)}</span>
+                          {operation.dryRunResult ? (
+                            <span>{formatBulkOperationDryRun(operation.dryRunResult)}</span>
+                          ) : null}
+                        </div>
+                        <span className="status-pill">{operation.status.replaceAll("_", " ")}</span>
+                        <time dateTime={operation.createdAt}>
+                          {formatDateTime(operation.createdAt)}
+                        </time>
+                        {operation.status === "PREVIEWED" ? (
+                          <form action={runBulkOperationDryRunAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={operation.organizationId}
+                            />
+                            <input name="siteId" type="hidden" value={operation.siteId} />
+                            <input name="operationId" type="hidden" value={operation.id} />
+                            <input
+                              name="redirectTo"
+                              type="hidden"
+                              value={buildContentHref(params, {
+                                site: activeSite.id
+                              })}
+                            />
+                            <button className="secondary-button" type="submit">
+                              Dry run
+                            </button>
+                          </form>
+                        ) : null}
+                        {operation.status === "DRY_RUN_PASSED" ? (
+                          <form className="confirm-form" action={confirmBulkOperationAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={operation.organizationId}
+                            />
+                            <input name="siteId" type="hidden" value={operation.siteId} />
+                            <input name="operationId" type="hidden" value={operation.id} />
+                            <input
+                              name="redirectTo"
+                              type="hidden"
+                              value={buildContentHref(params, {
+                                site: activeSite.id
+                              })}
+                            />
+                            <input
+                              aria-label="Confirmation"
+                              autoComplete="off"
+                              name="confirmation"
+                              pattern="CONFIRM"
+                              placeholder="CONFIRM"
+                              required
+                              type="text"
+                            />
+                            <button className="secondary-button" type="submit">
+                              Confirm
+                            </button>
+                          </form>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : (
             <p className="empty-copy">Add a WordPress site before building a backlog.</p>
@@ -1028,6 +1378,122 @@ function buildBacklogExportHref(input: {
   const query = params.toString();
   const path = `/api/organizations/${input.organizationId}/sites/${input.siteId}/backlog/tasks/export`;
   return query ? `${path}?${query}` : path;
+}
+
+function buildAuditIssueExportHref(input: {
+  organizationId: string;
+  siteId: string;
+  auditId: string;
+  query?: string;
+  status?: string;
+  severity?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  if (input.query) {
+    params.set("q", input.query);
+  }
+
+  if (input.status) {
+    params.set("status", input.status);
+  }
+
+  if (input.severity) {
+    params.set("severity", input.severity);
+  }
+
+  const query = params.toString();
+  const path = `/api/organizations/${input.organizationId}/sites/${input.siteId}/audits/${input.auditId}/issues/export`;
+  return query ? `${path}?${query}` : path;
+}
+
+function buildAuditIssueSummary(
+  issues: Array<{
+    status: (typeof auditIssueStatuses)[number];
+    severity: (typeof backlogSeverities)[number];
+  }>
+) {
+  return {
+    total: issues.length,
+    open: issues.filter((issue) => issue.status === "OPEN").length,
+    resolved: issues.filter((issue) => issue.status === "RESOLVED").length,
+    high: issues.filter((issue) => issue.severity === "HIGH").length,
+    critical: issues.filter((issue) => issue.severity === "CRITICAL").length
+  };
+}
+
+function formatBacklogActivity(log: {
+  action: string;
+  metadata: Record<string, string | number | boolean | null>;
+}): string {
+  if (log.action === "backlog_task.created_from_candidate") {
+    return "Task created from synced content";
+  }
+
+  if (log.action === "backlog_task.created_from_audit_issue") {
+    return "Task created from audit issue";
+  }
+
+  if (log.action === "backlog_task.status_updated") {
+    return `Status changed from ${formatMetadataValue(log.metadata.previousStatus)} to ${formatMetadataValue(log.metadata.status)}`;
+  }
+
+  if (log.action === "backlog_task.assignment_updated") {
+    const assignee = formatMetadataValue(log.metadata.assigneeId, "unassigned");
+    const dueDate = formatMetadataDate(log.metadata.dueDate);
+    return dueDate
+      ? `Assignment updated to ${assignee}, due ${dueDate}`
+      : `Assignment updated to ${assignee}`;
+  }
+
+  if (log.action === "backlog_task.comment_created") {
+    return "Comment added";
+  }
+
+  return log.action.replaceAll("_", " ");
+}
+
+function formatBulkOperationPreview(preview: unknown): string {
+  if (typeof preview !== "object" || preview === null || !("summary" in preview)) {
+    return "Preview prepared without WordPress changes.";
+  }
+
+  const summary = (preview as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary : "Preview prepared without WordPress changes.";
+}
+
+function formatBulkOperationDryRun(dryRunResult: unknown): string {
+  if (typeof dryRunResult !== "object" || dryRunResult === null) {
+    return "Dry run completed without WordPress changes.";
+  }
+
+  const result = dryRunResult as {
+    status?: unknown;
+    passedItems?: unknown;
+    failedItems?: unknown;
+    noMutation?: unknown;
+  };
+  const status = typeof result.status === "string" ? result.status : "passed";
+  const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
+  const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
+  const noMutation = result.noMutation === true ? "no WordPress writes" : "no writes";
+
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${noMutation}.`;
+}
+
+function formatMetadataValue(
+  value: string | number | boolean | null | undefined,
+  fallback = "none"
+): string {
+  return value === null || value === undefined || value === "" ? fallback : String(value);
+}
+
+function formatMetadataDate(value: string | number | boolean | null | undefined): string | null {
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+
+  return value.slice(0, 10);
 }
 
 function formatDateTime(value: string): string {

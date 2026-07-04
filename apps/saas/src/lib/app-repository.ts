@@ -9,6 +9,10 @@ import {
   backlogTaskFromAuditIssueSchema,
   backlogTaskFromCandidateSchema,
   backlogTaskListQuerySchema,
+  bulkOperationConfirmSchema,
+  bulkOperationDryRunSchema,
+  bulkOperationListQuerySchema,
+  bulkOperationPreviewCreateSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
@@ -24,6 +28,9 @@ import {
   type BacklogTaskFromAuditIssueInput,
   type BacklogTaskFromCandidateInput,
   type BacklogTaskListQuery,
+  type BulkOperationConfirmInput,
+  type BulkOperationDryRunInput,
+  type BulkOperationPreviewCreateInput,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
@@ -45,16 +52,21 @@ import {
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listBacklogTaskActivity as listDevBacklogTaskActivity,
   listAuditIssuesForAudit as listDevAuditIssuesForAudit,
   listAuditsForSite as listDevAuditsForSite,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
+  listBulkOperationsForSite as listDevBulkOperationsForSite,
+  confirmBulkOperation as confirmDevBulkOperation,
+  runBulkOperationDryRun as runDevBulkOperationDryRun,
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
   resendInvite as resendDevInvite,
   createAuditForSite as createDevAuditForSite,
+  createBulkOperationPreview as createDevBulkOperationPreview,
   updateAuditIssueStatus as updateDevAuditIssueStatus,
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
@@ -77,6 +89,8 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BulkOperation,
+  BulkOperationListOptions,
   InviteResult,
   OrganizationMemberSummary,
   OrganizationSummary,
@@ -126,6 +140,23 @@ type UpdateBacklogTaskStatusInputWithUser = UpdateBacklogTaskStatusInput & {
 
 type UpdateBacklogTaskAssignmentInputWithUser = UpdateBacklogTaskAssignmentInput & {
   user: AppUser;
+};
+
+type CreateBulkOperationPreviewInput = BulkOperationPreviewCreateInput & {
+  user: AppUser;
+};
+
+type RunBulkOperationDryRunInput = BulkOperationDryRunInput & {
+  user: AppUser;
+};
+
+type ConfirmBulkOperationInput = BulkOperationConfirmInput & {
+  user: AppUser;
+};
+
+type BulkOperationPreviewPayload = Prisma.InputJsonObject & {
+  beforeValue: Prisma.InputJsonObject;
+  afterValue: Prisma.InputJsonObject;
 };
 
 type InviteMemberInputWithUser = {
@@ -210,7 +241,22 @@ type AppRepository = {
     siteId: string,
     taskId: string
   ): Promise<BacklogTaskComment[]>;
+  listBacklogTaskActivity(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    taskId: string
+  ): Promise<ActivityLog[]>;
   createBacklogTaskComment(input: CreateBacklogTaskCommentInput): Promise<BacklogTaskComment>;
+  listBulkOperationsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: BulkOperationListOptions
+  ): Promise<BulkOperation[]>;
+  createBulkOperationPreview(input: CreateBulkOperationPreviewInput): Promise<BulkOperation>;
+  runBulkOperationDryRun(input: RunBulkOperationDryRunInput): Promise<BulkOperation>;
+  confirmBulkOperation(input: ConfirmBulkOperationInput): Promise<BulkOperation>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -283,8 +329,23 @@ const devStoreRepository: AppRepository = {
   async listBacklogTaskComments(userId, organizationId, siteId, taskId) {
     return listDevBacklogTaskComments(userId, organizationId, siteId, taskId);
   },
+  async listBacklogTaskActivity(userId, organizationId, siteId, taskId) {
+    return listDevBacklogTaskActivity(userId, organizationId, siteId, taskId);
+  },
   async createBacklogTaskComment(input) {
     return createDevBacklogTaskComment(input);
+  },
+  async listBulkOperationsForSite(userId, organizationId, siteId, options) {
+    return listDevBulkOperationsForSite(userId, organizationId, siteId, options);
+  },
+  async createBulkOperationPreview(input) {
+    return createDevBulkOperationPreview(input);
+  },
+  async runBulkOperationDryRun(input) {
+    return runDevBulkOperationDryRun(input);
+  },
+  async confirmBulkOperation(input) {
+    return confirmDevBulkOperation(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -1102,9 +1163,18 @@ const prismaRepository: AppRepository = {
         }
       })
     ]);
+    const taskActivityLogs = await listRecentActivityForBacklogTasks(
+      organizationId,
+      siteId,
+      tasks.map((task) => task.id)
+    );
 
     return {
-      items: tasks.map(mapBacklogTask),
+      items: tasks.map((task) =>
+        mapBacklogTask(task, {
+          activityLogs: taskActivityLogs.get(task.id) ?? []
+        })
+      ),
       summary: buildBacklogSummary(total, statusGroups, severityGroups)
     };
   },
@@ -1294,6 +1364,36 @@ const prismaRepository: AppRepository = {
     return comments.map(mapBacklogTaskComment);
   },
 
+  async listBacklogTaskActivity(userId, organizationId, siteId, taskId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "backlog:read"
+    });
+
+    const task = await prisma.backlogTask.findFirst({
+      where: {
+        id: taskId,
+        organizationId,
+        siteId
+      }
+    });
+
+    if (!task) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    const logs = await prisma.activityLog.findMany({
+      where: backlogTaskActivityWhere(organizationId, siteId, task.id),
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 25
+    });
+
+    return logs.map(mapActivityLog);
+  },
+
   async createBacklogTaskComment(input) {
     const parsed = backlogTaskCommentCreateSchema.parse(input);
     await requireDbOrganizationAccess({
@@ -1344,6 +1444,268 @@ const prismaRepository: AppRepository = {
     });
 
     return mapBacklogTaskComment(comment);
+  },
+
+  async listBulkOperationsForSite(userId, organizationId, siteId, options) {
+    const parsed = bulkOperationListQuerySchema.parse(options ?? {});
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "content_operation:preview"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const operations = await prisma.bulkOperation.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(parsed.status ? { status: parsed.status } : {})
+      },
+      include: {
+        items: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: parsed.limit ?? 5
+    });
+
+    return operations.map(mapBulkOperation);
+  },
+
+  async createBulkOperationPreview(input) {
+    const parsed = bulkOperationPreviewCreateSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:preview"
+    });
+
+    const task = await prisma.backlogTask.findFirst({
+      where: {
+        id: parsed.taskId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        site: {
+          organizationId: parsed.organizationId
+        }
+      }
+    });
+
+    if (!task) {
+      throw new Error("BACKLOG_TASK_NOT_FOUND");
+    }
+
+    const preview = buildBulkOperationPreview(task);
+    const operation = await prisma.$transaction(async (tx) => {
+      const created = await tx.bulkOperation.create({
+        data: {
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          type: "BACKLOG_TASK_PREVIEW",
+          status: "PREVIEWED",
+          preview,
+          items: {
+            create: {
+              externalId: task.url,
+              status: "PREVIEWED",
+              beforeValue: preview.beforeValue,
+              afterValue: preview.afterValue
+            }
+          }
+        },
+        include: {
+          items: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.preview_created",
+          entityType: "BulkOperation",
+          entityId: created.id,
+          metadata: {
+            siteId: parsed.siteId,
+            taskId: task.id,
+            type: created.type,
+            itemCount: created.items.length
+          }
+        }
+      });
+
+      return created;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async runBulkOperationDryRun(input) {
+    const parsed = bulkOperationDryRunSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:preview"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "PREVIEWED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const dryRunResult = buildBulkOperationDryRunResult(existing);
+    const operation = await prisma.$transaction(async (tx) => {
+      await tx.bulkOperationItem.updateMany({
+        where: {
+          bulkOperationId: existing.id
+        },
+        data: {
+          status: "DRY_RUN_PASSED",
+          error: null
+        }
+      });
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "DRY_RUN_PASSED",
+          dryRunResult
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.dry_run_passed",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            itemCount: updated.items.length,
+            noMutation: true
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async confirmBulkOperation(input) {
+    const parsed = bulkOperationConfirmSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:confirm"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "DRY_RUN_PASSED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const operation = await prisma.$transaction(async (tx) => {
+      await tx.bulkOperationItem.updateMany({
+        where: {
+          bulkOperationId: existing.id
+        },
+        data: {
+          status: "CONFIRMED",
+          error: null
+        }
+      });
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "CONFIRMED",
+          confirmedAt: new Date()
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.confirmed",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            itemCount: updated.items.length,
+            noMutation: true
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -1837,6 +2199,92 @@ const backlogTaskCommentInclude = {
   }
 } satisfies Prisma.BacklogTaskInclude;
 
+function backlogTaskActivityWhere(
+  organizationId: string,
+  siteId: string,
+  taskId: string
+): Prisma.ActivityLogWhereInput {
+  return {
+    organizationId,
+    OR: [
+      {
+        entityType: "BacklogTask",
+        entityId: taskId,
+        metadata: {
+          path: ["siteId"],
+          equals: siteId
+        }
+      },
+      {
+        entityType: "TaskComment",
+        metadata: {
+          path: ["taskId"],
+          equals: taskId
+        }
+      }
+    ]
+  };
+}
+
+async function listRecentActivityForBacklogTasks(
+  organizationId: string,
+  siteId: string,
+  taskIds: string[]
+): Promise<Map<string, ActivityLog[]>> {
+  const grouped = new Map<string, ActivityLog[]>();
+
+  if (taskIds.length === 0) {
+    return grouped;
+  }
+
+  const taskIdSet = new Set(taskIds);
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      organizationId,
+      OR: [
+        {
+          entityType: "BacklogTask",
+          entityId: {
+            in: taskIds
+          }
+        },
+        {
+          entityType: "TaskComment"
+        }
+      ]
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: 250
+  });
+
+  for (const log of logs) {
+    const mappedLog = mapActivityLog(log);
+    const taskId =
+      mappedLog.entityType === "BacklogTask"
+        ? mappedLog.entityId
+        : readMetadataString(mappedLog.metadata, "taskId");
+
+    if (
+      !taskId ||
+      !taskIdSet.has(taskId) ||
+      readMetadataString(mappedLog.metadata, "siteId") !== siteId
+    ) {
+      continue;
+    }
+
+    const taskLogs = grouped.get(taskId) ?? [];
+
+    if (taskLogs.length < 3) {
+      taskLogs.push(mappedLog);
+      grouped.set(taskId, taskLogs);
+    }
+  }
+
+  return grouped;
+}
+
 const backlogTaskStatuses = [
   "TODO",
   "IN_PROGRESS",
@@ -2024,35 +2472,40 @@ function mapAuditIssue(issue: {
   };
 }
 
-function mapBacklogTask(task: {
-  id: string;
-  organizationId: string;
-  siteId: string;
-  auditIssueId: string | null;
-  title: string;
-  url: string;
-  issueType: string;
-  status: BacklogTask["status"];
-  severity: BacklogTask["severity"];
-  potentialImpact: string | null;
-  effortEstimate: number | null;
-  assigneeId: string | null;
-  dueDate: Date | null;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-  comments?: Array<{
+function mapBacklogTask(
+  task: {
     id: string;
-    taskId: string;
-    authorId: string;
-    body: string;
+    organizationId: string;
+    siteId: string;
+    auditIssueId: string | null;
+    title: string;
+    url: string;
+    issueType: string;
+    status: BacklogTask["status"];
+    severity: BacklogTask["severity"];
+    potentialImpact: string | null;
+    effortEstimate: number | null;
+    assigneeId: string | null;
+    dueDate: Date | null;
+    tags: string[];
     createdAt: Date;
-    author: {
-      email: string;
-      name: string | null;
-    };
-  }>;
-}): BacklogTask {
+    updatedAt: Date;
+    comments?: Array<{
+      id: string;
+      taskId: string;
+      authorId: string;
+      body: string;
+      createdAt: Date;
+      author: {
+        email: string;
+        name: string | null;
+      };
+    }>;
+  },
+  options: {
+    activityLogs?: ActivityLog[];
+  } = {}
+): BacklogTask {
   return {
     id: task.id,
     organizationId: task.organizationId,
@@ -2070,7 +2523,8 @@ function mapBacklogTask(task: {
     tags: task.tags,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
-    comments: task.comments?.map(mapBacklogTaskComment) ?? []
+    comments: task.comments?.map(mapBacklogTaskComment) ?? [],
+    activityLogs: options.activityLogs
   };
 }
 
@@ -2093,6 +2547,132 @@ function mapBacklogTaskComment(comment: {
     authorName: comment.author.name,
     body: comment.body,
     createdAt: comment.createdAt.toISOString()
+  };
+}
+
+function buildBulkOperationPreview(task: {
+  id: string;
+  title: string;
+  url: string;
+  issueType: string;
+  status: BacklogTask["status"];
+  severity: BacklogTask["severity"];
+  potentialImpact: string | null;
+  effortEstimate: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): BulkOperationPreviewPayload {
+  return {
+    noMutation: true,
+    summary: `Preview recommended SEO work for ${task.url}.`,
+    taskId: task.id,
+    beforeValue: {
+      url: task.url,
+      issueType: task.issueType,
+      status: task.status,
+      severity: task.severity,
+      potentialImpact: task.potentialImpact,
+      effortEstimate: task.effortEstimate,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString()
+    },
+    afterValue: {
+      recommendedAction: task.title,
+      expectedWorkflow: "manual_review_then_dry_run",
+      nextRequiredStep: "dry_run",
+      noMutation: true
+    },
+    safeguards: ["preview_only", "no_wordpress_write", "dry_run_required", "confirmation_required"]
+  };
+}
+
+function buildBulkOperationDryRunResult(operation: {
+  id: string;
+  type: string;
+  items: Array<{
+    id: string;
+    externalId: string;
+    status: string;
+  }>;
+}): Prisma.InputJsonObject {
+  return {
+    noMutation: true,
+    operationId: operation.id,
+    type: operation.type,
+    status: "passed",
+    checkedAt: new Date().toISOString(),
+    itemCount: operation.items.length,
+    passedItems: operation.items.length,
+    failedItems: 0,
+    checks: [
+      "tenant_scope_valid",
+      "preview_payload_present",
+      "wordpress_write_skipped",
+      "confirmation_still_required"
+    ],
+    nextRequiredStep: "confirmation"
+  };
+}
+
+function mapBulkOperation(operation: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  type: string;
+  status: BulkOperation["status"];
+  preview: unknown;
+  dryRunResult: unknown;
+  confirmedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  items?: Array<{
+    id: string;
+    bulkOperationId: string;
+    externalId: string;
+    status: string;
+    beforeValue: unknown;
+    afterValue: unknown;
+    error: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+}): BulkOperation {
+  return {
+    id: operation.id,
+    organizationId: operation.organizationId,
+    siteId: operation.siteId,
+    type: operation.type,
+    status: operation.status,
+    preview: operation.preview,
+    dryRunResult: operation.dryRunResult,
+    confirmedAt: operation.confirmedAt?.toISOString() ?? null,
+    createdAt: operation.createdAt.toISOString(),
+    updatedAt: operation.updatedAt.toISOString(),
+    items: operation.items?.map(mapBulkOperationItem) ?? []
+  };
+}
+
+function mapBulkOperationItem(item: {
+  id: string;
+  bulkOperationId: string;
+  externalId: string;
+  status: string;
+  beforeValue: unknown;
+  afterValue: unknown;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): BulkOperation["items"][number] {
+  return {
+    id: item.id,
+    bulkOperationId: item.bulkOperationId,
+    externalId: item.externalId,
+    status: item.status,
+    beforeValue: item.beforeValue,
+    afterValue: item.afterValue,
+    error: item.error,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString()
   };
 }
 
@@ -2178,6 +2758,14 @@ function isMetadataObject(
       typeof value === "boolean" ||
       value === null
   );
+}
+
+function readMetadataString(
+  metadata: Record<string, string | number | boolean | null>,
+  key: string
+): string | null {
+  const value = metadata[key];
+  return typeof value === "string" ? value : null;
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

@@ -125,6 +125,7 @@ export type BacklogTask = {
   createdAt: string;
   updatedAt: string;
   comments: BacklogTaskComment[];
+  activityLogs?: ActivityLog[];
 };
 
 export type Audit = {
@@ -195,6 +196,47 @@ export type BacklogTaskSummary = {
 export type BacklogTaskList = {
   items: BacklogTask[];
   summary: BacklogTaskSummary;
+};
+
+export type BulkOperationStatus =
+  | "DRAFT"
+  | "PREVIEWED"
+  | "DRY_RUN_PASSED"
+  | "CONFIRMED"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "ROLLED_BACK";
+
+export type BulkOperationItem = {
+  id: string;
+  bulkOperationId: string;
+  externalId: string;
+  status: string;
+  beforeValue: unknown;
+  afterValue: unknown;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BulkOperation = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  type: string;
+  status: BulkOperationStatus;
+  preview: unknown;
+  dryRunResult: unknown;
+  confirmedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: BulkOperationItem[];
+};
+
+export type BulkOperationListOptions = {
+  status?: BulkOperationStatus;
+  limit?: number;
 };
 
 export type OrganizationSummary = Organization & {

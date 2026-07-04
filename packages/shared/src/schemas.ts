@@ -180,6 +180,41 @@ export const backlogTaskCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(2000)
 });
 
+export const bulkOperationStatusSchema = z.enum([
+  "DRAFT",
+  "PREVIEWED",
+  "DRY_RUN_PASSED",
+  "CONFIRMED",
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+  "ROLLED_BACK"
+]);
+
+export const bulkOperationListQuerySchema = z.object({
+  status: bulkOperationStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional()
+});
+
+export const bulkOperationPreviewCreateSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  taskId: z.string().uuid()
+});
+
+export const bulkOperationDryRunSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid()
+});
+
+export const bulkOperationConfirmSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  confirmation: z.literal("CONFIRM")
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -200,6 +235,10 @@ export type AuditListQuery = z.infer<typeof auditListQuerySchema>;
 export type AuditIssueListQuery = z.infer<typeof auditIssueListQuerySchema>;
 export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;
 export type BacklogTaskCommentCreateInput = z.infer<typeof backlogTaskCommentCreateSchema>;
+export type BulkOperationListQuery = z.infer<typeof bulkOperationListQuerySchema>;
+export type BulkOperationPreviewCreateInput = z.infer<typeof bulkOperationPreviewCreateSchema>;
+export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
+export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;
