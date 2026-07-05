@@ -13,6 +13,7 @@ import {
   bulkOperationDryRunSchema,
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
+  bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
@@ -31,6 +32,7 @@ import {
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
   type BulkOperationPreviewCreateInput,
+  type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
   type SiteCreateInput,
@@ -60,6 +62,7 @@ import {
   listBulkOperationsForSite as listDevBulkOperationsForSite,
   confirmBulkOperation as confirmDevBulkOperation,
   runBulkOperationDryRun as runDevBulkOperationDryRun,
+  startBulkOperation as startDevBulkOperation,
   listMembersForOrganization as listDevMembersForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
@@ -151,6 +154,10 @@ type RunBulkOperationDryRunInput = BulkOperationDryRunInput & {
 };
 
 type ConfirmBulkOperationInput = BulkOperationConfirmInput & {
+  user: AppUser;
+};
+
+type StartBulkOperationInput = BulkOperationStartInput & {
   user: AppUser;
 };
 
@@ -257,6 +264,7 @@ type AppRepository = {
   createBulkOperationPreview(input: CreateBulkOperationPreviewInput): Promise<BulkOperation>;
   runBulkOperationDryRun(input: RunBulkOperationDryRunInput): Promise<BulkOperation>;
   confirmBulkOperation(input: ConfirmBulkOperationInput): Promise<BulkOperation>;
+  startBulkOperation(input: StartBulkOperationInput): Promise<BulkOperation>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -346,6 +354,9 @@ const devStoreRepository: AppRepository = {
   },
   async confirmBulkOperation(input) {
     return confirmDevBulkOperation(input);
+  },
+  async startBulkOperation(input) {
+    return startDevBulkOperation(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -1691,6 +1702,81 @@ const prismaRepository: AppRepository = {
           organizationId: parsed.organizationId,
           userId: input.user.id,
           action: "bulk_operation.confirmed",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            itemCount: updated.items.length,
+            noMutation: true
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async startBulkOperation(input) {
+    const parsed = bulkOperationStartSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:confirm"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "CONFIRMED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const operation = await prisma.$transaction(async (tx) => {
+      await tx.bulkOperationItem.updateMany({
+        where: {
+          bulkOperationId: existing.id
+        },
+        data: {
+          status: "RUNNING",
+          error: null
+        }
+      });
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "RUNNING"
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.started",
           entityType: "BulkOperation",
           entityId: updated.id,
           metadata: {

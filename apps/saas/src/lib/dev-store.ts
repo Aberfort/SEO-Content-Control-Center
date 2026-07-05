@@ -11,6 +11,7 @@ import {
   bulkOperationDryRunSchema,
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
+  bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
   organizationCreateSchema,
@@ -27,6 +28,7 @@ import {
   type BulkOperationDryRunInput,
   type BulkOperationListQuery,
   type BulkOperationPreviewCreateInput,
+  type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
   type Role,
@@ -1072,6 +1074,64 @@ export function confirmBulkOperation(
     organizationId: parsed.organizationId,
     userId: input.user.id,
     action: "bulk_operation.confirmed",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      itemCount: items.length,
+      noMutation: true
+    }
+  });
+
+  return operation;
+}
+
+export function startBulkOperation(
+  input: BulkOperationStartInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationStartSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "CONFIRMED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const timestamp = nowIso();
+
+  operation.status = "RUNNING";
+  operation.updatedAt = timestamp;
+
+  for (const item of items) {
+    item.status = "RUNNING";
+    item.error = null;
+    item.updatedAt = timestamp;
+  }
+
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.started",
     entityType: "BulkOperation",
     entityId: operation.id,
     metadata: {

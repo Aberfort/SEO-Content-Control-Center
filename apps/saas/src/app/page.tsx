@@ -9,6 +9,7 @@ import {
   createBacklogTaskFromCandidateAction,
   createBulkOperationPreviewAction,
   runBulkOperationDryRunAction,
+  startBulkOperationAction,
   updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
   updateBacklogTaskStatusAction
@@ -1238,6 +1239,27 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                             />
                             <button className="secondary-button" type="submit">
                               Confirm
+                            </button>
+                          </form>
+                        ) : null}
+                        {operation.status === "CONFIRMED" ? (
+                          <form action={startBulkOperationAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={operation.organizationId}
+                            />
+                            <input name="siteId" type="hidden" value={operation.siteId} />
+                            <input name="operationId" type="hidden" value={operation.id} />
+                            <input
+                              name="redirectTo"
+                              type="hidden"
+                              value={buildContentHref(params, {
+                                site: activeSite.id
+                              })}
+                            />
+                            <button className="secondary-button" type="submit">
+                              Start
                             </button>
                           </form>
                         ) : null}

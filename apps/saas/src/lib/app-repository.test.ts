@@ -219,6 +219,14 @@ describe("app repository", () => {
         confirmation: "CONFIRM"
       })
     ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
+    await expect(
+      repository.startBulkOperation({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
     expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
       "audit.queued",

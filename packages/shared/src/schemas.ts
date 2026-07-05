@@ -215,6 +215,12 @@ export const bulkOperationConfirmSchema = z.object({
   confirmation: z.literal("CONFIRM")
 });
 
+export const bulkOperationStartSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid()
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -239,6 +245,7 @@ export type BulkOperationListQuery = z.infer<typeof bulkOperationListQuerySchema
 export type BulkOperationPreviewCreateInput = z.infer<typeof bulkOperationPreviewCreateSchema>;
 export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
+export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

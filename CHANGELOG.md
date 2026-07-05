@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 37
+
+- Added a controlled start step for confirmed bulk operations.
+- Added a tenant-scoped start API endpoint and dashboard action.
+- Transitioned confirmed operations and items to `RUNNING` without WordPress writes.
+- Documented start behavior, permissions, and QA coverage.
+
 ### Iteration 36
 
 - Added explicit confirmation for dry-run-passed bulk operations.

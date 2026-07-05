@@ -61,6 +61,8 @@
 - Bulk operation dry runs must persist result metadata only and must not write to WordPress.
 - Confirming bulk operations requires content operation confirm permission, organization/site/operation scoping, and the literal `CONFIRM` acknowledgement.
 - Confirmed bulk operations must remain pending execution until a separate execution step validates confirmation state.
+- Starting bulk operations requires content operation confirm permission and organization/site/operation scoping.
+- Starting bulk operations must not perform inline WordPress writes; execution workers must re-check confirmation and connection state.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

@@ -107,6 +107,7 @@
 - SaaS dashboard users can see recent safe operation previews without triggering WordPress writes.
 - SaaS users with content operation preview permission can dry run previewed bulk operations without triggering WordPress writes.
 - SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.
+- SaaS users with content operation confirm permission can start confirmed bulk operations into `RUNNING` without inline WordPress writes.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
@@ -117,6 +118,7 @@
 - Dry runs persist result metadata and keep confirmation as the next required step.
 - No risky mutation happens without explicit confirmation.
 - Confirmed bulk operations remain pending execution and still do not write to WordPress.
+- Starting confirmed bulk operations records the running state and still does not write to WordPress inline.
 - Every risky mutation writes an audit log.
 - Rollback or previous values exist before execution.
 

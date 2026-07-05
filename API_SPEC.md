@@ -596,6 +596,30 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/start`
+
+Starts a scoped `CONFIRMED` bulk operation when the member has `content_operation:confirm`.
+This moves the SaaS operation and items to `RUNNING` for future worker processing, records an activity log, and still does not write to WordPress inline.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "RUNNING",
+    "confirmedAt": "2026-07-04T10:00:00.000Z",
+    "items": [
+      {
+        "externalId": "https://example.com/post",
+        "status": "RUNNING",
+        "error": null
+      }
+    ]
+  }
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`
