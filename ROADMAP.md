@@ -72,7 +72,7 @@
 
 - Preview, dry run, validation, confirmation. Status: preview, dry run, explicit confirmation, and controlled start implemented.
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
-- Rollback.
+- Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
 - Audit logs.
 - Rate limits and notifications.
 

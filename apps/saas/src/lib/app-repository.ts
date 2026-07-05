@@ -14,6 +14,7 @@ import {
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
   bulkOperationResultSchema,
+  bulkOperationRollbackSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
@@ -34,6 +35,7 @@ import {
   type BulkOperationDryRunInput,
   type BulkOperationPreviewCreateInput,
   type BulkOperationResultInput,
+  type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
@@ -52,6 +54,7 @@ import {
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
+  rollbackBulkOperation as rollbackDevBulkOperation,
   getSyncedContentItem as getDevSyncedContentItem,
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
@@ -168,6 +171,10 @@ type FinishBulkOperationInput = BulkOperationResultInput & {
   user: AppUser;
 };
 
+type RollbackBulkOperationInput = BulkOperationRollbackInput & {
+  user: AppUser;
+};
+
 type BulkOperationPreviewPayload = Prisma.InputJsonObject & {
   beforeValue: Prisma.InputJsonObject;
   afterValue: Prisma.InputJsonObject;
@@ -273,6 +280,7 @@ type AppRepository = {
   confirmBulkOperation(input: ConfirmBulkOperationInput): Promise<BulkOperation>;
   startBulkOperation(input: StartBulkOperationInput): Promise<BulkOperation>;
   finishBulkOperation(input: FinishBulkOperationInput): Promise<BulkOperation>;
+  rollbackBulkOperation(input: RollbackBulkOperationInput): Promise<BulkOperation>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -368,6 +376,9 @@ const devStoreRepository: AppRepository = {
   },
   async finishBulkOperation(input) {
     return finishDevBulkOperation(input);
+  },
+  async rollbackBulkOperation(input) {
+    return rollbackDevBulkOperation(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -1904,6 +1915,84 @@ const prismaRepository: AppRepository = {
             itemCount: updated.items.length,
             failedItemCount,
             message: parsed.message ?? null,
+            noMutation: true
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async rollbackBulkOperation(input) {
+    const parsed = bulkOperationRollbackSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:confirm"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "COMPLETED" && existing.status !== "FAILED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const previousStatus = existing.status;
+    const operation = await prisma.$transaction(async (tx) => {
+      await tx.bulkOperationItem.updateMany({
+        where: {
+          bulkOperationId: existing.id
+        },
+        data: {
+          status: "ROLLED_BACK",
+          error: null
+        }
+      });
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "ROLLED_BACK"
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.rolled_back",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            previousStatus,
+            itemCount: updated.items.length,
+            reason: parsed.reason ?? null,
             noMutation: true
           }
         }

@@ -9,6 +9,7 @@ import {
   createBacklogTaskFromCandidateAction,
   createBulkOperationPreviewAction,
   finishBulkOperationAction,
+  rollbackBulkOperationAction,
   runBulkOperationDryRunAction,
   startBulkOperationAction,
   updateAuditIssueStatusAction,
@@ -1312,6 +1313,32 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                               </button>
                             </form>
                           </>
+                        ) : null}
+                        {operation.status === "COMPLETED" || operation.status === "FAILED" ? (
+                          <form action={rollbackBulkOperationAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={operation.organizationId}
+                            />
+                            <input name="siteId" type="hidden" value={operation.siteId} />
+                            <input name="operationId" type="hidden" value={operation.id} />
+                            <input
+                              name="reason"
+                              type="hidden"
+                              value="Rollback requested from the SaaS dashboard."
+                            />
+                            <input
+                              name="redirectTo"
+                              type="hidden"
+                              value={buildContentHref(params, {
+                                site: activeSite.id
+                              })}
+                            />
+                            <button className="secondary-button" type="submit">
+                              Roll back
+                            </button>
+                          </form>
                         ) : null}
                       </article>
                     ))}

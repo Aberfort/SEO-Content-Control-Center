@@ -109,6 +109,7 @@
 - SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.
 - SaaS users with content operation confirm permission can start confirmed bulk operations into `RUNNING` without inline WordPress writes.
 - SaaS users with content operation confirm permission can record completed or failed results for running bulk operations without inline WordPress writes.
+- SaaS users with content operation confirm permission can roll back completed or failed bulk operations without inline WordPress writes.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
@@ -121,6 +122,7 @@
 - Confirmed bulk operations remain pending execution and still do not write to WordPress.
 - Starting confirmed bulk operations records the running state and still does not write to WordPress inline.
 - Running bulk operation result capture records per-item outcomes and still does not write to WordPress inline.
+- Rollback state capture records restored operation state and still does not write to WordPress inline.
 - Every risky mutation writes an audit log.
 - Rollback or previous values exist before execution.
 

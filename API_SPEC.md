@@ -663,6 +663,38 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/rollback`
+
+Records rollback for a scoped `COMPLETED` or `FAILED` bulk operation when the member has `content_operation:confirm`.
+This endpoint marks the SaaS operation and items as `ROLLED_BACK`, records an activity log with the previous status, and does not perform WordPress writes inline.
+
+Request:
+
+```json
+{
+  "reason": "Restore previous metadata values after validation."
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "ROLLED_BACK",
+    "items": [
+      {
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "externalId": "https://example.com/post",
+        "status": "ROLLED_BACK",
+        "error": null
+      }
+    ]
+  }
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

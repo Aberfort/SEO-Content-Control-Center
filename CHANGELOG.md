@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 39
+
+- Added rollback state capture for completed or failed bulk operations.
+- Added a tenant-scoped rollback API endpoint and dashboard rollback action.
+- Transitioned operations and items to `ROLLED_BACK` without inline WordPress writes.
+- Documented rollback behavior, permissions, and QA coverage.
+
 ### Iteration 38
 
 - Added execution result recording for running bulk operations.

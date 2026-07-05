@@ -238,6 +238,13 @@ export const bulkOperationResultSchema = z.object({
   itemResults: z.array(bulkOperationResultItemSchema).max(250).optional()
 });
 
+export const bulkOperationRollbackSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  reason: z.string().trim().max(1000).nullable().optional()
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -264,6 +271,7 @@ export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
 export type BulkOperationResultInput = z.infer<typeof bulkOperationResultSchema>;
+export type BulkOperationRollbackInput = z.infer<typeof bulkOperationRollbackSchema>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

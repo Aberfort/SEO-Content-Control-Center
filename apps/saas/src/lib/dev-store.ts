@@ -12,6 +12,7 @@ import {
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
   bulkOperationResultSchema,
+  bulkOperationRollbackSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
@@ -30,6 +31,7 @@ import {
   type BulkOperationListQuery,
   type BulkOperationPreviewCreateInput,
   type BulkOperationResultInput,
+  type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
@@ -1222,6 +1224,67 @@ export function finishBulkOperation(
       itemCount: items.length,
       failedItemCount,
       message: parsed.message ?? null,
+      noMutation: true
+    }
+  });
+
+  return operation;
+}
+
+export function rollbackBulkOperation(
+  input: BulkOperationRollbackInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationRollbackSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "COMPLETED" && operation.status !== "FAILED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const previousStatus = operation.status;
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const timestamp = nowIso();
+
+  operation.status = "ROLLED_BACK";
+  operation.updatedAt = timestamp;
+
+  for (const item of items) {
+    item.status = "ROLLED_BACK";
+    item.error = null;
+    item.updatedAt = timestamp;
+  }
+
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.rolled_back",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      previousStatus,
+      itemCount: items.length,
+      reason: parsed.reason ?? null,
       noMutation: true
     }
   });

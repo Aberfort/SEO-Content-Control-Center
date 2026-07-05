@@ -236,6 +236,14 @@ describe("app repository", () => {
         status: "COMPLETED"
       })
     ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
+    await expect(
+      repository.rollbackBulkOperation({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
     expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
       "audit.queued",
@@ -419,5 +427,92 @@ describe("app repository", () => {
         (log) => log.action
       )
     ).toContain("bulk_operation.failed");
+  });
+
+  it("rolls back a finished bulk operation without inline writes", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Bulk Rollback Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Bulk Rollback Site",
+      url: "https://bulk-rollback.example.com"
+    });
+    const now = new Date().toISOString();
+    const task = {
+      id: "00000000-0000-4000-8000-000000000405",
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: null,
+      title: "Restore SEO title",
+      url: "https://bulk-rollback.example.com/page",
+      issueType: "missing_meta_title",
+      status: "TODO" as const,
+      severity: "HIGH" as const,
+      potentialImpact: "Search snippets can underperform.",
+      effortEstimate: 2,
+      assigneeId: null,
+      dueDate: null,
+      tags: ["test"],
+      createdAt: now,
+      updatedAt: now,
+      comments: [],
+      activityLogs: []
+    };
+    getDevStore().backlogTasks.push(task);
+
+    const preview = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: task.id
+    });
+    await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id
+    });
+    await repository.confirmBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id,
+      confirmation: "CONFIRM"
+    });
+    await repository.startBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id
+    });
+    await repository.finishBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id,
+      status: "COMPLETED",
+      message: "Worker completed safely."
+    });
+
+    const rolledBack = await repository.rollbackBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id,
+      reason: "Restore previous metadata values."
+    });
+
+    expect(rolledBack.status).toBe("ROLLED_BACK");
+    expect(rolledBack.items.every((item) => item.status === "ROLLED_BACK")).toBe(true);
+    expect(rolledBack.items.every((item) => item.error === null)).toBe(true);
+    expect(
+      (await repository.listActivityLogsForOrganization(user.id, organization.id)).map(
+        (log) => log.action
+      )
+    ).toContain("bulk_operation.rolled_back");
   });
 });
