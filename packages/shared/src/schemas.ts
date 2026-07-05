@@ -221,6 +221,23 @@ export const bulkOperationStartSchema = z.object({
   operationId: z.string().uuid()
 });
 
+export const bulkOperationResultStatusSchema = z.enum(["COMPLETED", "FAILED"]);
+
+export const bulkOperationResultItemSchema = z.object({
+  itemId: z.string().uuid(),
+  status: bulkOperationResultStatusSchema,
+  error: z.string().trim().max(1000).nullable().optional()
+});
+
+export const bulkOperationResultSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  status: bulkOperationResultStatusSchema,
+  message: z.string().trim().max(1000).nullable().optional(),
+  itemResults: z.array(bulkOperationResultItemSchema).max(250).optional()
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -246,6 +263,7 @@ export type BulkOperationPreviewCreateInput = z.infer<typeof bulkOperationPrevie
 export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
+export type BulkOperationResultInput = z.infer<typeof bulkOperationResultSchema>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

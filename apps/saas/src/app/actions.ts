@@ -427,6 +427,25 @@ export async function startBulkOperationAction(formData: FormData): Promise<void
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function finishBulkOperationAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.finishBulkOperation({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    operationId: String(formData.get("operationId") ?? ""),
+    status: String(formData.get("status") ?? "") as never,
+    message: String(formData.get("message") ?? "") || undefined
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function registerAction(
   _previousState: ActionState,
   formData: FormData

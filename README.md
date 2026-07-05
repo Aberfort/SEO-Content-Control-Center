@@ -88,6 +88,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - dry run support for previewed safe content operations without WordPress writes;
 - explicit confirmation for dry-run-passed safe content operations;
 - controlled start state for confirmed safe content operations without inline WordPress writes;
+- execution result recording for running safe content operations with per-item outcomes;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getAppRepository } from "./app-repository";
-import { resetDevStore } from "./dev-store";
+import { getDevStore, resetDevStore } from "./dev-store";
 import type { AppUser } from "./types";
 
 const user: AppUser = {
@@ -227,6 +227,15 @@ describe("app repository", () => {
         operationId: "00000000-0000-4000-8000-000000000909"
       })
     ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
+    await expect(
+      repository.finishBulkOperation({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909",
+        status: "COMPLETED"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
     expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
       "audit.queued",
@@ -319,5 +328,96 @@ describe("app repository", () => {
     });
 
     expect(canceled.status).toBe("CANCELED");
+  });
+
+  it("finishes a running bulk operation with per-item results", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Bulk Result Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Bulk Result Site",
+      url: "https://bulk-result.example.com"
+    });
+    const now = new Date().toISOString();
+    const task = {
+      id: "00000000-0000-4000-8000-000000000404",
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: null,
+      title: "Update SEO title",
+      url: "https://bulk-result.example.com/page",
+      issueType: "missing_meta_title",
+      status: "TODO" as const,
+      severity: "HIGH" as const,
+      potentialImpact: "Search snippets can underperform.",
+      effortEstimate: 2,
+      assigneeId: null,
+      dueDate: null,
+      tags: ["test"],
+      createdAt: now,
+      updatedAt: now,
+      comments: [],
+      activityLogs: []
+    };
+    getDevStore().backlogTasks.push(task);
+
+    const preview = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: task.id
+    });
+    const dryRun = await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: preview.id
+    });
+    const confirmed = await repository.confirmBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: dryRun.id,
+      confirmation: "CONFIRM"
+    });
+    const running = await repository.startBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: confirmed.id
+    });
+
+    expect(running.status).toBe("RUNNING");
+
+    const finished = await repository.finishBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: running.id,
+      status: "FAILED",
+      message: "Worker reported a validation failure.",
+      itemResults: [
+        {
+          itemId: running.items[0]?.id ?? "",
+          status: "FAILED",
+          error: "Meta title target is no longer valid."
+        }
+      ]
+    });
+
+    expect(finished.status).toBe("FAILED");
+    expect(finished.items[0]).toMatchObject({
+      status: "FAILED",
+      error: "Meta title target is no longer valid."
+    });
+    expect(
+      (await repository.listActivityLogsForOrganization(user.id, organization.id)).map(
+        (log) => log.action
+      )
+    ).toContain("bulk_operation.failed");
   });
 });

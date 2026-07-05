@@ -620,6 +620,49 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/result`
+
+Records execution results for a scoped `RUNNING` bulk operation when the member has `content_operation:confirm`.
+This endpoint is worker-safe state capture for `COMPLETED` or `FAILED` results. It updates SaaS operation items, records an activity log, and does not perform WordPress writes inline.
+
+Request:
+
+```json
+{
+  "status": "FAILED",
+  "message": "Worker validation failed before applying changes.",
+  "itemResults": [
+    {
+      "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "status": "FAILED",
+      "error": "Meta title target is no longer valid."
+    }
+  ]
+}
+```
+
+If `itemResults` is omitted, all operation items inherit the top-level `status`.
+If any item result is `FAILED`, the operation is recorded as `FAILED`.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "FAILED",
+    "items": [
+      {
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "externalId": "https://example.com/post",
+        "status": "FAILED",
+        "error": "Meta title target is no longer valid."
+      }
+    ]
+  }
+}
+```
+
 ## Audits
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`

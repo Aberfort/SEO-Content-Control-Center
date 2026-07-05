@@ -13,6 +13,7 @@ import {
   bulkOperationDryRunSchema,
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
+  bulkOperationResultSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
@@ -32,6 +33,7 @@ import {
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
   type BulkOperationPreviewCreateInput,
+  type BulkOperationResultInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
@@ -61,6 +63,7 @@ import {
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listBulkOperationsForSite as listDevBulkOperationsForSite,
   confirmBulkOperation as confirmDevBulkOperation,
+  finishBulkOperation as finishDevBulkOperation,
   runBulkOperationDryRun as runDevBulkOperationDryRun,
   startBulkOperation as startDevBulkOperation,
   listMembersForOrganization as listDevMembersForOrganization,
@@ -158,6 +161,10 @@ type ConfirmBulkOperationInput = BulkOperationConfirmInput & {
 };
 
 type StartBulkOperationInput = BulkOperationStartInput & {
+  user: AppUser;
+};
+
+type FinishBulkOperationInput = BulkOperationResultInput & {
   user: AppUser;
 };
 
@@ -265,6 +272,7 @@ type AppRepository = {
   runBulkOperationDryRun(input: RunBulkOperationDryRunInput): Promise<BulkOperation>;
   confirmBulkOperation(input: ConfirmBulkOperationInput): Promise<BulkOperation>;
   startBulkOperation(input: StartBulkOperationInput): Promise<BulkOperation>;
+  finishBulkOperation(input: FinishBulkOperationInput): Promise<BulkOperation>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -357,6 +365,9 @@ const devStoreRepository: AppRepository = {
   },
   async startBulkOperation(input) {
     return startDevBulkOperation(input);
+  },
+  async finishBulkOperation(input) {
+    return finishDevBulkOperation(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -1783,6 +1794,116 @@ const prismaRepository: AppRepository = {
             siteId: parsed.siteId,
             type: updated.type,
             itemCount: updated.items.length,
+            noMutation: true
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async finishBulkOperation(input) {
+    const parsed = bulkOperationResultSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:confirm"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "RUNNING") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const resultByItemId = new Map(
+      (parsed.itemResults ?? []).map((result) => [result.itemId, result])
+    );
+
+    if (resultByItemId.size !== (parsed.itemResults ?? []).length) {
+      throw new Error("BULK_OPERATION_ITEM_DUPLICATE");
+    }
+
+    const existingItemIds = new Set(existing.items.map((item) => item.id));
+    for (const itemId of resultByItemId.keys()) {
+      if (!existingItemIds.has(itemId)) {
+        throw new Error("BULK_OPERATION_ITEM_NOT_FOUND");
+      }
+    }
+
+    const nextItems = existing.items.map((item) => {
+      const explicitResult = resultByItemId.get(item.id);
+      const status = explicitResult?.status ?? parsed.status;
+      const error =
+        status === "FAILED" ? (explicitResult?.error ?? parsed.message ?? "Item failed.") : null;
+
+      return {
+        id: item.id,
+        status,
+        error
+      };
+    });
+    const failedItemCount = nextItems.filter((item) => item.status === "FAILED").length;
+    const finalStatus = parsed.status === "FAILED" || failedItemCount > 0 ? "FAILED" : "COMPLETED";
+    const operation = await prisma.$transaction(async (tx) => {
+      for (const item of nextItems) {
+        await tx.bulkOperationItem.update({
+          where: {
+            id: item.id
+          },
+          data: {
+            status: item.status,
+            error: item.error
+          }
+        });
+      }
+
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: finalStatus
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action:
+            finalStatus === "COMPLETED" ? "bulk_operation.completed" : "bulk_operation.failed",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            itemCount: updated.items.length,
+            failedItemCount,
+            message: parsed.message ?? null,
             noMutation: true
           }
         }

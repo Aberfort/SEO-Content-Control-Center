@@ -63,6 +63,8 @@
 - Confirmed bulk operations must remain pending execution until a separate execution step validates confirmation state.
 - Starting bulk operations requires content operation confirm permission and organization/site/operation scoping.
 - Starting bulk operations must not perform inline WordPress writes; execution workers must re-check confirmation and connection state.
+- Recording bulk operation results requires content operation confirm permission and organization/site/operation/item scoping.
+- Bulk operation result capture must only accept `RUNNING` operations and must not perform inline WordPress writes.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

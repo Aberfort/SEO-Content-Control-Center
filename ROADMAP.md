@@ -70,8 +70,8 @@
 
 ## Phase 6 - Safe Content Operations
 
-- Preview, dry run, validation, confirmation.
-- Per-item processing results.
+- Preview, dry run, validation, confirmation. Status: preview, dry run, explicit confirmation, and controlled start implemented.
+- Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
 - Rollback.
 - Audit logs.
 - Rate limits and notifications.

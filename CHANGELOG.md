@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 38
+
+- Added execution result recording for running bulk operations.
+- Added a tenant-scoped result API endpoint and dashboard complete/fail actions.
+- Persisted per-item `COMPLETED`/`FAILED` results without inline WordPress writes.
+- Documented result behavior, permissions, and QA coverage.
+
 ### Iteration 37
 
 - Added a controlled start step for confirmed bulk operations.

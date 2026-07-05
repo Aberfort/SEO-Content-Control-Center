@@ -8,6 +8,7 @@ import {
   createBacklogTaskFromAuditIssueAction,
   createBacklogTaskFromCandidateAction,
   createBulkOperationPreviewAction,
+  finishBulkOperationAction,
   runBulkOperationDryRunAction,
   startBulkOperationAction,
   updateAuditIssueStatusAction,
@@ -1262,6 +1263,55 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                               Start
                             </button>
                           </form>
+                        ) : null}
+                        {operation.status === "RUNNING" ? (
+                          <>
+                            <form action={finishBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input name="status" type="hidden" value="COMPLETED" />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Complete
+                              </button>
+                            </form>
+                            <form action={finishBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input name="status" type="hidden" value="FAILED" />
+                              <input
+                                name="message"
+                                type="hidden"
+                                value="Marked failed from the SaaS dashboard."
+                              />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildContentHref(params, {
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Mark failed
+                              </button>
+                            </form>
+                          </>
                         ) : null}
                       </article>
                     ))}

@@ -11,6 +11,7 @@ import {
   bulkOperationDryRunSchema,
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
+  bulkOperationResultSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
@@ -28,6 +29,7 @@ import {
   type BulkOperationDryRunInput,
   type BulkOperationListQuery,
   type BulkOperationPreviewCreateInput,
+  type BulkOperationResultInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
   type Permission,
@@ -1138,6 +1140,88 @@ export function startBulkOperation(
       siteId: parsed.siteId,
       type: operation.type,
       itemCount: items.length,
+      noMutation: true
+    }
+  });
+
+  return operation;
+}
+
+export function finishBulkOperation(
+  input: BulkOperationResultInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationResultSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "RUNNING") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const resultByItemId = new Map(
+    (parsed.itemResults ?? []).map((result) => [result.itemId, result])
+  );
+
+  if (resultByItemId.size !== (parsed.itemResults ?? []).length) {
+    throw new Error("BULK_OPERATION_ITEM_DUPLICATE");
+  }
+
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const itemIds = new Set(items.map((item) => item.id));
+  for (const itemId of resultByItemId.keys()) {
+    if (!itemIds.has(itemId)) {
+      throw new Error("BULK_OPERATION_ITEM_NOT_FOUND");
+    }
+  }
+
+  const timestamp = nowIso();
+  let failedItemCount = 0;
+
+  for (const item of items) {
+    const explicitResult = resultByItemId.get(item.id);
+    const status = explicitResult?.status ?? parsed.status;
+    item.status = status;
+    item.error =
+      status === "FAILED" ? (explicitResult?.error ?? parsed.message ?? "Item failed.") : null;
+    item.updatedAt = timestamp;
+
+    if (item.status === "FAILED") {
+      failedItemCount += 1;
+    }
+  }
+
+  operation.status = parsed.status === "FAILED" || failedItemCount > 0 ? "FAILED" : "COMPLETED";
+  operation.updatedAt = timestamp;
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: operation.status === "COMPLETED" ? "bulk_operation.completed" : "bulk_operation.failed",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      itemCount: items.length,
+      failedItemCount,
+      message: parsed.message ?? null,
       noMutation: true
     }
   });
