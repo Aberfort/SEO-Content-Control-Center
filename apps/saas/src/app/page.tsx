@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { hasPermission } from "@sccc/shared";
 
 import {
   confirmBulkOperationAction,
@@ -98,6 +99,13 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
   const assignableMembers = activeMembers.filter((member) => member.status === "ACTIVE");
+  const canReadBilling = activeOrganization
+    ? hasPermission(activeOrganization.role, "billing:read")
+    : false;
+  const billingOverview =
+    activeOrganization && canReadBilling
+      ? await repository.getBillingOverviewForOrganization(user.id, activeOrganization.id)
+      : null;
   const syncedContent =
     activeOrganization && activeSite
       ? await repository.listSyncedContentForSite(
@@ -1606,6 +1614,70 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             <p className="empty-copy">Create an organization before inviting members.</p>
           )}
         </section>
+
+        <section className="panel" aria-labelledby="billing-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="billing-title">Billing</h2>
+              <p>Plan limits and subscription state for the current organization.</p>
+            </div>
+            {billingOverview ? (
+              <span className="metric-pill">{billingOverview.currentPlan.name}</span>
+            ) : null}
+          </div>
+
+          {billingOverview ? (
+            <>
+              <div className="billing-current">
+                <div>
+                  <small>Current plan</small>
+                  <strong>{billingOverview.currentPlan.name}</strong>
+                  <span>{formatPlanPrice(billingOverview.currentPlan)}</span>
+                </div>
+                <div>
+                  <small>Status</small>
+                  <strong>
+                    {billingOverview.subscription
+                      ? billingOverview.subscription.status.replaceAll("_", " ")
+                      : "TRIAL"}
+                  </strong>
+                  <span>
+                    {billingOverview.subscription?.currentPeriodEnd
+                      ? `Renews ${formatDateTime(billingOverview.subscription.currentPeriodEnd)}`
+                      : "No paid subscription connected"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="billing-plan-grid">
+                {billingOverview.plans.map((plan) => (
+                  <article
+                    key={plan.id}
+                    className={
+                      plan.code === billingOverview.currentPlan.code
+                        ? "billing-plan billing-plan-current"
+                        : "billing-plan"
+                    }
+                  >
+                    <div>
+                      <h3>{plan.name}</h3>
+                      <strong>{formatPlanPrice(plan)}</strong>
+                    </div>
+                    <ul>
+                      <li>{formatLimitValue(plan.limits.sites)} sites</li>
+                      <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
+                      <li>{formatLimitValue(plan.limits.users)} users</li>
+                      <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
+                      <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="empty-copy">Your role can not view billing for this organization.</p>
+          )}
+        </section>
       </main>
     </div>
   );
@@ -1801,6 +1873,21 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatPlanPrice(plan: { code: string; monthlyPrice: number }): string {
+  if (plan.code === "ENTERPRISE" && plan.monthlyPrice === 0) {
+    return "Custom";
+  }
+
+  return `$${(plan.monthlyPrice / 100).toLocaleString("en", {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
+  })}/mo`;
+}
+
+function formatLimitValue(value: number | "custom"): string {
+  return value === "custom" ? "Custom" : value.toLocaleString("en");
 }
 
 function formatDateInput(value: string | null): string {

@@ -65,6 +65,7 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BillingOverview,
   BulkOperation,
   BulkOperationItem,
   BulkOperationListOptions,
@@ -86,6 +87,7 @@ import {
   sortAssistantRecommendations
 } from "./assistant-recommendations";
 import { buildAssistantUsage } from "./assistant-usage";
+import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 
 type DevStoreState = {
@@ -430,6 +432,26 @@ export function listActivityLogsForOrganization(
   return getDevStore()
     .activityLogs.filter((log) => log.organizationId === organizationId)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export function getBillingOverviewForOrganization(
+  userId: string,
+  organizationId: string
+): BillingOverview {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "billing:read"
+  });
+
+  const plans = buildFallbackBillingPlans();
+
+  return {
+    plans,
+    currentPlan: findBillingPlan(plans, "TRIAL"),
+    subscription: null,
+    isFallbackTrial: true
+  };
 }
 
 export function listNotificationsForOrganization(

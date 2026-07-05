@@ -1,4 +1,4 @@
-import type { Role } from "@sccc/shared";
+import type { PlanCode, PlanLimits, Role } from "@sccc/shared";
 
 export type AppUser = {
   id: string;
@@ -75,6 +75,37 @@ export type NotificationListOptions = {
 
 export type NotificationBulkUpdateResult = {
   updatedCount: number;
+};
+
+export type BillingPlan = {
+  id: string;
+  code: PlanCode;
+  name: string;
+  monthlyPrice: number;
+  limits: PlanLimits;
+  isActive: boolean;
+};
+
+export type BillingSubscriptionStatus =
+  "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
+
+export type BillingSubscription = {
+  id: string;
+  organizationId: string;
+  status: BillingSubscriptionStatus;
+  plan: BillingPlan;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  provider: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BillingOverview = {
+  plans: BillingPlan[];
+  currentPlan: BillingPlan;
+  subscription: BillingSubscription | null;
+  isFallbackTrial: boolean;
 };
 
 export type AssistantRecommendationPriority = "low" | "medium" | "high";

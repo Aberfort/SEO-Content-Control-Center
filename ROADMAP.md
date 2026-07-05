@@ -87,7 +87,7 @@
 
 ## Phase 8 - Billing
 
-- Trial, Starter, Pro, Agency, Enterprise.
+- Trial, Starter, Pro, Agency, Enterprise. Status: read-only plan catalog and current plan overview implemented.
 - Checkout and subscriptions.
 - Billing portal.
 - Feature gating.

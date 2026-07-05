@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 48
+
+- Added a tenant-scoped read-only billing overview API endpoint.
+- Added billing plan catalog and current plan summaries for Trial, Starter, Pro, Agency, and Enterprise.
+- Added a dashboard billing panel with current plan, subscription status, prices, and plan limits.
+- Documented billing read permissions and no-checkout/no-portal guardrails.
+
 ### Iteration 47
 
 - Added assistant recommendation action descriptors for safe preview preparation.

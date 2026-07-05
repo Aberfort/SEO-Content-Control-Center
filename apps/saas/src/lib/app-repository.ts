@@ -23,6 +23,7 @@ import {
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  planLimits,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
@@ -90,6 +91,7 @@ import {
   updateAuditIssueStatus as updateDevAuditIssueStatus,
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
+  getBillingOverviewForOrganization as getDevBillingOverviewForOrganization,
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole
@@ -108,6 +110,12 @@ import {
   buildAssistantUsage,
   getCurrentUsagePeriod
 } from "./assistant-usage";
+import {
+  buildFallbackBillingPlans,
+  findBillingPlan,
+  normalizePlanCode,
+  sortBillingPlans
+} from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -124,6 +132,9 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BillingOverview,
+  BillingPlan,
+  BillingSubscription,
   BulkOperation,
   BulkOperationListOptions,
   InviteResult,
@@ -252,6 +263,10 @@ type AppRepository = {
   createSite(input: CreateSiteInput): Promise<Site>;
   listSitesForOrganization(userId: string, organizationId: string): Promise<Site[]>;
   listActivityLogsForOrganization(userId: string, organizationId: string): Promise<ActivityLog[]>;
+  getBillingOverviewForOrganization(
+    userId: string,
+    organizationId: string
+  ): Promise<BillingOverview>;
   listNotificationsForOrganization(
     userId: string,
     organizationId: string,
@@ -370,6 +385,9 @@ const devStoreRepository: AppRepository = {
   },
   async listActivityLogsForOrganization(userId, organizationId) {
     return listDevActivityLogsForOrganization(userId, organizationId);
+  },
+  async getBillingOverviewForOrganization(userId, organizationId) {
+    return getDevBillingOverviewForOrganization(userId, organizationId);
   },
   async listNotificationsForOrganization(userId, organizationId, options) {
     return listDevNotificationsForOrganization(userId, organizationId, options);
@@ -685,6 +703,47 @@ const prismaRepository: AppRepository = {
     });
 
     return logs.map(mapActivityLog);
+  },
+
+  async getBillingOverviewForOrganization(userId, organizationId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "billing:read"
+    });
+
+    const [dbPlans, subscription] = await prisma.$transaction([
+      prisma.plan.findMany({
+        where: {
+          isActive: true
+        }
+      }),
+      prisma.subscription.findFirst({
+        where: {
+          organizationId,
+          status: {
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+          }
+        },
+        include: {
+          plan: true
+        },
+        orderBy: {
+          updatedAt: "desc"
+        }
+      })
+    ]);
+
+    const plans = sortBillingPlans(dbPlans.map(mapBillingPlan).filter(isBillingPlan));
+    const visiblePlans = plans.length > 0 ? plans : buildFallbackBillingPlans();
+    const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
+
+    return {
+      plans: visiblePlans,
+      currentPlan: subscriptionSummary?.plan ?? findBillingPlan(visiblePlans, "TRIAL"),
+      subscription: subscriptionSummary,
+      isFallbackTrial: !subscriptionSummary
+    };
   },
 
   async listNotificationsForOrganization(userId, organizationId, options) {
@@ -3095,6 +3154,73 @@ function mapNotification(notification: {
     body: notification.body,
     readAt: notification.readAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString()
+  };
+}
+
+function mapBillingPlan(plan: {
+  id: string;
+  code: string;
+  name: string;
+  monthlyPrice: number;
+  isActive: boolean;
+  limits: Prisma.JsonValue;
+}): BillingPlan | null {
+  void plan.limits;
+
+  const code = normalizePlanCode(plan.code);
+
+  if (!code) {
+    return null;
+  }
+
+  return {
+    id: plan.id,
+    code,
+    name: plan.name,
+    monthlyPrice: plan.monthlyPrice,
+    limits: planLimits[code],
+    isActive: plan.isActive
+  };
+}
+
+function isBillingPlan(plan: BillingPlan | null): plan is BillingPlan {
+  return plan !== null;
+}
+
+function mapBillingSubscription(subscription: {
+  id: string;
+  organizationId: string;
+  status: BillingSubscription["status"];
+  trialEndsAt: Date | null;
+  currentPeriodEnd: Date | null;
+  provider: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  plan: {
+    id: string;
+    code: string;
+    name: string;
+    monthlyPrice: number;
+    isActive: boolean;
+    limits: Prisma.JsonValue;
+  };
+}): BillingSubscription | null {
+  const plan = mapBillingPlan(subscription.plan);
+
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    id: subscription.id,
+    organizationId: subscription.organizationId,
+    status: subscription.status,
+    plan,
+    trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
+    currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+    provider: subscription.provider,
+    createdAt: subscription.createdAt.toISOString(),
+    updatedAt: subscription.updatedAt.toISOString()
   };
 }
 

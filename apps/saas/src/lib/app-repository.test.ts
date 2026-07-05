@@ -162,6 +162,32 @@ describe("app repository", () => {
         metered: false
       }
     });
+    const billingOverview = await repository.getBillingOverviewForOrganization(
+      user.id,
+      organization.id
+    );
+
+    expect(billingOverview.currentPlan).toMatchObject({
+      code: "TRIAL",
+      name: "Trial",
+      monthlyPrice: 0,
+      limits: {
+        sites: 1,
+        urlsPerSite: 500,
+        users: 2,
+        aiCredits: 0,
+        apiAccess: false
+      }
+    });
+    expect(billingOverview.plans.map((plan) => plan.code)).toEqual([
+      "TRIAL",
+      "STARTER",
+      "PRO",
+      "AGENCY",
+      "ENTERPRISE"
+    ]);
+    expect(billingOverview.subscription).toBeNull();
+    expect(billingOverview.isFallbackTrial).toBe(true);
     await expect(
       repository.updateBacklogTaskStatus({
         user,

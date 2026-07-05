@@ -56,6 +56,7 @@
 - Prisma client generation succeeds.
 - Initial migration applies to local PostgreSQL.
 - Plan seed completes.
+- Billing overview lists the seeded plan catalog and falls back to Trial when no subscription exists.
 - Prisma repository creates organization and Owner membership transactionally.
 - Prisma repository creates site and activity log transactionally.
 - Duplicate site URLs are rejected by the database unique constraint and mapped to a safe API error.

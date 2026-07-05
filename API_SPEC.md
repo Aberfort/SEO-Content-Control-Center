@@ -119,6 +119,76 @@ Current MVP activity actions:
 - `member.role_updated`
 - `member.accepted_invite`
 
+## Billing Overview
+
+`GET /api/organizations/:organizationId/billing`
+
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, and current non-canceled subscription when one exists. It does not create checkout sessions, change subscriptions, or open a billing portal.
+
+Response:
+
+```json
+{
+  "data": {
+    "currentPlan": {
+      "id": "plan_pro",
+      "code": "PRO",
+      "name": "Pro",
+      "monthlyPrice": 14900,
+      "limits": {
+        "sites": 5,
+        "urlsPerSite": 50000,
+        "users": 10,
+        "aiCredits": 500,
+        "apiAccess": false
+      },
+      "isActive": true
+    },
+    "subscription": {
+      "id": "sub_11111111-1111-4111-8111-111111111111",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "status": "ACTIVE",
+      "plan": {
+        "id": "plan_pro",
+        "code": "PRO",
+        "name": "Pro",
+        "monthlyPrice": 14900,
+        "limits": {
+          "sites": 5,
+          "urlsPerSite": 50000,
+          "users": 10,
+          "aiCredits": 500,
+          "apiAccess": false
+        },
+        "isActive": true
+      },
+      "trialEndsAt": null,
+      "currentPeriodEnd": "2026-08-01T00:00:00.000Z",
+      "provider": "stripe",
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
+    },
+    "isFallbackTrial": false,
+    "plans": [
+      {
+        "id": "plan_trial",
+        "code": "TRIAL",
+        "name": "Trial",
+        "monthlyPrice": 0,
+        "limits": {
+          "sites": 1,
+          "urlsPerSite": 500,
+          "users": 2,
+          "aiCredits": 0,
+          "apiAccess": false
+        },
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
 ## Notifications
 
 `GET /api/organizations/:organizationId/notifications`

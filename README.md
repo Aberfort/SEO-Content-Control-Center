@@ -97,6 +97,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - read-only assistant recommendations with source evidence;
 - assistant AI-credit usage envelopes for recommendation responses;
 - assistant safe-preview controls with manual confirmation guardrails;
+- read-only billing overview with plan catalog and current plan state;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
