@@ -1655,6 +1655,25 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                 </div>
               </div>
 
+              <div className="billing-gate-grid">
+                {billingOverview.featureGates.map((gate) => (
+                  <div
+                    key={gate.key}
+                    className={gate.allowed ? "billing-gate" : "billing-gate billing-gate-blocked"}
+                  >
+                    <span>{gate.label}</span>
+                    <strong>
+                      {gate.used.toLocaleString("en")} / {formatLimitValue(gate.limit)}
+                    </strong>
+                    <small>
+                      {gate.allowed
+                        ? `${formatLimitValue(gate.remaining)} remaining`
+                        : gate.disabledReason}
+                    </small>
+                  </div>
+                ))}
+              </div>
+
               <div className="billing-plan-grid">
                 {billingOverview.plans.map((plan) => {
                   const checkoutAction = billingOverview.actions.checkout.find(

@@ -117,6 +117,7 @@ import {
   sortBillingPlans
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
+import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -628,6 +629,14 @@ const prismaRepository: AppRepository = {
     });
 
     const normalizedUrl = normalizeUrl(parsed.url);
+    const billingContext = await getDbBillingLimitContext(parsed.organizationId);
+    const featureGates = buildBillingFeatureGates({
+      limits: billingContext.currentPlan.limits,
+      sitesUsed: billingContext.sitesUsed,
+      usersUsed: billingContext.usersUsed
+    });
+
+    assertBillingFeatureAvailable(featureGates, "sites");
 
     try {
       const site = await prisma.$transaction(async (tx) => {
@@ -713,7 +722,7 @@ const prismaRepository: AppRepository = {
       permission: "billing:read"
     });
 
-    const [dbPlans, subscription] = await prisma.$transaction([
+    const [dbPlans, subscription, sitesUsed, usersUsed] = await prisma.$transaction([
       prisma.plan.findMany({
         where: {
           isActive: true
@@ -732,6 +741,19 @@ const prismaRepository: AppRepository = {
         orderBy: {
           updatedAt: "desc"
         }
+      }),
+      prisma.site.count({
+        where: {
+          organizationId
+        }
+      }),
+      prisma.organizationMember.count({
+        where: {
+          organizationId,
+          status: {
+            not: "CANCELED"
+          }
+        }
       })
     ]);
 
@@ -745,6 +767,11 @@ const prismaRepository: AppRepository = {
       currentPlan,
       subscription: subscriptionSummary,
       isFallbackTrial: !subscriptionSummary,
+      featureGates: buildBillingFeatureGates({
+        limits: currentPlan.limits,
+        sitesUsed,
+        usersUsed
+      }),
       actions: buildBillingActions({
         plans: visiblePlans,
         currentPlanCode: currentPlan.code,
@@ -2481,6 +2508,36 @@ const prismaRepository: AppRepository = {
     const invite = createInviteToken();
 
     try {
+      const existingUser = await prisma.user.findUnique({
+        where: {
+          email: parsed.email
+        },
+        select: {
+          id: true
+        }
+      });
+      const existingMember = existingUser
+        ? await prisma.organizationMember.findFirst({
+            where: {
+              organizationId: parsed.organizationId,
+              userId: existingUser.id
+            }
+          })
+        : null;
+
+      if (existingMember) {
+        throw new Error("MEMBER_ALREADY_EXISTS");
+      }
+
+      const billingContext = await getDbBillingLimitContext(parsed.organizationId);
+      const featureGates = buildBillingFeatureGates({
+        limits: billingContext.currentPlan.limits,
+        sitesUsed: billingContext.sitesUsed,
+        usersUsed: billingContext.usersUsed
+      });
+
+      assertBillingFeatureAvailable(featureGates, "users");
+
       const member = await prisma.$transaction(async (tx) => {
         const invitedUser = await tx.user.upsert({
           where: {
@@ -3162,6 +3219,50 @@ function mapNotification(notification: {
     body: notification.body,
     readAt: notification.readAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString()
+  };
+}
+
+async function getDbBillingLimitContext(organizationId: string): Promise<{
+  currentPlan: BillingPlan;
+  sitesUsed: number;
+  usersUsed: number;
+}> {
+  const [subscription, sitesUsed, usersUsed] = await prisma.$transaction([
+    prisma.subscription.findFirst({
+      where: {
+        organizationId,
+        status: {
+          in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+        }
+      },
+      include: {
+        plan: true
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    }),
+    prisma.site.count({
+      where: {
+        organizationId
+      }
+    }),
+    prisma.organizationMember.count({
+      where: {
+        organizationId,
+        status: {
+          not: "CANCELED"
+        }
+      }
+    })
+  ]);
+
+  return {
+    currentPlan: subscription
+      ? (mapBillingPlan(subscription.plan) ?? findBillingPlan([], "TRIAL"))
+      : findBillingPlan([], "TRIAL"),
+    sitesUsed,
+    usersUsed
   };
 }
 

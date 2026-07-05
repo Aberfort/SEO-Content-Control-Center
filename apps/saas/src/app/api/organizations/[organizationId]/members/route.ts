@@ -95,6 +95,10 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(409, "MEMBER_ALREADY_EXISTS", "This user is already a member.");
     }
 
+    if (error instanceof Error && error.message === "PLAN_USER_LIMIT_REACHED") {
+      return jsonError(402, "PLAN_USER_LIMIT_REACHED", "Current plan user limit reached.");
+    }
+
     if (error instanceof Error && error.message.startsWith("Role ")) {
       return jsonError(403, "FORBIDDEN", "Your role does not allow inviting members.");
     }

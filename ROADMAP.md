@@ -90,5 +90,5 @@
 - Trial, Starter, Pro, Agency, Enterprise. Status: read-only plan catalog and current plan overview implemented.
 - Checkout and subscriptions. Status: provider-gated disabled controls added; provider session creation pending.
 - Billing portal. Status: provider-gated disabled portal control added; provider session creation pending.
-- Feature gating.
+- Feature gating. Status: site and user plan limits are exposed in billing overview and enforced for site creation/member invites.
 - Usage tracking and notifications.

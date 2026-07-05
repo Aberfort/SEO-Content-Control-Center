@@ -88,6 +88,7 @@ import {
 } from "./assistant-recommendations";
 import { buildAssistantUsage } from "./assistant-usage";
 import { buildBillingActions } from "./billing-actions";
+import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 
@@ -212,6 +213,16 @@ export function ensureUser(user: AppUser): AppUser {
 
   store.users.push(user);
   return user;
+}
+
+function countDevSites(organizationId: string): number {
+  return getDevStore().sites.filter((site) => site.organizationId === organizationId).length;
+}
+
+function countDevMembers(organizationId: string): number {
+  return getDevStore().members.filter(
+    (member) => member.organizationId === organizationId && member.status !== "CANCELED"
+  ).length;
 }
 
 function ensurePlaceholderUser(email: string): AppUser {
@@ -385,6 +396,15 @@ export function createSite(input: CreateSiteInput): Site {
     throw new Error("SITE_ALREADY_EXISTS");
   }
 
+  const currentPlan = findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const featureGates = buildBillingFeatureGates({
+    limits: currentPlan.limits,
+    sitesUsed: countDevSites(parsed.organizationId),
+    usersUsed: countDevMembers(parsed.organizationId)
+  });
+
+  assertBillingFeatureAvailable(featureGates, "sites");
+
   const site: Site = {
     id: randomUUID(),
     organizationId: parsed.organizationId,
@@ -453,6 +473,11 @@ export function getBillingOverviewForOrganization(
     currentPlan,
     subscription: null,
     isFallbackTrial: true,
+    featureGates: buildBillingFeatureGates({
+      limits: currentPlan.limits,
+      sitesUsed: countDevSites(organizationId),
+      usersUsed: countDevMembers(organizationId)
+    }),
     actions: buildBillingActions({
       plans,
       currentPlanCode: currentPlan.code,
@@ -1754,6 +1779,15 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
   if (existing) {
     throw new Error("MEMBER_ALREADY_EXISTS");
   }
+
+  const currentPlan = findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const featureGates = buildBillingFeatureGates({
+    limits: currentPlan.limits,
+    sitesUsed: countDevSites(parsed.organizationId),
+    usersUsed: countDevMembers(parsed.organizationId)
+  });
+
+  assertBillingFeatureAvailable(featureGates, "users");
 
   const invite = createInviteToken();
   const member: StoreOrganizationMember = {

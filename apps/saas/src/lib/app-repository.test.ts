@@ -188,6 +188,24 @@ describe("app repository", () => {
     ]);
     expect(billingOverview.subscription).toBeNull();
     expect(billingOverview.isFallbackTrial).toBe(true);
+    expect(billingOverview.featureGates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "sites",
+          used: 1,
+          limit: 1,
+          remaining: 0,
+          allowed: false
+        }),
+        expect.objectContaining({
+          key: "users",
+          used: 1,
+          limit: 2,
+          remaining: 1,
+          allowed: true
+        })
+      ])
+    );
     expect(billingOverview.actions.portal).toMatchObject({
       type: "billing_portal",
       enabled: false,
@@ -205,6 +223,14 @@ describe("app repository", () => {
       requiresBillingManage: true,
       noMutation: true
     });
+    await expect(
+      repository.createSite({
+        user,
+        organizationId: organization.id,
+        name: "Repository Docs",
+        url: "https://docs.repository.example.com"
+      })
+    ).rejects.toThrow("PLAN_SITE_LIMIT_REACHED");
     await expect(
       repository.updateBacklogTaskStatus({
         user,
@@ -364,6 +390,14 @@ describe("app repository", () => {
       "editor@example.com",
       "repository@example.com"
     ]);
+    await expect(
+      repository.inviteMember({
+        user,
+        organizationId: organization.id,
+        email: "writer@example.com",
+        role: "WRITER"
+      })
+    ).rejects.toThrow("PLAN_USER_LIMIT_REACHED");
   });
 
   it("accepts, resends, and cancels pending invites through the repository contract", async () => {
@@ -394,15 +428,19 @@ describe("app repository", () => {
 
     expect(accepted.status).toBe("ACTIVE");
 
+    const secondOrganization = await repository.createOrganization({
+      user,
+      name: "Invite Cancellation"
+    });
     const secondInvite = await repository.inviteMember({
       user,
-      organizationId: organization.id,
+      organizationId: secondOrganization.id,
       email: "viewer@example.com",
       role: "VIEWER"
     });
     const resentInvite = await repository.resendInvite({
       user,
-      organizationId: organization.id,
+      organizationId: secondOrganization.id,
       memberId: secondInvite.member.id
     });
 
@@ -410,7 +448,7 @@ describe("app repository", () => {
 
     const canceled = await repository.cancelInvite({
       user,
-      organizationId: organization.id,
+      organizationId: secondOrganization.id,
       memberId: secondInvite.member.id
     });
 

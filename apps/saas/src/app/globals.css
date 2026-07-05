@@ -1455,6 +1455,38 @@ th {
   line-height: 1.35;
 }
 
+.billing-gate-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.billing-gate {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.billing-gate-blocked {
+  background: #fef3f2;
+  border-color: #fecdca;
+}
+
+.billing-gate span,
+.billing-gate small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.billing-gate strong {
+  font-size: 18px;
+}
+
 .billing-plan-grid {
   display: grid;
   gap: 12px;
@@ -1534,6 +1566,7 @@ th {
   }
 
   .billing-current,
+  .billing-gate-grid,
   .billing-plan-grid {
     grid-template-columns: 1fr;
   }

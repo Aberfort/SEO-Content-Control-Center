@@ -103,6 +103,8 @@ Request:
 
 Lists sites scoped to the organization.
 
+Creating a site is plan-gated by the current billing plan's `sites` limit. When the limit is reached, the API returns `402 PLAN_SITE_LIMIT_REACHED`.
+
 ## Activity Log
 
 `GET /api/organizations/:organizationId/activity`
@@ -123,7 +125,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, current non-canceled subscription when one exists, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout and portal actions remain disabled with explicit reasons until a real billing provider/session flow is connected.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout and portal actions remain disabled with explicit reasons until a real billing provider/session flow is connected.
 
 Response:
 
@@ -169,6 +171,26 @@ Response:
       "updatedAt": "2026-07-01T00:00:00.000Z"
     },
     "isFallbackTrial": false,
+    "featureGates": [
+      {
+        "key": "sites",
+        "label": "Sites",
+        "used": 1,
+        "limit": 5,
+        "remaining": 4,
+        "allowed": true,
+        "disabledReason": null
+      },
+      {
+        "key": "users",
+        "label": "Users",
+        "used": 2,
+        "limit": 10,
+        "remaining": 8,
+        "allowed": true,
+        "disabledReason": null
+      }
+    ],
     "actions": {
       "checkout": [
         {
@@ -301,6 +323,8 @@ Lists active, invited, suspended, and canceled members for the organization.
 `POST /api/organizations/:organizationId/members`
 
 Invites a member. `OWNER` cannot be assigned through this endpoint. The response includes the member summary, a one-time invite URL, and email delivery status. Store or send the raw URL immediately because only the token hash is persisted.
+
+Invites are plan-gated by the current billing plan's `users` limit. Active, invited, and suspended members count toward the limit; canceled members do not. When the limit is reached, the API returns `402 PLAN_USER_LIMIT_REACHED`.
 
 Request:
 

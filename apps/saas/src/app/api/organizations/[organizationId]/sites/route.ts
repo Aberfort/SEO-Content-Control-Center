@@ -77,6 +77,10 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(409, "SITE_ALREADY_EXISTS", "This site already exists in the organization.");
     }
 
+    if (error instanceof Error && error.message === "PLAN_SITE_LIMIT_REACHED") {
+      return jsonError(402, "PLAN_SITE_LIMIT_REACHED", "Current plan site limit reached.");
+    }
+
     if (error instanceof Error && error.message.startsWith("Role ")) {
       return jsonError(403, "FORBIDDEN", "Your role does not allow creating sites.");
     }

@@ -594,10 +594,24 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "PLAN_SITE_LIMIT_REACHED") {
+    return {
+      ok: false,
+      message: "Your current plan has reached its site limit."
+    };
+  }
+
   if (error instanceof Error && error.message === "MEMBER_ALREADY_EXISTS") {
     return {
       ok: false,
       message: "This user is already a member of the organization."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PLAN_USER_LIMIT_REACHED") {
+    return {
+      ok: false,
+      message: "Your current plan has reached its user limit."
     };
   }
 

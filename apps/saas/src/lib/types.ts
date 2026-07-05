@@ -112,11 +112,24 @@ export type BillingAction = {
   noMutation: true;
 };
 
+export type BillingFeatureGateKey = "sites" | "users";
+
+export type BillingFeatureGate = {
+  key: BillingFeatureGateKey;
+  label: string;
+  used: number;
+  limit: number | "custom";
+  remaining: number | "custom";
+  allowed: boolean;
+  disabledReason: string | null;
+};
+
 export type BillingOverview = {
   plans: BillingPlan[];
   currentPlan: BillingPlan;
   subscription: BillingSubscription | null;
   isFallbackTrial: boolean;
+  featureGates: BillingFeatureGate[];
   actions: {
     checkout: BillingAction[];
     portal: BillingAction;

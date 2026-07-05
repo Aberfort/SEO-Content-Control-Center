@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 50
+
+- Added billing feature gate summaries for site and user limits.
+- Enforced plan site limits when creating sites.
+- Enforced plan user limits when inviting members.
+- Documented plan-limit API errors, security guardrails, and QA coverage.
+
 ### Iteration 49
 
 - Added provider-gated billing action descriptors for checkout and billing portal controls.
