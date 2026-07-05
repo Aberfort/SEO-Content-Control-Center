@@ -810,7 +810,7 @@ Response:
 
 `GET /api/organizations/:organizationId/sites/:siteId/assistant/recommendations`
 
-Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks and synced content health evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations.
+Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks and synced content health evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations. Backlog-sourced recommendations may include an enabled safe-preview action; unsupported sources return disabled controls with a reason.
 
 Optional query params:
 
@@ -836,6 +836,14 @@ Response:
           "label": "Backlog task",
           "url": "https://example.com/post",
           "detail": "todo / high"
+        },
+        "action": {
+          "type": "safe_preview",
+          "label": "Prepare preview",
+          "enabled": true,
+          "requiresManualConfirmation": true,
+          "targetTaskId": "44444444-4444-4444-8444-444444444444",
+          "disabledReason": null
         },
         "noMutation": true,
         "safeguards": ["recommendation_only", "manual_confirmation_required", "no_wordpress_write"]

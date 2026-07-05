@@ -121,6 +121,8 @@
 - SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.
 - SaaS assistant recommendations show source evidence and do not mutate WordPress or SaaS records.
 - SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.
+- SaaS assistant recommendations expose enabled safe-preview controls only for backlog-sourced recommendations.
+- SaaS assistant recommendations disable unsupported controls for synced-content evidence until a backlog task exists.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
@@ -141,6 +143,7 @@
 - Bulk notification read updates stay scoped to the authenticated member's organization and are idempotent.
 - Assistant recommendations stay scoped to organization/site evidence and remain recommendation-only.
 - Assistant recommendation usage reads stay scoped to the organization and remain unmetered for deterministic recommendations.
+- Assistant recommendation controls prepare previews only and preserve the separate dry run, confirmation, and execution steps.
 - Rollback or previous values exist before execution.
 
 ## UX States

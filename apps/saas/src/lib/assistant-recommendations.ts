@@ -1,6 +1,7 @@
 import { buildSyncedContentBacklogCandidates } from "./content-health";
 import type {
   AssistantRecommendation,
+  AssistantRecommendationAction,
   AssistantRecommendationPriority,
   BacklogTask,
   SyncedContentItem
@@ -30,6 +31,10 @@ export function buildAssistantRecommendationFromBacklogTask(
       url: task.url,
       detail: `${task.status.replaceAll("_", " ").toLowerCase()} / ${task.severity.toLowerCase()}`
     },
+    action: buildSafePreviewAction({
+      enabled: true,
+      targetTaskId: task.id
+    }),
     noMutation: true,
     safeguards: assistantSafeguards
   };
@@ -53,6 +58,11 @@ export function buildAssistantRecommendationsFromSyncedContent(
       url: item.url,
       detail: `Signal ${candidate.sourceSignalId.replaceAll("-", " ")}`
     },
+    action: buildSafePreviewAction({
+      enabled: false,
+      targetTaskId: null,
+      disabledReason: "Create a backlog task before preparing a safe preview."
+    }),
     noMutation: true,
     safeguards: assistantSafeguards
   }));
@@ -88,6 +98,21 @@ function buildBacklogNextStep(task: BacklogTask): string {
   }
 
   return "Review the task evidence before deciding whether a safe operation preview is needed.";
+}
+
+function buildSafePreviewAction(input: {
+  enabled: boolean;
+  targetTaskId: string | null;
+  disabledReason?: string;
+}): AssistantRecommendationAction {
+  return {
+    type: "safe_preview",
+    label: "Prepare preview",
+    enabled: input.enabled,
+    requiresManualConfirmation: true,
+    targetTaskId: input.targetTaskId,
+    disabledReason: input.enabled ? null : (input.disabledReason ?? "Preview is not available.")
+  };
 }
 
 function mapSeverityToPriority(severity: BacklogTask["severity"]): AssistantRecommendationPriority {

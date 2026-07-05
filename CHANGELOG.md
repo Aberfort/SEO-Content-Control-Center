@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 47
+
+- Added assistant recommendation action descriptors for safe preview preparation.
+- Added dashboard controls that prepare existing safe previews from backlog-sourced recommendations.
+- Disabled unsupported assistant controls for synced-content recommendations until a backlog task exists.
+- Documented assistant manual confirmation and disabled-control guardrails.
+
 ### Iteration 46
 
 - Added assistant recommendation usage envelopes with current monthly AI-credit limits and usage.

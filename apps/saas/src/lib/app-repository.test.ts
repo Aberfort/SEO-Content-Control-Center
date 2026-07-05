@@ -437,6 +437,13 @@ describe("app repository", () => {
         type: "backlog_task",
         id: task.id,
         url: task.url
+      },
+      action: {
+        type: "safe_preview",
+        enabled: true,
+        requiresManualConfirmation: true,
+        targetTaskId: task.id,
+        disabledReason: null
       }
     });
     expect(recommendations[0]?.safeguards).toContain("manual_confirmation_required");

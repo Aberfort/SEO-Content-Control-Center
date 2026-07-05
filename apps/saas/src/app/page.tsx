@@ -456,6 +456,42 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       <strong>{recommendation.source.label}</strong>
                     )}
                     <span>{recommendation.source.detail}</span>
+                    <div className="assistant-action">
+                      {recommendation.action.enabled && recommendation.action.targetTaskId ? (
+                        <form action={createBulkOperationPreviewAction}>
+                          <input
+                            name="organizationId"
+                            type="hidden"
+                            value={recommendation.organizationId}
+                          />
+                          <input name="siteId" type="hidden" value={recommendation.siteId} />
+                          <input
+                            name="taskId"
+                            type="hidden"
+                            value={recommendation.action.targetTaskId}
+                          />
+                          <input
+                            name="redirectTo"
+                            type="hidden"
+                            value={buildContentHref(params, {
+                              site: recommendation.siteId
+                            })}
+                          />
+                          <button className="secondary-button" type="submit">
+                            {recommendation.action.label}
+                          </button>
+                        </form>
+                      ) : (
+                        <button className="secondary-button" disabled type="button">
+                          {recommendation.action.label}
+                        </button>
+                      )}
+                      <small>
+                        {recommendation.action.enabled
+                          ? "Manual confirmation required"
+                          : recommendation.action.disabledReason}
+                      </small>
+                    </div>
                   </div>
                 </li>
               ))}

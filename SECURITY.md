@@ -77,6 +77,8 @@
 - Assistant recommendations require backlog read permission and organization/site scoping before source evidence is loaded.
 - Assistant recommendations must remain read-only, display source evidence, and must not call external AI providers or mutate WordPress content in the MVP.
 - Assistant recommendation usage envelopes must read scoped plan and usage data without incrementing AI credits for deterministic recommendations.
+- Assistant recommendation controls may prepare existing safe previews only for backlog-sourced recommendations and must keep later dry run, confirmation, and execution as separate user actions.
+- Unsupported assistant controls must be disabled with a reason instead of silently attempting mutation or task creation.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

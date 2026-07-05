@@ -87,6 +87,15 @@ export type AssistantRecommendationSource = {
   detail: string;
 };
 
+export type AssistantRecommendationAction = {
+  type: "safe_preview";
+  label: string;
+  enabled: boolean;
+  requiresManualConfirmation: true;
+  targetTaskId: string | null;
+  disabledReason: string | null;
+};
+
 export type AssistantRecommendation = {
   id: string;
   organizationId: string;
@@ -96,6 +105,7 @@ export type AssistantRecommendation = {
   nextStep: string;
   priority: AssistantRecommendationPriority;
   source: AssistantRecommendationSource;
+  action: AssistantRecommendationAction;
   noMutation: true;
   safeguards: string[];
 };
