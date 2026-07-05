@@ -123,7 +123,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, and current non-canceled subscription when one exists. It does not create checkout sessions, change subscriptions, or open a billing portal.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, current non-canceled subscription when one exists, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout and portal actions remain disabled with explicit reasons until a real billing provider/session flow is connected.
 
 Response:
 
@@ -169,6 +169,30 @@ Response:
       "updatedAt": "2026-07-01T00:00:00.000Z"
     },
     "isFallbackTrial": false,
+    "actions": {
+      "checkout": [
+        {
+          "type": "checkout",
+          "label": "Current plan",
+          "enabled": false,
+          "provider": "none",
+          "targetPlanCode": "PRO",
+          "disabledReason": "Current plan.",
+          "requiresBillingManage": true,
+          "noMutation": true
+        }
+      ],
+      "portal": {
+        "type": "billing_portal",
+        "label": "Manage billing",
+        "enabled": false,
+        "provider": "none",
+        "targetPlanCode": null,
+        "disabledReason": "Billing provider is not configured.",
+        "requiresBillingManage": true,
+        "noMutation": true
+      }
+    },
     "plans": [
       {
         "id": "plan_trial",

@@ -88,7 +88,7 @@
 ## Phase 8 - Billing
 
 - Trial, Starter, Pro, Agency, Enterprise. Status: read-only plan catalog and current plan overview implemented.
-- Checkout and subscriptions.
-- Billing portal.
+- Checkout and subscriptions. Status: provider-gated disabled controls added; provider session creation pending.
+- Billing portal. Status: provider-gated disabled portal control added; provider session creation pending.
 - Feature gating.
 - Usage tracking and notifications.

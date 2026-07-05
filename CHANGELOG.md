@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 49
+
+- Added provider-gated billing action descriptors for checkout and billing portal controls.
+- Added disabled dashboard controls for plan selection and billing portal access with explicit reasons.
+- Kept billing actions no-mutation until a real provider session flow is connected.
+- Documented billing action guardrails and QA coverage.
+
 ### Iteration 48
 
 - Added a tenant-scoped read-only billing overview API endpoint.

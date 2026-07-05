@@ -101,11 +101,26 @@ export type BillingSubscription = {
   updatedAt: string;
 };
 
+export type BillingAction = {
+  type: "checkout" | "billing_portal";
+  label: string;
+  enabled: false;
+  provider: "none" | "stripe";
+  targetPlanCode: PlanCode | null;
+  disabledReason: string;
+  requiresBillingManage: true;
+  noMutation: true;
+};
+
 export type BillingOverview = {
   plans: BillingPlan[];
   currentPlan: BillingPlan;
   subscription: BillingSubscription | null;
   isFallbackTrial: boolean;
+  actions: {
+    checkout: BillingAction[];
+    portal: BillingAction;
+  };
 };
 
 export type AssistantRecommendationPriority = "low" | "medium" | "high";

@@ -188,6 +188,23 @@ describe("app repository", () => {
     ]);
     expect(billingOverview.subscription).toBeNull();
     expect(billingOverview.isFallbackTrial).toBe(true);
+    expect(billingOverview.actions.portal).toMatchObject({
+      type: "billing_portal",
+      enabled: false,
+      disabledReason: "No paid subscription is connected.",
+      requiresBillingManage: true,
+      noMutation: true
+    });
+    expect(
+      billingOverview.actions.checkout.find((action) => action.targetPlanCode === "PRO")
+    ).toMatchObject({
+      type: "checkout",
+      label: "Select plan",
+      enabled: false,
+      disabledReason: "Billing provider is not configured.",
+      requiresBillingManage: true,
+      noMutation: true
+    });
     await expect(
       repository.updateBacklogTaskStatus({
         user,

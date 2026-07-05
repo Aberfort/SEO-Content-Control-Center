@@ -87,6 +87,7 @@ import {
   sortAssistantRecommendations
 } from "./assistant-recommendations";
 import { buildAssistantUsage } from "./assistant-usage";
+import { buildBillingActions } from "./billing-actions";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 
@@ -438,19 +439,26 @@ export function getBillingOverviewForOrganization(
   userId: string,
   organizationId: string
 ): BillingOverview {
-  requireOrganizationAccess({
+  const member = requireOrganizationAccess({
     userId,
     organizationId,
     permission: "billing:read"
   });
 
   const plans = buildFallbackBillingPlans();
+  const currentPlan = findBillingPlan(plans, "TRIAL");
 
   return {
     plans,
-    currentPlan: findBillingPlan(plans, "TRIAL"),
+    currentPlan,
     subscription: null,
-    isFallbackTrial: true
+    isFallbackTrial: true,
+    actions: buildBillingActions({
+      plans,
+      currentPlanCode: currentPlan.code,
+      subscription: null,
+      canManageBilling: hasPermission(member.role, "billing:manage")
+    })
   };
 }
 

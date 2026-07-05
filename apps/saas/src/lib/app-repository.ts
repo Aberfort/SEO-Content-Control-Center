@@ -116,6 +116,7 @@ import {
   normalizePlanCode,
   sortBillingPlans
 } from "./billing-plans";
+import { buildBillingActions } from "./billing-actions";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -706,7 +707,7 @@ const prismaRepository: AppRepository = {
   },
 
   async getBillingOverviewForOrganization(userId, organizationId) {
-    await requireDbOrganizationAccess({
+    const membership = await requireDbOrganizationAccess({
       userId,
       organizationId,
       permission: "billing:read"
@@ -737,12 +738,19 @@ const prismaRepository: AppRepository = {
     const plans = sortBillingPlans(dbPlans.map(mapBillingPlan).filter(isBillingPlan));
     const visiblePlans = plans.length > 0 ? plans : buildFallbackBillingPlans();
     const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
+    const currentPlan = subscriptionSummary?.plan ?? findBillingPlan(visiblePlans, "TRIAL");
 
     return {
       plans: visiblePlans,
-      currentPlan: subscriptionSummary?.plan ?? findBillingPlan(visiblePlans, "TRIAL"),
+      currentPlan,
       subscription: subscriptionSummary,
-      isFallbackTrial: !subscriptionSummary
+      isFallbackTrial: !subscriptionSummary,
+      actions: buildBillingActions({
+        plans: visiblePlans,
+        currentPlanCode: currentPlan.code,
+        subscription: subscriptionSummary,
+        canManageBilling: hasPermission(membership.role, "billing:manage")
+      })
     };
   },
 

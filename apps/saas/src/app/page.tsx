@@ -1647,31 +1647,51 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       : "No paid subscription connected"}
                   </span>
                 </div>
+                <div className="billing-action-cell">
+                  <button className="secondary-button" disabled type="button">
+                    {billingOverview.actions.portal.label}
+                  </button>
+                  <span>{billingOverview.actions.portal.disabledReason}</span>
+                </div>
               </div>
 
               <div className="billing-plan-grid">
-                {billingOverview.plans.map((plan) => (
-                  <article
-                    key={plan.id}
-                    className={
-                      plan.code === billingOverview.currentPlan.code
-                        ? "billing-plan billing-plan-current"
-                        : "billing-plan"
-                    }
-                  >
-                    <div>
-                      <h3>{plan.name}</h3>
-                      <strong>{formatPlanPrice(plan)}</strong>
-                    </div>
-                    <ul>
-                      <li>{formatLimitValue(plan.limits.sites)} sites</li>
-                      <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
-                      <li>{formatLimitValue(plan.limits.users)} users</li>
-                      <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
-                      <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
-                    </ul>
-                  </article>
-                ))}
+                {billingOverview.plans.map((plan) => {
+                  const checkoutAction = billingOverview.actions.checkout.find(
+                    (action) => action.targetPlanCode === plan.code
+                  );
+
+                  return (
+                    <article
+                      key={plan.id}
+                      className={
+                        plan.code === billingOverview.currentPlan.code
+                          ? "billing-plan billing-plan-current"
+                          : "billing-plan"
+                      }
+                    >
+                      <div>
+                        <h3>{plan.name}</h3>
+                        <strong>{formatPlanPrice(plan)}</strong>
+                      </div>
+                      <ul>
+                        <li>{formatLimitValue(plan.limits.sites)} sites</li>
+                        <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
+                        <li>{formatLimitValue(plan.limits.users)} users</li>
+                        <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
+                        <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
+                      </ul>
+                      {checkoutAction ? (
+                        <div className="billing-plan-action">
+                          <button className="secondary-button" disabled type="button">
+                            {checkoutAction.label}
+                          </button>
+                          <span>{checkoutAction.disabledReason}</span>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
             </>
           ) : (
