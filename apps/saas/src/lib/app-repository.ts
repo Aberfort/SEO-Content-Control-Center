@@ -5,6 +5,7 @@ import {
   assertPermission,
   auditIssueListQuerySchema,
   auditListQuerySchema,
+  assistantRecommendationListQuerySchema,
   backlogTaskCommentCreateSchema,
   backlogTaskFromAuditIssueSchema,
   backlogTaskFromCandidateSchema,
@@ -14,10 +15,13 @@ import {
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
   bulkOperationResultSchema,
+  bulkOperationRetrySchema,
   bulkOperationRollbackSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
+  notificationListQuerySchema,
+  notificationReadUpdateSchema,
   organizationCreateSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
@@ -25,6 +29,7 @@ import {
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
   type AuditListQuery,
   type BacklogTaskCommentCreateInput,
@@ -35,9 +40,12 @@ import {
   type BulkOperationDryRunInput,
   type BulkOperationPreviewCreateInput,
   type BulkOperationResultInput,
+  type BulkOperationRetryInput,
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
+  type NotificationListQuery,
+  type NotificationReadUpdateInput,
   type Permission,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
@@ -54,11 +62,11 @@ import {
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
-  rollbackBulkOperation as rollbackDevBulkOperation,
   getSyncedContentItem as getDevSyncedContentItem,
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
+  listAssistantRecommendationsForSite as listDevAssistantRecommendationsForSite,
   listBacklogTaskActivity as listDevBacklogTaskActivity,
   listAuditIssuesForAudit as listDevAuditIssuesForAudit,
   listAuditsForSite as listDevAuditsForSite,
@@ -67,9 +75,12 @@ import {
   listBulkOperationsForSite as listDevBulkOperationsForSite,
   confirmBulkOperation as confirmDevBulkOperation,
   finishBulkOperation as finishDevBulkOperation,
+  retryBulkOperation as retryDevBulkOperation,
+  rollbackBulkOperation as rollbackDevBulkOperation,
   runBulkOperationDryRun as runDevBulkOperationDryRun,
   startBulkOperation as startDevBulkOperation,
   listMembersForOrganization as listDevMembersForOrganization,
+  listNotificationsForOrganization as listDevNotificationsForOrganization,
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
@@ -79,16 +90,31 @@ import {
   updateAuditIssueStatus as updateDevAuditIssueStatus,
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
+  markAllNotificationsRead as markAllDevNotificationsRead,
+  updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole
 } from "./dev-store";
 import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "./content-health";
+import {
+  buildAssistantRecommendationFromBacklogTask,
+  buildAssistantRecommendationsFromSyncedContent,
+  sortAssistantRecommendations
+} from "./assistant-recommendations";
+import {
+  assistantUsageMetric,
+  buildAssistantUsage,
+  getCurrentUsagePeriod
+} from "./assistant-usage";
+import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
   ActivityLog,
   AppUser,
+  AssistantRecommendationList,
+  AssistantRecommendationListOptions,
   Audit,
   AuditIssue,
   AuditIssueListOptions,
@@ -101,6 +127,9 @@ import type {
   BulkOperation,
   BulkOperationListOptions,
   InviteResult,
+  NotificationBulkUpdateResult,
+  Notification,
+  NotificationListOptions,
   OrganizationMemberSummary,
   OrganizationSummary,
   Site,
@@ -175,6 +204,10 @@ type RollbackBulkOperationInput = BulkOperationRollbackInput & {
   user: AppUser;
 };
 
+type RetryBulkOperationInput = BulkOperationRetryInput & {
+  user: AppUser;
+};
+
 type BulkOperationPreviewPayload = Prisma.InputJsonObject & {
   beforeValue: Prisma.InputJsonObject;
   afterValue: Prisma.InputJsonObject;
@@ -205,6 +238,10 @@ type AcceptInviteInputWithUser = {
   token: AcceptInviteInput["token"];
 };
 
+type UpdateNotificationReadStateInput = NotificationReadUpdateInput & {
+  user: AppUser;
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -215,12 +252,28 @@ type AppRepository = {
   createSite(input: CreateSiteInput): Promise<Site>;
   listSitesForOrganization(userId: string, organizationId: string): Promise<Site[]>;
   listActivityLogsForOrganization(userId: string, organizationId: string): Promise<ActivityLog[]>;
+  listNotificationsForOrganization(
+    userId: string,
+    organizationId: string,
+    options?: NotificationListOptions
+  ): Promise<Notification[]>;
+  markAllNotificationsRead(
+    user: AppUser,
+    organizationId: string
+  ): Promise<NotificationBulkUpdateResult>;
+  updateNotificationReadState(input: UpdateNotificationReadStateInput): Promise<Notification>;
   listSyncedContentForSite(
     userId: string,
     organizationId: string,
     siteId: string,
     options?: SyncedContentListOptions
   ): Promise<SyncedContentList>;
+  listAssistantRecommendationsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: AssistantRecommendationListOptions
+  ): Promise<AssistantRecommendationList>;
   listAuditsForSite(
     userId: string,
     organizationId: string,
@@ -281,6 +334,7 @@ type AppRepository = {
   startBulkOperation(input: StartBulkOperationInput): Promise<BulkOperation>;
   finishBulkOperation(input: FinishBulkOperationInput): Promise<BulkOperation>;
   rollbackBulkOperation(input: RollbackBulkOperationInput): Promise<BulkOperation>;
+  retryBulkOperation(input: RetryBulkOperationInput): Promise<BulkOperation>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -317,8 +371,20 @@ const devStoreRepository: AppRepository = {
   async listActivityLogsForOrganization(userId, organizationId) {
     return listDevActivityLogsForOrganization(userId, organizationId);
   },
+  async listNotificationsForOrganization(userId, organizationId, options) {
+    return listDevNotificationsForOrganization(userId, organizationId, options);
+  },
+  async markAllNotificationsRead(user, organizationId) {
+    return markAllDevNotificationsRead(user, organizationId);
+  },
+  async updateNotificationReadState(input) {
+    return updateDevNotificationReadState(input);
+  },
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
+  },
+  async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
+    return listDevAssistantRecommendationsForSite(userId, organizationId, siteId, options);
   },
   async listAuditsForSite(userId, organizationId, siteId, options) {
     return listDevAuditsForSite(userId, organizationId, siteId, options);
@@ -379,6 +445,9 @@ const devStoreRepository: AppRepository = {
   },
   async rollbackBulkOperation(input) {
     return rollbackDevBulkOperation(input);
+  },
+  async retryBulkOperation(input) {
+    return retryDevBulkOperation(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -618,6 +687,90 @@ const prismaRepository: AppRepository = {
     return logs.map(mapActivityLog);
   },
 
+  async listNotificationsForOrganization(userId, organizationId, options) {
+    const parsed = normalizeNotificationListOptions(options);
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "organization:read"
+    });
+
+    const notifications = await prisma.notification.findMany({
+      where: {
+        organizationId,
+        ...(parsed.read === "read" ? { readAt: { not: null } } : {}),
+        ...(parsed.read === "unread" ? { readAt: null } : {})
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: parsed.limit ?? 25
+    });
+
+    return notifications.map(mapNotification);
+  },
+
+  async markAllNotificationsRead(user, organizationId) {
+    await requireDbOrganizationAccess({
+      userId: user.id,
+      organizationId,
+      permission: "organization:read"
+    });
+
+    const result = await prisma.notification.updateMany({
+      where: {
+        organizationId,
+        readAt: null
+      },
+      data: {
+        readAt: new Date()
+      }
+    });
+
+    return {
+      updatedCount: result.count
+    };
+  },
+
+  async updateNotificationReadState(input) {
+    const parsed = notificationReadUpdateSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "organization:read"
+    });
+
+    const existing = await prisma.notification.findFirst({
+      where: {
+        id: parsed.notificationId,
+        organizationId: parsed.organizationId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("NOTIFICATION_NOT_FOUND");
+    }
+
+    if (parsed.read && existing.readAt) {
+      return mapNotification(existing);
+    }
+
+    if (!parsed.read && !existing.readAt) {
+      return mapNotification(existing);
+    }
+
+    const notification = await prisma.notification.update({
+      where: {
+        id: existing.id
+      },
+      data: {
+        readAt: parsed.read ? new Date() : null
+      }
+    });
+
+    return mapNotification(notification);
+  },
+
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     await requireDbOrganizationAccess({
       userId,
@@ -708,6 +861,110 @@ const prismaRepository: AppRepository = {
           ? (visibleItems[visibleItems.length - 1]?.id ?? null)
           : null,
       total
+    };
+  },
+
+  async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
+    const parsed = normalizeAssistantRecommendationListOptions(options);
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "backlog:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const usageReferenceDate = new Date();
+    const period = getCurrentUsagePeriod(usageReferenceDate);
+    const [tasks, contentItems, subscription, usage] = await prisma.$transaction([
+      prisma.backlogTask.findMany({
+        where: {
+          organizationId,
+          siteId,
+          status: {
+            in: ["TODO", "IN_PROGRESS", "IN_REVIEW"]
+          }
+        },
+        include: backlogTaskCommentInclude,
+        orderBy: [
+          {
+            severity: "desc"
+          },
+          {
+            updatedAt: "desc"
+          }
+        ],
+        take: parsed.limit ?? 5
+      }),
+      prisma.syncedContentItem.findMany({
+        where: {
+          organizationId,
+          siteId
+        },
+        orderBy: [
+          {
+            lastSeenAt: "desc"
+          },
+          {
+            id: "desc"
+          }
+        ],
+        take: 25
+      }),
+      prisma.subscription.findFirst({
+        where: {
+          organizationId,
+          status: {
+            in: ["TRIALING", "ACTIVE"]
+          }
+        },
+        include: {
+          plan: true
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
+      }),
+      prisma.usageMetric.aggregate({
+        where: {
+          organizationId,
+          metric: assistantUsageMetric,
+          periodStart: {
+            gte: period.periodStart
+          },
+          periodEnd: {
+            lte: period.periodEnd
+          }
+        },
+        _sum: {
+          value: true
+        }
+      })
+    ]);
+
+    const recommendations = [
+      ...tasks.map((task) => buildAssistantRecommendationFromBacklogTask(mapBacklogTask(task))),
+      ...contentItems.flatMap((item) =>
+        buildAssistantRecommendationsFromSyncedContent(mapSyncedContentItem(item))
+      )
+    ];
+
+    return {
+      recommendations: sortAssistantRecommendations(recommendations).slice(0, parsed.limit ?? 5),
+      usage: buildAssistantUsage({
+        planCode: subscription?.plan.code,
+        used: usage._sum.value,
+        referenceDate: usageReferenceDate
+      })
     };
   },
 
@@ -1920,6 +2177,18 @@ const prismaRepository: AppRepository = {
         }
       });
 
+      await tx.notification.create({
+        data: {
+          organizationId: parsed.organizationId,
+          ...buildBulkOperationNotification({
+            event: finalStatus === "COMPLETED" ? "completed" : "failed",
+            itemCount: updated.items.length,
+            failedItemCount,
+            message: parsed.message ?? null
+          })
+        }
+      });
+
       return updated;
     });
 
@@ -1995,6 +2264,114 @@ const prismaRepository: AppRepository = {
             reason: parsed.reason ?? null,
             noMutation: true
           }
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          organizationId: parsed.organizationId,
+          ...buildBulkOperationNotification({
+            event: "rolled_back",
+            itemCount: updated.items.length,
+            reason: parsed.reason ?? null
+          })
+        }
+      });
+
+      return updated;
+    });
+
+    return mapBulkOperation(operation);
+  },
+
+  async retryBulkOperation(input) {
+    const parsed = bulkOperationRetrySchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "content_operation:confirm"
+    });
+
+    const existing = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (existing.status !== "FAILED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const failedItems = existing.items.filter((item) => item.status === "FAILED");
+
+    if (!failedItems.length) {
+      throw new Error("BULK_OPERATION_RETRY_NOT_AVAILABLE");
+    }
+
+    const operation = await prisma.$transaction(async (tx) => {
+      await tx.bulkOperationItem.updateMany({
+        where: {
+          bulkOperationId: existing.id,
+          status: "FAILED"
+        },
+        data: {
+          status: "RUNNING",
+          error: null
+        }
+      });
+      const updated = await tx.bulkOperation.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          status: "RUNNING"
+        },
+        include: {
+          items: {
+            orderBy: {
+              createdAt: "asc"
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.retry_started",
+          entityType: "BulkOperation",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            type: updated.type,
+            previousStatus: existing.status,
+            itemCount: updated.items.length,
+            retryItemCount: failedItems.length,
+            reason: parsed.reason ?? null,
+            noMutation: true
+          }
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          organizationId: parsed.organizationId,
+          ...buildBulkOperationNotification({
+            event: "retry_started",
+            itemCount: updated.items.length,
+            retryItemCount: failedItems.length,
+            reason: parsed.reason ?? null
+          })
         }
       });
 
@@ -2457,6 +2834,14 @@ function normalizeBacklogTaskListOptions(
   });
 }
 
+function normalizeAssistantRecommendationListOptions(
+  options: AssistantRecommendationListOptions | undefined
+): AssistantRecommendationListQuery {
+  return assistantRecommendationListQuerySchema.parse({
+    limit: options?.limit ?? 5
+  });
+}
+
 function normalizeAuditListOptions(options: AuditListOptions | undefined): AuditListQuery {
   return auditListQuerySchema.parse({
     status: options?.status,
@@ -2472,6 +2857,15 @@ function normalizeAuditIssueListOptions(
     status: options?.status,
     severity: options?.severity,
     limit: options?.limit ?? 100
+  });
+}
+
+function normalizeNotificationListOptions(
+  options: NotificationListOptions | undefined
+): NotificationListQuery {
+  return notificationListQuerySchema.parse({
+    read: options?.read,
+    limit: options?.limit ?? 25
   });
 }
 
@@ -2681,6 +3075,26 @@ function mapActivityLog(log: {
     entityId: log.entityId,
     metadata: isMetadataObject(log.metadata) ? log.metadata : {},
     createdAt: log.createdAt.toISOString()
+  };
+}
+
+function mapNotification(notification: {
+  id: string;
+  organizationId: string;
+  type: string;
+  title: string;
+  body: string;
+  readAt: Date | null;
+  createdAt: Date;
+}): Notification {
+  return {
+    id: notification.id,
+    organizationId: notification.organizationId,
+    type: notification.type,
+    title: notification.title,
+    body: notification.body,
+    readAt: notification.readAt?.toISOString() ?? null,
+    createdAt: notification.createdAt.toISOString()
   };
 }
 

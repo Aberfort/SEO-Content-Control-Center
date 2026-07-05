@@ -14,7 +14,7 @@
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
 - Invite email bodies must not log raw tokens; raw invite URLs may appear only in the intended email/API response.
 - WordPress connection challenges and plugin tokens must be stored as hashes; sync requests must be timestamped and HMAC-signed.
-- Rate limiting for auth and invite flows; plugin API, webhooks, and bulk operations need dedicated limits before launch.
+- Rate limiting for auth, invite flows, and safe content operation mutations; plugin API and webhooks need dedicated limits before launch.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.
 - Token hashing where secrets do not need to be recoverable.
@@ -67,6 +67,16 @@
 - Bulk operation result capture must only accept `RUNNING` operations and must not perform inline WordPress writes.
 - Rolling back bulk operations requires content operation confirm permission and organization/site/operation scoping.
 - Rollback state capture must only accept `COMPLETED` or `FAILED` operations and must not perform inline WordPress writes.
+- Retrying bulk operations requires content operation confirm permission and organization/site/operation scoping.
+- Retry state capture must only accept `FAILED` operations with failed items and must not perform inline WordPress writes.
+- Safe content operation mutations are rate limited by client, user, organization, site, action, and operation.
+- Listing notifications requires organization read permission and must stay scoped to the authenticated member's organization.
+- Updating notification read state requires organization read permission, same-origin browser checks, and notification scoping inside the organization.
+- Bulk notification read updates require organization read permission, same-origin browser checks, and organization scoping.
+- Safe content operation lifecycle notifications must be created only after the scoped operation transition is accepted.
+- Assistant recommendations require backlog read permission and organization/site scoping before source evidence is loaded.
+- Assistant recommendations must remain read-only, display source evidence, and must not call external AI providers or mutate WordPress content in the MVP.
+- Assistant recommendation usage envelopes must read scoped plan and usage data without incrementing AI credits for deterministic recommendations.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

@@ -44,14 +44,14 @@ export async function POST(request: Request, context: RouteContext) {
       organizationId,
       siteId,
       operationId,
-      action: "confirm"
+      action: "retry"
     });
-    const operation = await repository.confirmBulkOperation({
+    const operation = await repository.retryBulkOperation({
       user,
       organizationId,
       siteId,
       operationId,
-      confirmation: readString(body, "confirmation") as never
+      reason: readNullableString(body, "reason")
     });
 
     return Response.json({ data: operation });
@@ -70,23 +70,39 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(404, "BULK_OPERATION_NOT_FOUND", "Bulk operation was not found.");
     }
 
-    if (error instanceof Error && error.message === "BULK_OPERATION_NOT_READY") {
+    if (
+      error instanceof Error &&
+      (error.message === "BULK_OPERATION_NOT_READY" ||
+        error.message === "BULK_OPERATION_RETRY_NOT_AVAILABLE")
+    ) {
       return jsonError(
         409,
         "BULK_OPERATION_NOT_READY",
-        "Bulk operation is not ready for confirmation."
+        "Bulk operation is not failed or has no failed items to retry."
       );
     }
 
     if (error instanceof Error && error.message.startsWith("Role ")) {
-      return jsonError(403, "FORBIDDEN", "Your role does not allow confirming bulk operations.");
+      return jsonError(403, "FORBIDDEN", "Your role does not allow retrying bulk operations.");
     }
 
     return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
   }
 }
 
-function readString(input: Record<string, unknown>, key: string): string {
+function readNullableString(
+  input: Record<string, unknown>,
+  key: string
+): string | null | undefined {
+  if (!(key in input)) {
+    return undefined;
+  }
+
   const value = input[key];
+
+  if (value === null) {
+    return null;
+  }
+
   return typeof value === "string" ? value : "";
 }

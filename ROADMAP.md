@@ -73,15 +73,16 @@
 - Preview, dry run, validation, confirmation. Status: preview, dry run, explicit confirmation, and controlled start implemented.
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
 - Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
+- Retry failed items. Status: failed item retry state capture implemented without inline WordPress writes.
 - Audit logs.
-- Rate limits and notifications.
+- Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
 
 ## Phase 7 - AI Assistant
 
-- Recommendations only.
+- Recommendations only. Status: deterministic read-only recommendations implemented from backlog and synced content evidence.
 - Manual confirmation.
-- Source display.
-- Usage limits and AI credits.
+- Source display. Status: assistant recommendation sources are included in API and dashboard output.
+- Usage limits and AI credits. Status: recommendation responses include unmetered monthly AI-credit usage envelopes from plan limits and usage metrics.
 - Disable controls.
 
 ## Phase 8 - Billing

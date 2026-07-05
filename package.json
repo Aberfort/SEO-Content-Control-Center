@@ -24,7 +24,9 @@
     "db:validate": "npm run db:validate -w @sccc/database",
     "db:migrate:dev": "npm run db:migrate:dev -w @sccc/database",
     "db:migrate:deploy": "npm run db:migrate:deploy -w @sccc/database",
-    "db:seed": "npm run seed -w @sccc/database"
+    "db:seed": "npm run seed -w @sccc/database",
+    "verify:db:migrate": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:migrate:deploy",
+    "verify:external": "npm run verify:db:migrate && npm audit --audit-level=low"
   },
   "devDependencies": {
     "@eslint/js": "9.27.0",

@@ -1,20 +1,19 @@
+import { notificationReadStateSchema } from "@sccc/shared";
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { assertBulkOperationRateLimit } from "@/lib/bulk-operation-rate-limit";
 import { assertRequestSameOrigin } from "@/lib/csrf";
 import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
 
 type RouteContext = {
   params: Promise<{
     organizationId: string;
-    siteId: string;
-    operationId: string;
+    notificationId: string;
   }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
+export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertRequestSameOrigin(request);
   } catch (error) {
@@ -33,26 +32,20 @@ export async function POST(request: Request, context: RouteContext) {
     return unauthorizedError();
   }
 
-  const { organizationId, siteId, operationId } = await context.params;
+  const { organizationId, notificationId } = await context.params;
   const repository = getAppRepository();
 
   try {
-    assertBulkOperationRateLimit({
-      request,
-      userId: user.id,
-      organizationId,
-      siteId,
-      operationId,
-      action: "start"
-    });
-    const operation = await repository.startBulkOperation({
+    const body = (await request.json()) as unknown;
+    const payload = notificationReadStateSchema.parse(body);
+    const notification = await repository.updateNotificationReadState({
       user,
       organizationId,
-      siteId,
-      operationId
+      notificationId,
+      read: payload.read
     });
 
-    return Response.json({ data: operation });
+    return Response.json({ data: notification });
   } catch (error) {
     const response = securityError(error);
 
@@ -64,16 +57,12 @@ export async function POST(request: Request, context: RouteContext) {
       return validationError(error);
     }
 
-    if (error instanceof Error && error.message === "BULK_OPERATION_NOT_FOUND") {
-      return jsonError(404, "BULK_OPERATION_NOT_FOUND", "Bulk operation was not found.");
-    }
-
-    if (error instanceof Error && error.message === "BULK_OPERATION_NOT_READY") {
-      return jsonError(409, "BULK_OPERATION_NOT_READY", "Bulk operation is not ready to start.");
+    if (error instanceof Error && error.message === "NOTIFICATION_NOT_FOUND") {
+      return jsonError(404, "NOTIFICATION_NOT_FOUND", "Notification was not found.");
     }
 
     if (error instanceof Error && error.message.startsWith("Role ")) {
-      return jsonError(403, "FORBIDDEN", "Your role does not allow starting bulk operations.");
+      return jsonError(403, "FORBIDDEN", "Your role does not allow updating notifications.");
     }
 
     return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");

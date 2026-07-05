@@ -9,7 +9,7 @@
 - Errors: structured JSON with `code`, `message`, and optional `details`.
 - Tenant scope: every organization/site resource is checked against the authenticated principal.
 - Browser mutations require a same-origin `Origin` header that matches `Host`, `X-Forwarded-Host`, or `NEXT_PUBLIC_APP_URL`.
-- Login, registration, invite creation/resend, and invite acceptance are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
+- Login, registration, invite creation/resend, invite acceptance, and safe content operation mutations are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
 - Persistence: organization, site, and activity APIs use the repository abstraction. Set `SCCC_DATA_STORE=prisma` with `DATABASE_URL` to use PostgreSQL.
 
 ## Health
@@ -118,6 +118,85 @@ Current MVP activity actions:
 - `member.invite_canceled`
 - `member.role_updated`
 - `member.accepted_invite`
+
+## Notifications
+
+`GET /api/organizations/:organizationId/notifications`
+
+Lists recent organization-scoped notifications when the current user is an active member with `organization:read`.
+
+Optional query params:
+
+- `read`: optional `read` or `unread`
+- `limit`: number from `1` to `100`
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "99999999-9999-4999-8999-999999999999",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "type": "bulk_operation.failed",
+      "title": "Safe operation failed",
+      "body": "Safe content operation failed for 1 of 1 item. Worker validation failed before applying changes.",
+      "readAt": null,
+      "createdAt": "2026-07-05T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+`PATCH /api/organizations/:organizationId/notifications`
+
+Marks all unread organization-scoped notifications as read when the current user is an active member with `organization:read`. This endpoint is idempotent and requires the same browser same-origin guard as other browser mutations.
+
+Request:
+
+```json
+{
+  "read": true
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "updatedCount": 3
+  }
+}
+```
+
+`PATCH /api/organizations/:organizationId/notifications/:notificationId`
+
+Updates the organization-scoped read state for a notification when the current user is an active member with `organization:read`. This endpoint requires the same browser same-origin guard as other browser mutations.
+
+Request:
+
+```json
+{
+  "read": true
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "99999999-9999-4999-8999-999999999999",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "type": "bulk_operation.failed",
+    "title": "Safe operation failed",
+    "body": "Safe content operation failed for 1 of 1 item. Worker validation failed before applying changes.",
+    "readAt": "2026-07-05T10:05:00.000Z",
+    "createdAt": "2026-07-05T10:00:00.000Z"
+  }
+}
+```
 
 ## Members
 
@@ -623,7 +702,7 @@ Response:
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/result`
 
 Records execution results for a scoped `RUNNING` bulk operation when the member has `content_operation:confirm`.
-This endpoint is worker-safe state capture for `COMPLETED` or `FAILED` results. It updates SaaS operation items, records an activity log, and does not perform WordPress writes inline.
+This endpoint is worker-safe state capture for `COMPLETED` or `FAILED` results. It updates SaaS operation items, records an activity log, creates an organization notification, and does not perform WordPress writes inline.
 
 Request:
 
@@ -663,10 +742,42 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/retry`
+
+Retries failed items for a scoped `FAILED` bulk operation when the member has `content_operation:confirm`.
+This endpoint moves the SaaS operation back to `RUNNING`, resets only failed items to `RUNNING`, records an activity log, creates an organization notification, and does not perform WordPress writes inline.
+
+Request:
+
+```json
+{
+  "reason": "Retry after correcting the WordPress connection."
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "status": "RUNNING",
+    "items": [
+      {
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "externalId": "https://example.com/post",
+        "status": "RUNNING",
+        "error": null
+      }
+    ]
+  }
+}
+```
+
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/rollback`
 
 Records rollback for a scoped `COMPLETED` or `FAILED` bulk operation when the member has `content_operation:confirm`.
-This endpoint marks the SaaS operation and items as `ROLLED_BACK`, records an activity log with the previous status, and does not perform WordPress writes inline.
+This endpoint marks the SaaS operation and items as `ROLLED_BACK`, records an activity log with the previous status, creates an organization notification, and does not perform WordPress writes inline.
 
 Request:
 
@@ -691,6 +802,55 @@ Response:
         "error": null
       }
     ]
+  }
+}
+```
+
+## Assistant Recommendations
+
+`GET /api/organizations/:organizationId/sites/:siteId/assistant/recommendations`
+
+Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks and synced content health evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations.
+
+Optional query params:
+
+- `limit`: number from `1` to `25`
+
+Response:
+
+```json
+{
+  "data": {
+    "recommendations": [
+      {
+        "id": "backlog:44444444-4444-4444-8444-444444444444",
+        "organizationId": "11111111-1111-4111-8111-111111111111",
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "title": "Update SEO title",
+        "rationale": "Search snippets can underperform.",
+        "nextStep": "Assign or schedule this task before preparing a safe operation preview.",
+        "priority": "high",
+        "source": {
+          "type": "backlog_task",
+          "id": "44444444-4444-4444-8444-444444444444",
+          "label": "Backlog task",
+          "url": "https://example.com/post",
+          "detail": "todo / high"
+        },
+        "noMutation": true,
+        "safeguards": ["recommendation_only", "manual_confirmation_required", "no_wordpress_write"]
+      }
+    ],
+    "usage": {
+      "metric": "ai_credits",
+      "periodStart": "2026-07-01T00:00:00.000Z",
+      "periodEnd": "2026-08-01T00:00:00.000Z",
+      "used": 0,
+      "limit": 500,
+      "remaining": 500,
+      "limited": false,
+      "metered": false
+    }
   }
 }
 ```

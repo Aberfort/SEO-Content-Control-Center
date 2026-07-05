@@ -245,6 +245,36 @@ export const bulkOperationRollbackSchema = z.object({
   reason: z.string().trim().max(1000).nullable().optional()
 });
 
+export const bulkOperationRetrySchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  reason: z.string().trim().max(1000).nullable().optional()
+});
+
+export const notificationListQuerySchema = z.object({
+  read: z.enum(["read", "unread"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional()
+});
+
+export const notificationReadStateSchema = z.object({
+  read: z.boolean()
+});
+
+export const notificationMarkAllReadSchema = z.object({
+  read: z.literal(true)
+});
+
+export const notificationReadUpdateSchema = z.object({
+  organizationId: organizationIdSchema,
+  notificationId: z.string().uuid(),
+  read: z.boolean()
+});
+
+export const assistantRecommendationListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(25).optional()
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -272,6 +302,14 @@ export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchem
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
 export type BulkOperationResultInput = z.infer<typeof bulkOperationResultSchema>;
 export type BulkOperationRollbackInput = z.infer<typeof bulkOperationRollbackSchema>;
+export type BulkOperationRetryInput = z.infer<typeof bulkOperationRetrySchema>;
+export type NotificationListQuery = z.infer<typeof notificationListQuerySchema>;
+export type NotificationMarkAllReadInput = z.infer<typeof notificationMarkAllReadSchema>;
+export type NotificationReadStateInput = z.infer<typeof notificationReadStateSchema>;
+export type NotificationReadUpdateInput = z.infer<typeof notificationReadUpdateSchema>;
+export type AssistantRecommendationListQuery = z.infer<
+  typeof assistantRecommendationListQuerySchema
+>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

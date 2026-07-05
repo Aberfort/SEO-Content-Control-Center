@@ -25,7 +25,7 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 npm install
 cp .env.example .env
 docker compose up -d postgres redis minio mailpit
-DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:migrate:deploy
+npm run verify:db:migrate
 DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:seed
 npm run lint
 npm test
@@ -57,7 +57,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - site creation UI/API;
 - member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
 - SMTP invite email delivery with local Mailpit support;
-- same-origin CSRF guard and MVP rate limits for auth/invite mutations;
+- same-origin CSRF guard and MVP rate limits for auth, invite, and safe content operation mutations;
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - WordPress plugin admin challenge exchange and signed manual sync request;
 - WordPress plugin posts/pages inventory payload for signed sync;
@@ -90,6 +90,12 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - controlled start state for confirmed safe content operations without inline WordPress writes;
 - execution result recording for running safe content operations with per-item outcomes;
 - rollback state capture for completed or failed safe content operations;
+- retry state capture for failed safe content operation items;
+- organization notifications for safe content operation lifecycle outcomes;
+- read and unread state management for organization notifications;
+- bulk mark-read support for organization notifications;
+- read-only assistant recommendations with source evidence;
+- assistant AI-credit usage envelopes for recommendation responses;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
@@ -107,6 +113,8 @@ DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public
 ```
 
 Without those variables, the app falls back to the in-memory repository for tests and lightweight local UI work.
+
+For local iteration verification, `npm run verify:db:migrate` runs the Prisma migration check against the default Docker Postgres URL.
 
 ## Authentication
 

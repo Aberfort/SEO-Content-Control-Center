@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { assertBulkOperationRateLimit } from "@/lib/bulk-operation-rate-limit";
 import { assertRequestSameOrigin } from "@/lib/csrf";
 import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
 
@@ -36,6 +37,14 @@ export async function POST(request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
+    assertBulkOperationRateLimit({
+      request,
+      userId: user.id,
+      organizationId,
+      siteId,
+      operationId,
+      action: "dry-run"
+    });
     const operation = await repository.runBulkOperationDryRun({
       user,
       organizationId,

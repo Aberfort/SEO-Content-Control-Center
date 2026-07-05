@@ -2,6 +2,55 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 46
+
+- Added assistant recommendation usage envelopes with current monthly AI-credit limits and usage.
+- Connected assistant usage limits to plan `aiCredits` and existing `UsageMetric` records.
+- Kept deterministic assistant recommendations unmetered, read-only, and free of external AI calls.
+- Documented assistant usage API behavior, security guardrails, and QA coverage.
+
+### Iteration 45
+
+- Added read-only assistant recommendations for tenant-scoped sites.
+- Added an assistant recommendations API endpoint and dashboard panel.
+- Derived recommendations from backlog tasks and synced content health evidence without external AI calls.
+- Documented recommendation-only behavior, source display, security guardrails, and QA coverage.
+
+### Iteration 44
+
+- Added bulk mark-read support for organization notifications.
+- Added a tenant-scoped collection notification update API endpoint.
+- Added a dashboard `Mark all read` notification action.
+- Documented bulk notification read behavior, security guardrails, and QA coverage.
+
+### Iteration 43
+
+- Added read and unread filtering for organization notifications.
+- Added a tenant-scoped notification read state API endpoint.
+- Added dashboard controls to mark notifications read or unread.
+- Documented notification read state behavior, security guardrails, and QA coverage.
+
+### Iteration 42
+
+- Added organization-scoped notifications for safe content operation lifecycle events.
+- Added a tenant-scoped notifications API endpoint and dashboard notification panel.
+- Created notifications when bulk operations complete, fail, roll back, or retry failed items.
+- Documented notification API behavior, security guardrails, and QA coverage.
+
+### Iteration 41
+
+- Added dedicated rate limiting for safe content operation mutations.
+- Applied bulk operation mutation limits to API routes and dashboard server actions.
+- Scoped bulk operation rate limit keys by user, organization, site, action, and operation.
+- Documented rate limit behavior, security guardrails, and QA coverage.
+
+### Iteration 40
+
+- Added retry state capture for failed bulk operation items.
+- Added a tenant-scoped retry API endpoint and dashboard retry action.
+- Transitioned failed operations back to `RUNNING` while resetting only failed items.
+- Documented retry behavior, permissions, and QA coverage.
+
 ### Iteration 39
 
 - Added rollback state capture for completed or failed bulk operations.

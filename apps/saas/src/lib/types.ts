@@ -58,6 +58,68 @@ export type ActivityLog = {
   createdAt: string;
 };
 
+export type Notification = {
+  id: string;
+  organizationId: string;
+  type: string;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationListOptions = {
+  read?: "read" | "unread";
+  limit?: number;
+};
+
+export type NotificationBulkUpdateResult = {
+  updatedCount: number;
+};
+
+export type AssistantRecommendationPriority = "low" | "medium" | "high";
+
+export type AssistantRecommendationSource = {
+  type: "backlog_task" | "synced_content";
+  id: string;
+  label: string;
+  url: string | null;
+  detail: string;
+};
+
+export type AssistantRecommendation = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  title: string;
+  rationale: string;
+  nextStep: string;
+  priority: AssistantRecommendationPriority;
+  source: AssistantRecommendationSource;
+  noMutation: true;
+  safeguards: string[];
+};
+
+export type AssistantUsage = {
+  metric: "ai_credits";
+  periodStart: string;
+  periodEnd: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  limited: boolean;
+  metered: false;
+};
+
+export type AssistantRecommendationList = {
+  recommendations: AssistantRecommendation[];
+  usage: AssistantUsage;
+};
+
+export type AssistantRecommendationListOptions = {
+  limit?: number;
+};
+
 export type SyncedContentItem = {
   id: string;
   organizationId: string;

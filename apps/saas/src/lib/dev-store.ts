@@ -5,6 +5,7 @@ import {
   assertPermission,
   auditIssueListQuerySchema,
   auditListQuerySchema,
+  assistantRecommendationListQuerySchema,
   backlogTaskCommentCreateSchema,
   backlogTaskFromAuditIssueSchema,
   bulkOperationConfirmSchema,
@@ -12,16 +13,20 @@ import {
   bulkOperationListQuerySchema,
   bulkOperationPreviewCreateSchema,
   bulkOperationResultSchema,
+  bulkOperationRetrySchema,
   bulkOperationRollbackSchema,
   bulkOperationStartSchema,
   hasPermission,
   inviteMemberSchema,
+  notificationListQuerySchema,
+  notificationReadUpdateSchema,
   organizationCreateSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   type AcceptInviteInput,
+  type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
   type AuditListQuery,
   type BacklogTaskCommentCreateInput,
@@ -31,9 +36,12 @@ import {
   type BulkOperationListQuery,
   type BulkOperationPreviewCreateInput,
   type BulkOperationResultInput,
+  type BulkOperationRetryInput,
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type InviteMemberInput,
+  type NotificationListQuery,
+  type NotificationReadUpdateInput,
   type Permission,
   type Role,
   type SiteCreateInput,
@@ -46,6 +54,8 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  AssistantRecommendationList,
+  AssistantRecommendationListOptions,
   Audit,
   AuditIssue,
   AuditIssueListOptions,
@@ -59,6 +69,9 @@ import type {
   BulkOperationItem,
   BulkOperationListOptions,
   InviteResult,
+  NotificationBulkUpdateResult,
+  Notification,
+  NotificationListOptions,
   Organization,
   OrganizationMember,
   OrganizationMemberSummary,
@@ -68,6 +81,12 @@ import type {
   SyncedContentList,
   SyncedContentListOptions
 } from "./types";
+import {
+  buildAssistantRecommendationFromBacklogTask,
+  sortAssistantRecommendations
+} from "./assistant-recommendations";
+import { buildAssistantUsage } from "./assistant-usage";
+import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 
 type DevStoreState = {
   users: AppUser[];
@@ -80,6 +99,7 @@ type DevStoreState = {
   bulkOperations: BulkOperation[];
   bulkOperationItems: BulkOperationItem[];
   activityLogs: ActivityLog[];
+  notifications: Notification[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -165,7 +185,8 @@ function initialState(): DevStoreState {
     backlogComments: [],
     bulkOperations: [],
     bulkOperationItems: [],
-    activityLogs: []
+    activityLogs: [],
+    notifications: []
   };
 }
 
@@ -411,6 +432,91 @@ export function listActivityLogsForOrganization(
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
+export function listNotificationsForOrganization(
+  userId: string,
+  organizationId: string,
+  options?: NotificationListOptions
+): Notification[] {
+  const parsed: NotificationListQuery = notificationListQuerySchema.parse(options ?? {});
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "organization:read"
+  });
+
+  return getDevStore()
+    .notifications.filter((notification) => {
+      const scopeMatches = notification.organizationId === organizationId;
+      const readMatches =
+        parsed.read === "read"
+          ? notification.readAt !== null
+          : parsed.read === "unread"
+            ? notification.readAt === null
+            : true;
+
+      return scopeMatches && readMatches;
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, parsed.limit ?? 25);
+}
+
+export function markAllNotificationsRead(
+  user: AppUser,
+  organizationId: string
+): NotificationBulkUpdateResult {
+  requireOrganizationAccess({
+    userId: user.id,
+    organizationId,
+    permission: "organization:read"
+  });
+
+  let updatedCount = 0;
+  const timestamp = nowIso();
+
+  for (const notification of getDevStore().notifications) {
+    if (notification.organizationId === organizationId && !notification.readAt) {
+      notification.readAt = timestamp;
+      updatedCount += 1;
+    }
+  }
+
+  return {
+    updatedCount
+  };
+}
+
+export function updateNotificationReadState(
+  input: NotificationReadUpdateInput & {
+    user: AppUser;
+  }
+): Notification {
+  const parsed = notificationReadUpdateSchema.parse(input);
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "organization:read"
+  });
+
+  const notification = getDevStore().notifications.find(
+    (candidate) =>
+      candidate.id === parsed.notificationId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!notification) {
+    throw new Error("NOTIFICATION_NOT_FOUND");
+  }
+
+  if (parsed.read && !notification.readAt) {
+    notification.readAt = nowIso();
+  }
+
+  if (!parsed.read) {
+    notification.readAt = null;
+  }
+
+  return notification;
+}
+
 export function listSyncedContentForSite(
   userId: string,
   organizationId: string,
@@ -449,6 +555,37 @@ export function getSyncedContentItem(
   });
 
   return null;
+}
+
+export function listAssistantRecommendationsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: AssistantRecommendationListOptions
+): AssistantRecommendationList {
+  const parsed: AssistantRecommendationListQuery = assistantRecommendationListQuerySchema.parse(
+    options ?? {}
+  );
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "backlog:read"
+  });
+
+  const store = getDevStore();
+  const recommendations = store.backlogTasks
+    .filter(
+      (task) =>
+        task.organizationId === organizationId &&
+        task.siteId === siteId &&
+        ["TODO", "IN_PROGRESS", "IN_REVIEW"].includes(task.status)
+    )
+    .map(buildAssistantRecommendationFromBacklogTask);
+
+  return {
+    recommendations: sortAssistantRecommendations(recommendations).slice(0, parsed.limit ?? 5),
+    usage: buildAssistantUsage()
+  };
 }
 
 export function listAuditsForSite(
@@ -1227,6 +1364,15 @@ export function finishBulkOperation(
       noMutation: true
     }
   });
+  writeNotification({
+    organizationId: parsed.organizationId,
+    ...buildBulkOperationNotification({
+      event: operation.status === "COMPLETED" ? "completed" : "failed",
+      itemCount: items.length,
+      failedItemCount,
+      message: parsed.message ?? null
+    })
+  });
 
   return operation;
 }
@@ -1287,6 +1433,91 @@ export function rollbackBulkOperation(
       reason: parsed.reason ?? null,
       noMutation: true
     }
+  });
+  writeNotification({
+    organizationId: parsed.organizationId,
+    ...buildBulkOperationNotification({
+      event: "rolled_back",
+      itemCount: items.length,
+      reason: parsed.reason ?? null
+    })
+  });
+
+  return operation;
+}
+
+export function retryBulkOperation(
+  input: BulkOperationRetryInput & {
+    user: AppUser;
+  }
+): BulkOperation {
+  const parsed = bulkOperationRetrySchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "FAILED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const items = store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id);
+  const failedItems = items.filter((item) => item.status === "FAILED");
+
+  if (!failedItems.length) {
+    throw new Error("BULK_OPERATION_RETRY_NOT_AVAILABLE");
+  }
+
+  const previousStatus = operation.status;
+  const timestamp = nowIso();
+
+  operation.status = "RUNNING";
+  operation.updatedAt = timestamp;
+
+  for (const item of failedItems) {
+    item.status = "RUNNING";
+    item.error = null;
+    item.updatedAt = timestamp;
+  }
+
+  operation.items = items;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.retry_started",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      type: operation.type,
+      previousStatus,
+      itemCount: items.length,
+      retryItemCount: failedItems.length,
+      reason: parsed.reason ?? null,
+      noMutation: true
+    }
+  });
+  writeNotification({
+    organizationId: parsed.organizationId,
+    ...buildBulkOperationNotification({
+      event: "retry_started",
+      itemCount: items.length,
+      retryItemCount: failedItems.length,
+      reason: parsed.reason ?? null
+    })
   });
 
   return operation;
@@ -1734,6 +1965,18 @@ function writeActivityLog(input: Omit<ActivityLog, "id" | "createdAt">): Activit
 
   getDevStore().activityLogs.push(activityLog);
   return activityLog;
+}
+
+function writeNotification(input: Omit<Notification, "id" | "readAt" | "createdAt">): Notification {
+  const notification: Notification = {
+    ...input,
+    id: randomUUID(),
+    readAt: null,
+    createdAt: nowIso()
+  };
+
+  getDevStore().notifications.push(notification);
+  return notification;
 }
 
 function mapMemberSummary(

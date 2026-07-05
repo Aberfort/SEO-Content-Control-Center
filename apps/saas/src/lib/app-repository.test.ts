@@ -143,6 +143,25 @@ describe("app repository", () => {
         }
       }
     });
+    expect(
+      await repository.listAssistantRecommendationsForSite(
+        user.id,
+        organization.id,
+        organizations[0]?.sites[0]?.id ?? ""
+      )
+    ).toMatchObject({
+      recommendations: [],
+      usage: {
+        metric: "ai_credits",
+        periodStart: expect.any(String),
+        periodEnd: expect.any(String),
+        used: 0,
+        limit: 0,
+        remaining: 0,
+        limited: false,
+        metered: false
+      }
+    });
     await expect(
       repository.updateBacklogTaskStatus({
         user,
@@ -194,6 +213,15 @@ describe("app repository", () => {
         organizations[0]?.sites[0]?.id ?? ""
       )
     ).toEqual([]);
+    expect(await repository.listNotificationsForOrganization(user.id, organization.id)).toEqual([]);
+    await expect(
+      repository.updateNotificationReadState({
+        user,
+        organizationId: organization.id,
+        notificationId: "00000000-0000-4000-8000-000000000909",
+        read: true
+      })
+    ).rejects.toThrow("NOTIFICATION_NOT_FOUND");
     await expect(
       repository.createBulkOperationPreview({
         user,
@@ -238,6 +266,14 @@ describe("app repository", () => {
     ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     await expect(
       repository.rollbackBulkOperation({
+        user,
+        organizationId: organization.id,
+        siteId: organizations[0]?.sites[0]?.id ?? "",
+        operationId: "00000000-0000-4000-8000-000000000909"
+      })
+    ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
+    await expect(
+      repository.retryBulkOperation({
         user,
         organizationId: organization.id,
         siteId: organizations[0]?.sites[0]?.id ?? "",
@@ -373,6 +409,38 @@ describe("app repository", () => {
     };
     getDevStore().backlogTasks.push(task);
 
+    const recommendationList = await repository.listAssistantRecommendationsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      { limit: 3 }
+    );
+    const recommendations = recommendationList.recommendations;
+
+    expect(recommendationList.usage).toMatchObject({
+      metric: "ai_credits",
+      used: 0,
+      limit: 0,
+      remaining: 0,
+      limited: false,
+      metered: false
+    });
+
+    expect(recommendations[0]).toMatchObject({
+      id: `backlog:${task.id}`,
+      organizationId: organization.id,
+      siteId: site.id,
+      title: "Update SEO title",
+      priority: "high",
+      noMutation: true,
+      source: {
+        type: "backlog_task",
+        id: task.id,
+        url: task.url
+      }
+    });
+    expect(recommendations[0]?.safeguards).toContain("manual_confirmation_required");
+
     const preview = await repository.createBulkOperationPreview({
       user,
       organizationId: organization.id,
@@ -427,6 +495,91 @@ describe("app repository", () => {
         (log) => log.action
       )
     ).toContain("bulk_operation.failed");
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(["bulk_operation.failed"]);
+
+    const retried = await repository.retryBulkOperation({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: finished.id,
+      reason: "Retry failed metadata write."
+    });
+
+    expect(retried.status).toBe("RUNNING");
+    expect(retried.items[0]).toMatchObject({
+      status: "RUNNING",
+      error: null
+    });
+    expect(
+      (await repository.listActivityLogsForOrganization(user.id, organization.id)).map(
+        (log) => log.action
+      )
+    ).toContain("bulk_operation.retry_started");
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(expect.arrayContaining(["bulk_operation.failed", "bulk_operation.retry_started"]));
+    const failedNotification = (
+      await repository.listNotificationsForOrganization(user.id, organization.id)
+    ).find((notification) => notification.type === "bulk_operation.failed");
+
+    expect(failedNotification?.readAt).toBeNull();
+
+    const readNotification = await repository.updateNotificationReadState({
+      user,
+      organizationId: organization.id,
+      notificationId: failedNotification?.id ?? "",
+      read: true
+    });
+
+    expect(readNotification.readAt).toEqual(expect.any(String));
+    expect(
+      (
+        await repository.listNotificationsForOrganization(user.id, organization.id, {
+          read: "unread"
+        })
+      ).map((notification) => notification.type)
+    ).not.toContain("bulk_operation.failed");
+    expect(
+      (
+        await repository.listNotificationsForOrganization(user.id, organization.id, {
+          read: "read"
+        })
+      ).map((notification) => notification.type)
+    ).toContain("bulk_operation.failed");
+
+    const unreadNotification = await repository.updateNotificationReadState({
+      user,
+      organizationId: organization.id,
+      notificationId: failedNotification?.id ?? "",
+      read: false
+    });
+
+    expect(unreadNotification.readAt).toBeNull();
+
+    const markedAllRead = await repository.markAllNotificationsRead(user, organization.id);
+
+    expect(markedAllRead.updatedCount).toBe(2);
+    expect(
+      await repository.listNotificationsForOrganization(user.id, organization.id, {
+        read: "unread"
+      })
+    ).toEqual([]);
+    expect(
+      (
+        await repository.listNotificationsForOrganization(user.id, organization.id, {
+          read: "read"
+        })
+      ).map((notification) => notification.type)
+    ).toEqual(expect.arrayContaining(["bulk_operation.failed", "bulk_operation.retry_started"]));
+    await expect(repository.markAllNotificationsRead(user, organization.id)).resolves.toEqual({
+      updatedCount: 0
+    });
   });
 
   it("rolls back a finished bulk operation without inline writes", async () => {
@@ -497,6 +650,11 @@ describe("app repository", () => {
       status: "COMPLETED",
       message: "Worker completed safely."
     });
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(["bulk_operation.completed"]);
 
     const rolledBack = await repository.rollbackBulkOperation({
       user,
@@ -514,5 +672,10 @@ describe("app repository", () => {
         (log) => log.action
       )
     ).toContain("bulk_operation.rolled_back");
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(expect.arrayContaining(["bulk_operation.completed", "bulk_operation.rolled_back"]));
   });
 });

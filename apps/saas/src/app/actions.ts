@@ -13,6 +13,7 @@ import {
   registerWithPassword,
   requireCurrentUser
 } from "@/lib/auth";
+import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
 import {
@@ -364,6 +365,7 @@ export async function createBulkOperationPreviewAction(formData: FormData): Prom
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "preview");
   await repository.createBulkOperationPreview({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -381,6 +383,7 @@ export async function runBulkOperationDryRunAction(formData: FormData): Promise<
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "dry-run");
   await repository.runBulkOperationDryRun({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -398,6 +401,7 @@ export async function confirmBulkOperationAction(formData: FormData): Promise<vo
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "confirm");
   await repository.confirmBulkOperation({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -416,6 +420,7 @@ export async function startBulkOperationAction(formData: FormData): Promise<void
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "start");
   await repository.startBulkOperation({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -433,6 +438,7 @@ export async function finishBulkOperationAction(formData: FormData): Promise<voi
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "result");
   await repository.finishBulkOperation({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -452,6 +458,7 @@ export async function rollbackBulkOperationAction(formData: FormData): Promise<v
   const redirectTo = String(formData.get("redirectTo") ?? "/");
 
   await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "rollback");
   await repository.rollbackBulkOperation({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -459,6 +466,54 @@ export async function rollbackBulkOperationAction(formData: FormData): Promise<v
     operationId: String(formData.get("operationId") ?? ""),
     reason: String(formData.get("reason") ?? "") || undefined
   });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function retryBulkOperationAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await assertBulkOperationServerActionRateLimit(user.id, formData, "retry");
+  await repository.retryBulkOperation({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    operationId: String(formData.get("operationId") ?? ""),
+    reason: String(formData.get("reason") ?? "") || undefined
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function updateNotificationReadStateAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.updateNotificationReadState({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    notificationId: String(formData.get("notificationId") ?? ""),
+    read: String(formData.get("read") ?? "") === "true"
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function markAllNotificationsReadAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.markAllNotificationsRead(user, String(formData.get("organizationId") ?? ""));
 
   revalidatePath("/");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
@@ -645,4 +700,21 @@ async function assertServerActionRateLimit(
 ): Promise<void> {
   const headerStore = await headers();
   assertRateLimit(policy, rateLimitKeyFromHeaders(headerStore, discriminator));
+}
+
+async function assertBulkOperationServerActionRateLimit(
+  userId: string,
+  formData: FormData,
+  action: string
+): Promise<void> {
+  await assertServerActionRateLimit(
+    "bulk-operation",
+    buildBulkOperationRateLimitKey({
+      userId,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      operationId: String(formData.get("operationId") ?? "") || undefined,
+      action
+    })
+  );
 }

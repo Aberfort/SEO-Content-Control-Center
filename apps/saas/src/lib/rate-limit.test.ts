@@ -28,6 +28,22 @@ describe("rate limit", () => {
     expect(() => assertRateLimit("auth-register", "ip:email", 1000)).toThrow(RateLimitError);
   });
 
+  it("rate limits bulk operation mutations independently", () => {
+    for (let index = 0; index < 120; index += 1) {
+      assertRateLimit("bulk-operation", "ip:user:org:site:start:operation", 1000);
+    }
+
+    expect(() =>
+      assertRateLimit("bulk-operation", "ip:user:org:site:start:operation", 1000)
+    ).toThrow(RateLimitError);
+    expect(
+      checkRateLimit("bulk-operation", "ip:user:org:site:confirm:operation", 1000)
+    ).toMatchObject({
+      allowed: true,
+      remaining: 119
+    });
+  });
+
   it("builds keys from forwarded client IP and discriminator", () => {
     const headers = new Headers({
       "x-forwarded-for": "203.0.113.10, 10.0.0.1"

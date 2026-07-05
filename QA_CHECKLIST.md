@@ -35,6 +35,7 @@
 - Invite creation sends an email when SMTP delivery is enabled.
 - Invite resend rotates the token and sends a new email when SMTP delivery is enabled.
 - Invite creation, resend, and acceptance are rate limited.
+- Safe content operation mutations are rate limited by client, user, organization, site, action, and operation.
 - Invited user can register or log in and accept the invite with the token.
 - User cannot accept an invite for a different email address.
 - Expired, canceled, or already accepted invite tokens are rejected.
@@ -110,6 +111,16 @@
 - SaaS users with content operation confirm permission can start confirmed bulk operations into `RUNNING` without inline WordPress writes.
 - SaaS users with content operation confirm permission can record completed or failed results for running bulk operations without inline WordPress writes.
 - SaaS users with content operation confirm permission can roll back completed or failed bulk operations without inline WordPress writes.
+- SaaS users with content operation confirm permission can retry failed bulk operation items without inline WordPress writes.
+- SaaS safe content operation mutation limits return `429 RATE_LIMITED` with `Retry-After`.
+- SaaS users with organization read permission can list organization notifications for safe operation lifecycle events.
+- Safe operation completion, failure, rollback, and retry state changes create organization notifications.
+- SaaS users with organization read permission can filter notifications by read or unread state.
+- SaaS users with organization read permission can mark organization notifications read or unread.
+- SaaS users with organization read permission can mark all unread organization notifications read.
+- SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.
+- SaaS assistant recommendations show source evidence and do not mutate WordPress or SaaS records.
+- SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.
 - Manual sync does not run a large sync inline.
 
 ## SEO Safety
@@ -123,7 +134,13 @@
 - Starting confirmed bulk operations records the running state and still does not write to WordPress inline.
 - Running bulk operation result capture records per-item outcomes and still does not write to WordPress inline.
 - Rollback state capture records restored operation state and still does not write to WordPress inline.
+- Retry state capture records failed item retry state and still does not write to WordPress inline.
 - Every risky mutation writes an audit log.
+- Safe operation lifecycle outcomes create tenant-scoped notifications.
+- Notification read state updates stay scoped to the authenticated member's organization.
+- Bulk notification read updates stay scoped to the authenticated member's organization and are idempotent.
+- Assistant recommendations stay scoped to organization/site evidence and remain recommendation-only.
+- Assistant recommendation usage reads stay scoped to the organization and remain unmetered for deterministic recommendations.
 - Rollback or previous values exist before execution.
 
 ## UX States

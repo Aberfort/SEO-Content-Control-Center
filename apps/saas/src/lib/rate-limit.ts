@@ -1,4 +1,5 @@
-export type RateLimitPolicy = "auth-login" | "auth-register" | "invite-accept" | "invite-send";
+export type RateLimitPolicy =
+  "auth-login" | "auth-register" | "invite-accept" | "invite-send" | "bulk-operation";
 
 export class RateLimitError extends Error {
   readonly retryAfterSeconds: number;
@@ -34,6 +35,10 @@ const rateLimitPolicies = {
   "invite-send": {
     limit: 30,
     windowMs: 1000 * 60 * 60
+  },
+  "bulk-operation": {
+    limit: 120,
+    windowMs: 1000 * 60 * 15
   }
 } satisfies Record<RateLimitPolicy, { limit: number; windowMs: number }>;
 

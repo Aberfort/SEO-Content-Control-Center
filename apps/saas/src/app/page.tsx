@@ -9,12 +9,15 @@ import {
   createBacklogTaskFromCandidateAction,
   createBulkOperationPreviewAction,
   finishBulkOperationAction,
+  markAllNotificationsReadAction,
   rollbackBulkOperationAction,
   runBulkOperationDryRunAction,
+  retryBulkOperationAction,
   startBulkOperationAction,
   updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
-  updateBacklogTaskStatusAction
+  updateBacklogTaskStatusAction,
+  updateNotificationReadStateAction
 } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
@@ -198,6 +201,29 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     0
   );
   const latestActivity = activeOrganization?.activityLogs.slice(0, 5) ?? [];
+  const latestNotifications = activeOrganization
+    ? await repository.listNotificationsForOrganization(user.id, activeOrganization.id, {
+        limit: 5
+      })
+    : [];
+  const unreadNotifications = activeOrganization
+    ? await repository.listNotificationsForOrganization(user.id, activeOrganization.id, {
+        read: "unread",
+        limit: 100
+      })
+    : [];
+  const assistantRecommendationList =
+    activeOrganization && activeSite
+      ? await repository.listAssistantRecommendationsForSite(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          { limit: 5 }
+        )
+      : null;
+  const assistantRecommendations = assistantRecommendationList?.recommendations ?? [];
+  const assistantUsage = assistantRecommendationList?.usage;
+  const currentHref = buildContentHref(params, {});
 
   return (
     <div className="app-shell">
@@ -325,6 +351,119 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             </ul>
           ) : (
             <p className="empty-copy">Activity will appear after organization and site actions.</p>
+          )}
+        </section>
+
+        <section className="panel" aria-labelledby="notifications-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="notifications-title">Notifications</h2>
+              <p>Recent safe operation lifecycle updates for this organization.</p>
+            </div>
+            <div className="notification-heading-actions">
+              <span className="metric-pill">
+                {unreadNotifications.length} unread / {latestNotifications.length} recent
+              </span>
+              {unreadNotifications.length > 0 ? (
+                <form action={markAllNotificationsReadAction}>
+                  <input name="organizationId" type="hidden" value={activeOrganization?.id ?? ""} />
+                  <input name="redirectTo" type="hidden" value={currentHref} />
+                  <button className="text-button" type="submit">
+                    Mark all read
+                  </button>
+                </form>
+              ) : null}
+            </div>
+          </div>
+          {latestNotifications.length > 0 ? (
+            <ul className="notification-list">
+              {latestNotifications.map((notification) => (
+                <li
+                  key={notification.id}
+                  className={notification.readAt ? "notification-read" : "notification-unread"}
+                >
+                  <div>
+                    <strong>{notification.title}</strong>
+                    <span>{notification.body}</span>
+                    <small>{notification.readAt ? "Read" : "Unread"}</small>
+                  </div>
+                  <div className="notification-actions">
+                    <time dateTime={notification.createdAt}>
+                      {formatDateTime(notification.createdAt)}
+                    </time>
+                    <form action={updateNotificationReadStateAction}>
+                      <input
+                        name="organizationId"
+                        type="hidden"
+                        value={notification.organizationId}
+                      />
+                      <input name="notificationId" type="hidden" value={notification.id} />
+                      <input
+                        name="read"
+                        type="hidden"
+                        value={notification.readAt ? "false" : "true"}
+                      />
+                      <input name="redirectTo" type="hidden" value={currentHref} />
+                      <button className="text-button" type="submit">
+                        {notification.readAt ? "Mark unread" : "Mark read"}
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-copy">
+              Notifications will appear after safe operation results, rollbacks, or retries.
+            </p>
+          )}
+        </section>
+
+        <section className="panel" aria-labelledby="assistant-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="assistant-title">Assistant recommendations</h2>
+              <p>Prioritized from backlog and synced content evidence for the selected site.</p>
+            </div>
+            <div className="assistant-heading-actions">
+              <span className="metric-pill">{assistantRecommendations.length} recommendations</span>
+              {assistantUsage ? (
+                <span className="metric-pill">
+                  {assistantUsage.used}/{assistantUsage.limit} AI credits
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {assistantRecommendations.length > 0 ? (
+            <ul className="assistant-list">
+              {assistantRecommendations.map((recommendation) => (
+                <li key={recommendation.id}>
+                  <div className="assistant-copy">
+                    <div className="assistant-title-row">
+                      <strong>{recommendation.title}</strong>
+                      <span className={`priority-pill priority-${recommendation.priority}`}>
+                        {recommendation.priority}
+                      </span>
+                    </div>
+                    <p>{recommendation.rationale}</p>
+                    <span>{recommendation.nextStep}</span>
+                  </div>
+                  <div className="assistant-source">
+                    <small>{recommendation.source.type.replaceAll("_", " ")}</small>
+                    {recommendation.source.url ? (
+                      <a href={recommendation.source.url}>{recommendation.source.label}</a>
+                    ) : (
+                      <strong>{recommendation.source.label}</strong>
+                    )}
+                    <span>{recommendation.source.detail}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-copy">
+              Recommendations will appear after backlog tasks or actionable sync evidence exists.
+            </p>
           )}
         </section>
 
@@ -1337,6 +1476,32 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                             />
                             <button className="secondary-button" type="submit">
                               Roll back
+                            </button>
+                          </form>
+                        ) : null}
+                        {operation.status === "FAILED" ? (
+                          <form action={retryBulkOperationAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={operation.organizationId}
+                            />
+                            <input name="siteId" type="hidden" value={operation.siteId} />
+                            <input name="operationId" type="hidden" value={operation.id} />
+                            <input
+                              name="reason"
+                              type="hidden"
+                              value="Retry failed items from the SaaS dashboard."
+                            />
+                            <input
+                              name="redirectTo"
+                              type="hidden"
+                              value={buildContentHref(params, {
+                                site: activeSite.id
+                              })}
+                            />
+                            <button className="secondary-button" type="submit">
+                              Retry failed
                             </button>
                           </form>
                         ) : null}
