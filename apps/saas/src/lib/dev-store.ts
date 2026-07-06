@@ -89,6 +89,7 @@ import {
 import { buildAssistantUsage } from "./assistant-usage";
 import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
+import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 
@@ -426,6 +427,21 @@ export function createSite(input: CreateSiteInput): Site {
       url: site.url
     }
   });
+  const limitNotification = buildBillingLimitNotification({
+    gate: buildBillingFeatureGates({
+      limits: currentPlan.limits,
+      sitesUsed: countDevSites(parsed.organizationId),
+      usersUsed: countDevMembers(parsed.organizationId)
+    }).find((gate) => gate.key === "sites")!,
+    planName: currentPlan.name
+  });
+
+  if (limitNotification) {
+    writeNotification({
+      organizationId: parsed.organizationId,
+      ...limitNotification
+    });
+  }
 
   return site;
 }
@@ -1813,6 +1829,21 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
       role: parsed.role
     }
   });
+  const limitNotification = buildBillingLimitNotification({
+    gate: buildBillingFeatureGates({
+      limits: currentPlan.limits,
+      sitesUsed: countDevSites(parsed.organizationId),
+      usersUsed: countDevMembers(parsed.organizationId)
+    }).find((gate) => gate.key === "users")!,
+    planName: currentPlan.name
+  });
+
+  if (limitNotification) {
+    writeNotification({
+      organizationId: parsed.organizationId,
+      ...limitNotification
+    });
+  }
 
   return {
     member: mapMemberSummary(member, invitedUser),

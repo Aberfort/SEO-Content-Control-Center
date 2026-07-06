@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 51
+
+- Added billing limit notifications when site or user usage reaches the current plan limit.
+- Created tenant-scoped notifications after successful site creation or member invite fills a finite plan gate.
+- Kept blocked plan-limit attempts quiet to avoid duplicate notification noise.
+- Documented billing usage notification types, security guardrails, and QA coverage.
+
 ### Iteration 50
 
 - Added billing feature gate summaries for site and user limits.

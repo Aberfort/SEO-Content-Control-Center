@@ -59,6 +59,7 @@
 - Billing overview lists the seeded plan catalog and falls back to Trial when no subscription exists.
 - Billing overview exposes checkout and portal actions as disabled/no-mutation controls until provider sessions are implemented.
 - Billing feature gates block site creation and member invites when plan limits are reached.
+- Billing limit notifications are created when successful site creation or member invite reaches a finite plan limit.
 - Prisma repository creates organization and Owner membership transactionally.
 - Prisma repository creates site and activity log transactionally.
 - Duplicate site URLs are rejected by the database unique constraint and mapped to a safe API error.

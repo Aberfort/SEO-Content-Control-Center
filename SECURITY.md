@@ -82,6 +82,7 @@
 - Billing overview reads require `billing:read`, stay scoped to the authenticated member's organization, and must not create checkout sessions or mutate subscriptions.
 - Billing checkout and portal controls must stay disabled with explicit reasons until provider-backed session creation is implemented and protected by `billing:manage`.
 - Billing feature gates must enforce current organization plan limits before creating sites or inviting members.
+- Billing limit notifications must be tenant-scoped and created only after successful usage changes reach a finite plan limit.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

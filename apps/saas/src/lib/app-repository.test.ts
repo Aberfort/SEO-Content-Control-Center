@@ -282,7 +282,11 @@ describe("app repository", () => {
         organizations[0]?.sites[0]?.id ?? ""
       )
     ).toEqual([]);
-    expect(await repository.listNotificationsForOrganization(user.id, organization.id)).toEqual([]);
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(["billing.limit.sites_reached"]);
     await expect(
       repository.updateNotificationReadState({
         user,
@@ -390,6 +394,11 @@ describe("app repository", () => {
       "editor@example.com",
       "repository@example.com"
     ]);
+    expect(
+      (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
+        (notification) => notification.type
+      )
+    ).toEqual(["billing.limit.users_reached"]);
     await expect(
       repository.inviteMember({
         user,
@@ -587,7 +596,7 @@ describe("app repository", () => {
       (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
         (notification) => notification.type
       )
-    ).toEqual(["bulk_operation.failed"]);
+    ).toEqual(expect.arrayContaining(["bulk_operation.failed", "billing.limit.sites_reached"]));
 
     const retried = await repository.retryBulkOperation({
       user,
@@ -652,7 +661,7 @@ describe("app repository", () => {
 
     const markedAllRead = await repository.markAllNotificationsRead(user, organization.id);
 
-    expect(markedAllRead.updatedCount).toBe(2);
+    expect(markedAllRead.updatedCount).toBe(3);
     expect(
       await repository.listNotificationsForOrganization(user.id, organization.id, {
         read: "unread"
@@ -664,7 +673,13 @@ describe("app repository", () => {
           read: "read"
         })
       ).map((notification) => notification.type)
-    ).toEqual(expect.arrayContaining(["bulk_operation.failed", "bulk_operation.retry_started"]));
+    ).toEqual(
+      expect.arrayContaining([
+        "billing.limit.sites_reached",
+        "bulk_operation.failed",
+        "bulk_operation.retry_started"
+      ])
+    );
     await expect(repository.markAllNotificationsRead(user, organization.id)).resolves.toEqual({
       updatedCount: 0
     });
@@ -742,7 +757,7 @@ describe("app repository", () => {
       (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
         (notification) => notification.type
       )
-    ).toEqual(["bulk_operation.completed"]);
+    ).toEqual(expect.arrayContaining(["billing.limit.sites_reached", "bulk_operation.completed"]));
 
     const rolledBack = await repository.rollbackBulkOperation({
       user,

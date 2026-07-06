@@ -100,6 +100,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - read-only billing overview with plan catalog and current plan state;
 - provider-gated billing controls that stay disabled until checkout and portal sessions are connected;
 - billing feature gates for site and user plan limits;
+- billing notifications when finite site or user limits are reached;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;

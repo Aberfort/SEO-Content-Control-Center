@@ -118,6 +118,7 @@ import {
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
+import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -662,6 +663,24 @@ const prismaRepository: AppRepository = {
             }
           }
         });
+
+        const limitNotification = buildBillingLimitNotification({
+          gate: buildBillingFeatureGates({
+            limits: billingContext.currentPlan.limits,
+            sitesUsed: billingContext.sitesUsed + 1,
+            usersUsed: billingContext.usersUsed
+          }).find((gate) => gate.key === "sites")!,
+          planName: billingContext.currentPlan.name
+        });
+
+        if (limitNotification) {
+          await tx.notification.create({
+            data: {
+              organizationId: parsed.organizationId,
+              ...limitNotification
+            }
+          });
+        }
 
         return created;
       });
@@ -2578,6 +2597,24 @@ const prismaRepository: AppRepository = {
             }
           }
         });
+
+        const limitNotification = buildBillingLimitNotification({
+          gate: buildBillingFeatureGates({
+            limits: billingContext.currentPlan.limits,
+            sitesUsed: billingContext.sitesUsed,
+            usersUsed: billingContext.usersUsed + 1
+          }).find((gate) => gate.key === "users")!,
+          planName: billingContext.currentPlan.name
+        });
+
+        if (limitNotification) {
+          await tx.notification.create({
+            data: {
+              organizationId: parsed.organizationId,
+              ...limitNotification
+            }
+          });
+        }
 
         return created;
       });

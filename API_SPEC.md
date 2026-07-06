@@ -241,6 +241,15 @@ Response:
 
 Lists recent organization-scoped notifications when the current user is an active member with `organization:read`.
 
+Current MVP notification types:
+
+- `billing.limit.sites_reached`
+- `billing.limit.users_reached`
+- `bulk_operation.completed`
+- `bulk_operation.failed`
+- `bulk_operation.rolled_back`
+- `bulk_operation.retry_started`
+
 Optional query params:
 
 - `read`: optional `read` or `unread`
