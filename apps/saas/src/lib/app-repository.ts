@@ -94,6 +94,8 @@ import {
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
   getBillingOverviewForOrganization as getDevBillingOverviewForOrganization,
   getBillingCheckoutContext as getDevBillingCheckoutContext,
+  getBillingPortalContext as getDevBillingPortalContext,
+  applyBillingWebhookUpdate as applyDevBillingWebhookUpdate,
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole
@@ -121,6 +123,8 @@ import {
 import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
+import { isBillingPortalConfigured } from "./billing-portal";
+import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -140,6 +144,7 @@ import type {
   BillingOverview,
   BillingCheckoutContext,
   BillingPlan,
+  BillingPortalContext,
   BillingSubscription,
   BulkOperation,
   BulkOperationListOptions,
@@ -265,6 +270,11 @@ type BillingCheckoutContextInput = {
   planCode: PlanCode;
 };
 
+type BillingPortalContextInput = {
+  user: AppUser;
+  organizationId: string;
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -280,6 +290,8 @@ type AppRepository = {
     organizationId: string
   ): Promise<BillingOverview>;
   getBillingCheckoutContext(input: BillingCheckoutContextInput): Promise<BillingCheckoutContext>;
+  getBillingPortalContext(input: BillingPortalContextInput): Promise<BillingPortalContext>;
+  applyBillingWebhookUpdate(input: StripeBillingWebhookUpdate): Promise<BillingWebhookApplyResult>;
   listNotificationsForOrganization(
     userId: string,
     organizationId: string,
@@ -404,6 +416,12 @@ const devStoreRepository: AppRepository = {
   },
   async getBillingCheckoutContext(input) {
     return getDevBillingCheckoutContext(input);
+  },
+  async getBillingPortalContext(input) {
+    return getDevBillingPortalContext(input);
+  },
+  async applyBillingWebhookUpdate(input) {
+    return applyDevBillingWebhookUpdate(input);
   },
   async listNotificationsForOrganization(userId, organizationId, options) {
     return listDevNotificationsForOrganization(userId, organizationId, options);
@@ -808,7 +826,12 @@ const prismaRepository: AppRepository = {
         plans: visiblePlans,
         currentPlanCode: currentPlan.code,
         subscription: subscriptionSummary,
-        canManageBilling: hasPermission(membership.role, "billing:manage")
+        canManageBilling: hasPermission(membership.role, "billing:manage"),
+        portalSessionAvailable: Boolean(
+          subscription?.provider === "stripe" &&
+          subscription.providerId &&
+          isBillingPortalConfigured()
+        )
       })
     };
   },
@@ -863,6 +886,246 @@ const prismaRepository: AppRepository = {
       subscription: subscriptionSummary,
       planCode: input.planCode
     });
+  },
+
+  async getBillingPortalContext(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "billing:manage"
+    });
+
+    const [organization, subscription] = await prisma.$transaction([
+      prisma.organization.findUnique({
+        where: {
+          id: input.organizationId
+        }
+      }),
+      prisma.subscription.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          status: {
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+          }
+        },
+        include: {
+          plan: true
+        },
+        orderBy: {
+          updatedAt: "desc"
+        }
+      })
+    ]);
+
+    if (!organization) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
+
+    if (!subscription) {
+      throw new Error("BILLING_SUBSCRIPTION_NOT_FOUND");
+    }
+
+    if (subscription.provider !== "stripe") {
+      throw new Error("BILLING_PROVIDER_NOT_CONFIGURED");
+    }
+
+    if (!subscription.providerId) {
+      throw new Error("BILLING_PORTAL_CUSTOMER_NOT_CONFIGURED");
+    }
+
+    const subscriptionSummary = mapBillingSubscription(subscription);
+
+    if (!subscriptionSummary) {
+      throw new Error("BILLING_SUBSCRIPTION_NOT_FOUND");
+    }
+
+    return {
+      organizationId: organization.id,
+      organizationName: organization.name,
+      userEmail: input.user.email,
+      providerCustomerId: subscription.providerId,
+      subscription: subscriptionSummary
+    };
+  },
+
+  async applyBillingWebhookUpdate(input) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const [organization, plan] = await Promise.all([
+          tx.organization.findUnique({
+            where: {
+              id: input.organizationId
+            }
+          }),
+          tx.plan.findUnique({
+            where: {
+              code: input.planCode
+            }
+          })
+        ]);
+
+        if (!organization || !plan) {
+          await tx.billingWebhookEvent.create({
+            data: {
+              provider: "stripe",
+              eventId: input.eventId,
+              eventType: input.eventType,
+              action: "ignored",
+              organizationId: organization?.id ?? null,
+              planCode: input.planCode
+            }
+          });
+
+          return {
+            eventId: input.eventId,
+            eventType: input.eventType,
+            action: "ignored",
+            organizationId: input.organizationId,
+            planCode: input.planCode
+          };
+        }
+
+        const existing = await tx.subscription.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            provider: "stripe",
+            providerId: input.customerId
+          },
+          orderBy: {
+            updatedAt: "desc"
+          }
+        });
+
+        if (input.status === "CANCELED") {
+          if (!existing) {
+            await tx.billingWebhookEvent.create({
+              data: {
+                provider: "stripe",
+                eventId: input.eventId,
+                eventType: input.eventType,
+                action: "ignored",
+                organizationId: organization.id,
+                planCode: input.planCode
+              }
+            });
+
+            return {
+              eventId: input.eventId,
+              eventType: input.eventType,
+              action: "ignored",
+              organizationId: input.organizationId,
+              planCode: input.planCode
+            };
+          }
+
+          await tx.billingWebhookEvent.create({
+            data: {
+              provider: "stripe",
+              eventId: input.eventId,
+              eventType: input.eventType,
+              action: "subscription_canceled",
+              organizationId: organization.id,
+              planCode: input.planCode
+            }
+          });
+
+          await tx.subscription.update({
+            where: {
+              id: existing.id
+            },
+            data: {
+              status: "CANCELED",
+              currentPeriodEnd: input.currentPeriodEnd,
+              planId: plan.id
+            }
+          });
+
+          return {
+            eventId: input.eventId,
+            eventType: input.eventType,
+            action: "subscription_canceled",
+            organizationId: input.organizationId,
+            planCode: input.planCode
+          };
+        }
+
+        if (existing) {
+          await tx.billingWebhookEvent.create({
+            data: {
+              provider: "stripe",
+              eventId: input.eventId,
+              eventType: input.eventType,
+              action: "subscription_updated",
+              organizationId: organization.id,
+              planCode: input.planCode
+            }
+          });
+
+          await tx.subscription.update({
+            where: {
+              id: existing.id
+            },
+            data: {
+              status: input.status,
+              planId: plan.id,
+              currentPeriodEnd: input.currentPeriodEnd,
+              provider: "stripe",
+              providerId: input.customerId
+            }
+          });
+
+          return {
+            eventId: input.eventId,
+            eventType: input.eventType,
+            action: "subscription_updated",
+            organizationId: input.organizationId,
+            planCode: input.planCode
+          };
+        }
+
+        await tx.billingWebhookEvent.create({
+          data: {
+            provider: "stripe",
+            eventId: input.eventId,
+            eventType: input.eventType,
+            action: "subscription_created",
+            organizationId: organization.id,
+            planCode: input.planCode
+          }
+        });
+
+        await tx.subscription.create({
+          data: {
+            organizationId: input.organizationId,
+            planId: plan.id,
+            status: input.status,
+            currentPeriodEnd: input.currentPeriodEnd,
+            provider: "stripe",
+            providerId: input.customerId
+          }
+        });
+
+        return {
+          eventId: input.eventId,
+          eventType: input.eventType,
+          action: "subscription_created",
+          organizationId: input.organizationId,
+          planCode: input.planCode
+        };
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return {
+          eventId: input.eventId,
+          eventType: input.eventType,
+          action: "ignored",
+          organizationId: input.organizationId,
+          planCode: input.planCode
+        };
+      }
+
+      throw error;
+    }
   },
 
   async listNotificationsForOrganization(userId, organizationId, options) {

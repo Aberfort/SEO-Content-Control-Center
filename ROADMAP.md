@@ -88,7 +88,7 @@
 ## Phase 8 - Billing
 
 - Trial, Starter, Pro, Agency, Enterprise. Status: read-only plan catalog and current plan overview implemented.
-- Checkout and subscriptions. Status: Stripe checkout session creation added for configured eligible plan upgrades; webhook-backed subscription updates pending.
-- Billing portal. Status: provider-gated disabled portal control added; provider session creation pending.
+- Checkout and subscriptions. Status: Stripe checkout session creation and signed, idempotent webhook-backed subscription reconciliation added.
+- Billing portal. Status: Stripe billing portal session creation added for configured connected subscriptions.
 - Feature gating. Status: site and user plan limits are exposed in billing overview and enforced for site creation/member invites.
 - Usage tracking and notifications. Status: site/user usage is tracked in billing overview and finite limit-reached notifications are emitted.

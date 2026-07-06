@@ -122,6 +122,7 @@ model Organization {
   apiKeys        ApiKey[]
   notifications  Notification[]
   usageMetrics   UsageMetric[]
+  billingWebhookEvents BillingWebhookEvent[]
 }
 
 model OrganizationMember {
@@ -169,6 +170,21 @@ model Subscription {
   plan           Plan               @relation(fields: [planId], references: [id])
 
   @@index([organizationId, status])
+}
+
+model BillingWebhookEvent {
+  id             String        @id @default(uuid())
+  provider       String
+  eventId        String
+  eventType      String
+  action         String
+  organizationId String?
+  planCode       String?
+  processedAt    DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, eventId])
+  @@index([organizationId, processedAt])
 }
 
 model Site {

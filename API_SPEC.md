@@ -125,7 +125,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured; portal actions remain disabled until the portal session flow is connected.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
 
 Response:
 
@@ -261,6 +261,51 @@ Response:
 ```
 
 Checkout rejects current plan selections, Trial downgrades, and Enterprise sales-assisted plan changes with structured `409` errors. Missing provider or price configuration returns `503`.
+
+`POST /api/organizations/:organizationId/billing/portal`
+
+Creates a provider-backed billing portal session when the current user has `billing:manage`, the request is same-origin, the organization has an active Stripe subscription with a stored provider customer id, and Stripe is configured with `SCCC_BILLING_PROVIDER=stripe` and `SCCC_STRIPE_SECRET_KEY`. The endpoint does not mutate local subscriptions; Stripe webhooks will own subscription state changes in a later iteration.
+
+Response:
+
+```json
+{
+  "data": {
+    "provider": "stripe",
+    "sessionId": "bps_test_123",
+    "url": "https://billing.stripe.com/p/session/bps_test_123"
+  }
+}
+```
+
+Portal creation returns `409 BILLING_SUBSCRIPTION_NOT_FOUND` when no paid subscription is connected. Missing provider configuration or missing provider customer id returns `503`.
+
+`POST /api/billing/webhooks/stripe`
+
+Receives Stripe billing webhooks and reconciles local subscription state after verifying the `Stripe-Signature` header against the raw request body with `STRIPE_WEBHOOK_SECRET`. This endpoint is provider-to-server only; it does not use the browser session cookie or same-origin CSRF checks. Unsigned, stale, invalid, or unconfigured requests are rejected before local billing state is mutated. Verified provider event ids are stored before subscription updates, and replayed event ids are acknowledged as `ignored` without repeating local mutations.
+
+Handled event types:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+Checkout and subscription events require tenant metadata (`organizationId`, `targetPlanCode`) or a configured price-id-to-plan mapping (`SCCC_STRIPE_PRICE_STARTER`, `SCCC_STRIPE_PRICE_PRO`, `SCCC_STRIPE_PRICE_AGENCY`). Unsupported or incomplete signed events are acknowledged as ignored.
+
+Response:
+
+```json
+{
+  "data": {
+    "eventId": "evt_123",
+    "eventType": "checkout.session.completed",
+    "action": "subscription_created",
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "planCode": "PRO"
+  }
+}
+```
 
 ## Notifications
 

@@ -256,6 +256,12 @@ describe("app repository", () => {
       })
     ).rejects.toThrow("BILLING_ENTERPRISE_REQUIRES_SALES");
     await expect(
+      repository.getBillingPortalContext({
+        user,
+        organizationId: organization.id
+      })
+    ).rejects.toThrow("BILLING_SUBSCRIPTION_NOT_FOUND");
+    await expect(
       repository.createSite({
         user,
         organizationId: organization.id,

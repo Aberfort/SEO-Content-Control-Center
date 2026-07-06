@@ -1466,6 +1466,7 @@ th {
   gap: 6px;
 }
 
+.billing-action-cell form,
 .billing-plan-action form {
   margin: 0;
 }

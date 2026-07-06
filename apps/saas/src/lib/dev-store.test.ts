@@ -6,6 +6,7 @@ import {
   createOrganization,
   createSite,
   getBillingCheckoutContext,
+  getBillingPortalContext,
   getOrganizationSummary,
   listOrganizationSummariesForUser,
   resetDevStore
@@ -116,6 +117,18 @@ describe("dev store tenant access", () => {
         user: viewer,
         organizationId: organization.id,
         planCode: "PRO"
+      })
+    ).toThrow("Role VIEWER cannot perform billing:manage");
+    expect(() =>
+      getBillingPortalContext({
+        user: owner,
+        organizationId: organization.id
+      })
+    ).toThrow("BILLING_SUBSCRIPTION_NOT_FOUND");
+    expect(() =>
+      getBillingPortalContext({
+        user: viewer,
+        organizationId: organization.id
       })
     ).toThrow("Role VIEWER cannot perform billing:manage");
   });

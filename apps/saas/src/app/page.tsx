@@ -9,6 +9,7 @@ import {
   createBacklogTaskFromAuditIssueAction,
   createBacklogTaskFromCandidateAction,
   createBillingCheckoutSessionAction,
+  createBillingPortalSessionAction,
   createBulkOperationPreviewAction,
   finishBulkOperationAction,
   markAllNotificationsReadAction,
@@ -60,7 +61,7 @@ const contentStatuses = [
 const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
-const billingStatuses = ["success", "cancel", "error"] as const;
+const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -1658,10 +1659,25 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                   </span>
                 </div>
                 <div className="billing-action-cell">
-                  <button className="secondary-button" disabled type="button">
-                    {billingOverview.actions.portal.label}
-                  </button>
-                  <span>{billingOverview.actions.portal.disabledReason}</span>
+                  {billingOverview.actions.portal.enabled ? (
+                    <form action={createBillingPortalSessionAction}>
+                      <input
+                        type="hidden"
+                        name="organizationId"
+                        value={activeOrganization?.id ?? ""}
+                      />
+                      <button className="secondary-button" type="submit">
+                        {billingOverview.actions.portal.label}
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <button className="secondary-button" disabled type="button">
+                        {billingOverview.actions.portal.label}
+                      </button>
+                      <span>{billingOverview.actions.portal.disabledReason}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1958,6 +1974,10 @@ function formatBillingFeedback(status: (typeof billingStatuses)[number], message
 
   if (status === "cancel") {
     return "Checkout was canceled.";
+  }
+
+  if (status === "portal_return") {
+    return "Returned from billing portal. Subscription updates will appear after provider confirmation.";
   }
 
   return message || "Checkout could not be started.";

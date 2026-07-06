@@ -59,7 +59,9 @@
 - Billing overview lists the seeded plan catalog and falls back to Trial when no subscription exists.
 - Billing overview enables checkout actions only when Stripe provider credentials and target plan price IDs are configured.
 - Billing checkout API requires same-origin requests and `billing:manage`, rejects current/Trial/Enterprise plan changes, and does not mutate local subscriptions.
-- Billing portal actions remain disabled/no-mutation until provider portal sessions are implemented.
+- Billing portal actions enable only for Stripe subscriptions with provider customer ids and configured provider credentials.
+- Billing portal API requires same-origin requests and `billing:manage`, rejects organizations without connected subscriptions, and does not mutate local subscriptions.
+- Billing webhook API rejects unsigned, stale, or unconfigured requests, reconciles signed Stripe subscription events into local subscription state, and ignores replayed provider event ids without repeating mutations.
 - Billing feature gates block site creation and member invites when plan limits are reached.
 - Billing limit notifications are created when successful site creation or member invite reaches a finite plan limit.
 - Prisma repository creates organization and Owner membership transactionally.

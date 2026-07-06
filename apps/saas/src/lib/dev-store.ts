@@ -68,6 +68,7 @@ import type {
   BacklogTaskSummary,
   BillingCheckoutContext,
   BillingOverview,
+  BillingPortalContext,
   BulkOperation,
   BulkOperationItem,
   BulkOperationListOptions,
@@ -94,6 +95,7 @@ import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billi
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
 type DevStoreState = {
   users: AppUser[];
@@ -154,6 +156,11 @@ type BillingCheckoutContextInput = {
   user: AppUser;
   organizationId: string;
   planCode: PlanCode;
+};
+
+type BillingPortalContextInput = {
+  user: AppUser;
+  organizationId: string;
 };
 
 type AccessInput = {
@@ -554,6 +561,28 @@ export function getBillingCheckoutContext(
     currentPlan,
     targetPlan,
     subscription: null
+  };
+}
+
+export function getBillingPortalContext(input: BillingPortalContextInput): BillingPortalContext {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "billing:manage"
+  });
+
+  throw new Error("BILLING_SUBSCRIPTION_NOT_FOUND");
+}
+
+export function applyBillingWebhookUpdate(
+  input: StripeBillingWebhookUpdate
+): BillingWebhookApplyResult {
+  return {
+    eventId: input.eventId,
+    eventType: input.eventType,
+    action: "ignored",
+    organizationId: input.organizationId,
+    planCode: input.planCode
   };
 }
 

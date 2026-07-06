@@ -12,6 +12,7 @@ type BillingActionInput = {
   canManageBilling: boolean;
   provider?: BillingProvider;
   enabledCheckoutPlanCodes?: PlanCode[];
+  portalSessionAvailable?: boolean;
 };
 
 export function buildBillingActions(input: BillingActionInput): {
@@ -36,7 +37,8 @@ export function buildBillingActions(input: BillingActionInput): {
     portal: buildPortalAction({
       subscription: input.subscription,
       canManageBilling: input.canManageBilling,
-      provider
+      provider,
+      enabled: input.portalSessionAvailable ?? false
     })
   };
 }
@@ -75,16 +77,19 @@ function buildPortalAction(input: {
   subscription: BillingSubscription | null;
   canManageBilling: boolean;
   provider: BillingProvider;
+  enabled: boolean;
 }): BillingAction {
+  const enabled = isPortalActionEnabled(input);
+
   return {
     type: "billing_portal",
     label: "Manage billing",
-    enabled: false,
+    enabled,
     provider: input.provider,
     targetPlanCode: null,
-    disabledReason: buildPortalDisabledReason(input),
+    disabledReason: enabled ? null : buildPortalDisabledReason(input),
     requiresBillingManage: true,
-    noMutation: true
+    noMutation: !enabled
   };
 }
 
@@ -122,6 +127,7 @@ function buildPortalDisabledReason(input: {
   subscription: BillingSubscription | null;
   canManageBilling: boolean;
   provider: BillingProvider;
+  enabled: boolean;
 }): string {
   if (!input.canManageBilling) {
     return "Your role can not manage billing.";
@@ -135,7 +141,7 @@ function buildPortalDisabledReason(input: {
     return "Billing provider is not configured.";
   }
 
-  return "Billing portal session creation is not enabled yet.";
+  return "Billing portal session is not configured for this subscription.";
 }
 
 function isCheckoutActionEnabled(input: {
@@ -152,5 +158,19 @@ function isCheckoutActionEnabled(input: {
     input.plan.code !== input.currentPlanCode &&
     input.plan.code !== "TRIAL" &&
     input.plan.code !== "ENTERPRISE"
+  );
+}
+
+function isPortalActionEnabled(input: {
+  subscription: BillingSubscription | null;
+  canManageBilling: boolean;
+  provider: BillingProvider;
+  enabled: boolean;
+}): boolean {
+  return (
+    input.canManageBilling &&
+    input.provider === "stripe" &&
+    input.enabled &&
+    input.subscription?.provider === "stripe"
   );
 }

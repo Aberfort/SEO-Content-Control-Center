@@ -102,4 +102,34 @@ describe("billing actions", () => {
       }
     );
   });
+
+  it("enables configured Stripe billing portal sessions for connected subscriptions", () => {
+    const plans = buildFallbackBillingPlans();
+    const actions = buildBillingActions({
+      plans,
+      currentPlanCode: "PRO",
+      subscription: {
+        id: "subscription-1",
+        organizationId: "organization-1",
+        status: "ACTIVE",
+        plan: findBillingPlan(plans, "PRO"),
+        trialEndsAt: null,
+        currentPeriodEnd: "2026-08-01T00:00:00.000Z",
+        provider: "stripe",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z"
+      },
+      canManageBilling: true,
+      provider: "stripe",
+      portalSessionAvailable: true
+    });
+
+    expect(actions.portal).toMatchObject({
+      type: "billing_portal",
+      enabled: true,
+      provider: "stripe",
+      disabledReason: null,
+      noMutation: false
+    });
+  });
 });

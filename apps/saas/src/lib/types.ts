@@ -152,6 +152,20 @@ export type BillingCheckoutSession = {
   url: string;
 };
 
+export type BillingPortalContext = {
+  organizationId: string;
+  organizationName: string;
+  userEmail: string;
+  providerCustomerId: string;
+  subscription: BillingSubscription;
+};
+
+export type BillingPortalSession = {
+  provider: "stripe";
+  sessionId: string;
+  url: string;
+};
+
 export type AssistantRecommendationPriority = "low" | "medium" | "high";
 
 export type AssistantRecommendationSource = {

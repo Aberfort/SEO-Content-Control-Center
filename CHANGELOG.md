@@ -2,6 +2,29 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 55
+
+- Added persistent Stripe billing webhook event tracking with unique provider event ids.
+- Made billing webhook subscription reconciliation idempotent so replayed Stripe events are acknowledged without repeating local subscription mutations.
+- Wrapped webhook event recording and subscription changes in one transaction to avoid partial local billing updates.
+- Documented webhook replay protection, migration coverage, security guardrails, and QA coverage.
+
+### Iteration 54
+
+- Added a Stripe billing webhook endpoint with raw-body signature verification.
+- Added subscription reconciliation for checkout completion and Stripe subscription lifecycle events.
+- Mapped Stripe subscription status and plan metadata into local billing subscription state.
+- Kept unsigned, stale, or unconfigured webhook requests from mutating local billing data.
+- Documented webhook API behavior, security guardrails, and QA coverage.
+
+### Iteration 53
+
+- Added a tenant-scoped billing portal session endpoint for Stripe-backed subscriptions with stored provider customer ids.
+- Added a server-side portal service with Stripe REST session creation and safe provider/customer configuration errors.
+- Enabled dashboard billing portal controls only when provider credentials and subscription customer linkage are present.
+- Kept local subscription state unchanged until webhook-backed subscription reconciliation is implemented.
+- Documented portal API behavior, environment variables, security guardrails, and QA coverage.
+
 ### Iteration 52
 
 - Added a tenant-scoped billing checkout session endpoint for eligible Stripe-backed plan upgrades.

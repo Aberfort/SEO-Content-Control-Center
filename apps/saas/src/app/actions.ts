@@ -15,6 +15,7 @@ import {
   requireCurrentUser
 } from "@/lib/auth";
 import { createBillingCheckoutSession } from "@/lib/billing-checkout";
+import { createBillingPortalSession } from "@/lib/billing-portal";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
@@ -102,6 +103,30 @@ export async function createBillingCheckoutSessionAction(formData: FormData): Pr
   }
 
   redirect(checkoutUrl);
+}
+
+export async function createBillingPortalSessionAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  let portalUrl = "";
+
+  try {
+    await assertServerActionSameOrigin();
+    const portalContext = await repository.getBillingPortalContext({
+      user,
+      organizationId: String(formData.get("organizationId") ?? "")
+    });
+    const session = await createBillingPortalSession({
+      context: portalContext,
+      origin: requestOriginFromHeaders(await headers())
+    });
+    portalUrl = session.url;
+  } catch (error) {
+    const state = actionError(error, "Could not create billing portal session.");
+    redirect(`/dashboard?billing=error&message=${encodeURIComponent(state.message)}`);
+  }
+
+  redirect(portalUrl);
 }
 
 export async function inviteMemberAction(
@@ -656,6 +681,20 @@ function actionError(error: unknown, fallback: string): ActionState {
     return {
       ok: false,
       message: "Checkout session is not configured for this plan."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_SUBSCRIPTION_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "No paid subscription is connected."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_PORTAL_CUSTOMER_NOT_CONFIGURED") {
+    return {
+      ok: false,
+      message: "Billing portal session is not configured for this subscription."
     };
   }
 
