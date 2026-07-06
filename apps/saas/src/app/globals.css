@@ -1441,11 +1441,33 @@ th {
   font-size: 13px;
 }
 
+.billing-feedback {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.billing-feedback-success {
+  border-color: rgba(45, 138, 86, 0.35);
+}
+
+.billing-feedback-cancel,
+.billing-feedback-error {
+  border-color: rgba(194, 124, 38, 0.4);
+}
+
 .billing-action-cell,
 .billing-plan-action {
   align-content: start;
   display: grid;
   gap: 6px;
+}
+
+.billing-plan-action form {
+  margin: 0;
 }
 
 .billing-action-cell span,

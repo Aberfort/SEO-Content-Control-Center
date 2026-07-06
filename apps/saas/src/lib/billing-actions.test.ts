@@ -72,4 +72,34 @@ describe("billing actions", () => {
       disabledReason: "Your role can not manage billing."
     });
   });
+
+  it("enables configured Stripe checkout plans for billing managers", () => {
+    const plans = buildFallbackBillingPlans();
+    const actions = buildBillingActions({
+      plans,
+      currentPlanCode: "TRIAL",
+      subscription: null,
+      canManageBilling: true,
+      provider: "stripe",
+      enabledCheckoutPlanCodes: ["PRO"]
+    });
+
+    expect(actions.checkout.find((action) => action.targetPlanCode === "PRO")).toMatchObject({
+      enabled: true,
+      provider: "stripe",
+      disabledReason: null,
+      noMutation: false
+    });
+    expect(actions.checkout.find((action) => action.targetPlanCode === "STARTER")).toMatchObject({
+      enabled: false,
+      disabledReason: "Checkout session is not configured for this plan.",
+      noMutation: true
+    });
+    expect(actions.checkout.find((action) => action.targetPlanCode === "ENTERPRISE")).toMatchObject(
+      {
+        enabled: false,
+        disabledReason: "Enterprise plan changes require a sales-assisted workflow."
+      }
+    );
+  });
 });

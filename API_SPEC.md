@@ -125,7 +125,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only MVP response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout and portal actions remain disabled with explicit reasons until a real billing provider/session flow is connected.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured; portal actions remain disabled until the portal session flow is connected.
 
 Response:
 
@@ -234,6 +234,33 @@ Response:
   }
 }
 ```
+
+`POST /api/organizations/:organizationId/billing/checkout`
+
+Creates a provider-backed checkout session when the current user has `billing:manage`, the request is same-origin, and Stripe checkout is configured with `SCCC_BILLING_PROVIDER=stripe`, `SCCC_STRIPE_SECRET_KEY`, and the target plan price ID (`SCCC_STRIPE_PRICE_STARTER`, `SCCC_STRIPE_PRICE_PRO`, or `SCCC_STRIPE_PRICE_AGENCY`). The endpoint does not mutate local subscriptions; Stripe webhooks will own subscription state changes in a later iteration.
+
+Request:
+
+```json
+{
+  "planCode": "PRO"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "provider": "stripe",
+    "targetPlanCode": "PRO",
+    "sessionId": "cs_test_123",
+    "url": "https://checkout.stripe.com/c/pay/cs_test_123"
+  }
+}
+```
+
+Checkout rejects current plan selections, Trial downgrades, and Enterprise sales-assisted plan changes with structured `409` errors. Missing provider or price configuration returns `503`.
 
 ## Notifications
 

@@ -104,12 +104,12 @@ export type BillingSubscription = {
 export type BillingAction = {
   type: "checkout" | "billing_portal";
   label: string;
-  enabled: false;
+  enabled: boolean;
   provider: "none" | "stripe";
   targetPlanCode: PlanCode | null;
-  disabledReason: string;
+  disabledReason: string | null;
   requiresBillingManage: true;
-  noMutation: true;
+  noMutation: boolean;
 };
 
 export type BillingFeatureGateKey = "sites" | "users";
@@ -134,6 +134,22 @@ export type BillingOverview = {
     checkout: BillingAction[];
     portal: BillingAction;
   };
+};
+
+export type BillingCheckoutContext = {
+  organizationId: string;
+  organizationName: string;
+  userEmail: string;
+  currentPlan: BillingPlan;
+  targetPlan: BillingPlan;
+  subscription: BillingSubscription | null;
+};
+
+export type BillingCheckoutSession = {
+  provider: "stripe";
+  targetPlanCode: PlanCode;
+  sessionId: string;
+  url: string;
 };
 
 export type AssistantRecommendationPriority = "low" | "medium" | "high";

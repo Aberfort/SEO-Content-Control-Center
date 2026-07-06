@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 52
+
+- Added a tenant-scoped billing checkout session endpoint for eligible Stripe-backed plan upgrades.
+- Added a server-side checkout service with Stripe REST session creation, plan metadata, and safe provider/price configuration errors.
+- Enabled dashboard checkout buttons only when provider, secret, and target plan price IDs are configured.
+- Kept local subscription state unchanged until webhook-backed subscription updates are implemented.
+- Documented checkout API behavior, environment variables, security guardrails, and QA coverage.
+
 ### Iteration 51
 
 - Added billing limit notifications when site or user usage reaches the current plan limit.

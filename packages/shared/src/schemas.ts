@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import { planCodes } from "./plans";
+
 export const organizationIdSchema = z.string().uuid();
 export const siteIdSchema = z.string().uuid();
+export const planCodeSchema = z.enum(planCodes);
 
 export const tenantScopeSchema = z.object({
   organizationId: organizationIdSchema,
@@ -275,6 +278,10 @@ export const assistantRecommendationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).optional()
 });
 
+export const billingCheckoutCreateSchema = z.object({
+  planCode: planCodeSchema
+});
+
 export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -310,6 +317,7 @@ export type NotificationReadUpdateInput = z.infer<typeof notificationReadUpdateS
 export type AssistantRecommendationListQuery = z.infer<
   typeof assistantRecommendationListQuerySchema
 >;
+export type BillingCheckoutCreateInput = z.infer<typeof billingCheckoutCreateSchema>;
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;

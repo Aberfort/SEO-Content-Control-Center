@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { assertPermission, hasPermission } from "../src/rbac";
 import {
   acceptInviteSchema,
+  billingCheckoutCreateSchema,
   inviteMemberSchema,
   loginSchema,
   organizationCreateSchema,
@@ -126,5 +127,10 @@ describe("shared schemas", () => {
         endpoint: "not-url"
       })
     ).toThrow();
+  });
+
+  it("validates billing checkout input", () => {
+    expect(billingCheckoutCreateSchema.parse({ planCode: "PRO" })).toEqual({ planCode: "PRO" });
+    expect(() => billingCheckoutCreateSchema.parse({ planCode: "UNKNOWN" })).toThrow();
   });
 });

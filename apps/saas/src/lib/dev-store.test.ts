@@ -5,6 +5,7 @@ import {
   canAccessOrganization,
   createOrganization,
   createSite,
+  getBillingCheckoutContext,
   getOrganizationSummary,
   listOrganizationSummariesForUser,
   resetDevStore
@@ -84,6 +85,39 @@ describe("dev store tenant access", () => {
         url: "https://viewer.example.com"
       })
     ).toThrow("Role VIEWER cannot perform site:create");
+  });
+
+  it("requires billing management access before preparing checkout context", () => {
+    const organization = createOrganization({ user: owner, name: "Acme SEO" });
+    addMemberForTest({
+      organizationId: organization.id,
+      userId: viewer.id,
+      role: "VIEWER"
+    });
+
+    expect(
+      getBillingCheckoutContext({
+        user: owner,
+        organizationId: organization.id,
+        planCode: "PRO"
+      })
+    ).toMatchObject({
+      organizationId: organization.id,
+      userEmail: owner.email,
+      currentPlan: {
+        code: "TRIAL"
+      },
+      targetPlan: {
+        code: "PRO"
+      }
+    });
+    expect(() =>
+      getBillingCheckoutContext({
+        user: viewer,
+        organizationId: organization.id,
+        planCode: "PRO"
+      })
+    ).toThrow("Role VIEWER cannot perform billing:manage");
   });
 
   it("deduplicates site URLs inside an organization", () => {

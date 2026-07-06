@@ -98,7 +98,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - assistant AI-credit usage envelopes for recommendation responses;
 - assistant safe-preview controls with manual confirmation guardrails;
 - read-only billing overview with plan catalog and current plan state;
-- provider-gated billing controls that stay disabled until checkout and portal sessions are connected;
+- provider-gated billing controls with Stripe checkout session creation when billing credentials and price IDs are configured;
 - billing feature gates for site and user plan limits;
 - billing notifications when finite site or user limits are reached;
 - basic activity log writes;

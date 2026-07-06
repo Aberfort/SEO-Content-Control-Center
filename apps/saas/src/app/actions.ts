@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { billingCheckoutCreateSchema } from "@sccc/shared";
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
@@ -13,6 +14,7 @@ import {
   registerWithPassword,
   requireCurrentUser
 } from "@/lib/auth";
+import { createBillingCheckoutSession } from "@/lib/billing-checkout";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
@@ -72,6 +74,34 @@ export async function createSiteAction(
   revalidatePath("/");
   revalidatePath("/dashboard");
   redirect("/");
+}
+
+export async function createBillingCheckoutSessionAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  let checkoutUrl = "";
+
+  try {
+    await assertServerActionSameOrigin();
+    const parsed = billingCheckoutCreateSchema.parse({
+      planCode: String(formData.get("planCode") ?? "")
+    });
+    const checkoutContext = await repository.getBillingCheckoutContext({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      planCode: parsed.planCode
+    });
+    const session = await createBillingCheckoutSession({
+      context: checkoutContext,
+      origin: requestOriginFromHeaders(await headers())
+    });
+    checkoutUrl = session.url;
+  } catch (error) {
+    const state = actionError(error, "Could not create checkout session.");
+    redirect(`/dashboard?billing=error&message=${encodeURIComponent(state.message)}`);
+  }
+
+  redirect(checkoutUrl);
 }
 
 export async function inviteMemberAction(
@@ -615,6 +645,41 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "BILLING_PROVIDER_NOT_CONFIGURED") {
+    return {
+      ok: false,
+      message: "Billing provider is not configured."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_PRICE_NOT_CONFIGURED") {
+    return {
+      ok: false,
+      message: "Checkout session is not configured for this plan."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_CURRENT_PLAN_SELECTED") {
+    return {
+      ok: false,
+      message: "This is already the current plan."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_TRIAL_REQUIRES_INTERNAL_FLOW") {
+    return {
+      ok: false,
+      message: "Trial changes require an internal downgrade workflow."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_ENTERPRISE_REQUIRES_SALES") {
+    return {
+      ok: false,
+      message: "Enterprise plan changes require a sales-assisted workflow."
+    };
+  }
+
   if (error instanceof Error && error.message === "CANNOT_CHANGE_OWN_ROLE") {
     return {
       ok: false,
@@ -696,6 +761,20 @@ function actionError(error: unknown, fallback: string): ActionState {
     ok: false,
     message: fallback
   };
+}
+
+function requestOriginFromHeaders(headerStore: {
+  get(name: string): string | null;
+}): string | null {
+  const origin = headerStore.get("origin");
+
+  if (origin) {
+    return origin;
+  }
+
+  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
+  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
+  return host ? `${protocol}://${host}` : null;
 }
 
 function readRedirectTo(formData: FormData): string {

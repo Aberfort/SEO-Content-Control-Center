@@ -57,7 +57,9 @@
 - Initial migration applies to local PostgreSQL.
 - Plan seed completes.
 - Billing overview lists the seeded plan catalog and falls back to Trial when no subscription exists.
-- Billing overview exposes checkout and portal actions as disabled/no-mutation controls until provider sessions are implemented.
+- Billing overview enables checkout actions only when Stripe provider credentials and target plan price IDs are configured.
+- Billing checkout API requires same-origin requests and `billing:manage`, rejects current/Trial/Enterprise plan changes, and does not mutate local subscriptions.
+- Billing portal actions remain disabled/no-mutation until provider portal sessions are implemented.
 - Billing feature gates block site creation and member invites when plan limits are reached.
 - Billing limit notifications are created when successful site creation or member invite reaches a finite plan limit.
 - Prisma repository creates organization and Owner membership transactionally.

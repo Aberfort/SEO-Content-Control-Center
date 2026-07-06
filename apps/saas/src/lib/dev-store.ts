@@ -43,6 +43,7 @@ import {
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
+  type PlanCode,
   type Role,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
@@ -65,6 +66,7 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BillingCheckoutContext,
   BillingOverview,
   BulkOperation,
   BulkOperationItem,
@@ -146,6 +148,12 @@ type MemberMutationInputWithUser = {
 type AcceptInviteInputWithUser = {
   user: AppUser;
   token: AcceptInviteInput["token"];
+};
+
+type BillingCheckoutContextInput = {
+  user: AppUser;
+  organizationId: string;
+  planCode: PlanCode;
 };
 
 type AccessInput = {
@@ -500,6 +508,52 @@ export function getBillingOverviewForOrganization(
       subscription: null,
       canManageBilling: hasPermission(member.role, "billing:manage")
     })
+  };
+}
+
+export function getBillingCheckoutContext(
+  input: BillingCheckoutContextInput
+): BillingCheckoutContext {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "billing:manage"
+  });
+  const organization = getDevStore().organizations.find(
+    (candidate) => candidate.id === input.organizationId
+  );
+
+  if (!organization) {
+    throw new Error("ORGANIZATION_NOT_FOUND");
+  }
+
+  const plans = buildFallbackBillingPlans();
+  const currentPlan = findBillingPlan(plans, "TRIAL");
+  const targetPlan = plans.find((plan) => plan.code === input.planCode && plan.isActive);
+
+  if (!targetPlan) {
+    throw new Error("BILLING_PLAN_NOT_FOUND");
+  }
+
+  if (targetPlan.code === currentPlan.code) {
+    throw new Error("BILLING_CURRENT_PLAN_SELECTED");
+  }
+
+  if (targetPlan.code === "TRIAL") {
+    throw new Error("BILLING_TRIAL_REQUIRES_INTERNAL_FLOW");
+  }
+
+  if (targetPlan.code === "ENTERPRISE") {
+    throw new Error("BILLING_ENTERPRISE_REQUIRES_SALES");
+  }
+
+  return {
+    organizationId: organization.id,
+    organizationName: organization.name,
+    userEmail: input.user.email,
+    currentPlan,
+    targetPlan,
+    subscription: null
   };
 }
 

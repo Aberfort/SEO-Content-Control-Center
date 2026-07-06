@@ -48,6 +48,7 @@ import {
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
+  type PlanCode,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
@@ -92,6 +93,7 @@ import {
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
   getBillingOverviewForOrganization as getDevBillingOverviewForOrganization,
+  getBillingCheckoutContext as getDevBillingCheckoutContext,
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole
@@ -136,6 +138,7 @@ import type {
   BacklogTaskListOptions,
   BacklogTaskSummary,
   BillingOverview,
+  BillingCheckoutContext,
   BillingPlan,
   BillingSubscription,
   BulkOperation,
@@ -256,6 +259,12 @@ type UpdateNotificationReadStateInput = NotificationReadUpdateInput & {
   user: AppUser;
 };
 
+type BillingCheckoutContextInput = {
+  user: AppUser;
+  organizationId: string;
+  planCode: PlanCode;
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -270,6 +279,7 @@ type AppRepository = {
     userId: string,
     organizationId: string
   ): Promise<BillingOverview>;
+  getBillingCheckoutContext(input: BillingCheckoutContextInput): Promise<BillingCheckoutContext>;
   listNotificationsForOrganization(
     userId: string,
     organizationId: string,
@@ -391,6 +401,9 @@ const devStoreRepository: AppRepository = {
   },
   async getBillingOverviewForOrganization(userId, organizationId) {
     return getDevBillingOverviewForOrganization(userId, organizationId);
+  },
+  async getBillingCheckoutContext(input) {
+    return getDevBillingCheckoutContext(input);
   },
   async listNotificationsForOrganization(userId, organizationId, options) {
     return listDevNotificationsForOrganization(userId, organizationId, options);
@@ -798,6 +811,58 @@ const prismaRepository: AppRepository = {
         canManageBilling: hasPermission(membership.role, "billing:manage")
       })
     };
+  },
+
+  async getBillingCheckoutContext(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "billing:manage"
+    });
+
+    const [organization, dbPlans, subscription] = await prisma.$transaction([
+      prisma.organization.findUnique({
+        where: {
+          id: input.organizationId
+        }
+      }),
+      prisma.plan.findMany({
+        where: {
+          isActive: true
+        }
+      }),
+      prisma.subscription.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          status: {
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+          }
+        },
+        include: {
+          plan: true
+        },
+        orderBy: {
+          updatedAt: "desc"
+        }
+      })
+    ]);
+
+    if (!organization) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
+
+    const plans = sortBillingPlans(dbPlans.map(mapBillingPlan).filter(isBillingPlan));
+    const visiblePlans = plans.length > 0 ? plans : buildFallbackBillingPlans();
+    const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
+
+    return buildBillingCheckoutContext({
+      organizationId: organization.id,
+      organizationName: organization.name,
+      userEmail: input.user.email,
+      plans: visiblePlans,
+      subscription: subscriptionSummary,
+      planCode: input.planCode
+    });
   },
 
   async listNotificationsForOrganization(userId, organizationId, options) {
@@ -3300,6 +3365,43 @@ async function getDbBillingLimitContext(organizationId: string): Promise<{
       : findBillingPlan([], "TRIAL"),
     sitesUsed,
     usersUsed
+  };
+}
+
+function buildBillingCheckoutContext(input: {
+  organizationId: string;
+  organizationName: string;
+  userEmail: string;
+  plans: BillingPlan[];
+  subscription: BillingSubscription | null;
+  planCode: PlanCode;
+}): BillingCheckoutContext {
+  const currentPlan = input.subscription?.plan ?? findBillingPlan(input.plans, "TRIAL");
+  const targetPlan = input.plans.find((plan) => plan.code === input.planCode && plan.isActive);
+
+  if (!targetPlan) {
+    throw new Error("BILLING_PLAN_NOT_FOUND");
+  }
+
+  if (targetPlan.code === currentPlan.code) {
+    throw new Error("BILLING_CURRENT_PLAN_SELECTED");
+  }
+
+  if (targetPlan.code === "TRIAL") {
+    throw new Error("BILLING_TRIAL_REQUIRES_INTERNAL_FLOW");
+  }
+
+  if (targetPlan.code === "ENTERPRISE") {
+    throw new Error("BILLING_ENTERPRISE_REQUIRES_SALES");
+  }
+
+  return {
+    organizationId: input.organizationId,
+    organizationName: input.organizationName,
+    userEmail: input.userEmail,
+    currentPlan,
+    targetPlan,
+    subscription: input.subscription
   };
 }
 

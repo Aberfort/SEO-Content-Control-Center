@@ -224,6 +224,38 @@ describe("app repository", () => {
       noMutation: true
     });
     await expect(
+      repository.getBillingCheckoutContext({
+        user,
+        organizationId: organization.id,
+        planCode: "PRO"
+      })
+    ).resolves.toMatchObject({
+      organizationId: organization.id,
+      organizationName: "Repository SEO",
+      userEmail: user.email,
+      currentPlan: {
+        code: "TRIAL"
+      },
+      targetPlan: {
+        code: "PRO"
+      },
+      subscription: null
+    });
+    await expect(
+      repository.getBillingCheckoutContext({
+        user,
+        organizationId: organization.id,
+        planCode: "TRIAL"
+      })
+    ).rejects.toThrow("BILLING_CURRENT_PLAN_SELECTED");
+    await expect(
+      repository.getBillingCheckoutContext({
+        user,
+        organizationId: organization.id,
+        planCode: "ENTERPRISE"
+      })
+    ).rejects.toThrow("BILLING_ENTERPRISE_REQUIRES_SALES");
+    await expect(
       repository.createSite({
         user,
         organizationId: organization.id,

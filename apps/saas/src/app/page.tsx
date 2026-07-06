@@ -8,6 +8,7 @@ import {
   createBacklogTaskCommentAction,
   createBacklogTaskFromAuditIssueAction,
   createBacklogTaskFromCandidateAction,
+  createBillingCheckoutSessionAction,
   createBulkOperationPreviewAction,
   finishBulkOperationAction,
   markAllNotificationsReadAction,
@@ -59,6 +60,7 @@ const contentStatuses = [
 const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
+const billingStatuses = ["success", "cancel", "error"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -93,6 +95,8 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     status: readEnumQueryParam(params, "auditIssueStatus", auditIssueStatuses),
     severity: readEnumQueryParam(params, "auditIssueSeverity", backlogSeverities)
   };
+  const billingStatus = readEnumQueryParam(params, "billing", billingStatuses);
+  const billingMessage = readQueryParam(params, "message");
   const selectedContentId = readQueryParam(params, "content");
   const selectedAuditId = readQueryParam(params, "audit");
   const activeMembers = activeOrganization
@@ -1628,6 +1632,12 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
 
           {billingOverview ? (
             <>
+              {billingStatus ? (
+                <p className={`billing-feedback billing-feedback-${billingStatus}`}>
+                  {formatBillingFeedback(billingStatus, billingMessage)}
+                </p>
+              ) : null}
+
               <div className="billing-current">
                 <div>
                   <small>Current plan</small>
@@ -1702,10 +1712,26 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       </ul>
                       {checkoutAction ? (
                         <div className="billing-plan-action">
-                          <button className="secondary-button" disabled type="button">
-                            {checkoutAction.label}
-                          </button>
-                          <span>{checkoutAction.disabledReason}</span>
+                          {checkoutAction.enabled ? (
+                            <form action={createBillingCheckoutSessionAction}>
+                              <input
+                                type="hidden"
+                                name="organizationId"
+                                value={activeOrganization?.id ?? ""}
+                              />
+                              <input type="hidden" name="planCode" value={plan.code} />
+                              <button className="secondary-button" type="submit">
+                                {checkoutAction.label}
+                              </button>
+                            </form>
+                          ) : (
+                            <>
+                              <button className="secondary-button" disabled type="button">
+                                {checkoutAction.label}
+                              </button>
+                              <span>{checkoutAction.disabledReason}</span>
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </article>
@@ -1923,6 +1949,18 @@ function formatPlanPrice(plan: { code: string; monthlyPrice: number }): string {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0
   })}/mo`;
+}
+
+function formatBillingFeedback(status: (typeof billingStatuses)[number], message: string): string {
+  if (status === "success") {
+    return "Checkout completed. Subscription updates will appear after provider confirmation.";
+  }
+
+  if (status === "cancel") {
+    return "Checkout was canceled.";
+  }
+
+  return message || "Checkout could not be started.";
 }
 
 function formatLimitValue(value: number | "custom"): string {
