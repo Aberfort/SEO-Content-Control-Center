@@ -72,7 +72,7 @@ final class ApiClient
      * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
      */
     /**
-     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string}> $items
+     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata?:array<string,mixed>}> $items
      */
     public function sendSync(array $connection, array $items): void
     {
@@ -112,7 +112,7 @@ final class ApiClient
      * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
      */
     /**
-     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string}> $items
+     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata?:array<string,mixed>}> $items
      */
     public function buildSyncBody(array $connection, array $items = []): string
     {

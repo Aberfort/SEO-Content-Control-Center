@@ -37,10 +37,10 @@
 - Secure token storage.
 - Manual sync.
 - Action Scheduler sync.
-- Incremental content metadata sync.
+- Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, and word count metadata sync implemented for current posts/pages inventory.
 - Yoast and Rank Math extraction.
 - Disconnect flow.
-- Sync logs.
+- Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
 
 ## Phase 3 - SEO Audit MVP
 

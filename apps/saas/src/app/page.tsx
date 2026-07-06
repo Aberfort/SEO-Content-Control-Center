@@ -34,6 +34,7 @@ import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
+import type { SyncedContentMetadata } from "@/lib/types";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
@@ -687,6 +688,28 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                         <div>
                           <dt>Modified</dt>
                           <dd>{formatDateTime(selectedContentItem.modifiedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Published</dt>
+                          <dd>
+                            {formatOptionalDateTime(selectedContentItem.metadata.publishedAt)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Author</dt>
+                          <dd>{formatSyncedContentAuthor(selectedContentItem.metadata)}</dd>
+                        </div>
+                        <div>
+                          <dt>Word count</dt>
+                          <dd>{formatOptionalNumber(selectedContentItem.metadata.wordCount)}</dd>
+                        </div>
+                        <div>
+                          <dt>Featured image</dt>
+                          <dd>{formatFeaturedImage(selectedContentItem.metadata)}</dd>
+                        </div>
+                        <div>
+                          <dt>Taxonomies</dt>
+                          <dd>{formatTaxonomies(selectedContentItem.metadata)}</dd>
                         </div>
                         <div>
                           <dt>First seen</dt>
@@ -1947,6 +1970,44 @@ function formatMetadataDate(value: string | number | boolean | null | undefined)
   }
 
   return value.slice(0, 10);
+}
+
+function formatOptionalDateTime(value: string | null | undefined): string {
+  return value ? formatDateTime(value) : "n/a";
+}
+
+function formatOptionalNumber(value: number | null | undefined): string {
+  return typeof value === "number" ? value.toLocaleString("en") : "n/a";
+}
+
+function formatSyncedContentAuthor(metadata: SyncedContentMetadata): string {
+  if (metadata.authorName) {
+    return metadata.authorId
+      ? `${metadata.authorName} (#${metadata.authorId})`
+      : metadata.authorName;
+  }
+
+  return metadata.authorId ? `Author #${metadata.authorId}` : "n/a";
+}
+
+function formatFeaturedImage(metadata: SyncedContentMetadata): string {
+  if (!metadata.featuredImagePresent) {
+    return "No";
+  }
+
+  return metadata.featuredImageId ? `Yes (#${metadata.featuredImageId})` : "Yes";
+}
+
+function formatTaxonomies(metadata: SyncedContentMetadata): string {
+  const taxonomies = metadata.taxonomies ?? [];
+
+  if (!taxonomies.length) {
+    return "n/a";
+  }
+
+  return taxonomies
+    .map((taxonomy) => `${taxonomy.taxonomy}: ${taxonomy.terms.join(", ")}`)
+    .join("; ");
 }
 
 function formatDateTime(value: string): string {

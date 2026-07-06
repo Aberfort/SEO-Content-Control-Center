@@ -6,6 +6,7 @@ import type {
 
 const staleSyncDays = 7;
 const staleModifiedDays = 180;
+const thinContentWordThreshold = 300;
 
 export function buildSyncedContentHealthSignals(
   item: SyncedContentItem,
@@ -68,6 +69,26 @@ export function buildSyncedContentHealthSignals(
           label: "Recently modified",
           severity: "info",
           message: "WordPress modified timestamp is within the recent content window."
+        },
+    typeof item.metadata.wordCount === "number"
+      ? item.metadata.wordCount < thinContentWordThreshold
+        ? {
+            id: "thin-content",
+            label: "Thin content",
+            severity: "warning",
+            message: `WordPress content has ${item.metadata.wordCount} words.`
+          }
+        : {
+            id: "word-count-ok",
+            label: "Word count available",
+            severity: "success",
+            message: `WordPress content has ${item.metadata.wordCount} words.`
+          }
+      : {
+          id: "word-count-unknown",
+          label: "Word count unavailable",
+          severity: "info",
+          message: "Run the latest plugin sync to include word count metadata."
         }
   ];
 }
@@ -123,6 +144,16 @@ function buildCandidateFromSignal(
         sourceSignalId: signal.id,
         rationale: signal.message,
         nextStep: "Check whether the page still matches search intent and update it if needed."
+      };
+    case "thin-content":
+      return {
+        id: `${item.id}:thin-content`,
+        title: `Review thin content on ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Review the page depth, search intent coverage, and whether it needs expansion or consolidation."
       };
     default:
       return null;

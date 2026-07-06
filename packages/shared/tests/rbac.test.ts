@@ -9,6 +9,7 @@ import {
   organizationCreateSchema,
   pluginConnectionChallengeCreateSchema,
   pluginConnectionExchangeSchema,
+  pluginSyncItemSchema,
   registerSchema,
   siteCreateSchema,
   updateMemberRoleSchema
@@ -125,6 +126,57 @@ describe("shared schemas", () => {
       pluginConnectionExchangeSchema.parse({
         challenge: "short",
         endpoint: "not-url"
+      })
+    ).toThrow();
+  });
+
+  it("validates optional plugin sync metadata", () => {
+    expect(
+      pluginSyncItemSchema.parse({
+        externalId: "post:123",
+        type: "post",
+        url: "https://example.com/post",
+        title: "Example",
+        status: "publish",
+        modifiedAt: "2026-07-01T08:00:00.000Z"
+      }).metadata
+    ).toEqual({});
+
+    expect(
+      pluginSyncItemSchema.parse({
+        externalId: "post:123",
+        type: "post",
+        url: "https://example.com/post",
+        title: "Example",
+        status: "publish",
+        modifiedAt: "2026-07-01T08:00:00.000Z",
+        metadata: {
+          authorId: 7,
+          authorName: "Editor",
+          publishedAt: "2026-06-01T08:00:00.000Z",
+          featuredImagePresent: true,
+          featuredImageId: 44,
+          featuredImageUrl: "https://example.com/image.jpg",
+          taxonomies: [{ taxonomy: "category", terms: ["Guides"] }],
+          wordCount: 1200
+        }
+      }).metadata
+    ).toMatchObject({
+      authorName: "Editor",
+      wordCount: 1200
+    });
+
+    expect(() =>
+      pluginSyncItemSchema.parse({
+        externalId: "post:123",
+        type: "post",
+        url: "https://example.com/post",
+        title: "Example",
+        status: "publish",
+        modifiedAt: "2026-07-01T08:00:00.000Z",
+        metadata: {
+          token: "not-allowed"
+        }
       })
     ).toThrow();
   });

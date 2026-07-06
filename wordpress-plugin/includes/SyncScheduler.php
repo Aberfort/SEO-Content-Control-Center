@@ -16,7 +16,8 @@ final class SyncScheduler
     public function __construct(
         private readonly ConnectionStore $connectionStore,
         private readonly ApiClient $apiClient,
-        private readonly ContentCollector $contentCollector
+        private readonly ContentCollector $contentCollector,
+        private readonly SyncLogStore $syncLogStore
     ) {
     }
 
@@ -27,7 +28,8 @@ final class SyncScheduler
         }
 
         check_admin_referer('sccc_manual_sync');
-        $this->queueSync();
+        $scheduler = $this->queueSync();
+        $this->syncLogStore->recordQueued($scheduler);
 
         wp_safe_redirect(add_query_arg('sccc_status', 'sync_queued', admin_url('options-general.php?page=sccc')));
         exit;
@@ -42,21 +44,27 @@ final class SyncScheduler
         }
 
         try {
-            $this->apiClient->sendSync($connection, $this->contentCollector->collect());
-        } catch (\RuntimeException) {
+            $items = $this->contentCollector->collect();
+            $this->apiClient->sendSync($connection, $items);
+            $this->syncLogStore->recordSuccess(count($items));
+        } catch (\RuntimeException $error) {
+            $this->syncLogStore->recordFailure($error->getMessage());
             return;
         }
     }
 
-    public function queueSync(): void
+    public function queueSync(): string
     {
         if (function_exists('as_enqueue_async_action')) {
             as_enqueue_async_action(self::ACTION, [], 'seo-content-control-center');
-            return;
+            return 'Action Scheduler';
         }
 
         if (! wp_next_scheduled(self::ACTION)) {
             wp_schedule_single_event(time() + 60, self::ACTION);
+            return 'WP-Cron';
         }
+
+        return 'existing WP-Cron event';
     }
 }

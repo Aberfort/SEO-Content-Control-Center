@@ -243,6 +243,7 @@ model SyncedContentItem {
   title          String?
   status         String
   modifiedAt     DateTime
+  metadata       Json?
   firstSeenAt    DateTime @default(now())
   lastSeenAt     DateTime @default(now())
   createdAt      DateTime @default(now())

@@ -229,8 +229,23 @@ export type SyncedContentItem = {
   title: string | null;
   status: string;
   modifiedAt: string;
+  metadata: SyncedContentMetadata;
   firstSeenAt: string;
   lastSeenAt: string;
+};
+
+export type SyncedContentMetadata = {
+  authorId?: number | null;
+  authorName?: string | null;
+  publishedAt?: string | null;
+  featuredImagePresent?: boolean;
+  featuredImageId?: number | null;
+  featuredImageUrl?: string | null;
+  taxonomies?: Array<{
+    taxonomy: string;
+    terms: string[];
+  }>;
+  wordCount?: number | null;
 };
 
 export type SyncedContentHealthSignal = {

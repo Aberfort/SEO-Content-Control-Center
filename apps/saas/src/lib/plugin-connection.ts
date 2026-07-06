@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
   assertPermission,
@@ -253,6 +254,8 @@ export async function acceptPluginSyncBatch(input: {
 
   await prisma.$transaction(async (tx) => {
     for (const item of parsed.items) {
+      const metadata = toPrismaJson(item.metadata);
+
       await tx.syncedContentItem.upsert({
         where: {
           siteId_externalId: {
@@ -267,6 +270,7 @@ export async function acceptPluginSyncBatch(input: {
           title: item.title,
           status: item.status,
           modifiedAt: new Date(item.modifiedAt),
+          metadata,
           lastSeenAt: now
         },
         create: {
@@ -278,6 +282,7 @@ export async function acceptPluginSyncBatch(input: {
           title: item.title,
           status: item.status,
           modifiedAt: new Date(item.modifiedAt),
+          metadata,
           firstSeenAt: now,
           lastSeenAt: now
         }
@@ -298,6 +303,10 @@ export async function acceptPluginSyncBatch(input: {
     accepted: parsed.items.length,
     cursor: parsed.cursor
   };
+}
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value ?? {})) as Prisma.InputJsonValue;
 }
 
 export function createOpaqueToken(): string {

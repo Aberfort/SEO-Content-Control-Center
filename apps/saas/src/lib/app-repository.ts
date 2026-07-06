@@ -157,7 +157,8 @@ import type {
   Site,
   SyncedContentList,
   SyncedContentListOptions,
-  SyncedContentItem
+  SyncedContentItem,
+  SyncedContentMetadata
 } from "./types";
 
 type CreateOrganizationInput = {
@@ -3745,6 +3746,7 @@ function mapSyncedContentItem(item: {
   title: string | null;
   status: string;
   modifiedAt: Date;
+  metadata: Prisma.JsonValue | null;
   firstSeenAt: Date;
   lastSeenAt: Date;
 }): SyncedContentItem {
@@ -3758,9 +3760,18 @@ function mapSyncedContentItem(item: {
     title: item.title,
     status: item.status,
     modifiedAt: item.modifiedAt.toISOString(),
+    metadata: normalizeSyncedContentMetadata(item.metadata),
     firstSeenAt: item.firstSeenAt.toISOString(),
     lastSeenAt: item.lastSeenAt.toISOString()
   };
+}
+
+function normalizeSyncedContentMetadata(metadata: Prisma.JsonValue | null): SyncedContentMetadata {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+    return {};
+  }
+
+  return metadata as SyncedContentMetadata;
 }
 
 function mapAudit(audit: {

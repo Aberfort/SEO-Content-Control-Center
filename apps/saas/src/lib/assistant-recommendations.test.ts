@@ -50,6 +50,7 @@ describe("assistant recommendations", () => {
       title: "",
       status: "publish",
       modifiedAt: "2020-01-01T00:00:00.000Z",
+      metadata: {},
       firstSeenAt: "2020-01-01T00:00:00.000Z",
       lastSeenAt: "2020-01-01T00:00:00.000Z"
     };

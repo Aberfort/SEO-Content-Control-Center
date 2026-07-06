@@ -41,6 +41,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Invite tokens are stored as hashes on `OrganizationMember`; raw invite tokens only appear in create/resend responses and accept-invite URLs.
 - WordPress connection challenges and plugin tokens are stored as hashes. Raw challenge/token values are returned only at creation/exchange time.
 - Synced content items are unique by `siteId + externalId` and scoped by `organizationId`.
+- Synced content item metadata stores bounded plugin-derived SEO signals such as author, publish date, featured image presence, taxonomies, and word count; WordPress post bodies are not stored in this inventory.
 - Synced content inventory queries must keep filters inside the organization/site scope before applying search or pagination.
 - Synced content detail lookups must include organization, site, and item IDs in the same scoped query.
 - Synced content health signals are computed from synced metadata and are not persisted in the MVP.

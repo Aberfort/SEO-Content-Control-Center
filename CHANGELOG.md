@@ -2,6 +2,23 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 57
+
+- Extended WordPress plugin content inventory metadata with author, publish date, featured image, taxonomies, and word count signals without sending post bodies.
+- Added `SyncedContentItem.metadata` storage and sync upsert persistence for bounded plugin metadata.
+- Added shared validation for optional plugin sync metadata while rejecting unexpected secret-like fields.
+- Displayed synced metadata in the SaaS content detail panel.
+- Added word-count-based thin content health signals and backlog candidates.
+- Documented the expanded sync contract, data model, security guardrails, and QA coverage.
+
+### Iteration 56
+
+- Added a bounded local WordPress plugin sync log store for queued, successful, and failed sync attempts.
+- Recorded manual sync queueing, successful signed sync completion, and sanitized sync failures without storing tokens, signatures, or endpoint URLs.
+- Added a sync log table to the WordPress plugin settings page so admins can inspect recent sync status and item counts.
+- Extended PHP smoke coverage for sync log recording, redaction, and recent-entry bounds.
+- Documented WordPress sync log behavior, security guardrails, and QA coverage.
+
 ### Iteration 55
 
 - Added persistent Stripe billing webhook event tracking with unique provider event ids.

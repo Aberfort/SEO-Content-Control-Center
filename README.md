@@ -61,10 +61,12 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - WordPress plugin admin challenge exchange and signed manual sync request;
 - WordPress plugin posts/pages inventory payload for signed sync;
+- WordPress plugin content metadata sync for author, publish date, featured image, taxonomies, and word count;
+- WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;
 - SaaS persistence and dashboard inventory for synced WordPress content;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
-- computed synced content health signals from WordPress sync metadata;
+- computed synced content health signals from WordPress sync metadata, including thin content signals from synced word counts;
 - computed backlog candidate tasks from synced content health signals;
 - tenant-scoped audit run queueing and listing;
 - SaaS dashboard audit panel with queue action and recent run status;

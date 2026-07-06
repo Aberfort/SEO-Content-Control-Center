@@ -31,6 +31,7 @@ if (file_exists($autoload)) {
     require_once SCCC_PLUGIN_DIR . 'includes/RequestSigner.php';
     require_once SCCC_PLUGIN_DIR . 'includes/ApiClient.php';
     require_once SCCC_PLUGIN_DIR . 'includes/ContentCollector.php';
+    require_once SCCC_PLUGIN_DIR . 'includes/SyncLogStore.php';
     require_once SCCC_PLUGIN_DIR . 'includes/SyncScheduler.php';
 }
 
@@ -43,7 +44,12 @@ add_action(
         $plugin = new SCCC\Plugin\Plugin(
             $connectionStore,
             new SCCC\Plugin\AdminPage(),
-            new SCCC\Plugin\SyncScheduler($connectionStore, $apiClient, new SCCC\Plugin\ContentCollector()),
+            new SCCC\Plugin\SyncScheduler(
+                $connectionStore,
+                $apiClient,
+                new SCCC\Plugin\ContentCollector(),
+                new SCCC\Plugin\SyncLogStore()
+            ),
             $apiClient
         );
         $plugin->register();

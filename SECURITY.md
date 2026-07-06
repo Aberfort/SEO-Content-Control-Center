@@ -35,7 +35,8 @@
 - Prepared queries if direct SQL is ever used.
 - Options containing secrets use `autoload = false`.
 - Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
-- Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload.
+- Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload, and word count is computed locally in the plugin.
+- Plugin sync logs must be bounded and sanitize failure details so tokens, signatures, authorization values, and endpoint URLs are not stored.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.

@@ -30,6 +30,8 @@ final class AdminPage
 
         $store = new ConnectionStore();
         $connection = $store->get();
+        $syncLogStore = new SyncLogStore();
+        $syncLogs = $syncLogStore->all();
         ?>
         <div class="wrap">
             <h1><?php echo esc_html__('SEO Content Control Center', 'seo-content-control-center'); ?></h1>
@@ -77,8 +79,61 @@ final class AdminPage
                     <?php wp_nonce_field('sccc_disconnect'); ?>
                     <?php submit_button(__('Disconnect', 'seo-content-control-center'), 'delete', 'submit', false); ?>
                 </form>
+
+                <h2><?php echo esc_html__('Sync log', 'seo-content-control-center'); ?></h2>
+                <?php if ([] === $syncLogs) : ?>
+                    <p><?php echo esc_html__('No sync attempts have been recorded yet.', 'seo-content-control-center'); ?></p>
+                <?php else : ?>
+                    <table class="widefat striped" style="max-width:960px;">
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php echo esc_html__('Time', 'seo-content-control-center'); ?></th>
+                                <th scope="col"><?php echo esc_html__('Status', 'seo-content-control-center'); ?></th>
+                                <th scope="col"><?php echo esc_html__('Items', 'seo-content-control-center'); ?></th>
+                                <th scope="col"><?php echo esc_html__('Details', 'seo-content-control-center'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($syncLogs as $entry) : ?>
+                                <tr>
+                                    <td><?php echo esc_html($this->formatTimestamp($entry['created_at'])); ?></td>
+                                    <td><?php echo esc_html($this->formatStatus($entry['status'])); ?></td>
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            null === $entry['item_count']
+                                                ? __('n/a', 'seo-content-control-center')
+                                                : (string) $entry['item_count']
+                                        );
+                                        ?>
+                                    </td>
+                                    <td><?php echo esc_html($entry['message']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
         <?php
+    }
+
+    private function formatTimestamp(int $timestamp): string
+    {
+        if (function_exists('wp_date')) {
+            return wp_date('Y-m-d H:i:s', $timestamp);
+        }
+
+        return gmdate('Y-m-d H:i:s', $timestamp);
+    }
+
+    private function formatStatus(string $status): string
+    {
+        return match ($status) {
+            'queued' => __('Queued', 'seo-content-control-center'),
+            'success' => __('Success', 'seo-content-control-center'),
+            'error' => __('Error', 'seo-content-control-center'),
+            default => __('Unknown', 'seo-content-control-center'),
+        };
     }
 }

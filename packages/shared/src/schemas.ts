@@ -82,13 +82,32 @@ export const pluginConnectionExchangeSchema = z.object({
   endpoint: z.string().url().max(2048).optional()
 });
 
+export const pluginSyncTaxonomyMetadataSchema = z.object({
+  taxonomy: z.string().trim().min(1).max(64),
+  terms: z.array(z.string().trim().min(1).max(120)).max(100)
+});
+
+export const pluginSyncMetadataSchema = z
+  .object({
+    authorId: z.number().int().nonnegative().nullable().optional(),
+    authorName: z.string().trim().max(255).nullable().optional(),
+    publishedAt: z.string().datetime().nullable().optional(),
+    featuredImagePresent: z.boolean().optional(),
+    featuredImageId: z.number().int().nonnegative().nullable().optional(),
+    featuredImageUrl: z.string().url().max(2048).nullable().optional(),
+    taxonomies: z.array(pluginSyncTaxonomyMetadataSchema).max(32).optional(),
+    wordCount: z.number().int().nonnegative().max(1_000_000).nullable().optional()
+  })
+  .strict();
+
 export const pluginSyncItemSchema = z.object({
   externalId: z.string().min(1).max(191),
   type: z.enum(["post", "page", "custom_post_type", "taxonomy"]),
   url: z.string().url().max(2048),
   title: z.string().max(512).nullable(),
   status: z.string().max(64),
-  modifiedAt: z.string().datetime()
+  modifiedAt: z.string().datetime(),
+  metadata: pluginSyncMetadataSchema.default({})
 });
 
 export const pluginSyncBatchSchema = z.object({

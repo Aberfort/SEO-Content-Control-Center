@@ -480,7 +480,32 @@ Request:
 
 `POST /api/plugin/sync`
 
-Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, and modified timestamp. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
+Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and optional bounded metadata for author, publish date, featured image, taxonomies, and locally computed word count. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
+
+The sync payload must not include WordPress post bodies. Metadata is optional for backward compatibility with older plugin payloads.
+
+Example item:
+
+```json
+{
+  "externalId": "post:123",
+  "type": "post",
+  "url": "https://example.com/post",
+  "title": "Example post",
+  "status": "publish",
+  "modifiedAt": "2026-07-01T07:00:00.000Z",
+  "metadata": {
+    "authorId": 7,
+    "authorName": "Editor",
+    "publishedAt": "2026-06-01T07:00:00.000Z",
+    "featuredImagePresent": true,
+    "featuredImageId": 44,
+    "featuredImageUrl": "https://example.com/image.jpg",
+    "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
+    "wordCount": 1200
+  }
+}
+```
 
 Required headers:
 
@@ -537,6 +562,16 @@ Response:
     "title": "Example post",
     "status": "publish",
     "modifiedAt": "2026-07-01T07:00:00.000Z",
+    "metadata": {
+      "authorId": 7,
+      "authorName": "Editor",
+      "publishedAt": "2026-06-01T07:00:00.000Z",
+      "featuredImagePresent": true,
+      "featuredImageId": 44,
+      "featuredImageUrl": "https://example.com/image.jpg",
+      "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
+      "wordCount": 1200
+    },
     "firstSeenAt": "2026-07-01T07:05:00.000Z",
     "lastSeenAt": "2026-07-01T07:05:00.000Z",
     "healthSignals": [
