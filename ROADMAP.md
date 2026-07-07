@@ -44,9 +44,9 @@
 
 ## Phase 3 - SEO Audit MVP
 
-- Metadata checks. Status: synced metadata issues can be materialized when queuing an audit.
-- Content freshness and thin content checks. Status: synced content freshness/thin content signals can be materialized when queuing an audit.
-- Indexability checks. Status: synced noindex and canonical mismatch signals can be materialized when queuing an audit.
+- Metadata checks. Status: synced metadata issues are materialized into completed metadata audit runs.
+- Content freshness and thin content checks. Status: synced content freshness/thin content signals are materialized into completed metadata audit runs.
+- Indexability checks. Status: synced noindex and canonical mismatch signals are materialized into completed metadata audit runs.
 - Link checks.
 - Issue deduplication. Status: synced-content issue fingerprints are deduplicated by organization/site/fingerprint.
 - Issue lifecycle: open, ignored, resolved, snoozed.

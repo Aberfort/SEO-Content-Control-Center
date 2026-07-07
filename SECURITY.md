@@ -42,8 +42,8 @@
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
 - Computed content health signals must use synced metadata only, including canonical and robots metadata, and must not fetch external URLs inline.
 - Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
-- Queueing audits requires audit run permission and organization/site scoping.
-- Queueing audits may materialize issues only from scoped synced metadata already stored for the site; it must not crawl URLs, fetch external content, or mutate WordPress inline.
+- Creating metadata audits requires audit run permission and organization/site scoping.
+- Creating metadata audits may materialize issues only from scoped synced metadata already stored for the site; it must not crawl URLs, fetch external content, or mutate WordPress inline.
 - Listing audits requires audit read permission and organization/site scoping before status filters are applied.
 - Listing audit issues requires audit read permission and organization/site/audit scoping before filters are applied.
 - Exporting audit issues requires audit read permission and organization/site/audit-scoped filters.

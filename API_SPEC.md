@@ -1113,7 +1113,7 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`
 
-Queues an audit when the member has `audit:run`. The MVP creates a tenant-scoped `QUEUED` audit record and activity log entry, then materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, and canonical mismatch. It does not crawl external URLs or mutate WordPress content inline.
+Creates a metadata audit when the member has `audit:run`. The MVP creates a tenant-scoped audit record, materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, and canonical mismatch, and marks that metadata audit pass as `COMPLETED` with start/completion timestamps. It does not crawl external URLs or mutate WordPress content inline.
 
 Response:
 
@@ -1123,9 +1123,9 @@ Response:
     "id": "66666666-6666-4666-8666-666666666666",
     "organizationId": "11111111-1111-4111-8111-111111111111",
     "siteId": "22222222-2222-4222-8222-222222222222",
-    "status": "QUEUED",
-    "startedAt": null,
-    "completedAt": null,
+    "status": "COMPLETED",
+    "startedAt": "2026-07-02T10:00:00.000Z",
+    "completedAt": "2026-07-02T10:00:00.000Z",
     "createdAt": "2026-07-02T10:00:00.000Z"
   }
 }
@@ -1149,9 +1149,9 @@ Response:
       "id": "66666666-6666-4666-8666-666666666666",
       "organizationId": "11111111-1111-4111-8111-111111111111",
       "siteId": "22222222-2222-4222-8222-222222222222",
-      "status": "QUEUED",
-      "startedAt": null,
-      "completedAt": null,
+      "status": "COMPLETED",
+      "startedAt": "2026-07-02T10:00:00.000Z",
+      "completedAt": "2026-07-02T10:00:00.000Z",
       "createdAt": "2026-07-02T10:00:00.000Z"
     }
   ]

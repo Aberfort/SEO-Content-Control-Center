@@ -63,16 +63,16 @@ describe("app repository", () => {
     expect(audit).toMatchObject({
       organizationId: organization.id,
       siteId: organizations[0]?.sites[0]?.id,
-      status: "QUEUED",
-      startedAt: null,
-      completedAt: null
+      status: "COMPLETED",
+      startedAt: expect.any(String),
+      completedAt: expect.any(String)
     });
     expect(
       await repository.listAuditsForSite(
         user.id,
         organization.id,
         organizations[0]?.sites[0]?.id ?? "",
-        { status: "QUEUED" }
+        { status: "COMPLETED" }
       )
     ).toEqual([audit]);
     await expect(

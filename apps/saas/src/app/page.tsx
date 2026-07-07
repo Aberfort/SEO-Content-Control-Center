@@ -871,11 +871,11 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     })}
                   />
                   <button className="button" type="submit">
-                    Queue audit
+                    Run metadata audit
                   </button>
                 </form>
                 <span className="muted-text">
-                  The MVP creates a queued run and attaches issues from synced metadata.
+                  The MVP completes a metadata audit from synced WordPress evidence.
                 </span>
               </div>
 

@@ -790,14 +790,15 @@ export function createAuditForSite(input: {
     throw new Error("SITE_NOT_FOUND");
   }
 
+  const timestamp = nowIso();
   const audit: Audit = {
     id: randomUUID(),
     organizationId: input.organizationId,
     siteId: input.siteId,
-    status: "QUEUED",
-    startedAt: null,
-    completedAt: null,
-    createdAt: nowIso()
+    status: "COMPLETED",
+    startedAt: timestamp,
+    completedAt: timestamp,
+    createdAt: timestamp
   };
 
   store.audits.push(audit);
@@ -809,7 +810,8 @@ export function createAuditForSite(input: {
     entityId: audit.id,
     metadata: {
       siteId: input.siteId,
-      generatedIssueCount: 0
+      generatedIssueCount: 0,
+      status: audit.status
     }
   });
 

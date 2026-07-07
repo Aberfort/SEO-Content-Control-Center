@@ -91,10 +91,10 @@
 - SaaS synced content detail opens only for an item inside the requested organization and site.
 - SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex, and canonical mismatch.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
-- SaaS users with audit run permission can queue a site audit and generate an activity log entry.
-- Queueing a site audit materializes scoped audit issues from synced content health signals without crawling external URLs.
+- SaaS users with audit run permission can create a site metadata audit and generate an activity log entry.
+- Creating a site metadata audit materializes scoped audit issues from synced content health signals, marks the audit completed, and does not crawl external URLs.
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.
-- SaaS dashboard users can queue an audit for the selected site and see the recent queued run.
+- SaaS dashboard users can create an audit for the selected site and see the recent completed metadata run.
 - SaaS users with audit read permission can list only issues for an audit inside the requested organization and site.
 - SaaS dashboard users can inspect audit issues for a selected audit run.
 - SaaS audit issue listing supports tenant-scoped text search plus status and severity filters.

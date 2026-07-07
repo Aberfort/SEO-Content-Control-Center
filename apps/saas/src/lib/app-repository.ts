@@ -1488,11 +1488,14 @@ const prismaRepository: AppRepository = {
     );
 
     const audit = await prisma.$transaction(async (tx) => {
+      const auditStartedAt = new Date();
       const created = await tx.audit.create({
         data: {
           organizationId: input.organizationId,
           siteId: input.siteId,
-          status: "QUEUED"
+          status: "COMPLETED",
+          startedAt: auditStartedAt,
+          completedAt: auditStartedAt
         }
       });
 
@@ -1505,7 +1508,8 @@ const prismaRepository: AppRepository = {
           entityId: created.id,
           metadata: {
             siteId: input.siteId,
-            generatedIssueCount: generatedIssues.length
+            generatedIssueCount: generatedIssues.length,
+            status: created.status
           }
         }
       });

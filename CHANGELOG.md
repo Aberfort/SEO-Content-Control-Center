@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 60
+
+- Changed synced-metadata audit creation to complete the deterministic metadata audit pass immediately after issue materialization.
+- Added `startedAt` and `completedAt` timestamps to created metadata audit runs.
+- Recorded the completed audit status in activity log metadata alongside generated issue counts.
+- Updated dashboard copy, API examples, roadmap, data model, security notes, and QA coverage for completed metadata audits.
+
 ### Iteration 59
 
 - Added deterministic audit issue generation from synced content health signals when a site audit is queued.

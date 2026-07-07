@@ -46,7 +46,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Synced content detail lookups must include organization, site, and item IDs in the same scoped query.
 - Synced content health signals are computed from synced metadata; actionable signals can be materialized as deduplicated `AuditIssue` records when a site audit is queued.
 - Backlog candidates generated from synced content signals are computed previews until a user creates a persisted `BacklogTask`.
-- Audit runs are queued and listed through organization and site scope before status filters are applied.
+- Metadata audit runs created from synced content signals are completed synchronously after issue materialization and are listed through organization and site scope before status filters are applied.
 - Audit issue fingerprints generated from synced content include the content external ID and signal ID so repeated audits update the same tenant/site issue instead of creating duplicates.
 - Audit issues are listed through the parent audit, organization, and site scope before any search or filters are applied.
 - Audit issue status changes update the issue record and write organization-scoped activity logs.
