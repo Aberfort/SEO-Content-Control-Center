@@ -35,12 +35,12 @@
 - Prepared queries if direct SQL is ever used.
 - Options containing secrets use `autoload = false`.
 - Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
-- Plugin sync inventory contains metadata only; content bodies are not sent in the MVP sync payload, and word count is computed locally in the plugin.
+- Plugin sync inventory contains bounded metadata only; content bodies are not sent in the MVP sync payload, word count is computed locally in the plugin, and SEO plugin metadata is limited to title, description, canonical URL, robots directives, and source.
 - Plugin sync logs must be bounded and sanitize failure details so tokens, signatures, authorization values, and endpoint URLs are not stored.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
-- Computed content health signals must use synced metadata only and must not fetch external URLs inline.
+- Computed content health signals must use synced metadata only, including canonical and robots metadata, and must not fetch external URLs inline.
 - Computed backlog candidate tasks are advisory only and must not trigger WordPress mutations without preview, dry run, and confirmation.
 - Queueing audits requires audit run permission and organization/site scoping.
 - Listing audits requires audit read permission and organization/site scoping before status filters are applied.

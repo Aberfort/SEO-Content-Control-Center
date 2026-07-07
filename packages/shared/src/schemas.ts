@@ -87,6 +87,8 @@ export const pluginSyncTaxonomyMetadataSchema = z.object({
   terms: z.array(z.string().trim().min(1).max(120)).max(100)
 });
 
+export const pluginSyncSeoPluginSchema = z.enum(["yoast", "rank_math", "fallback"]);
+
 export const pluginSyncMetadataSchema = z
   .object({
     authorId: z.number().int().nonnegative().nullable().optional(),
@@ -96,7 +98,13 @@ export const pluginSyncMetadataSchema = z
     featuredImageId: z.number().int().nonnegative().nullable().optional(),
     featuredImageUrl: z.string().url().max(2048).nullable().optional(),
     taxonomies: z.array(pluginSyncTaxonomyMetadataSchema).max(32).optional(),
-    wordCount: z.number().int().nonnegative().max(1_000_000).nullable().optional()
+    wordCount: z.number().int().nonnegative().max(1_000_000).nullable().optional(),
+    seoPlugin: pluginSyncSeoPluginSchema.optional(),
+    seoTitle: z.string().trim().max(512).nullable().optional(),
+    metaDescription: z.string().trim().max(1024).nullable().optional(),
+    canonicalUrl: z.string().trim().url().max(2048).nullable().optional(),
+    robotsNoindex: z.boolean().nullable().optional(),
+    robotsNofollow: z.boolean().nullable().optional()
   })
   .strict();
 

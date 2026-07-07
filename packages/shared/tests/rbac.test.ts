@@ -158,12 +158,20 @@ describe("shared schemas", () => {
           featuredImageId: 44,
           featuredImageUrl: "https://example.com/image.jpg",
           taxonomies: [{ taxonomy: "category", terms: ["Guides"] }],
-          wordCount: 1200
+          wordCount: 1200,
+          seoPlugin: "yoast",
+          seoTitle: "Example SEO title",
+          metaDescription: "Example meta description",
+          canonicalUrl: "https://example.com/post",
+          robotsNoindex: false,
+          robotsNofollow: false
         }
       }).metadata
     ).toMatchObject({
       authorName: "Editor",
-      wordCount: 1200
+      wordCount: 1200,
+      seoPlugin: "yoast",
+      canonicalUrl: "https://example.com/post"
     });
 
     expect(() =>

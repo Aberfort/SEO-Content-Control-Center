@@ -246,6 +246,12 @@ export type SyncedContentMetadata = {
     terms: string[];
   }>;
   wordCount?: number | null;
+  seoPlugin?: "yoast" | "rank_math" | "fallback";
+  seoTitle?: string | null;
+  metaDescription?: string | null;
+  canonicalUrl?: string | null;
+  robotsNoindex?: boolean | null;
+  robotsNofollow?: boolean | null;
 };
 
 export type SyncedContentHealthSignal = {

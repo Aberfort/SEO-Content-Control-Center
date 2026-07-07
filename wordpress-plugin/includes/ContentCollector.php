@@ -74,28 +74,31 @@ final class ContentCollector
             'title' => '' === $title ? null : $title,
             'status' => $status,
             'modifiedAt' => $this->formatDateTime($modifiedAt),
-            'metadata' => $this->buildMetadata($post, $id, $postType),
+            'metadata' => $this->buildMetadata($post, $id, $postType, $title),
         ];
     }
 
     /**
      * @return array<string,mixed>
      */
-    private function buildMetadata(object $post, string $postId, string $postType): array
+    private function buildMetadata(object $post, string $postId, string $postType, string $postTitle): array
     {
         $authorId = property_exists($post, 'post_author') ? max(0, (int) $post->post_author) : null;
         $featuredImageId = $this->readFeaturedImageId($post);
 
-        return [
-            'authorId' => $authorId,
-            'authorName' => $this->readAuthorName($authorId),
-            'publishedAt' => $this->readPublishedAt($post),
-            'featuredImagePresent' => null !== $featuredImageId && $featuredImageId > 0,
-            'featuredImageId' => $featuredImageId,
-            'featuredImageUrl' => $this->readFeaturedImageUrl($featuredImageId),
-            'taxonomies' => $this->collectTaxonomies($postId, $postType),
-            'wordCount' => $this->countWords($post),
-        ];
+        return array_merge(
+            [
+                'authorId' => $authorId,
+                'authorName' => $this->readAuthorName($authorId),
+                'publishedAt' => $this->readPublishedAt($post),
+                'featuredImagePresent' => null !== $featuredImageId && $featuredImageId > 0,
+                'featuredImageId' => $featuredImageId,
+                'featuredImageUrl' => $this->readFeaturedImageUrl($featuredImageId),
+                'taxonomies' => $this->collectTaxonomies($postId, $postType),
+                'wordCount' => $this->countWords($post),
+            ],
+            $this->readSeoMetadata($postId, $postTitle)
+        );
     }
 
     private function mapPostType(string $postType): string
@@ -232,5 +235,202 @@ final class ContentCollector
         }
 
         return count(preg_split('/\s+/', $text) ?: []);
+    }
+
+    /**
+     * @return array{seoPlugin:string,seoTitle:string|null,metaDescription:string|null,canonicalUrl:string|null,robotsNoindex:bool|null,robotsNofollow:bool|null}
+     */
+    private function readSeoMetadata(string $postId, string $fallbackTitle): array
+    {
+        $fallbackSeoTitle = $this->sanitizeMetadataString($fallbackTitle, 512);
+        $yoastMetadata = [
+            'seoTitle' => $this->sanitizeMetadataString(
+                $this->readPostMeta($postId, '_yoast_wpseo_title'),
+                512
+            ),
+            'metaDescription' => $this->sanitizeMetadataString(
+                $this->readPostMeta($postId, '_yoast_wpseo_metadesc'),
+                1024
+            ),
+            'canonicalUrl' => $this->sanitizeUrl(
+                $this->readPostMeta($postId, '_yoast_wpseo_canonical')
+            ),
+            'robotsNoindex' => $this->parseRobotFlag(
+                $this->readPostMeta($postId, '_yoast_wpseo_meta-robots-noindex'),
+                'noindex'
+            ),
+            'robotsNofollow' => $this->parseRobotFlag(
+                $this->readPostMeta($postId, '_yoast_wpseo_meta-robots-nofollow'),
+                'nofollow'
+            ),
+        ];
+
+        if ($this->hasSeoMetadata($yoastMetadata)) {
+            return array_merge(
+                ['seoPlugin' => 'yoast'],
+                $this->withFallbackSeoTitle($yoastMetadata, $fallbackSeoTitle)
+            );
+        }
+
+        $rankMathRobots = $this->readPostMeta($postId, 'rank_math_robots');
+        $rankMathMetadata = [
+            'seoTitle' => $this->sanitizeMetadataString(
+                $this->readPostMeta($postId, 'rank_math_title'),
+                512
+            ),
+            'metaDescription' => $this->sanitizeMetadataString(
+                $this->readPostMeta($postId, 'rank_math_description'),
+                1024
+            ),
+            'canonicalUrl' => $this->sanitizeUrl(
+                $this->readPostMeta($postId, 'rank_math_canonical_url')
+            ),
+            'robotsNoindex' => $this->parseRobotFlag($rankMathRobots, 'noindex'),
+            'robotsNofollow' => $this->parseRobotFlag($rankMathRobots, 'nofollow'),
+        ];
+
+        if ($this->hasSeoMetadata($rankMathMetadata)) {
+            return array_merge(
+                ['seoPlugin' => 'rank_math'],
+                $this->withFallbackSeoTitle($rankMathMetadata, $fallbackSeoTitle)
+            );
+        }
+
+        return [
+            'seoPlugin' => 'fallback',
+            'seoTitle' => $fallbackSeoTitle,
+            'metaDescription' => null,
+            'canonicalUrl' => null,
+            'robotsNoindex' => null,
+            'robotsNofollow' => null,
+        ];
+    }
+
+    private function readPostMeta(string $postId, string $key): mixed
+    {
+        if (! function_exists('get_post_meta')) {
+            return null;
+        }
+
+        return get_post_meta((int) $postId, $key, true);
+    }
+
+    private function sanitizeMetadataString(mixed $value, int $maxLength): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $text = (string) $value;
+        $text = function_exists('wp_strip_all_tags') ? wp_strip_all_tags($text) : strip_tags($text);
+        $text = trim(preg_replace('/\s+/', ' ', $text) ?? '');
+
+        if ('' === $text) {
+            return null;
+        }
+
+        return $this->truncate($text, $maxLength);
+    }
+
+    private function sanitizeUrl(mixed $value): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $url = trim((string) $value);
+
+        if ('' === $url || false === filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        return $this->truncate($url, 2048);
+    }
+
+    private function parseRobotFlag(mixed $value, string $flag): ?bool
+    {
+        if (is_array($value)) {
+            $tokens = [];
+
+            foreach ($value as $item) {
+                if (is_scalar($item)) {
+                    $tokens[] = strtolower(trim((string) $item));
+                }
+            }
+        } elseif (is_scalar($value)) {
+            $rawValue = strtolower(trim((string) $value));
+
+            if ('' === $rawValue) {
+                return null;
+            }
+
+            $tokens = preg_split('/[\s,]+/', $rawValue) ?: [];
+        } else {
+            return null;
+        }
+
+        $tokens = array_values(array_filter($tokens, static fn (string $token): bool => '' !== $token));
+
+        if ([] === $tokens) {
+            return null;
+        }
+
+        if (in_array($flag, $tokens, true)) {
+            return true;
+        }
+
+        if (1 === count($tokens)) {
+            if (in_array($tokens[0], ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+
+            if (in_array($tokens[0], ['0', '2', 'false', 'no', 'off'], true)) {
+                return false;
+            }
+        }
+
+        if ('noindex' === $flag && in_array('index', $tokens, true)) {
+            return false;
+        }
+
+        if ('nofollow' === $flag && in_array('follow', $tokens, true)) {
+            return false;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array{seoTitle:string|null,metaDescription:string|null,canonicalUrl:string|null,robotsNoindex:bool|null,robotsNofollow:bool|null} $metadata
+     */
+    private function hasSeoMetadata(array $metadata): bool
+    {
+        return null !== $metadata['seoTitle']
+            || null !== $metadata['metaDescription']
+            || null !== $metadata['canonicalUrl']
+            || null !== $metadata['robotsNoindex']
+            || null !== $metadata['robotsNofollow'];
+    }
+
+    /**
+     * @param array{seoTitle:string|null,metaDescription:string|null,canonicalUrl:string|null,robotsNoindex:bool|null,robotsNofollow:bool|null} $metadata
+     * @return array{seoTitle:string|null,metaDescription:string|null,canonicalUrl:string|null,robotsNoindex:bool|null,robotsNofollow:bool|null}
+     */
+    private function withFallbackSeoTitle(array $metadata, ?string $fallbackSeoTitle): array
+    {
+        if (null === $metadata['seoTitle']) {
+            $metadata['seoTitle'] = $fallbackSeoTitle;
+        }
+
+        return $metadata;
+    }
+
+    private function truncate(string $value, int $maxLength): string
+    {
+        if (function_exists('mb_substr')) {
+            return mb_substr($value, 0, $maxLength);
+        }
+
+        return substr($value, 0, $maxLength);
     }
 }

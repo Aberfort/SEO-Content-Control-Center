@@ -25,6 +25,17 @@ if (! function_exists('get_option')) {
     }
 }
 
+if (! function_exists('get_post_meta')) {
+    $GLOBALS['sccc_test_post_meta'] = [];
+
+    function get_post_meta(int $post_id, string $key, bool $single = false): mixed
+    {
+        $value = $GLOBALS['sccc_test_post_meta'][$post_id][$key] ?? ($single ? '' : []);
+
+        return $single ? $value : [$value];
+    }
+}
+
 require_once __DIR__ . '/../includes/RequestSigner.php';
 require_once __DIR__ . '/../includes/ApiClient.php';
 require_once __DIR__ . '/../includes/ContentCollector.php';
@@ -68,6 +79,14 @@ if ('{"organizationId":"11111111-1111-4111-8111-111111111111","siteId":"22222222
     exit(1);
 }
 
+$GLOBALS['sccc_test_post_meta'][123] = [
+    '_yoast_wpseo_title' => 'Yoast SEO title',
+    '_yoast_wpseo_metadesc' => 'Yoast description',
+    '_yoast_wpseo_canonical' => 'https://wp.example.com/canonical/',
+    '_yoast_wpseo_meta-robots-noindex' => '1',
+    '_yoast_wpseo_meta-robots-nofollow' => '1',
+];
+
 $item = $collector->mapPost(
     (object) [
         'ID' => 123,
@@ -99,6 +118,12 @@ if (
             'featuredImageUrl' => null,
             'taxonomies' => [],
             'wordCount' => 6,
+            'seoPlugin' => 'yoast',
+            'seoTitle' => 'Yoast SEO title',
+            'metaDescription' => 'Yoast description',
+            'canonicalUrl' => 'https://wp.example.com/canonical/',
+            'robotsNoindex' => true,
+            'robotsNofollow' => true,
         ],
     ] !== $item
 ) {
@@ -115,6 +140,11 @@ if (! str_contains($sync_body_with_items, '"externalId":"post:123"')) {
 
 if (! str_contains($sync_body_with_items, '"wordCount":6')) {
     fwrite(STDERR, "ApiClient sync body metadata failed.\n");
+    exit(1);
+}
+
+if (! str_contains($sync_body_with_items, '"seoPlugin":"yoast"')) {
+    fwrite(STDERR, "ApiClient sync body SEO metadata failed.\n");
     exit(1);
 }
 

@@ -704,6 +704,28 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                           <dd>{formatOptionalNumber(selectedContentItem.metadata.wordCount)}</dd>
                         </div>
                         <div>
+                          <dt>SEO title</dt>
+                          <dd>{formatOptionalText(selectedContentItem.metadata.seoTitle)}</dd>
+                        </div>
+                        <div>
+                          <dt>Meta description</dt>
+                          <dd>
+                            {formatOptionalText(selectedContentItem.metadata.metaDescription)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Canonical</dt>
+                          <dd>{formatOptionalText(selectedContentItem.metadata.canonicalUrl)}</dd>
+                        </div>
+                        <div>
+                          <dt>Robots</dt>
+                          <dd>{formatRobots(selectedContentItem.metadata)}</dd>
+                        </div>
+                        <div>
+                          <dt>SEO source</dt>
+                          <dd>{formatSeoSource(selectedContentItem.metadata)}</dd>
+                        </div>
+                        <div>
                           <dt>Featured image</dt>
                           <dd>{formatFeaturedImage(selectedContentItem.metadata)}</dd>
                         </div>
@@ -1980,6 +2002,12 @@ function formatOptionalNumber(value: number | null | undefined): string {
   return typeof value === "number" ? value.toLocaleString("en") : "n/a";
 }
 
+function formatOptionalText(value: string | null | undefined): string {
+  const text = value?.trim() ?? "";
+
+  return text || "n/a";
+}
+
 function formatSyncedContentAuthor(metadata: SyncedContentMetadata): string {
   if (metadata.authorName) {
     return metadata.authorId
@@ -1996,6 +2024,24 @@ function formatFeaturedImage(metadata: SyncedContentMetadata): string {
   }
 
   return metadata.featuredImageId ? `Yes (#${metadata.featuredImageId})` : "Yes";
+}
+
+function formatRobots(metadata: SyncedContentMetadata): string {
+  const directives = [];
+
+  if (metadata.robotsNoindex !== null && metadata.robotsNoindex !== undefined) {
+    directives.push(metadata.robotsNoindex ? "noindex" : "index");
+  }
+
+  if (metadata.robotsNofollow !== null && metadata.robotsNofollow !== undefined) {
+    directives.push(metadata.robotsNofollow ? "nofollow" : "follow");
+  }
+
+  return directives.length > 0 ? directives.join(", ") : "n/a";
+}
+
+function formatSeoSource(metadata: SyncedContentMetadata): string {
+  return metadata.seoPlugin ? metadata.seoPlugin.replaceAll("_", " ") : "n/a";
 }
 
 function formatTaxonomies(metadata: SyncedContentMetadata): string {

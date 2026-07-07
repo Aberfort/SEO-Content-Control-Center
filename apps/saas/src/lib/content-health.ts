@@ -89,7 +89,11 @@ export function buildSyncedContentHealthSignals(
           label: "Word count unavailable",
           severity: "info",
           message: "Run the latest plugin sync to include word count metadata."
-        }
+        },
+    buildSeoTitleSignal(item),
+    buildMetaDescriptionSignal(item),
+    buildRobotsSignal(item),
+    buildCanonicalSignal(item)
   ];
 }
 
@@ -155,9 +159,156 @@ function buildCandidateFromSignal(
         nextStep:
           "Review the page depth, search intent coverage, and whether it needs expansion or consolidation."
       };
+    case "seo-title-missing":
+      return {
+        id: `${item.id}:seo-title`,
+        title: `Add an SEO title for ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Add or confirm the SEO title in the WordPress SEO plugin, then run plugin sync again."
+      };
+    case "meta-description-missing":
+      return {
+        id: `${item.id}:meta-description`,
+        title: `Add a meta description for ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Add a concise meta description in the WordPress SEO plugin, then run plugin sync again."
+      };
+    case "robots-noindex":
+      return {
+        id: `${item.id}:robots-noindex`,
+        title: `Review noindex directive on ${contentLabel}`,
+        priority: "high",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Confirm whether this URL should stay noindex; if not, update the SEO plugin robots setting."
+      };
+    case "canonical-different":
+      return {
+        id: `${item.id}:canonical`,
+        title: `Review canonical target for ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Confirm the canonical URL points to the intended primary page before making changes."
+      };
     default:
       return null;
   }
+}
+
+function buildSeoTitleSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  const seoTitle = item.metadata.seoTitle?.trim() ?? "";
+
+  return seoTitle
+    ? {
+        id: "seo-title-present",
+        label: "SEO title detected",
+        severity: "success",
+        message: "Plugin sync included an SEO title."
+      }
+    : {
+        id: "seo-title-missing",
+        label: "Missing SEO title",
+        severity: "warning",
+        message: "Plugin sync did not include an SEO title for this item."
+      };
+}
+
+function buildMetaDescriptionSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  const metaDescription = item.metadata.metaDescription?.trim() ?? "";
+
+  return metaDescription
+    ? {
+        id: "meta-description-present",
+        label: "Meta description detected",
+        severity: "success",
+        message: "Plugin sync included a meta description."
+      }
+    : {
+        id: "meta-description-missing",
+        label: "Missing meta description",
+        severity: "warning",
+        message: "Plugin sync did not include a meta description for this item."
+      };
+}
+
+function buildRobotsSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  if (item.metadata.robotsNoindex === true) {
+    return {
+      id: "robots-noindex",
+      label: "Noindex detected",
+      severity: "critical",
+      message: "Robots metadata marks this item as noindex."
+    };
+  }
+
+  if (item.metadata.robotsNoindex === false) {
+    return {
+      id: "robots-indexable",
+      label: "Indexable",
+      severity: "success",
+      message: "Robots metadata does not mark this item as noindex."
+    };
+  }
+
+  return {
+    id: "robots-unknown",
+    label: "Robots unavailable",
+    severity: "info",
+    message: "Run the latest plugin sync to include robots metadata."
+  };
+}
+
+function buildCanonicalSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  const canonicalUrl = item.metadata.canonicalUrl?.trim() ?? "";
+
+  if (!canonicalUrl) {
+    return {
+      id: "canonical-unknown",
+      label: "Canonical unavailable",
+      severity: "info",
+      message: "Plugin sync did not include a canonical URL for this item."
+    };
+  }
+
+  if (canonicalMatchesItem(canonicalUrl, item.url)) {
+    return {
+      id: "canonical-self",
+      label: "Canonical self-reference",
+      severity: "success",
+      message: "Canonical URL matches this synced URL."
+    };
+  }
+
+  return {
+    id: "canonical-different",
+    label: "Canonical differs",
+    severity: "warning",
+    message: `Canonical URL points to ${canonicalUrl}.`
+  };
+}
+
+function canonicalMatchesItem(canonicalUrl: string, itemUrl: string): boolean {
+  try {
+    return normalizeUrlForComparison(canonicalUrl) === normalizeUrlForComparison(itemUrl);
+  } catch {
+    return false;
+  }
+}
+
+function normalizeUrlForComparison(value: string): string {
+  const url = new URL(value);
+  const pathname = url.pathname === "/" ? "/" : url.pathname.replace(/\/+$/, "");
+
+  return `${url.protocol}//${url.host.toLowerCase()}${pathname}${url.search}`;
 }
 
 function ageInDays(value: string, referenceDate: Date): number {

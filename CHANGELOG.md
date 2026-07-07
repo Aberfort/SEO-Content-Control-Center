@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 58
+
+- Added bounded SEO metadata sync fields for detected source, SEO title, meta description, canonical URL, and robots noindex/nofollow directives.
+- Extended the WordPress content collector to read Yoast and Rank Math metadata with a fallback WordPress title source.
+- Displayed SEO metadata in the SaaS synced content detail panel.
+- Added synced content health signals and backlog candidates for missing SEO titles, missing meta descriptions, noindex directives, and canonical mismatches.
+- Documented the expanded sync contract, data model, security guardrails, and QA coverage.
+
 ### Iteration 57
 
 - Extended WordPress plugin content inventory metadata with author, publish date, featured image, taxonomies, and word count signals without sending post bodies.

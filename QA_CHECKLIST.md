@@ -81,7 +81,7 @@
 - Plugin admin stores exchanged organization/site/token/endpoint connection data without autoloading the option.
 - Used, expired, or unknown challenges are rejected.
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
-- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, and word count.
+- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.
 - Plugin sync log failure details redact tokens, signatures, authorization values, and endpoint URLs.
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
@@ -89,7 +89,7 @@
 - SaaS users can list only synced content for sites inside their organization.
 - SaaS synced content inventory supports search, type/status filters, and cursor pagination without leaking cross-tenant data.
 - SaaS synced content detail opens only for an item inside the requested organization and site.
-- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, and thin content word count.
+- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex, and canonical mismatch.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - SaaS users with audit run permission can queue a site audit and generate an activity log entry.
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.

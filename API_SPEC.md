@@ -480,7 +480,7 @@ Request:
 
 `POST /api/plugin/sync`
 
-Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and optional bounded metadata for author, publish date, featured image, taxonomies, and locally computed word count. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
+Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and optional bounded metadata for author, publish date, featured image, taxonomies, locally computed word count, and SEO metadata from Yoast, Rank Math, or fallback WordPress title/robots/canonical signals. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
 
 The sync payload must not include WordPress post bodies. Metadata is optional for backward compatibility with older plugin payloads.
 
@@ -502,7 +502,13 @@ Example item:
     "featuredImageId": 44,
     "featuredImageUrl": "https://example.com/image.jpg",
     "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
-    "wordCount": 1200
+    "wordCount": 1200,
+    "seoPlugin": "yoast",
+    "seoTitle": "Example SEO title",
+    "metaDescription": "Example meta description for search snippets.",
+    "canonicalUrl": "https://example.com/post",
+    "robotsNoindex": false,
+    "robotsNofollow": false
   }
 }
 ```
@@ -570,7 +576,13 @@ Response:
       "featuredImageId": 44,
       "featuredImageUrl": "https://example.com/image.jpg",
       "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
-      "wordCount": 1200
+      "wordCount": 1200,
+      "seoPlugin": "yoast",
+      "seoTitle": "Example SEO title",
+      "metaDescription": "Example meta description for search snippets.",
+      "canonicalUrl": "https://example.com/post",
+      "robotsNoindex": false,
+      "robotsNofollow": false
     },
     "firstSeenAt": "2026-07-01T07:05:00.000Z",
     "lastSeenAt": "2026-07-01T07:05:00.000Z",

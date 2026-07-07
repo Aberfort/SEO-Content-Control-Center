@@ -17,7 +17,13 @@ const baseItem: SyncedContentItem = {
   status: "publish",
   modifiedAt: "2026-06-29T12:00:00.000Z",
   metadata: {
-    wordCount: 1200
+    wordCount: 1200,
+    seoPlugin: "yoast",
+    seoTitle: "Revenue guide SEO title",
+    metaDescription: "A practical guide to revenue-focused SEO.",
+    canonicalUrl: "https://example.com/post/",
+    robotsNoindex: false,
+    robotsNofollow: false
   },
   firstSeenAt: "2026-06-29T12:00:00.000Z",
   lastSeenAt: "2026-07-01T10:00:00.000Z"
@@ -32,7 +38,11 @@ describe("buildSyncedContentHealthSignals", () => {
       "published",
       "sync-fresh",
       "content-current",
-      "word-count-ok"
+      "word-count-ok",
+      "seo-title-present",
+      "meta-description-present",
+      "robots-indexable",
+      "canonical-self"
     ]);
     expect(signals.every((signal) => signal.severity !== "critical")).toBe(true);
     expect(buildSyncedContentBacklogCandidates(baseItem, signals)).toEqual([]);
@@ -46,7 +56,9 @@ describe("buildSyncedContentHealthSignals", () => {
         status: "trash",
         modifiedAt: "2025-01-01T00:00:00.000Z",
         metadata: {
-          wordCount: 120
+          wordCount: 120,
+          robotsNoindex: true,
+          canonicalUrl: "https://example.com/preferred-post"
         },
         lastSeenAt: "2026-06-01T00:00:00.000Z"
       },
@@ -58,7 +70,11 @@ describe("buildSyncedContentHealthSignals", () => {
       ["not-published", "critical"],
       ["sync-stale", "critical"],
       ["content-stale", "info"],
-      ["thin-content", "warning"]
+      ["thin-content", "warning"],
+      ["seo-title-missing", "warning"],
+      ["meta-description-missing", "warning"],
+      ["robots-noindex", "critical"],
+      ["canonical-different", "warning"]
     ]);
   });
 
@@ -69,7 +85,9 @@ describe("buildSyncedContentHealthSignals", () => {
       status: "trash",
       modifiedAt: "2025-01-01T00:00:00.000Z",
       metadata: {
-        wordCount: 120
+        wordCount: 120,
+        robotsNoindex: true,
+        canonicalUrl: "https://example.com/preferred-post"
       },
       lastSeenAt: "2026-06-01T00:00:00.000Z"
     };
@@ -81,7 +99,11 @@ describe("buildSyncedContentHealthSignals", () => {
       ["not-published", "high"],
       ["sync-stale", "high"],
       ["content-stale", "low"],
-      ["thin-content", "medium"]
+      ["thin-content", "medium"],
+      ["seo-title-missing", "medium"],
+      ["meta-description-missing", "medium"],
+      ["robots-noindex", "high"],
+      ["canonical-different", "medium"]
     ]);
     expect(candidates[0]?.nextStep).toContain("run plugin sync again");
   });

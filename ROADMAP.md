@@ -37,8 +37,8 @@
 - Secure token storage.
 - Manual sync.
 - Action Scheduler sync.
-- Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, and word count metadata sync implemented for current posts/pages inventory.
-- Yoast and Rank Math extraction.
+- Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, and SEO metadata sync implemented for current posts/pages inventory.
+- Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
 - Disconnect flow.
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
 
