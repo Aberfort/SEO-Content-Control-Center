@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 59
+
+- Added deterministic audit issue generation from synced content health signals when a site audit is queued.
+- Materialized thin content, missing SEO title/meta description, noindex, and canonical mismatch signals as scoped `AuditIssue` records.
+- Deduplicated generated synced-content audit issues with stable organization/site fingerprints.
+- Completed in-memory audit issue listing, status updates, and audit-issue-to-backlog task creation for the fallback repository.
+- Updated dashboard copy and documentation for synced-metadata audit issue materialization.
+
 ### Iteration 58
 
 - Added bounded SEO metadata sync fields for detected source, SEO title, meta description, canonical URL, and robots noindex/nofollow directives.

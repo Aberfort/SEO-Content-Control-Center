@@ -1113,7 +1113,7 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`
 
-Queues an audit when the member has `audit:run`. The MVP creates a tenant-scoped `QUEUED` audit record and activity log entry; it does not crawl or mutate WordPress content inline.
+Queues an audit when the member has `audit:run`. The MVP creates a tenant-scoped `QUEUED` audit record and activity log entry, then materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, and canonical mismatch. It does not crawl external URLs or mutate WordPress content inline.
 
 Response:
 

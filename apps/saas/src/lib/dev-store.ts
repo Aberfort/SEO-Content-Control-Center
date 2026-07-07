@@ -103,6 +103,7 @@ type DevStoreState = {
   members: StoreOrganizationMember[];
   sites: Site[];
   audits: Audit[];
+  auditIssues: AuditIssue[];
   backlogTasks: BacklogTask[];
   backlogComments: BacklogTaskComment[];
   bulkOperations: BulkOperation[];
@@ -201,6 +202,7 @@ function initialState(): DevStoreState {
     members: [],
     sites: [],
     audits: [],
+    auditIssues: [],
     backlogTasks: [],
     backlogComments: [],
     bulkOperations: [],
@@ -806,7 +808,8 @@ export function createAuditForSite(input: {
     entityType: "Audit",
     entityId: audit.id,
     metadata: {
-      siteId: input.siteId
+      siteId: input.siteId,
+      generatedIssueCount: 0
     }
   });
 
@@ -821,17 +824,46 @@ export function listAuditIssuesForAudit(
   options?: AuditIssueListOptions
 ): AuditIssue[] {
   const parsed: AuditIssueListQuery = auditIssueListQuerySchema.parse(options ?? {});
-  void parsed;
-  void siteId;
-  void auditId;
-
   requireOrganizationAccess({
     userId,
     organizationId,
     permission: "audit:read"
   });
 
-  throw new Error("AUDIT_NOT_FOUND");
+  const store = getDevStore();
+  const audit = store.audits.find(
+    (candidate) =>
+      candidate.id === auditId &&
+      candidate.organizationId === organizationId &&
+      candidate.siteId === siteId
+  );
+
+  if (!audit) {
+    throw new Error("AUDIT_NOT_FOUND");
+  }
+
+  return store.auditIssues
+    .filter((issue) => {
+      const scopeMatches =
+        issue.auditId === auditId &&
+        issue.organizationId === organizationId &&
+        issue.siteId === siteId;
+      const statusMatches = parsed.status ? issue.status === parsed.status : true;
+      const severityMatches = parsed.severity ? issue.severity === parsed.severity : true;
+      const queryMatches = parsed.query ? auditIssueMatchesQuery(issue, parsed.query) : true;
+
+      return scopeMatches && statusMatches && severityMatches && queryMatches;
+    })
+    .sort((left, right) => {
+      const severityDelta = severityRank(right.severity) - severityRank(left.severity);
+
+      if (severityDelta !== 0) {
+        return severityDelta;
+      }
+
+      return right.updatedAt.localeCompare(left.updatedAt);
+    })
+    .slice(0, parsed.limit ?? 100);
 }
 
 export function updateAuditIssueStatus(
@@ -847,7 +879,41 @@ export function updateAuditIssueStatus(
     permission: "audit:run"
   });
 
-  throw new Error("AUDIT_ISSUE_NOT_FOUND");
+  const issue = getDevStore().auditIssues.find(
+    (candidate) =>
+      candidate.id === parsed.issueId &&
+      candidate.auditId === parsed.auditId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!issue) {
+    throw new Error("AUDIT_ISSUE_NOT_FOUND");
+  }
+
+  if (issue.status === parsed.status) {
+    return issue;
+  }
+
+  const previousStatus = issue.status;
+  issue.status = parsed.status;
+  issue.updatedAt = nowIso();
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "audit_issue.status_updated",
+    entityType: "AuditIssue",
+    entityId: issue.id,
+    metadata: {
+      siteId: parsed.siteId,
+      auditId: parsed.auditId,
+      issueType: issue.issueType,
+      previousStatus,
+      status: issue.status
+    }
+  });
+
+  return issue;
 }
 
 export function createBacklogTaskFromCandidate(input: {
@@ -876,6 +942,7 @@ export function createBacklogTaskFromAuditIssue(
   }
 ): BacklogTask {
   const parsed = backlogTaskFromAuditIssueSchema.parse(input);
+  const store = getDevStore();
 
   requireOrganizationAccess({
     userId: input.user.id,
@@ -883,7 +950,64 @@ export function createBacklogTaskFromAuditIssue(
     permission: "backlog:update"
   });
 
-  throw new Error("AUDIT_ISSUE_NOT_FOUND");
+  const issue = store.auditIssues.find(
+    (candidate) =>
+      candidate.id === parsed.auditIssueId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!issue) {
+    throw new Error("AUDIT_ISSUE_NOT_FOUND");
+  }
+
+  const existing = store.backlogTasks.find(
+    (task) =>
+      task.organizationId === parsed.organizationId &&
+      task.siteId === parsed.siteId &&
+      task.auditIssueId === issue.id
+  );
+
+  if (existing) {
+    return withBacklogDetails(existing, store.backlogComments, store.activityLogs, 3);
+  }
+
+  const timestamp = nowIso();
+  const task: BacklogTask = {
+    id: randomUUID(),
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    auditIssueId: issue.id,
+    title: issue.recommendedAction,
+    url: issue.affectedUrl,
+    issueType: `audit.${issue.issueType}`,
+    status: "TODO",
+    severity: issue.severity,
+    potentialImpact: issue.potentialImpact ?? issue.explanation,
+    effortEstimate: mapIssueSeverityToEffort(issue.severity),
+    assigneeId: null,
+    dueDate: null,
+    tags: ["audit", issue.issueType],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    comments: []
+  };
+
+  store.backlogTasks.push(task);
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "backlog_task.created_from_audit_issue",
+    entityType: "BacklogTask",
+    entityId: task.id,
+    metadata: {
+      siteId: parsed.siteId,
+      auditIssueId: issue.id,
+      issueType: issue.issueType
+    }
+  });
+
+  return withBacklogDetails(task, store.backlogComments, store.activityLogs, 3);
 }
 
 export function listBacklogTasksForSite(
@@ -2155,6 +2279,50 @@ function writeNotification(input: Omit<Notification, "id" | "readAt" | "createdA
 
   getDevStore().notifications.push(notification);
   return notification;
+}
+
+function auditIssueMatchesQuery(issue: AuditIssue, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [
+    issue.issueType,
+    issue.affectedUrl,
+    issue.explanation,
+    issue.recommendedAction,
+    issue.fingerprint
+  ].some((value) => value.toLowerCase().includes(normalizedQuery));
+}
+
+function severityRank(severity: AuditIssue["severity"]): number {
+  if (severity === "CRITICAL") {
+    return 4;
+  }
+
+  if (severity === "HIGH") {
+    return 3;
+  }
+
+  if (severity === "MEDIUM") {
+    return 2;
+  }
+
+  return 1;
+}
+
+function mapIssueSeverityToEffort(severity: AuditIssue["severity"]): number {
+  if (severity === "CRITICAL" || severity === "HIGH") {
+    return 3;
+  }
+
+  if (severity === "MEDIUM") {
+    return 2;
+  }
+
+  return 1;
 }
 
 function mapMemberSummary(

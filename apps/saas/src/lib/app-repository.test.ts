@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { getAppRepository } from "./app-repository";
 import { getDevStore, resetDevStore } from "./dev-store";
-import type { AppUser } from "./types";
+import type { AppUser, AuditIssue } from "./types";
 
 const user: AppUser = {
   id: "00000000-0000-4000-8000-000000000101",
@@ -397,6 +397,92 @@ describe("app repository", () => {
       "organization.created",
       "site.created"
     ]);
+  });
+
+  it("lists, updates, and creates backlog tasks from in-memory audit issues", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Repository Audit Issues"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Audit Blog",
+      url: "https://audit.repository.example.com"
+    });
+    const audit = await repository.createAuditForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id
+    });
+    const now = "2026-07-07T08:00:00.000Z";
+    const issue: AuditIssue = {
+      id: "00000000-0000-4000-8000-000000000707",
+      auditId: audit.id,
+      organizationId: organization.id,
+      siteId: site.id,
+      issueType: "synced_content.robots-noindex",
+      status: "OPEN",
+      severity: "HIGH",
+      affectedUrl: "https://audit.repository.example.com/noindex",
+      evidence: {
+        source: "synced_content_health"
+      },
+      explanation: "Robots metadata marks this item as noindex.",
+      recommendedAction: "Review noindex directive on noindex page",
+      potentialImpact: "Search traffic can be blocked.",
+      fingerprint: "synced_content:post:1:robots-noindex",
+      createdAt: now,
+      updatedAt: now
+    };
+
+    getDevStore().auditIssues.push(issue);
+
+    await expect(
+      repository.listAuditIssuesForAudit(user.id, organization.id, site.id, audit.id, {
+        query: "noindex",
+        severity: "HIGH"
+      })
+    ).resolves.toEqual([issue]);
+
+    await expect(
+      repository.updateAuditIssueStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        auditId: audit.id,
+        issueId: issue.id,
+        status: "RESOLVED"
+      })
+    ).resolves.toMatchObject({
+      id: issue.id,
+      status: "RESOLVED"
+    });
+
+    const task = await repository.createBacklogTaskFromAuditIssue({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: issue.id
+    });
+
+    expect(task).toMatchObject({
+      auditIssueId: issue.id,
+      title: issue.recommendedAction,
+      issueType: `audit.${issue.issueType}`,
+      severity: "HIGH"
+    });
+    await expect(
+      repository.createBacklogTaskFromAuditIssue({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        auditIssueId: issue.id
+      })
+    ).resolves.toMatchObject({
+      id: task.id
+    });
   });
 
   it("invites members and updates non-owner roles through the repository contract", async () => {

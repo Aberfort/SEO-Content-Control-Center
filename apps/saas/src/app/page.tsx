@@ -875,7 +875,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                   </button>
                 </form>
                 <span className="muted-text">
-                  The MVP creates a queued run; crawling will attach issues later.
+                  The MVP creates a queued run and attaches issues from synced metadata.
                 </span>
               </div>
 

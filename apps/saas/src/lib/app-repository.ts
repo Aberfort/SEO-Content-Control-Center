@@ -104,6 +104,7 @@ import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "./content-health";
+import { buildAuditIssueInputsFromSyncedContent } from "./audit-issue-generation";
 import {
   buildAssistantRecommendationFromBacklogTask,
   buildAssistantRecommendationsFromSyncedContent,
@@ -1467,6 +1468,25 @@ const prismaRepository: AppRepository = {
       throw new Error("SITE_NOT_FOUND");
     }
 
+    const syncedContentItems = await prisma.syncedContentItem.findMany({
+      where: {
+        organizationId: input.organizationId,
+        siteId: input.siteId
+      },
+      orderBy: [
+        {
+          lastSeenAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      take: 500
+    });
+    const generatedIssues = syncedContentItems.flatMap((item) =>
+      buildAuditIssueInputsFromSyncedContent(mapSyncedContentItem(item))
+    );
+
     const audit = await prisma.$transaction(async (tx) => {
       const created = await tx.audit.create({
         data: {
@@ -1484,10 +1504,46 @@ const prismaRepository: AppRepository = {
           entityType: "Audit",
           entityId: created.id,
           metadata: {
-            siteId: input.siteId
+            siteId: input.siteId,
+            generatedIssueCount: generatedIssues.length
           }
         }
       });
+
+      for (const issue of generatedIssues) {
+        await tx.auditIssue.upsert({
+          where: {
+            organizationId_siteId_fingerprint: {
+              organizationId: input.organizationId,
+              siteId: input.siteId,
+              fingerprint: issue.fingerprint
+            }
+          },
+          update: {
+            auditId: created.id,
+            issueType: issue.issueType,
+            severity: issue.severity,
+            affectedUrl: issue.affectedUrl,
+            evidence: toPrismaJson(issue.evidence),
+            explanation: issue.explanation,
+            recommendedAction: issue.recommendedAction,
+            potentialImpact: issue.potentialImpact
+          },
+          create: {
+            auditId: created.id,
+            organizationId: input.organizationId,
+            siteId: input.siteId,
+            issueType: issue.issueType,
+            severity: issue.severity,
+            affectedUrl: issue.affectedUrl,
+            evidence: toPrismaJson(issue.evidence),
+            explanation: issue.explanation,
+            recommendedAction: issue.recommendedAction,
+            potentialImpact: issue.potentialImpact,
+            fingerprint: issue.fingerprint
+          }
+        });
+      }
 
       return created;
     });
@@ -3772,6 +3828,10 @@ function normalizeSyncedContentMetadata(metadata: Prisma.JsonValue | null): Sync
   }
 
   return metadata as SyncedContentMetadata;
+}
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value ?? {})) as Prisma.InputJsonValue;
 }
 
 function mapAudit(audit: {

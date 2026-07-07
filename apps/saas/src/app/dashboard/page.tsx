@@ -44,7 +44,7 @@ export default async function DashboardPage() {
         </article>
         <article className="panel">
           <h2>0 backlog tasks</h2>
-          <p>Tasks will be generated from real audit issues in a later iteration.</p>
+          <p>Backlog tasks can be created from synced content candidates or audit issues.</p>
         </article>
       </section>
 
