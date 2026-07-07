@@ -59,6 +59,7 @@ import type {
   AssistantRecommendationListOptions,
   Audit,
   AuditIssue,
+  AuditIssueSummary,
   AuditIssueListOptions,
   AuditListOptions,
   BacklogTask,
@@ -765,7 +766,8 @@ export function listAuditsForSite(
       return scopeMatches && statusMatches;
     })
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-    .slice(0, parsed.limit ?? 25);
+    .slice(0, parsed.limit ?? 25)
+    .map((audit) => withAuditIssueSummary(audit, getDevStore().auditIssues));
 }
 
 export function createAuditForSite(input: {
@@ -798,7 +800,8 @@ export function createAuditForSite(input: {
     status: "COMPLETED",
     startedAt: timestamp,
     completedAt: timestamp,
-    createdAt: timestamp
+    createdAt: timestamp,
+    issueSummary: emptyAuditIssueSummary()
   };
 
   store.audits.push(audit);
@@ -815,7 +818,7 @@ export function createAuditForSite(input: {
     }
   });
 
-  return audit;
+  return withAuditIssueSummary(audit, store.auditIssues);
 }
 
 export function listAuditIssuesForAudit(
@@ -2325,6 +2328,47 @@ function mapIssueSeverityToEffort(severity: AuditIssue["severity"]): number {
   }
 
   return 1;
+}
+
+function withAuditIssueSummary(audit: Audit, issues: AuditIssue[]): Audit {
+  return {
+    ...audit,
+    issueSummary: summarizeAuditIssues(issues.filter((issue) => issue.auditId === audit.id))
+  };
+}
+
+function summarizeAuditIssues(issues: AuditIssue[]): AuditIssueSummary {
+  return issues.reduce<AuditIssueSummary>((summary, issue) => {
+    summary.total += 1;
+
+    if (issue.status === "OPEN") {
+      summary.open += 1;
+    }
+
+    if (issue.status === "RESOLVED") {
+      summary.resolved += 1;
+    }
+
+    if (issue.severity === "HIGH") {
+      summary.high += 1;
+    }
+
+    if (issue.severity === "CRITICAL") {
+      summary.critical += 1;
+    }
+
+    return summary;
+  }, emptyAuditIssueSummary());
+}
+
+function emptyAuditIssueSummary(): AuditIssueSummary {
+  return {
+    total: 0,
+    open: 0,
+    resolved: 0,
+    high: 0,
+    critical: 0
+  };
 }
 
 function mapMemberSummary(

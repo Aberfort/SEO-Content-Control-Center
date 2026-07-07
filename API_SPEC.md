@@ -1126,7 +1126,14 @@ Response:
     "status": "COMPLETED",
     "startedAt": "2026-07-02T10:00:00.000Z",
     "completedAt": "2026-07-02T10:00:00.000Z",
-    "createdAt": "2026-07-02T10:00:00.000Z"
+    "createdAt": "2026-07-02T10:00:00.000Z",
+    "issueSummary": {
+      "total": 5,
+      "open": 5,
+      "resolved": 0,
+      "high": 1,
+      "critical": 0
+    }
   }
 }
 ```
@@ -1152,7 +1159,14 @@ Response:
       "status": "COMPLETED",
       "startedAt": "2026-07-02T10:00:00.000Z",
       "completedAt": "2026-07-02T10:00:00.000Z",
-      "createdAt": "2026-07-02T10:00:00.000Z"
+      "createdAt": "2026-07-02T10:00:00.000Z",
+      "issueSummary": {
+        "total": 5,
+        "open": 5,
+        "resolved": 0,
+        "high": 1,
+        "critical": 0
+      }
     }
   ]
 }

@@ -135,6 +135,7 @@ import type {
   AssistantRecommendationListOptions,
   Audit,
   AuditIssue,
+  AuditIssueSummary,
   AuditIssueListOptions,
   AuditListOptions,
   BacklogTask,
@@ -1446,8 +1447,9 @@ const prismaRepository: AppRepository = {
       ],
       take: normalizedOptions.limit ?? 25
     });
+    const issueSummaries = await buildAuditIssueSummariesForAudits(audits.map((audit) => audit.id));
 
-    return audits.map(mapAudit);
+    return audits.map((audit) => mapAudit(audit, issueSummaries.get(audit.id)));
   },
 
   async createAuditForSite(input) {
@@ -1487,7 +1489,7 @@ const prismaRepository: AppRepository = {
       buildAuditIssueInputsFromSyncedContent(mapSyncedContentItem(item))
     );
 
-    const audit = await prisma.$transaction(async (tx) => {
+    const auditResult = await prisma.$transaction(async (tx) => {
       const auditStartedAt = new Date();
       const created = await tx.audit.create({
         data: {
@@ -1549,10 +1551,23 @@ const prismaRepository: AppRepository = {
         });
       }
 
-      return created;
+      const persistedIssues = await tx.auditIssue.findMany({
+        where: {
+          auditId: created.id
+        },
+        select: {
+          status: true,
+          severity: true
+        }
+      });
+
+      return {
+        audit: created,
+        issueSummary: summarizeAuditIssueRows(persistedIssues)
+      };
     });
 
-    return mapAudit(audit);
+    return mapAudit(auditResult.audit, auditResult.issueSummary);
   },
 
   async listAuditIssuesForAudit(userId, organizationId, siteId, auditId, options) {
@@ -3838,15 +3853,18 @@ function toPrismaJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? {})) as Prisma.InputJsonValue;
 }
 
-function mapAudit(audit: {
-  id: string;
-  organizationId: string;
-  siteId: string;
-  status: Audit["status"];
-  startedAt: Date | null;
-  completedAt: Date | null;
-  createdAt: Date;
-}): Audit {
+function mapAudit(
+  audit: {
+    id: string;
+    organizationId: string;
+    siteId: string;
+    status: Audit["status"];
+    startedAt: Date | null;
+    completedAt: Date | null;
+    createdAt: Date;
+  },
+  issueSummary: AuditIssueSummary = emptyAuditIssueSummary()
+): Audit {
   return {
     id: audit.id,
     organizationId: audit.organizationId,
@@ -3854,7 +3872,79 @@ function mapAudit(audit: {
     status: audit.status,
     startedAt: audit.startedAt?.toISOString() ?? null,
     completedAt: audit.completedAt?.toISOString() ?? null,
-    createdAt: audit.createdAt.toISOString()
+    createdAt: audit.createdAt.toISOString(),
+    issueSummary
+  };
+}
+
+async function buildAuditIssueSummariesForAudits(
+  auditIds: string[]
+): Promise<Map<string, AuditIssueSummary>> {
+  if (auditIds.length === 0) {
+    return new Map();
+  }
+
+  const issues = await prisma.auditIssue.findMany({
+    where: {
+      auditId: {
+        in: auditIds
+      }
+    },
+    select: {
+      auditId: true,
+      status: true,
+      severity: true
+    }
+  });
+  const grouped = new Map<
+    string,
+    Array<{ status: AuditIssue["status"]; severity: AuditIssue["severity"] }>
+  >();
+
+  for (const issue of issues) {
+    const rows = grouped.get(issue.auditId) ?? [];
+    rows.push(issue);
+    grouped.set(issue.auditId, rows);
+  }
+
+  return new Map(
+    auditIds.map((auditId) => [auditId, summarizeAuditIssueRows(grouped.get(auditId) ?? [])])
+  );
+}
+
+function summarizeAuditIssueRows(
+  issues: Array<{ status: AuditIssue["status"]; severity: AuditIssue["severity"] }>
+): AuditIssueSummary {
+  return issues.reduce<AuditIssueSummary>((summary, issue) => {
+    summary.total += 1;
+
+    if (issue.status === "OPEN") {
+      summary.open += 1;
+    }
+
+    if (issue.status === "RESOLVED") {
+      summary.resolved += 1;
+    }
+
+    if (issue.severity === "HIGH") {
+      summary.high += 1;
+    }
+
+    if (issue.severity === "CRITICAL") {
+      summary.critical += 1;
+    }
+
+    return summary;
+  }, emptyAuditIssueSummary());
+}
+
+function emptyAuditIssueSummary(): AuditIssueSummary {
+  return {
+    total: 0,
+    open: 0,
+    resolved: 0,
+    high: 0,
+    critical: 0
   };
 }
 

@@ -65,7 +65,14 @@ describe("app repository", () => {
       siteId: organizations[0]?.sites[0]?.id,
       status: "COMPLETED",
       startedAt: expect.any(String),
-      completedAt: expect.any(String)
+      completedAt: expect.any(String),
+      issueSummary: {
+        total: 0,
+        open: 0,
+        resolved: 0,
+        high: 0,
+        critical: 0
+      }
     });
     expect(
       await repository.listAuditsForSite(
@@ -440,6 +447,21 @@ describe("app repository", () => {
     getDevStore().auditIssues.push(issue);
 
     await expect(
+      repository.listAuditsForSite(user.id, organization.id, site.id, { status: "COMPLETED" })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: audit.id,
+        issueSummary: {
+          total: 1,
+          open: 1,
+          resolved: 0,
+          high: 1,
+          critical: 0
+        }
+      })
+    ]);
+
+    await expect(
       repository.listAuditIssuesForAudit(user.id, organization.id, site.id, audit.id, {
         query: "noindex",
         severity: "HIGH"
@@ -459,6 +481,20 @@ describe("app repository", () => {
       id: issue.id,
       status: "RESOLVED"
     });
+    await expect(
+      repository.listAuditsForSite(user.id, organization.id, site.id, { status: "COMPLETED" })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: audit.id,
+        issueSummary: {
+          total: 1,
+          open: 0,
+          resolved: 1,
+          high: 1,
+          critical: 0
+        }
+      })
+    ]);
 
     const task = await repository.createBacklogTaskFromAuditIssue({
       user,

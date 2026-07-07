@@ -318,11 +318,20 @@ export type Audit = {
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  issueSummary: AuditIssueSummary;
 };
 
 export type AuditListOptions = {
   status?: Audit["status"];
   limit?: number;
+};
+
+export type AuditIssueSummary = {
+  total: number;
+  open: number;
+  resolved: number;
+  high: number;
+  critical: number;
 };
 
 export type AuditIssue = {

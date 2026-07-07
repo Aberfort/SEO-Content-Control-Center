@@ -49,7 +49,7 @@
 - Indexability checks. Status: synced noindex and canonical mismatch signals are materialized into completed metadata audit runs.
 - Link checks.
 - Issue deduplication. Status: synced-content issue fingerprints are deduplicated by organization/site/fingerprint.
-- Issue lifecycle: open, ignored, resolved, snoozed.
+- Issue lifecycle: open, ignored, resolved, snoozed. Status: audit run listings expose scoped issue summary counts.
 
 ## Phase 4 - Google Search Console
 

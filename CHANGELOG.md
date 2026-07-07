@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 61
+
+- Added computed audit issue summary counts to audit run API responses.
+- Included total, open, resolved, high, and critical issue counts for each listed metadata audit.
+- Displayed audit issue summary counts directly in the SaaS audit run table.
+- Kept summaries derived from scoped audit issues without adding persisted aggregate columns.
+- Documented audit summary API behavior, data model notes, security guardrails, and QA coverage.
+
 ### Iteration 60
 
 - Changed synced-metadata audit creation to complete the deterministic metadata audit pass immediately after issue materialization.

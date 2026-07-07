@@ -95,6 +95,7 @@
 - Creating a site metadata audit materializes scoped audit issues from synced content health signals, marks the audit completed, and does not crawl external URLs.
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.
 - SaaS dashboard users can create an audit for the selected site and see the recent completed metadata run.
+- SaaS audit run listing includes total, open, resolved, high, and critical issue summary counts scoped to each audit.
 - SaaS users with audit read permission can list only issues for an audit inside the requested organization and site.
 - SaaS dashboard users can inspect audit issues for a selected audit run.
 - SaaS audit issue listing supports tenant-scoped text search plus status and severity filters.

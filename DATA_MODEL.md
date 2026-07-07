@@ -48,6 +48,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Backlog candidates generated from synced content signals are computed previews until a user creates a persisted `BacklogTask`.
 - Metadata audit runs created from synced content signals are completed synchronously after issue materialization and are listed through organization and site scope before status filters are applied.
 - Audit issue fingerprints generated from synced content include the content external ID and signal ID so repeated audits update the same tenant/site issue instead of creating duplicates.
+- Audit run API responses include computed issue summary counts from scoped audit issues; the summary is not persisted separately.
 - Audit issues are listed through the parent audit, organization, and site scope before any search or filters are applied.
 - Audit issue status changes update the issue record and write organization-scoped activity logs.
 - Backlog tasks created from synced content candidates use `synced_content.*` issue types and remain scoped by organization and site.

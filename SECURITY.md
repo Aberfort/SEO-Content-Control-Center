@@ -45,6 +45,7 @@
 - Creating metadata audits requires audit run permission and organization/site scoping.
 - Creating metadata audits may materialize issues only from scoped synced metadata already stored for the site; it must not crawl URLs, fetch external content, or mutate WordPress inline.
 - Listing audits requires audit read permission and organization/site scoping before status filters are applied.
+- Audit run issue summaries must be computed only from audit issues scoped to the requested organization, site, and audit IDs.
 - Listing audit issues requires audit read permission and organization/site/audit scoping before filters are applied.
 - Exporting audit issues requires audit read permission and organization/site/audit-scoped filters.
 - Updating audit issue status requires audit run permission and organization/site/audit/issue scoping.

@@ -925,6 +925,11 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                             )}
                           </td>
                           <td>
+                            <strong>{formatAuditIssueTotal(audit.issueSummary.total)}</strong>
+                            <span className="stacked-meta">
+                              {audit.issueSummary.open} open / {audit.issueSummary.high} high /{" "}
+                              {audit.issueSummary.critical} critical
+                            </span>
                             <Link
                               className="text-button"
                               href={buildContentHref(params, {
@@ -2000,6 +2005,10 @@ function formatOptionalDateTime(value: string | null | undefined): string {
 
 function formatOptionalNumber(value: number | null | undefined): string {
   return typeof value === "number" ? value.toLocaleString("en") : "n/a";
+}
+
+function formatAuditIssueTotal(total: number): string {
+  return total === 1 ? "1 finding" : `${total.toLocaleString("en")} findings`;
 }
 
 function formatOptionalText(value: string | null | undefined): string {
