@@ -99,7 +99,11 @@ import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
-import { calculateTrialEndsAt } from "./billing-trial";
+import {
+  calculateTrialEndsAt,
+  getLocalTrialExpiryGateBlock,
+  normalizeLocalTrialStatus
+} from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
@@ -252,15 +256,16 @@ function countDevMembers(organizationId: string): number {
 }
 
 function getActiveDevSubscription(organizationId: string): BillingSubscription | null {
-  return (
+  const subscription =
     getDevStore()
       .subscriptions.filter(
-        (subscription) =>
-          subscription.organizationId === organizationId &&
-          ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"].includes(subscription.status)
+        (candidate) =>
+          candidate.organizationId === organizationId &&
+          ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"].includes(candidate.status)
       )
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null
-  );
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null;
+
+  return subscription ? normalizeLocalTrialStatus(subscription) : null;
 }
 
 function ensurePlaceholderUser(email: string): AppUser {
@@ -460,13 +465,14 @@ export function createSite(input: CreateSiteInput): Site {
     throw new Error("SITE_ALREADY_EXISTS");
   }
 
-  const currentPlan =
-    getActiveDevSubscription(parsed.organizationId)?.plan ??
-    findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const subscription = getActiveDevSubscription(parsed.organizationId);
+  const currentPlan = subscription?.plan ?? findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
   const featureGates = buildBillingFeatureGates({
     limits: currentPlan.limits,
     sitesUsed: countDevSites(parsed.organizationId),
-    usersUsed: countDevMembers(parsed.organizationId)
+    usersUsed: countDevMembers(parsed.organizationId),
+    ...(trialExpiryGateBlock ?? {})
   });
 
   assertBillingFeatureAvailable(featureGates, "sites");
@@ -549,6 +555,7 @@ export function getBillingOverviewForOrganization(
   const plans = buildFallbackBillingPlans();
   const subscription = getActiveDevSubscription(organizationId);
   const currentPlan = subscription?.plan ?? findBillingPlan(plans, "TRIAL");
+  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
 
   return {
     plans,
@@ -558,7 +565,8 @@ export function getBillingOverviewForOrganization(
     featureGates: buildBillingFeatureGates({
       limits: currentPlan.limits,
       sitesUsed: countDevSites(organizationId),
-      usersUsed: countDevMembers(organizationId)
+      usersUsed: countDevMembers(organizationId),
+      ...(trialExpiryGateBlock ?? {})
     }),
     actions: buildBillingActions({
       plans,
@@ -2180,11 +2188,14 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
     throw new Error("MEMBER_ALREADY_EXISTS");
   }
 
-  const currentPlan = findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const subscription = getActiveDevSubscription(parsed.organizationId);
+  const currentPlan = subscription?.plan ?? findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
   const featureGates = buildBillingFeatureGates({
     limits: currentPlan.limits,
     sitesUsed: countDevSites(parsed.organizationId),
-    usersUsed: countDevMembers(parsed.organizationId)
+    usersUsed: countDevMembers(parsed.organizationId),
+    ...(trialExpiryGateBlock ?? {})
   });
 
   assertBillingFeatureAvailable(featureGates, "users");

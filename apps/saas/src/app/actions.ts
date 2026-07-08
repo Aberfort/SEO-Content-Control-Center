@@ -753,6 +753,13 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "BILLING_TRIAL_EXPIRED") {
+    return {
+      ok: false,
+      message: "Your trial has expired. Upgrade to continue."
+    };
+  }
+
   if (error instanceof Error && error.message === "MEMBER_ALREADY_EXISTS") {
     return {
       ok: false,

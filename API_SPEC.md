@@ -147,7 +147,7 @@ Request:
 
 Lists sites scoped to the organization.
 
-Creating a site is plan-gated by the current billing plan's `sites` limit. When the limit is reached, the API returns `402 PLAN_SITE_LIMIT_REACHED`.
+Creating a site is plan-gated by the current billing plan's `sites` limit and local Trial access state. When the limit is reached, the API returns `402 PLAN_SITE_LIMIT_REACHED`. When a local no-provider Trial has expired, the API returns `402 BILLING_TRIAL_EXPIRED`.
 
 ## Activity Log
 
@@ -164,6 +164,7 @@ Current MVP activity actions:
 - `member.invite_canceled`
 - `member.role_updated`
 - `member.accepted_invite`
+- `billing.trial_started`
 - `plugin.connected`
 - `plugin.disconnected`
 
@@ -171,7 +172,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. New workspaces receive a local no-charge `TRIALING` subscription with no billing provider. The overview does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. New workspaces receive a local no-charge `TRIALING` subscription with no billing provider. Expired local no-provider Trial subscriptions are exposed as `PAST_DUE`, and gated feature usage returns `BILLING_TRIAL_EXPIRED` in `disabledCode`. The overview does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
 
 Response:
 
@@ -225,7 +226,8 @@ Response:
         "limit": 5,
         "remaining": 4,
         "allowed": true,
-        "disabledReason": null
+        "disabledReason": null,
+        "disabledCode": null
       },
       {
         "key": "users",
@@ -234,7 +236,8 @@ Response:
         "limit": 10,
         "remaining": 8,
         "allowed": true,
-        "disabledReason": null
+        "disabledReason": null,
+        "disabledCode": null
       }
     ],
     "actions": {
@@ -451,7 +454,7 @@ Lists active, invited, suspended, and canceled members for the organization.
 
 Invites a member. `OWNER` cannot be assigned through this endpoint. The response includes the member summary, a one-time invite URL, and email delivery status. Store or send the raw URL immediately because only the token hash is persisted.
 
-Invites are plan-gated by the current billing plan's `users` limit. Active, invited, and suspended members count toward the limit; canceled members do not. When the limit is reached, the API returns `402 PLAN_USER_LIMIT_REACHED`.
+Invites are plan-gated by the current billing plan's `users` limit and local Trial access state. Active, invited, and suspended members count toward the limit; canceled members do not. When the limit is reached, the API returns `402 PLAN_USER_LIMIT_REACHED`. When a local no-provider Trial has expired, the API returns `402 BILLING_TRIAL_EXPIRED`.
 
 Request:
 

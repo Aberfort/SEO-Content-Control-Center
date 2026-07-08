@@ -62,4 +62,38 @@ describe("billing feature gates", () => {
       ])
     );
   });
+
+  it("blocks all gated features with a billing disabled code", () => {
+    const gates = buildBillingFeatureGates({
+      limits: {
+        sites: 1,
+        urlsPerSite: 500,
+        users: 2,
+        aiCredits: 0,
+        apiAccess: false
+      },
+      sitesUsed: 0,
+      usersUsed: 1,
+      disabledReason: "Trial period has expired. Upgrade to continue.",
+      disabledCode: "BILLING_TRIAL_EXPIRED"
+    });
+
+    expect(gates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "sites",
+          allowed: false,
+          disabledReason: "Trial period has expired. Upgrade to continue.",
+          disabledCode: "BILLING_TRIAL_EXPIRED"
+        }),
+        expect.objectContaining({
+          key: "users",
+          allowed: false,
+          disabledReason: "Trial period has expired. Upgrade to continue.",
+          disabledCode: "BILLING_TRIAL_EXPIRED"
+        })
+      ])
+    );
+    expect(() => assertBillingFeatureAvailable(gates, "sites")).toThrow("BILLING_TRIAL_EXPIRED");
+  });
 });

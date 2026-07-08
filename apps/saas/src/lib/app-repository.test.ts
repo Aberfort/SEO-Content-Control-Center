@@ -421,6 +421,70 @@ describe("app repository", () => {
     );
   });
 
+  it("blocks gated repository mutations after a local trial expires", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Repository Expired Trial"
+    });
+    const subscription = getDevStore().subscriptions.find(
+      (candidate) => candidate.organizationId === organization.id
+    );
+
+    expect(subscription).toBeDefined();
+    subscription!.trialEndsAt = "2026-01-01T00:00:00.000Z";
+    subscription!.currentPeriodEnd = "2026-01-01T00:00:00.000Z";
+
+    const billingOverview = await repository.getBillingOverviewForOrganization(
+      user.id,
+      organization.id
+    );
+
+    expect(billingOverview.subscription).toMatchObject({
+      status: "PAST_DUE",
+      provider: null
+    });
+    expect(billingOverview.featureGates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "sites",
+          allowed: false,
+          disabledCode: "BILLING_TRIAL_EXPIRED"
+        })
+      ])
+    );
+    await expect(
+      repository.createSite({
+        user,
+        organizationId: organization.id,
+        name: "Expired Trial Blog",
+        url: "https://expired-trial.repository.example.com"
+      })
+    ).rejects.toThrow("BILLING_TRIAL_EXPIRED");
+    await expect(
+      repository.inviteMember({
+        user,
+        organizationId: organization.id,
+        email: "expired-invite@example.com",
+        role: "VIEWER"
+      })
+    ).rejects.toThrow("BILLING_TRIAL_EXPIRED");
+    await expect(
+      repository.getBillingCheckoutContext({
+        user,
+        organizationId: organization.id,
+        planCode: "PRO"
+      })
+    ).resolves.toMatchObject({
+      subscription: {
+        status: "PAST_DUE"
+      },
+      targetPlan: {
+        code: "PRO"
+      }
+    });
+  });
+
   it("lists, updates, and creates backlog tasks from in-memory audit issues", async () => {
     const repository = getAppRepository();
     const organization = await repository.createOrganization({

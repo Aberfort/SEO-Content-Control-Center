@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 70
+
+- Added local Trial expiry handling that derives expired no-provider Trial subscriptions as `PAST_DUE`.
+- Blocked gated workspace mutations after local Trial expiry with `BILLING_TRIAL_EXPIRED`.
+- Updated billing feature gates to expose billing-specific disabled codes and Trial expiry disabled reasons.
+- Updated billing UI copy to show Trial end/expiry dates instead of renewal text for local Trial subscriptions.
+- Documented Trial expiry behavior, API responses, and QA coverage.
+
 ### Iteration 69
 
 - Added local no-charge Trial subscription creation when a workspace is created.

@@ -10,7 +10,7 @@ export function buildBillingLimitNotification(input: {
   gate: BillingFeatureGate;
   planName: string;
 }): BillingLimitNotification | null {
-  if (input.gate.limit === "custom" || input.gate.allowed) {
+  if (input.gate.limit === "custom" || input.gate.allowed || input.gate.disabledCode) {
     return null;
   }
 

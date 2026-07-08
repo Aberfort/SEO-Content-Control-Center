@@ -5,9 +5,12 @@ import {
   canAccessOrganization,
   createOrganization,
   createSite,
+  getBillingOverviewForOrganization,
   getBillingCheckoutContext,
   getBillingPortalContext,
+  getDevStore,
   getOrganizationSummary,
+  inviteMember,
   listOrganizationSummariesForUser,
   resetDevStore
 } from "./dev-store";
@@ -132,6 +135,72 @@ describe("dev store tenant access", () => {
         organizationId: organization.id
       })
     ).toThrow("Role VIEWER cannot perform billing:manage");
+  });
+
+  it("blocks gated mutations after a local trial expires", () => {
+    const organization = createOrganization({ user: owner, name: "Expired Trial SEO" });
+    const store = getDevStore();
+    const subscription = store.subscriptions.find(
+      (candidate) => candidate.organizationId === organization.id
+    );
+
+    expect(subscription).toBeDefined();
+    subscription!.trialEndsAt = "2026-01-01T00:00:00.000Z";
+    subscription!.currentPeriodEnd = "2026-01-01T00:00:00.000Z";
+
+    const overview = getBillingOverviewForOrganization(owner.id, organization.id);
+
+    expect(overview.subscription).toMatchObject({
+      status: "PAST_DUE",
+      provider: null
+    });
+    expect(overview.featureGates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "sites",
+          allowed: false,
+          disabledCode: "BILLING_TRIAL_EXPIRED"
+        }),
+        expect.objectContaining({
+          key: "users",
+          allowed: false,
+          disabledReason: "Trial period has expired. Upgrade to continue."
+        })
+      ])
+    );
+    expect(() =>
+      createSite({
+        user: owner,
+        organizationId: organization.id,
+        name: "Expired Trial Site",
+        url: "https://expired.example.com"
+      })
+    ).toThrow("BILLING_TRIAL_EXPIRED");
+    expect(() =>
+      inviteMember({
+        user: owner,
+        organizationId: organization.id,
+        email: "expired-viewer@example.com",
+        role: "VIEWER"
+      })
+    ).toThrow("BILLING_TRIAL_EXPIRED");
+    expect(
+      getBillingCheckoutContext({
+        user: owner,
+        organizationId: organization.id,
+        planCode: "PRO"
+      })
+    ).toMatchObject({
+      currentPlan: {
+        code: "TRIAL"
+      },
+      subscription: {
+        status: "PAST_DUE"
+      },
+      targetPlan: {
+        code: "PRO"
+      }
+    });
   });
 
   it("deduplicates site URLs inside an organization", () => {

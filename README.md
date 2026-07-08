@@ -55,7 +55,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - password reset emails with hashed one-time tokens and session invalidation after reset;
 - email verification emails with hashed one-time tokens and a browser confirmation page;
 - computed SaaS onboarding checklist for workspace, site, plugin sync, audit, and backlog setup;
-- local no-charge Trial subscriptions for new workspaces;
+- local no-charge Trial subscriptions for new workspaces with expiry enforcement;
 - tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
 - organization bootstrap UI/API;
 - site creation UI/API;
@@ -110,7 +110,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - read-only billing overview with plan catalog, local Trial subscription state, and current plan state;
 - provider-gated billing controls with Stripe checkout and billing portal session creation when billing credentials and subscription linkage are configured;
 - signed and idempotent Stripe webhook reconciliation for local subscription state;
-- billing feature gates for site and user plan limits;
+- billing feature gates for site/user plan limits and expired local Trial access;
 - billing notifications when finite site or user limits are reached;
 - basic activity log writes;
 - WordPress plugin skeleton with secure defaults;

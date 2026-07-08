@@ -128,7 +128,11 @@ import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { isBillingPortalConfigured } from "./billing-portal";
-import { calculateTrialEndsAt } from "./billing-trial";
+import {
+  calculateTrialEndsAt,
+  getLocalTrialExpiryGateBlock,
+  normalizeLocalTrialStatus
+} from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -728,7 +732,9 @@ const prismaRepository: AppRepository = {
     const featureGates = buildBillingFeatureGates({
       limits: billingContext.currentPlan.limits,
       sitesUsed: billingContext.sitesUsed,
-      usersUsed: billingContext.usersUsed
+      usersUsed: billingContext.usersUsed,
+      disabledReason: billingContext.disabledReason,
+      disabledCode: billingContext.disabledCode
     });
 
     assertBillingFeatureAvailable(featureGates, "sites");
@@ -874,6 +880,7 @@ const prismaRepository: AppRepository = {
     const visiblePlans = plans.length > 0 ? plans : buildFallbackBillingPlans();
     const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
     const currentPlan = subscriptionSummary?.plan ?? findBillingPlan(visiblePlans, "TRIAL");
+    const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscriptionSummary);
 
     return {
       plans: visiblePlans,
@@ -883,7 +890,8 @@ const prismaRepository: AppRepository = {
       featureGates: buildBillingFeatureGates({
         limits: currentPlan.limits,
         sitesUsed,
-        usersUsed
+        usersUsed,
+        ...(trialExpiryGateBlock ?? {})
       }),
       actions: buildBillingActions({
         plans: visiblePlans,
@@ -3150,7 +3158,9 @@ const prismaRepository: AppRepository = {
       const featureGates = buildBillingFeatureGates({
         limits: billingContext.currentPlan.limits,
         sitesUsed: billingContext.sitesUsed,
-        usersUsed: billingContext.usersUsed
+        usersUsed: billingContext.usersUsed,
+        disabledReason: billingContext.disabledReason,
+        disabledCode: billingContext.disabledCode
       });
 
       assertBillingFeatureAvailable(featureGates, "users");
@@ -3861,6 +3871,8 @@ async function getDbBillingLimitContext(organizationId: string): Promise<{
   currentPlan: BillingPlan;
   sitesUsed: number;
   usersUsed: number;
+  disabledReason?: string;
+  disabledCode?: string;
 }> {
   const [subscription, sitesUsed, usersUsed] = await prisma.$transaction([
     prisma.subscription.findFirst({
@@ -3892,12 +3904,14 @@ async function getDbBillingLimitContext(organizationId: string): Promise<{
     })
   ]);
 
+  const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
+  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscriptionSummary);
+
   return {
-    currentPlan: subscription
-      ? (mapBillingPlan(subscription.plan) ?? findBillingPlan([], "TRIAL"))
-      : findBillingPlan([], "TRIAL"),
+    currentPlan: subscriptionSummary?.plan ?? findBillingPlan([], "TRIAL"),
     sitesUsed,
-    usersUsed
+    usersUsed,
+    ...(trialExpiryGateBlock ?? {})
   };
 }
 
@@ -3992,10 +4006,12 @@ function mapBillingSubscription(subscription: {
     return null;
   }
 
+  const normalized = normalizeLocalTrialStatus(subscription);
+
   return {
     id: subscription.id,
     organizationId: subscription.organizationId,
-    status: subscription.status,
+    status: normalized.status,
     plan,
     trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
     currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,

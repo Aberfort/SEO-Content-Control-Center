@@ -13,7 +13,8 @@ describe("billing limit notifications", () => {
           limit: 1,
           remaining: 0,
           allowed: false,
-          disabledReason: "Sites limit reached."
+          disabledReason: "Sites limit reached.",
+          disabledCode: null
         },
         planName: "Trial"
       })
@@ -32,9 +33,26 @@ describe("billing limit notifications", () => {
           limit: "custom",
           remaining: "custom",
           allowed: true,
-          disabledReason: null
+          disabledReason: null,
+          disabledCode: null
         },
         planName: "Enterprise"
+      })
+    ).toBeNull();
+
+    expect(
+      buildBillingLimitNotification({
+        gate: {
+          key: "sites",
+          label: "Sites",
+          used: 0,
+          limit: 1,
+          remaining: 1,
+          allowed: false,
+          disabledReason: "Trial period has expired. Upgrade to continue.",
+          disabledCode: "BILLING_TRIAL_EXPIRED"
+        },
+        planName: "Trial"
       })
     ).toBeNull();
   });

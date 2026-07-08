@@ -38,7 +38,7 @@ import {
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
 import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
-import type { Site, SyncedContentMetadata } from "@/lib/types";
+import type { BillingSubscription, Site, SyncedContentMetadata } from "@/lib/types";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
@@ -1774,16 +1774,8 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                 </div>
                 <div>
                   <small>Status</small>
-                  <strong>
-                    {billingOverview.subscription
-                      ? billingOverview.subscription.status.replaceAll("_", " ")
-                      : "TRIAL"}
-                  </strong>
-                  <span>
-                    {billingOverview.subscription?.currentPeriodEnd
-                      ? `Renews ${formatDateTime(billingOverview.subscription.currentPeriodEnd)}`
-                      : "No paid subscription connected"}
-                  </span>
+                  <strong>{formatSubscriptionStatus(billingOverview.subscription)}</strong>
+                  <span>{formatSubscriptionPeriod(billingOverview.subscription)}</span>
                 </div>
                 <div className="billing-action-cell">
                   {billingOverview.actions.portal.enabled ? (
@@ -2174,6 +2166,28 @@ function formatBillingFeedback(status: (typeof billingStatuses)[number], message
   }
 
   return message || "Checkout could not be started.";
+}
+
+function formatSubscriptionStatus(subscription: BillingSubscription | null): string {
+  return subscription ? subscription.status.replaceAll("_", " ") : "TRIAL";
+}
+
+function formatSubscriptionPeriod(subscription: BillingSubscription | null): string {
+  if (!subscription) {
+    return "No paid subscription connected";
+  }
+
+  if (subscription.provider === null && subscription.trialEndsAt) {
+    return subscription.status === "PAST_DUE"
+      ? `Trial expired ${formatDateTime(subscription.trialEndsAt)}`
+      : `Trial ends ${formatDateTime(subscription.trialEndsAt)}`;
+  }
+
+  if (subscription.currentPeriodEnd) {
+    return `Renews ${formatDateTime(subscription.currentPeriodEnd)}`;
+  }
+
+  return "Subscription period not available";
 }
 
 function formatLimitValue(value: number | "custom"): string {

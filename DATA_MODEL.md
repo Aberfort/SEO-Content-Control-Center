@@ -63,7 +63,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Backlog task assignment changes must target active members of the same organization.
 - Backlog task comments must be created only after resolving the parent task through organization/site scope.
 - Backlog task exports must reuse organization/site-scoped task listing filters.
-- New organizations receive a local `TRIALING` subscription on the Trial plan with `provider = null`; provider-backed subscription changes are reconciled separately through billing webhooks.
+- New organizations receive a local `TRIALING` subscription on the Trial plan with `provider = null`; after `trialEndsAt` passes, application reads derive it as `PAST_DUE` for gating without opening a provider billing portal. Provider-backed subscription changes are reconciled separately through billing webhooks.
 
 ## Organization Member Lifecycle
 

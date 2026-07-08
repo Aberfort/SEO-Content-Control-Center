@@ -16,12 +16,21 @@ type BillingFeatureGateInput = {
   limits: PlanLimits;
   sitesUsed: number;
   usersUsed: number;
+  disabledReason?: string | null;
+  disabledCode?: string | null;
 };
 
 export function buildBillingFeatureGates(input: BillingFeatureGateInput): BillingFeatureGate[] {
+  const disabled = input.disabledReason
+    ? {
+        reason: input.disabledReason,
+        code: input.disabledCode ?? null
+      }
+    : null;
+
   return [
-    buildBillingFeatureGate("sites", input.sitesUsed, input.limits.sites),
-    buildBillingFeatureGate("users", input.usersUsed, input.limits.users)
+    buildBillingFeatureGate("sites", input.sitesUsed, input.limits.sites, disabled),
+    buildBillingFeatureGate("users", input.usersUsed, input.limits.users, disabled)
   ];
 }
 
@@ -31,15 +40,22 @@ export function assertBillingFeatureAvailable(
 ): void {
   const gate = gates.find((candidate) => candidate.key === key);
 
-  if (gate && !gate.allowed) {
-    throw new Error(featureGateErrors[key]);
+  if (!gate || gate.allowed) {
+    return;
   }
+
+  if (gate.disabledCode) {
+    throw new Error(gate.disabledCode);
+  }
+
+  throw new Error(featureGateErrors[key]);
 }
 
 function buildBillingFeatureGate(
   key: BillingFeatureGateKey,
   used: number,
-  limit: number | "custom"
+  limit: number | "custom",
+  disabled: { reason: string; code: string | null } | null
 ): BillingFeatureGate {
   if (limit === "custom") {
     return {
@@ -48,12 +64,14 @@ function buildBillingFeatureGate(
       used,
       limit,
       remaining: "custom",
-      allowed: true,
-      disabledReason: null
+      allowed: disabled === null,
+      disabledReason: disabled?.reason ?? null,
+      disabledCode: disabled?.code ?? null
     };
   }
 
   const remaining = Math.max(limit - used, 0);
+  const allowed = disabled === null && remaining > 0;
 
   return {
     key,
@@ -61,7 +79,10 @@ function buildBillingFeatureGate(
     used,
     limit,
     remaining,
-    allowed: remaining > 0,
-    disabledReason: remaining > 0 ? null : `${featureGateLabels[key]} limit reached.`
+    allowed,
+    disabledReason: allowed
+      ? null
+      : (disabled?.reason ?? `${featureGateLabels[key]} limit reached.`),
+    disabledCode: disabled?.code ?? null
   };
 }

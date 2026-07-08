@@ -122,6 +122,7 @@ export type BillingFeatureGate = {
   remaining: number | "custom";
   allowed: boolean;
   disabledReason: string | null;
+  disabledCode: string | null;
 };
 
 export type BillingOverview = {

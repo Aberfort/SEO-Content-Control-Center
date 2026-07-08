@@ -99,6 +99,10 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(402, "PLAN_USER_LIMIT_REACHED", "Current plan user limit reached.");
     }
 
+    if (error instanceof Error && error.message === "BILLING_TRIAL_EXPIRED") {
+      return jsonError(402, "BILLING_TRIAL_EXPIRED", "Trial has expired. Upgrade to continue.");
+    }
+
     if (error instanceof Error && error.message.startsWith("Role ")) {
       return jsonError(403, "FORBIDDEN", "Your role does not allow inviting members.");
     }
