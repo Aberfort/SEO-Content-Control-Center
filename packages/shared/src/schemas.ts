@@ -70,6 +70,12 @@ export const acceptInviteSchema = z.object({
   token: inviteTokenSchema
 });
 
+export const emailVerificationTokenSchema = z.string().trim().min(32).max(256);
+
+export const emailVerificationConfirmSchema = z.object({
+  token: emailVerificationTokenSchema
+});
+
 export const pluginConnectionChallengeCreateSchema = z.object({
   organizationId: organizationIdSchema,
   siteId: siteIdSchema
@@ -329,6 +335,7 @@ export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
+export type EmailVerificationConfirmInput = z.infer<typeof emailVerificationConfirmSchema>;
 export type PluginConnectionChallengeCreateInput = z.infer<
   typeof pluginConnectionChallengeCreateSchema
 >;

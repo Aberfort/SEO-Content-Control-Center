@@ -31,7 +31,7 @@ Response:
 
 `POST /api/auth/register`
 
-Creates a user account, hashes the password, creates a DB-backed session, and sets an HTTP-only session cookie.
+Creates a user account, hashes the password, creates a DB-backed session, sets an HTTP-only session cookie, and creates a hashed email verification token. The endpoint attempts to send a verification email through the configured email transport; delivery failure does not expose the raw token in API responses.
 
 Request:
 
@@ -59,6 +59,10 @@ Request:
 `POST /api/auth/logout`
 
 Deletes the current session token hash from the database and clears the session cookie.
+
+`GET /auth/verify-email?token=:token`
+
+Browser verification page for email links. A valid, unexpired token marks the user email as verified and invalidates outstanding verification tokens for the same user. Used tokens for already verified users return an already-verified state. Missing, unknown, used, or expired tokens render a safe failure message.
 
 Protected endpoints return `401 AUTH_REQUIRED` when the session is missing or expired.
 

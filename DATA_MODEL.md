@@ -38,6 +38,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Unique constraints prevent duplicate site URLs and duplicate issue/task records inside a tenant.
 - SaaS repository access must query through membership-scoped methods before returning organization, site, or activity data.
 - Session tokens are stored as hashes in the database. Raw session tokens exist only in HTTP-only cookies.
+- Email verification tokens are stored as hashes, expire after 24 hours, and are invalidated when a user verifies their email.
 - Invite tokens are stored as hashes on `OrganizationMember`; raw invite tokens only appear in create/resend responses and accept-invite URLs.
 - WordPress connection challenges and plugin tokens are stored as hashes. Raw challenge/token values are returned only at creation/exchange time.
 - Disconnecting a WordPress connection sets `disconnectedAt`, moves the site to `DISCONNECTED`, increments the token version, and invalidates unused challenges.

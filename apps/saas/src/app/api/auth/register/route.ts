@@ -2,6 +2,8 @@ import { ZodError } from "zod";
 
 import { registerWithPassword } from "@/lib/auth";
 import { assertRequestSameOrigin } from "@/lib/csrf";
+import { sendEmailVerificationEmail } from "@/lib/email";
+import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
 import { jsonError, securityError, validationError } from "@/lib/http";
 import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
@@ -14,6 +16,17 @@ export async function POST(request: Request) {
       rateLimitKeyFromHeaders(request.headers, readString(body, "email"))
     );
     const user = await registerWithPassword(body);
+    const verification = await createEmailVerificationRequestForUser(user.id);
+
+    if (verification) {
+      await sendEmailVerificationEmail({
+        to: verification.email,
+        name: verification.name,
+        verificationUrl: verification.verificationUrl,
+        expiresAt: verification.expiresAt
+      });
+    }
+
     return Response.json({ data: user }, { status: 201 });
   } catch (error) {
     const response = securityError(error);

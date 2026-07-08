@@ -18,7 +18,8 @@ import { createBillingCheckoutSession } from "@/lib/billing-checkout";
 import { createBillingPortalSession } from "@/lib/billing-portal";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
-import { sendInviteEmail } from "@/lib/email";
+import { sendEmailVerificationEmail, sendInviteEmail } from "@/lib/email";
+import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
 import { disconnectPluginConnection } from "@/lib/plugin-connection";
 import {
   assertRateLimit,
@@ -616,11 +617,21 @@ export async function registerAction(
   try {
     await assertServerActionSameOrigin();
     await assertServerActionRateLimit("auth-register", String(formData.get("email") ?? ""));
-    await registerWithPassword({
+    const user = await registerWithPassword({
       name: String(formData.get("name") ?? ""),
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? "")
     });
+    const verification = await createEmailVerificationRequestForUser(user.id);
+
+    if (verification) {
+      await sendEmailVerificationEmail({
+        to: verification.email,
+        name: verification.name,
+        verificationUrl: verification.verificationUrl,
+        expiresAt: verification.expiresAt
+      });
+    }
   } catch (error) {
     return actionError(error, "Could not create account.");
   }

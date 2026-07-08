@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 64
+
+- Added email verification token persistence with hashed one-time tokens and 24-hour expiry.
+- Sent verification emails after browser and JSON registration flows using the existing email transport.
+- Added `/auth/verify-email` to confirm tokens, mark users verified, and invalidate outstanding verification tokens.
+- Added verification email copy and token helper tests.
+- Documented email verification behavior, data model notes, security guardrails, and QA coverage.
+
 ### Iteration 63
 
 - Added SaaS-side WordPress plugin disconnect support for scoped sites.

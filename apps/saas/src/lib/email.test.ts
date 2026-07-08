@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { composeInviteEmail, resolveEmailConfig, sendInviteEmail } from "./email";
+import {
+  composeEmailVerificationEmail,
+  composeInviteEmail,
+  resolveEmailConfig,
+  sendInviteEmail
+} from "./email";
 
 describe("email delivery", () => {
   it("uses noop transport by default", async () => {
@@ -51,6 +56,19 @@ describe("email delivery", () => {
 
     expect(message.subject).toBe("Invitation to join <Acme SEO>");
     expect(message.html).toContain("&lt;Acme SEO&gt;");
+    expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
+  });
+
+  it("escapes email verification HTML content", () => {
+    const message = composeEmailVerificationEmail({
+      to: "owner@example.com",
+      name: "<Owner>",
+      verificationUrl: 'https://app.example.com/auth/verify-email?token="<token>"',
+      expiresAt: new Date("2026-07-01T10:00:00.000Z").toISOString()
+    });
+
+    expect(message.subject).toBe("Verify your SEO Content Control Center email");
+    expect(message.html).toContain("&lt;Owner&gt;");
     expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
   });
 });
