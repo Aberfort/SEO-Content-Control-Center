@@ -366,6 +366,12 @@ h1 {
   font-weight: 650;
 }
 
+.form-success {
+  color: #027a48;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .empty-state {
   margin-top: 16px;
   min-height: 260px;

@@ -9,7 +9,7 @@
 - Errors: structured JSON with `code`, `message`, and optional `details`.
 - Tenant scope: every organization/site resource is checked against the authenticated principal.
 - Browser mutations require a same-origin `Origin` header that matches `Host`, `X-Forwarded-Host`, or `NEXT_PUBLIC_APP_URL`.
-- Login, registration, invite creation/resend, invite acceptance, and safe content operation mutations are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
+- Login, registration, password reset, invite creation/resend, invite acceptance, and safe content operation mutations are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
 - Persistence: organization, site, and activity APIs use the repository abstraction. Set `SCCC_DATA_STORE=prisma` with `DATABASE_URL` to use PostgreSQL.
 
 ## Health
@@ -59,6 +59,45 @@ Request:
 `POST /api/auth/logout`
 
 Deletes the current session token hash from the database and clears the session cookie.
+
+`POST /api/auth/password-reset/request`
+
+Creates a hashed one-time password reset token for an account when the email belongs to a password-backed user, then attempts email delivery through the configured transport. The response is intentionally generic and does not reveal whether the email exists.
+
+Request:
+
+```json
+{
+  "email": "serhii@example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "accepted": true
+  }
+}
+```
+
+`POST /api/auth/password-reset/confirm`
+
+Resets a password using a valid one-time token. Success updates the password hash, marks the email verified, invalidates outstanding reset tokens for the user, and deletes existing sessions so the user signs in again.
+
+Request:
+
+```json
+{
+  "token": "opaque-reset-token",
+  "password": "new-secure-password"
+}
+```
+
+`GET /auth/reset-password?token=:token`
+
+Browser reset page for password reset email links.
 
 `GET /auth/verify-email?token=:token`
 

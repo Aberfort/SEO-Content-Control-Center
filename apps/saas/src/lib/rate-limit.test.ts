@@ -28,6 +28,18 @@ describe("rate limit", () => {
     expect(() => assertRateLimit("auth-register", "ip:email", 1000)).toThrow(RateLimitError);
   });
 
+  it("rate limits password reset requests independently", () => {
+    for (let index = 0; index < 5; index += 1) {
+      assertRateLimit("auth-password-reset", "ip:email", 1000);
+    }
+
+    expect(() => assertRateLimit("auth-password-reset", "ip:email", 1000)).toThrow(RateLimitError);
+    expect(checkRateLimit("auth-login", "ip:email", 1000)).toMatchObject({
+      allowed: true,
+      remaining: 9
+    });
+  });
+
   it("rate limits bulk operation mutations independently", () => {
     for (let index = 0; index < 120; index += 1) {
       assertRateLimit("bulk-operation", "ip:user:org:site:start:operation", 1000);

@@ -1,5 +1,10 @@
 export type RateLimitPolicy =
-  "auth-login" | "auth-register" | "invite-accept" | "invite-send" | "bulk-operation";
+  | "auth-login"
+  | "auth-register"
+  | "auth-password-reset"
+  | "invite-accept"
+  | "invite-send"
+  | "bulk-operation";
 
 export class RateLimitError extends Error {
   readonly retryAfterSeconds: number;
@@ -25,6 +30,10 @@ const rateLimitPolicies = {
     windowMs: 1000 * 60 * 15
   },
   "auth-register": {
+    limit: 5,
+    windowMs: 1000 * 60 * 60
+  },
+  "auth-password-reset": {
     limit: 5,
     windowMs: 1000 * 60 * 60
   },

@@ -43,6 +43,17 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128)
 });
 
+export const passwordResetRequestSchema = z.object({
+  email: authEmailSchema
+});
+
+export const passwordResetTokenSchema = z.string().trim().min(32).max(256);
+
+export const passwordResetConfirmSchema = z.object({
+  token: passwordResetTokenSchema,
+  password: passwordSchema
+});
+
 export const assignableMemberRoleSchema = z.enum([
   "ADMIN",
   "SEO_MANAGER",
@@ -331,6 +342,8 @@ export type TenantScope = z.infer<typeof tenantScopeSchema>;
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;
 export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;

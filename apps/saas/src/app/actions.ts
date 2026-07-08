@@ -18,8 +18,9 @@ import { createBillingCheckoutSession } from "@/lib/billing-checkout";
 import { createBillingPortalSession } from "@/lib/billing-portal";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
-import { sendEmailVerificationEmail, sendInviteEmail } from "@/lib/email";
+import { sendEmailVerificationEmail, sendInviteEmail, sendPasswordResetEmail } from "@/lib/email";
 import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
+import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
 import { disconnectPluginConnection } from "@/lib/plugin-connection";
 import {
   assertRateLimit,
@@ -659,6 +660,56 @@ export async function loginAction(
   redirect(readRedirectTo(formData));
 }
 
+export async function requestPasswordResetAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-password-reset", String(formData.get("email") ?? ""));
+    const reset = await createPasswordResetRequest({
+      email: String(formData.get("email") ?? "")
+    });
+
+    if (reset) {
+      await sendPasswordResetEmail({
+        to: reset.email,
+        name: reset.name,
+        resetUrl: reset.resetUrl,
+        expiresAt: reset.expiresAt
+      });
+    }
+  } catch (error) {
+    return actionError(error, "Could not start password reset.");
+  }
+
+  return {
+    ok: true,
+    message: "If an account exists for this email, a reset link has been sent."
+  };
+}
+
+export async function confirmPasswordResetAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-password-reset", String(formData.get("token") ?? ""));
+    await resetPasswordWithToken({
+      token: String(formData.get("token") ?? ""),
+      password: String(formData.get("password") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not reset password.");
+  }
+
+  return {
+    ok: true,
+    message: "Password reset. You can now sign in with the new password."
+  };
+}
+
 export async function logoutAction(): Promise<void> {
   await assertServerActionSameOrigin();
   await logoutCurrentSession();
@@ -825,6 +876,27 @@ function actionError(error: unknown, fallback: string): ActionState {
     return {
       ok: false,
       message: "Email or password is incorrect."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PASSWORD_RESET_TOKEN_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This password reset link was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PASSWORD_RESET_TOKEN_USED") {
+    return {
+      ok: false,
+      message: "This password reset link was already used."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PASSWORD_RESET_TOKEN_EXPIRED") {
+    return {
+      ok: false,
+      message: "This password reset link has expired. Request a fresh link."
     };
   }
 

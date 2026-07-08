@@ -67,6 +67,8 @@
 - Prisma repository creates organization and Owner membership transactionally.
 - Prisma repository creates site and activity log transactionally.
 - Duplicate site URLs are rejected by the database unique constraint and mapped to a safe API error.
+- Password reset request returns a generic accepted response, creates only hashed reset tokens, and does not reveal account existence.
+- Password reset confirmation updates the password, marks email verified, invalidates outstanding reset tokens, and deletes existing sessions.
 - Registration creates a hashed email verification token and attempts verification email delivery without returning the raw token in API responses.
 - Opening a valid email verification link marks the user email as verified and invalidates outstanding verification tokens.
 

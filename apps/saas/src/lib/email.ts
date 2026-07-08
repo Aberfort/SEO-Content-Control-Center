@@ -33,6 +33,13 @@ export type EmailVerificationInput = {
   expiresAt: string;
 };
 
+export type PasswordResetEmailInput = {
+  to: string;
+  name: string;
+  resetUrl: string;
+  expiresAt: string;
+};
+
 type EmailConfig =
   | {
       transport: "noop";
@@ -142,6 +149,54 @@ export async function sendEmailVerificationEmail(
   }
 }
 
+export async function sendPasswordResetEmail(
+  input: PasswordResetEmailInput
+): Promise<EmailDeliveryStatus> {
+  const config = resolveEmailConfig();
+  const message = composePasswordResetEmail(input);
+
+  if (config.transport === "noop") {
+    return {
+      provider: "noop",
+      status: "skipped",
+      reason: "Email transport is disabled."
+    };
+  }
+
+  try {
+    const transport = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user
+        ? {
+            user: config.user,
+            pass: config.password ?? ""
+          }
+        : undefined
+    });
+    const info = await transport.sendMail({
+      from: config.from,
+      to: input.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html
+    });
+
+    return {
+      provider: "smtp",
+      status: "sent",
+      messageId: info.messageId
+    };
+  } catch {
+    return {
+      provider: "smtp",
+      status: "failed",
+      reason: "SMTP delivery failed."
+    };
+  }
+}
+
 export function composeInviteEmail(input: InviteEmailInput) {
   const organizationName = input.organizationName.trim() || "SEO Content Control Center";
   const expiresAt = new Intl.DateTimeFormat("en", {
@@ -192,6 +247,38 @@ export function composeEmailVerificationEmail(input: EmailVerificationInput) {
     <p>Verify your email address to finish securing your SEO Content Control Center account.</p>
     <p><a href="${escapeHtml(input.verificationUrl)}">Verify email</a></p>
     <p>This verification link expires ${escapeHtml(expiresAt)}.</p>
+  `;
+
+  return {
+    subject,
+    text,
+    html
+  };
+}
+
+export function composePasswordResetEmail(input: PasswordResetEmailInput) {
+  const name = input.name.trim() || input.to;
+  const expiresAt = new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(input.expiresAt));
+  const subject = "Reset your SEO Content Control Center password";
+  const text = [
+    `Hi ${name},`,
+    "",
+    "Use this link to reset your SEO Content Control Center password.",
+    "",
+    `Reset password: ${input.resetUrl}`,
+    "",
+    `This reset link expires ${expiresAt}. If you did not request it, you can ignore this email.`
+  ].join("\n");
+  const html = `
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>Use this link to reset your SEO Content Control Center password.</p>
+    <p><a href="${escapeHtml(input.resetUrl)}">Reset password</a></p>
+    <p>This reset link expires ${escapeHtml(
+      expiresAt
+    )}. If you did not request it, you can ignore this email.</p>
   `;
 
   return {

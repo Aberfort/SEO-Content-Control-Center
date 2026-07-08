@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 65
+
+- Added password reset token persistence with hashed one-time tokens and 1-hour expiry.
+- Added browser and JSON password reset request flows with generic non-enumerating responses.
+- Added password reset confirmation flow that updates the password, marks email verified, invalidates reset tokens, and deletes existing sessions.
+- Added password reset email copy, token helper tests, and rate-limit coverage.
+- Documented password reset API behavior, data model notes, security guardrails, and QA coverage.
+
 ### Iteration 64
 
 - Added email verification token persistence with hashed one-time tokens and 24-hour expiry.

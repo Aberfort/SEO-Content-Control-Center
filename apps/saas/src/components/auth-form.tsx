@@ -48,6 +48,11 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
       <button className="button" type="submit" disabled={isPending}>
         {isPending ? "Working..." : isLogin ? "Sign in" : "Create account"}
       </button>
+      {isLogin ? (
+        <p className="auth-switch">
+          <Link href="/auth/forgot-password">Forgot password?</Link>
+        </p>
+      ) : null}
       <p className="auth-switch">
         {isLogin ? "No account yet?" : "Already have an account?"}{" "}
         <Link href={authSwitchHref(isLogin, redirectTo)}>{isLogin ? "Create one" : "Sign in"}</Link>

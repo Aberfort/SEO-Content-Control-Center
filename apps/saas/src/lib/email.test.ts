@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   composeEmailVerificationEmail,
   composeInviteEmail,
+  composePasswordResetEmail,
   resolveEmailConfig,
   sendInviteEmail
 } from "./email";
@@ -68,6 +69,19 @@ describe("email delivery", () => {
     });
 
     expect(message.subject).toBe("Verify your SEO Content Control Center email");
+    expect(message.html).toContain("&lt;Owner&gt;");
+    expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
+  });
+
+  it("escapes password reset HTML content", () => {
+    const message = composePasswordResetEmail({
+      to: "owner@example.com",
+      name: "<Owner>",
+      resetUrl: 'https://app.example.com/auth/reset-password?token="<token>"',
+      expiresAt: new Date("2026-07-01T10:00:00.000Z").toISOString()
+    });
+
+    expect(message.subject).toBe("Reset your SEO Content Control Center password");
     expect(message.html).toContain("&lt;Owner&gt;");
     expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
   });

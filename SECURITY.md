@@ -10,6 +10,7 @@
 - Password hashes use `scrypt`; plaintext passwords must never be stored.
 - Session cookies must be HTTP-only, same-site, and secure in production.
 - Session tokens must be stored as hashes in the database.
+- Password reset tokens must be stored as hashes, expire quickly, avoid account enumeration, and invalidate active sessions after use.
 - Email verification tokens must be stored as hashes, expire quickly, and never appear in logs or API responses.
 - Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
