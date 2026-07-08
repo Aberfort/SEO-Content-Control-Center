@@ -50,6 +50,7 @@
 - Duplicate site URLs are rejected inside an organization.
 - Organization and site creation write activity log entries.
 - Empty dashboard states do not pretend audits or integrations are connected.
+- Onboarding checklist reflects workspace, site, plugin connection, synced content, audit, and backlog setup progress.
 
 ## Database
 

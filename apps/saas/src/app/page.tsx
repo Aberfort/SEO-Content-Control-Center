@@ -30,12 +30,14 @@ import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
 import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
+import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
 import type { Site, SyncedContentMetadata } from "@/lib/types";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
@@ -240,6 +242,13 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const assistantRecommendations = assistantRecommendationList?.recommendations ?? [];
   const assistantUsage = assistantRecommendationList?.usage;
   const currentHref = buildContentHref(params, {});
+  const onboardingChecklist = buildOnboardingChecklist({
+    organization: activeOrganization,
+    activeSite,
+    syncedContentTotal: syncedContent.total,
+    auditRunCount: auditRuns.length,
+    backlogTaskCount: backlogTasks.summary.total
+  });
 
   return (
     <div className="app-shell">
@@ -289,7 +298,19 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           </article>
         </section>
 
-        <section className="workspace-grid" aria-label="Workspace setup forms">
+        <OnboardingChecklist
+          checklist={onboardingChecklist}
+          hrefs={{
+            workspace: "#workspace-setup",
+            site: "#workspace-setup",
+            plugin: "#sites-title",
+            content: "#synced-content-title",
+            audit: "#audits-title",
+            backlog: "#backlog-title"
+          }}
+        />
+
+        <section id="workspace-setup" className="workspace-grid" aria-label="Workspace setup forms">
           <article className="panel">
             <h2>Create organization</h2>
             <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>

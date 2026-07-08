@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 66
+
+- Added a computed SaaS onboarding checklist for the MVP setup path.
+- Surfaced checklist progress on the main workspace page and lightweight dashboard page.
+- Updated dashboard metrics to use real audit and backlog counts for the active site.
+- Added focused checklist state coverage for empty, site-created, and complete onboarding paths.
+- Documented onboarding checklist behavior and QA coverage.
+
 ### Iteration 65
 
 - Added password reset token persistence with hashed one-time tokens and 1-hour expiry.

@@ -24,7 +24,7 @@
 - Roles and permissions. Status: RBAC utility, tenant access checks, and member role management implemented.
 - Site creation. Status: Prisma-backed foundation implemented.
 - Dashboard empty states. Status: implemented for no-org/no-site/no-audit states.
-- Onboarding checklist.
+- Onboarding checklist. Status: computed workspace setup checklist is shown on the main app and dashboard.
 - Basic audit log. Status: organization/site activity writes implemented through repository layer.
 - Trial plan without real charges.
 - Plugin API documentation.

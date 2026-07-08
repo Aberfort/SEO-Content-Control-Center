@@ -54,6 +54,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - DB-backed credentials auth and hashed session cookies;
 - password reset emails with hashed one-time tokens and session invalidation after reset;
 - email verification emails with hashed one-time tokens and a browser confirmation page;
+- computed SaaS onboarding checklist for workspace, site, plugin sync, audit, and backlog setup;
 - tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
 - organization bootstrap UI/API;
 - site creation UI/API;

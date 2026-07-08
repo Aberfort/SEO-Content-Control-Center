@@ -1209,6 +1209,74 @@ th {
   width: 10px;
 }
 
+.onboarding-panel {
+  margin-top: 16px;
+}
+
+.onboarding-progress {
+  background: #eaecf0;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.onboarding-progress span {
+  background: var(--accent);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.onboarding-list {
+  gap: 0;
+}
+
+.onboarding-list .onboarding-item {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  list-style: none;
+  padding: 12px 0;
+}
+
+.onboarding-list .onboarding-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.onboarding-item-complete .status-dot {
+  background: #12b76a;
+}
+
+.onboarding-item-current .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px #c7ebe5;
+}
+
+.onboarding-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.onboarding-copy strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.onboarding-copy span,
+.onboarding-state {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.onboarding-state {
+  font-weight: 750;
+}
+
 .activity-list {
   display: grid;
   gap: 10px;
