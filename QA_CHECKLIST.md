@@ -87,6 +87,7 @@
 - SaaS user with integration permission can create a short-lived plugin connection challenge.
 - Plugin can exchange a valid challenge once for connection credentials.
 - Plugin admin stores exchanged organization/site/token/endpoint connection data without autoloading the option.
+- Plugin admin shows whitelisted success/error notices for connection, manual sync queueing, and disconnect redirects.
 - Used, expired, or unknown challenges are rejected.
 - Plugin admin disconnect sends a signed disconnect request before clearing local credentials.
 - SaaS users with integration permission can disconnect a connected WordPress site and invalidate the server-side connection.

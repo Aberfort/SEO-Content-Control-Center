@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 72
+
+- Added WordPress admin success/error notices for connection, manual sync, and disconnect redirects.
+- Kept admin notices on a whitelisted status/error code map instead of echoing raw query values.
+- Added success copy for connected, sync queued, and disconnected states.
+- Added safe error copy for missing connection fields, failed connection exchange, and failed disconnect attempts.
+- Extended plugin smoke coverage for admin notice mapping and error precedence.
+
 ### Iteration 71
 
 - Added automatic recurring WordPress plugin sync scheduling after a site is connected.

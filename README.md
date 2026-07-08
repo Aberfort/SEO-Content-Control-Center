@@ -65,6 +65,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - dedicated WordPress plugin API documentation for connection, signing, sync, disconnect, and metadata contracts;
 - WordPress plugin admin challenge exchange and signed manual sync request;
+- WordPress plugin admin feedback notices for connection, manual sync, and disconnect outcomes;
 - WordPress plugin recurring sync through Action Scheduler with hourly WP-Cron fallback;
 - WordPress plugin and SaaS dashboard disconnect flow with server-side token invalidation;
 - WordPress plugin posts/pages inventory payload for signed sync;

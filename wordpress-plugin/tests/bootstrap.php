@@ -32,6 +32,13 @@ if (! function_exists('get_option')) {
     }
 }
 
+if (! function_exists('__')) {
+    function __(string $text, string $domain = 'default'): string
+    {
+        return $text;
+    }
+}
+
 if (! function_exists('wp_next_scheduled')) {
     $GLOBALS['sccc_test_scheduled_events'] = [];
 
@@ -103,6 +110,7 @@ require_once __DIR__ . '/../includes/ConnectionStore.php';
 require_once __DIR__ . '/../includes/ContentCollector.php';
 require_once __DIR__ . '/../includes/SyncLogStore.php';
 require_once __DIR__ . '/../includes/SyncScheduler.php';
+require_once __DIR__ . '/../includes/AdminPage.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
 $api_client = new SCCC\Plugin\ApiClient($signer);
@@ -236,6 +244,33 @@ $disconnect_headers = $api_client->buildSignedHeaders($connection, '/api/plugin/
 
 if (! $signer->verify('POST', '/api/plugin/connections/disconnect', $timestamp, $disconnect_body, 'secret', $disconnect_headers['X-SCCC-Signature'])) {
     fwrite(STDERR, "ApiClient disconnect signed headers failed.\n");
+    exit(1);
+}
+
+$admin_page = new SCCC\Plugin\AdminPage();
+
+if (
+    [
+        'type' => 'success',
+        'message' => 'Site connected. Automatic sync has been scheduled.',
+    ] !== $admin_page->getFeedbackNotice('connected', '')
+) {
+    fwrite(STDERR, "AdminPage connected notice failed.\n");
+    exit(1);
+}
+
+if (
+    [
+        'type' => 'error',
+        'message' => 'Could not connect this site. Check the SaaS endpoint and challenge.',
+    ] !== $admin_page->getFeedbackNotice('connected', 'connection_exchange_failed')
+) {
+    fwrite(STDERR, "AdminPage error notice precedence failed.\n");
+    exit(1);
+}
+
+if (null !== $admin_page->getFeedbackNotice('unknown_status', 'unknown_error')) {
+    fwrite(STDERR, "AdminPage unknown notice handling failed.\n");
     exit(1);
 }
 

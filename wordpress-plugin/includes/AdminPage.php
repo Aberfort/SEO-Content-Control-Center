@@ -39,9 +39,19 @@ final class AdminPage
             $syncLogStore
         );
         $recurringSync = $scheduler->getRecurringSyncStatus();
+        $notice = $this->getFeedbackNotice(
+            $this->readQueryValue('sccc_status'),
+            $this->readQueryValue('sccc_error')
+        );
         ?>
         <div class="wrap">
             <h1><?php echo esc_html__('SEO Content Control Center', 'seo-content-control-center'); ?></h1>
+
+            <?php if (null !== $notice) : ?>
+                <div class="notice notice-<?php echo esc_attr($notice['type']); ?> is-dismissible">
+                    <p><?php echo esc_html($notice['message']); ?></p>
+                </div>
+            <?php endif; ?>
 
             <?php if (null === $connection) : ?>
                 <p><?php echo esc_html__('Connect this WordPress site to begin safe SEO sync.', 'seo-content-control-center'); ?></p>
@@ -128,6 +138,46 @@ final class AdminPage
         <?php
     }
 
+    /**
+     * @return array{type:string,message:string}|null
+     */
+    public function getFeedbackNotice(string $status, string $error): ?array
+    {
+        if ('' !== $error) {
+            return match ($error) {
+                'missing_fields' => [
+                    'type' => 'error',
+                    'message' => __('SaaS endpoint and connection challenge are required.', 'seo-content-control-center'),
+                ],
+                'connection_exchange_failed' => [
+                    'type' => 'error',
+                    'message' => __('Could not connect this site. Check the SaaS endpoint and challenge.', 'seo-content-control-center'),
+                ],
+                'disconnect_failed' => [
+                    'type' => 'error',
+                    'message' => __('Could not disconnect this site. The local connection was kept so you can retry safely.', 'seo-content-control-center'),
+                ],
+                default => null,
+            };
+        }
+
+        return match ($status) {
+            'connected' => [
+                'type' => 'success',
+                'message' => __('Site connected. Automatic sync has been scheduled.', 'seo-content-control-center'),
+            ],
+            'sync_queued' => [
+                'type' => 'success',
+                'message' => __('Manual sync queued. It will run shortly.', 'seo-content-control-center'),
+            ],
+            'disconnected' => [
+                'type' => 'success',
+                'message' => __('Site disconnected. Local sync jobs were cleared.', 'seo-content-control-center'),
+            ],
+            default => null,
+        };
+    }
+
     private function formatTimestamp(int $timestamp): string
     {
         if (function_exists('wp_date')) {
@@ -162,5 +212,20 @@ final class AdminPage
             $status['scheduler'],
             $this->formatTimestamp($status['next_run_at'])
         );
+    }
+
+    private function readQueryValue(string $key): string
+    {
+        if (! isset($_GET[$key])) {
+            return '';
+        }
+
+        $value = wp_unslash($_GET[$key]);
+
+        if (! is_string($value)) {
+            return '';
+        }
+
+        return sanitize_key($value);
     }
 }

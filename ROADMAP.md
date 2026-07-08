@@ -31,11 +31,11 @@
 
 ## Phase 2 - WordPress Plugin MVP
 
-- Settings page.
-- Connection flow.
-- Connection status.
-- Secure token storage.
-- Manual sync.
+- Settings page. Status: WordPress admin settings page shows connection controls, sync controls, automatic sync status, sync logs, and redirect feedback notices.
+- Connection flow. Status: challenge exchange stores SaaS connection credentials and reports success/failure through admin notices.
+- Connection status. Status: connected site id and automatic sync scheduler state are shown in the WordPress admin page.
+- Secure token storage. Status: plugin connection credentials are stored in a non-autoloaded WordPress option.
+- Manual sync. Status: admin manual sync queues signed sync work and reports queued status through an admin notice.
 - Action Scheduler sync. Status: connected plugins schedule recurring sync through Action Scheduler with hourly WP-Cron fallback.
 - Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, link counts, and SEO metadata sync implemented for current posts/pages inventory.
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
