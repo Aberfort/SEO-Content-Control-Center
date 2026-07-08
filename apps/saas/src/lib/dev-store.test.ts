@@ -41,8 +41,9 @@ describe("dev store tenant access", () => {
 
     expect(organization.role).toBe("OWNER");
     expect(organization.slug).toBe("acme-seo");
-    expect(organization.activityLogs).toHaveLength(1);
-    expect(organization.activityLogs[0]?.action).toBe("organization.created");
+    expect(organization.activityLogs.map((log) => log.action)).toEqual(
+      expect.arrayContaining(["organization.created", "billing.trial_started"])
+    );
   });
 
   it("isolates organizations from non-members", () => {
@@ -124,7 +125,7 @@ describe("dev store tenant access", () => {
         user: owner,
         organizationId: organization.id
       })
-    ).toThrow("BILLING_SUBSCRIPTION_NOT_FOUND");
+    ).toThrow("BILLING_PROVIDER_NOT_CONFIGURED");
     expect(() =>
       getBillingPortalContext({
         user: viewer,

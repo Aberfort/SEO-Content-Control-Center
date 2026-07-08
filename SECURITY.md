@@ -87,6 +87,7 @@
 - Assistant recommendation controls may prepare existing safe previews only for backlog-sourced recommendations and must keep later dry run, confirmation, and execution as separate user actions.
 - Unsupported assistant controls must be disabled with a reason instead of silently attempting mutation or task creation.
 - Billing overview reads require `billing:read`, stay scoped to the authenticated member's organization, and must not create checkout sessions or mutate subscriptions.
+- Local Trial subscriptions are created without a billing provider or provider customer id, so they cannot open provider billing portals or charge users.
 - Billing checkout session creation requires same-origin requests, `billing:manage`, configured provider credentials, and allowed non-Enterprise target plans; local subscription state must not change until webhook verification is implemented.
 - Billing portal session creation requires same-origin requests, `billing:manage`, configured provider credentials, and an active Stripe subscription with stored provider customer id; local subscription state must not change until webhook verification is implemented.
 - Billing webhook processing must verify the Stripe signature over the raw request body and record provider event ids before reconciling local subscription state, so replayed events cannot repeat mutations.

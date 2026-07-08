@@ -128,6 +128,7 @@ import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { isBillingPortalConfigured } from "./billing-portal";
+import { calculateTrialEndsAt } from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -601,6 +602,38 @@ const prismaRepository: AppRepository = {
           }
         }
       });
+      const trialStartedAt = new Date();
+      const trialEndsAt = calculateTrialEndsAt(trialStartedAt);
+      const trialPlan = await tx.plan.upsert({
+        where: {
+          code: "TRIAL"
+        },
+        update: {
+          name: "Trial",
+          monthlyPrice: 0,
+          limits: planLimits.TRIAL,
+          isActive: true
+        },
+        create: {
+          code: "TRIAL",
+          name: "Trial",
+          monthlyPrice: 0,
+          limits: planLimits.TRIAL,
+          isActive: true
+        }
+      });
+
+      const trialSubscription = await tx.subscription.create({
+        data: {
+          organizationId: created.id,
+          planId: trialPlan.id,
+          status: "TRIALING",
+          trialEndsAt,
+          currentPeriodEnd: trialEndsAt,
+          provider: null,
+          providerId: null
+        }
+      });
 
       await tx.activityLog.create({
         data: {
@@ -612,6 +645,19 @@ const prismaRepository: AppRepository = {
           metadata: {
             name: created.name,
             slug: created.slug
+          }
+        }
+      });
+      await tx.activityLog.create({
+        data: {
+          organizationId: created.id,
+          userId: input.user.id,
+          action: "billing.trial_started",
+          entityType: "Subscription",
+          entityId: trialSubscription.id,
+          metadata: {
+            planCode: trialPlan.code,
+            trialEndsAt: trialEndsAt.toISOString()
           }
         }
       });

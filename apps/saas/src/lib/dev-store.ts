@@ -73,6 +73,7 @@ import type {
   BillingCheckoutContext,
   BillingOverview,
   BillingPortalContext,
+  BillingSubscription,
   BulkOperation,
   BulkOperationItem,
   BulkOperationListOptions,
@@ -98,6 +99,7 @@ import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import { buildBillingLimitNotification } from "./billing-limit-notifications";
 import { buildFallbackBillingPlans, findBillingPlan } from "./billing-plans";
+import { calculateTrialEndsAt } from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
@@ -114,6 +116,7 @@ type DevStoreState = {
   bulkOperationItems: BulkOperationItem[];
   activityLogs: ActivityLog[];
   notifications: Notification[];
+  subscriptions: BillingSubscription[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -212,7 +215,8 @@ function initialState(): DevStoreState {
     bulkOperations: [],
     bulkOperationItems: [],
     activityLogs: [],
-    notifications: []
+    notifications: [],
+    subscriptions: []
   };
 }
 
@@ -245,6 +249,18 @@ function countDevMembers(organizationId: string): number {
   return getDevStore().members.filter(
     (member) => member.organizationId === organizationId && member.status !== "CANCELED"
   ).length;
+}
+
+function getActiveDevSubscription(organizationId: string): BillingSubscription | null {
+  return (
+    getDevStore()
+      .subscriptions.filter(
+        (subscription) =>
+          subscription.organizationId === organizationId &&
+          ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"].includes(subscription.status)
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null
+  );
 }
 
 function ensurePlaceholderUser(email: string): AppUser {
@@ -311,6 +327,20 @@ export function createOrganization(input: CreateOrganizationInput): Organization
     slug,
     createdAt: nowIso()
   };
+  const trialPlan = findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const trialStartedAt = new Date();
+  const trialEndsAt = calculateTrialEndsAt(trialStartedAt).toISOString();
+  const trialSubscription: BillingSubscription = {
+    id: randomUUID(),
+    organizationId: organization.id,
+    status: "TRIALING",
+    plan: trialPlan,
+    trialEndsAt,
+    currentPeriodEnd: trialEndsAt,
+    provider: null,
+    createdAt: trialStartedAt.toISOString(),
+    updatedAt: trialStartedAt.toISOString()
+  };
 
   const member: StoreOrganizationMember = {
     id: randomUUID(),
@@ -322,6 +352,7 @@ export function createOrganization(input: CreateOrganizationInput): Organization
 
   store.organizations.push(organization);
   store.members.push(member);
+  store.subscriptions.push(trialSubscription);
   writeActivityLog({
     organizationId: organization.id,
     userId: input.user.id,
@@ -331,6 +362,17 @@ export function createOrganization(input: CreateOrganizationInput): Organization
     metadata: {
       name: organization.name,
       slug: organization.slug
+    }
+  });
+  writeActivityLog({
+    organizationId: organization.id,
+    userId: input.user.id,
+    action: "billing.trial_started",
+    entityType: "Subscription",
+    entityId: trialSubscription.id,
+    metadata: {
+      planCode: trialPlan.code,
+      trialEndsAt
     }
   });
 
@@ -418,7 +460,9 @@ export function createSite(input: CreateSiteInput): Site {
     throw new Error("SITE_ALREADY_EXISTS");
   }
 
-  const currentPlan = findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
+  const currentPlan =
+    getActiveDevSubscription(parsed.organizationId)?.plan ??
+    findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
   const featureGates = buildBillingFeatureGates({
     limits: currentPlan.limits,
     sitesUsed: countDevSites(parsed.organizationId),
@@ -503,13 +547,14 @@ export function getBillingOverviewForOrganization(
   });
 
   const plans = buildFallbackBillingPlans();
-  const currentPlan = findBillingPlan(plans, "TRIAL");
+  const subscription = getActiveDevSubscription(organizationId);
+  const currentPlan = subscription?.plan ?? findBillingPlan(plans, "TRIAL");
 
   return {
     plans,
     currentPlan,
-    subscription: null,
-    isFallbackTrial: true,
+    subscription,
+    isFallbackTrial: !subscription,
     featureGates: buildBillingFeatureGates({
       limits: currentPlan.limits,
       sitesUsed: countDevSites(organizationId),
@@ -518,7 +563,7 @@ export function getBillingOverviewForOrganization(
     actions: buildBillingActions({
       plans,
       currentPlanCode: currentPlan.code,
-      subscription: null,
+      subscription,
       canManageBilling: hasPermission(member.role, "billing:manage")
     })
   };
@@ -541,7 +586,8 @@ export function getBillingCheckoutContext(
   }
 
   const plans = buildFallbackBillingPlans();
-  const currentPlan = findBillingPlan(plans, "TRIAL");
+  const subscription = getActiveDevSubscription(input.organizationId);
+  const currentPlan = subscription?.plan ?? findBillingPlan(plans, "TRIAL");
   const targetPlan = plans.find((plan) => plan.code === input.planCode && plan.isActive);
 
   if (!targetPlan) {
@@ -566,7 +612,7 @@ export function getBillingCheckoutContext(
     userEmail: input.user.email,
     currentPlan,
     targetPlan,
-    subscription: null
+    subscription
   };
 }
 
@@ -577,7 +623,13 @@ export function getBillingPortalContext(input: BillingPortalContextInput): Billi
     permission: "billing:manage"
   });
 
-  throw new Error("BILLING_SUBSCRIPTION_NOT_FOUND");
+  const subscription = getActiveDevSubscription(input.organizationId);
+
+  if (!subscription) {
+    throw new Error("BILLING_SUBSCRIPTION_NOT_FOUND");
+  }
+
+  throw new Error("BILLING_PROVIDER_NOT_CONFIGURED");
 }
 
 export function applyBillingWebhookUpdate(

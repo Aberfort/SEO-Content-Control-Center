@@ -26,7 +26,7 @@
 - Dashboard empty states. Status: implemented for no-org/no-site/no-audit states.
 - Onboarding checklist. Status: computed workspace setup checklist is shown on the main app and dashboard.
 - Basic audit log. Status: organization/site activity writes implemented through repository layer.
-- Trial plan without real charges.
+- Trial plan without real charges. Status: local no-charge Trial subscriptions are created for new workspaces.
 - Plugin API documentation. Status: dedicated connection, signing, sync, disconnect, and metadata contract documented.
 
 ## Phase 2 - WordPress Plugin MVP

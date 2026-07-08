@@ -171,7 +171,7 @@ Current MVP activity actions:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. It does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. New workspaces receive a local no-charge `TRIALING` subscription with no billing provider. The overview does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
 
 Response:
 

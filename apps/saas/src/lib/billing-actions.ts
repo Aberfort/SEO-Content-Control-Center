@@ -133,7 +133,7 @@ function buildPortalDisabledReason(input: {
     return "Your role can not manage billing.";
   }
 
-  if (!input.subscription) {
+  if (!input.subscription || input.subscription.provider !== "stripe") {
     return "No paid subscription is connected.";
   }
 

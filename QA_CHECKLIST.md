@@ -59,6 +59,7 @@
 - Initial migration applies to local PostgreSQL.
 - Plan seed completes.
 - Billing overview lists the seeded plan catalog and falls back to Trial when no subscription exists.
+- New workspace creation creates a local no-charge Trial subscription with a finite trial end date.
 - Billing overview enables checkout actions only when Stripe provider credentials and target plan price IDs are configured.
 - Billing checkout API requires same-origin requests and `billing:manage`, rejects current/Trial/Enterprise plan changes, and does not mutate local subscriptions.
 - Billing portal actions enable only for Stripe subscriptions with provider customer ids and configured provider credentials.

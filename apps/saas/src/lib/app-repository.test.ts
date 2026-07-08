@@ -193,8 +193,17 @@ describe("app repository", () => {
       "AGENCY",
       "ENTERPRISE"
     ]);
-    expect(billingOverview.subscription).toBeNull();
-    expect(billingOverview.isFallbackTrial).toBe(true);
+    expect(billingOverview.subscription).toMatchObject({
+      organizationId: organization.id,
+      status: "TRIALING",
+      plan: {
+        code: "TRIAL"
+      },
+      provider: null,
+      trialEndsAt: expect.any(String),
+      currentPeriodEnd: expect.any(String)
+    });
+    expect(billingOverview.isFallbackTrial).toBe(false);
     expect(billingOverview.featureGates).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -246,7 +255,10 @@ describe("app repository", () => {
       targetPlan: {
         code: "PRO"
       },
-      subscription: null
+      subscription: {
+        organizationId: organization.id,
+        status: "TRIALING"
+      }
     });
     await expect(
       repository.getBillingCheckoutContext({
@@ -267,7 +279,7 @@ describe("app repository", () => {
         user,
         organizationId: organization.id
       })
-    ).rejects.toThrow("BILLING_SUBSCRIPTION_NOT_FOUND");
+    ).rejects.toThrow("BILLING_PROVIDER_NOT_CONFIGURED");
     await expect(
       repository.createSite({
         user,
@@ -399,11 +411,14 @@ describe("app repository", () => {
       })
     ).rejects.toThrow("BULK_OPERATION_NOT_FOUND");
     const refreshedOrganization = await repository.getOrganizationSummary(user.id, organization.id);
-    expect(refreshedOrganization?.activityLogs.map((log) => log.action).sort()).toEqual([
-      "audit.queued",
-      "organization.created",
-      "site.created"
-    ]);
+    expect(refreshedOrganization?.activityLogs.map((log) => log.action)).toEqual(
+      expect.arrayContaining([
+        "audit.queued",
+        "billing.trial_started",
+        "organization.created",
+        "site.created"
+      ])
+    );
   });
 
   it("lists, updates, and creates backlog tasks from in-memory audit issues", async () => {

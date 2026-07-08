@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 69
+
+- Added local no-charge Trial subscription creation when a workspace is created.
+- Set Trial subscriptions to `TRIALING` with a 14-day local trial period and no billing provider.
+- Updated billing overview and checkout context to use the local Trial subscription instead of fallback-only trial state.
+- Recorded `billing.trial_started` activity logs for newly created workspaces.
+- Documented Trial subscription behavior, billing guardrails, and QA coverage.
+
 ### Iteration 68
 
 - Added dedicated WordPress plugin API documentation for the connection challenge and exchange flow.
