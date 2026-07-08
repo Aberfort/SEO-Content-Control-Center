@@ -16,7 +16,9 @@ const baseItem: SyncedContentItem = {
   metadata: {
     wordCount: 120,
     robotsNoindex: true,
-    canonicalUrl: "https://example.com/preferred-post"
+    canonicalUrl: "https://example.com/preferred-post",
+    internalLinkCount: 0,
+    externalLinkCount: 0
   },
   firstSeenAt: "2026-06-29T12:00:00.000Z",
   lastSeenAt: "2026-07-01T10:00:00.000Z"
@@ -31,7 +33,8 @@ describe("buildAuditIssueInputsFromSyncedContent", () => {
       ["synced_content.seo-title-missing", "MEDIUM"],
       ["synced_content.meta-description-missing", "MEDIUM"],
       ["synced_content.robots-noindex", "HIGH"],
-      ["synced_content.canonical-different", "MEDIUM"]
+      ["synced_content.canonical-different", "MEDIUM"],
+      ["synced_content.internal-links-missing", "MEDIUM"]
     ]);
     expect(issues[0]).toMatchObject({
       affectedUrl: "https://example.com/post",

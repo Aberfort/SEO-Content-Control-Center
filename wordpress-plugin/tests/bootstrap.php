@@ -103,7 +103,7 @@ $item = $collector->mapPost(
         'post_modified_gmt' => '2026-07-01 08:00:00',
         'post_date_gmt' => '2026-06-30 07:00:00',
         'post_author' => 7,
-        'post_content' => '<p>Hello search teams, improve this page.</p>',
+        'post_content' => '<p>Hello search teams, improve this page.</p><a href="/about"></a><a href="https://partner.example.com/resource"></a><a href="#toc"></a><a href="mailto:editor@example.com"></a>',
     ],
     'https://wp.example.com/hello-seo/'
 );
@@ -125,6 +125,8 @@ if (
             'featuredImageUrl' => null,
             'taxonomies' => [],
             'wordCount' => 6,
+            'internalLinkCount' => 1,
+            'externalLinkCount' => 1,
             'seoPlugin' => 'yoast',
             'seoTitle' => 'Yoast SEO title',
             'metaDescription' => 'Yoast description',
@@ -147,6 +149,11 @@ if (! str_contains($sync_body_with_items, '"externalId":"post:123"')) {
 
 if (! str_contains($sync_body_with_items, '"wordCount":6')) {
     fwrite(STDERR, "ApiClient sync body metadata failed.\n");
+    exit(1);
+}
+
+if (! str_contains($sync_body_with_items, '"internalLinkCount":1') || ! str_contains($sync_body_with_items, '"externalLinkCount":1')) {
+    fwrite(STDERR, "ApiClient sync body link metadata failed.\n");
     exit(1);
 }
 

@@ -159,6 +159,8 @@ describe("shared schemas", () => {
           featuredImageUrl: "https://example.com/image.jpg",
           taxonomies: [{ taxonomy: "category", terms: ["Guides"] }],
           wordCount: 1200,
+          internalLinkCount: 3,
+          externalLinkCount: 1,
           seoPlugin: "yoast",
           seoTitle: "Example SEO title",
           metaDescription: "Example meta description",
@@ -170,6 +172,8 @@ describe("shared schemas", () => {
     ).toMatchObject({
       authorName: "Editor",
       wordCount: 1200,
+      internalLinkCount: 3,
+      externalLinkCount: 1,
       seoPlugin: "yoast",
       canonicalUrl: "https://example.com/post"
     });

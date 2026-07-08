@@ -74,14 +74,14 @@ final class ContentCollector
             'title' => '' === $title ? null : $title,
             'status' => $status,
             'modifiedAt' => $this->formatDateTime($modifiedAt),
-            'metadata' => $this->buildMetadata($post, $id, $postType, $title),
+            'metadata' => $this->buildMetadata($post, $id, $postType, $title, $url),
         ];
     }
 
     /**
      * @return array<string,mixed>
      */
-    private function buildMetadata(object $post, string $postId, string $postType, string $postTitle): array
+    private function buildMetadata(object $post, string $postId, string $postType, string $postTitle, string $url): array
     {
         $authorId = property_exists($post, 'post_author') ? max(0, (int) $post->post_author) : null;
         $featuredImageId = $this->readFeaturedImageId($post);
@@ -97,6 +97,7 @@ final class ContentCollector
                 'taxonomies' => $this->collectTaxonomies($postId, $postType),
                 'wordCount' => $this->countWords($post),
             ],
+            $this->countLinks($post, $url),
             $this->readSeoMetadata($postId, $postTitle)
         );
     }
@@ -235,6 +236,125 @@ final class ContentCollector
         }
 
         return count(preg_split('/\s+/', $text) ?: []);
+    }
+
+    /**
+     * @return array{internalLinkCount:int|null,externalLinkCount:int|null}
+     */
+    private function countLinks(object $post, string $currentUrl): array
+    {
+        if (! property_exists($post, 'post_content')) {
+            return [
+                'internalLinkCount' => null,
+                'externalLinkCount' => null,
+            ];
+        }
+
+        $internal = 0;
+        $external = 0;
+
+        foreach ($this->extractHrefs((string) $post->post_content) as $href) {
+            $classification = $this->classifyHref($href, $currentUrl);
+
+            if ('internal' === $classification) {
+                $internal++;
+            }
+
+            if ('external' === $classification) {
+                $external++;
+            }
+        }
+
+        return [
+            'internalLinkCount' => $internal,
+            'externalLinkCount' => $external,
+        ];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function extractHrefs(string $html): array
+    {
+        if ('' === trim($html)) {
+            return [];
+        }
+
+        if (class_exists('\\DOMDocument')) {
+            $previousErrors = libxml_use_internal_errors(true);
+            $document = new \DOMDocument();
+            $loaded = $document->loadHTML('<!doctype html><meta charset="utf-8">' . $html);
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousErrors);
+
+            if ($loaded) {
+                $hrefs = [];
+
+                foreach ($document->getElementsByTagName('a') as $link) {
+                    $href = trim($link->getAttribute('href'));
+
+                    if ('' !== $href) {
+                        $hrefs[] = $href;
+                    }
+                }
+
+                return $hrefs;
+            }
+        }
+
+        preg_match_all('/<a\s[^>]*href=["\']([^"\']+)["\']/i', $html, $matches);
+
+        return array_values(array_filter(array_map('trim', $matches[1] ?? [])));
+    }
+
+    private function classifyHref(string $href, string $currentUrl): ?string
+    {
+        $href = trim($href);
+
+        if ('' === $href || str_starts_with($href, '#')) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($href, PHP_URL_SCHEME));
+
+        if (in_array($scheme, ['mailto', 'tel', 'javascript'], true)) {
+            return null;
+        }
+
+        if (str_starts_with($href, '//')) {
+            $currentHost = $this->normalizeHost((string) parse_url($currentUrl, PHP_URL_HOST));
+            $linkHost = $this->normalizeHost((string) parse_url($href, PHP_URL_HOST));
+
+            if ('' === $currentHost || '' === $linkHost) {
+                return null;
+            }
+
+            return $currentHost === $linkHost ? 'internal' : 'external';
+        }
+
+        if ('' === $scheme && (str_starts_with($href, '/') || ! str_contains($href, '://'))) {
+            return 'internal';
+        }
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+
+        $currentHost = $this->normalizeHost((string) parse_url($currentUrl, PHP_URL_HOST));
+        $linkHost = $this->normalizeHost((string) parse_url($href, PHP_URL_HOST));
+
+        if ('' === $currentHost || '' === $linkHost) {
+            return null;
+        }
+
+        return $currentHost === $linkHost ? 'internal' : 'external';
+    }
+
+    private function normalizeHost(string $host): string
+    {
+        $host = strtolower(trim($host));
+
+        return str_starts_with($host, 'www.') ? substr($host, 4) : $host;
     }
 
     /**

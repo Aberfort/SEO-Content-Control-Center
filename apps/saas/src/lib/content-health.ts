@@ -93,7 +93,9 @@ export function buildSyncedContentHealthSignals(
     buildSeoTitleSignal(item),
     buildMetaDescriptionSignal(item),
     buildRobotsSignal(item),
-    buildCanonicalSignal(item)
+    buildCanonicalSignal(item),
+    buildInternalLinkSignal(item),
+    buildExternalLinkSignal(item)
   ];
 }
 
@@ -199,6 +201,16 @@ function buildCandidateFromSignal(
         nextStep:
           "Confirm the canonical URL points to the intended primary page before making changes."
       };
+    case "internal-links-missing":
+      return {
+        id: `${item.id}:internal-links`,
+        title: `Add internal links on ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Add relevant internal links to related pages or hub content, then run plugin sync again."
+      };
     default:
       return null;
   }
@@ -293,6 +305,60 @@ function buildCanonicalSignal(item: SyncedContentItem): SyncedContentHealthSigna
     label: "Canonical differs",
     severity: "warning",
     message: `Canonical URL points to ${canonicalUrl}.`
+  };
+}
+
+function buildInternalLinkSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  if (typeof item.metadata.internalLinkCount !== "number") {
+    return {
+      id: "internal-links-unknown",
+      label: "Internal links unavailable",
+      severity: "info",
+      message: "Run the latest plugin sync to include internal link counts."
+    };
+  }
+
+  if (item.metadata.internalLinkCount > 0) {
+    return {
+      id: "internal-links-present",
+      label: "Internal links detected",
+      severity: "success",
+      message: `Plugin sync found ${item.metadata.internalLinkCount} internal links.`
+    };
+  }
+
+  return {
+    id: "internal-links-missing",
+    label: "No internal links",
+    severity: "warning",
+    message: "Plugin sync did not find internal links in this content item."
+  };
+}
+
+function buildExternalLinkSignal(item: SyncedContentItem): SyncedContentHealthSignal {
+  if (typeof item.metadata.externalLinkCount !== "number") {
+    return {
+      id: "external-links-unknown",
+      label: "Outbound links unavailable",
+      severity: "info",
+      message: "Run the latest plugin sync to include outbound link counts."
+    };
+  }
+
+  if (item.metadata.externalLinkCount > 0) {
+    return {
+      id: "external-links-present",
+      label: "Outbound links detected",
+      severity: "info",
+      message: `Plugin sync found ${item.metadata.externalLinkCount} outbound links.`
+    };
+  }
+
+  return {
+    id: "external-links-missing",
+    label: "No outbound links",
+    severity: "info",
+    message: "Plugin sync did not find outbound links in this content item."
   };
 }
 

@@ -746,6 +746,18 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                           <dd>{formatOptionalNumber(selectedContentItem.metadata.wordCount)}</dd>
                         </div>
                         <div>
+                          <dt>Internal links</dt>
+                          <dd>
+                            {formatOptionalNumber(selectedContentItem.metadata.internalLinkCount)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Outbound links</dt>
+                          <dd>
+                            {formatOptionalNumber(selectedContentItem.metadata.externalLinkCount)}
+                          </dd>
+                        </div>
+                        <div>
                           <dt>SEO title</dt>
                           <dd>{formatOptionalText(selectedContentItem.metadata.seoTitle)}</dd>
                         </div>

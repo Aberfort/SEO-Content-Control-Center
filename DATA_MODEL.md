@@ -44,7 +44,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - WordPress connection challenges and plugin tokens are stored as hashes. Raw challenge/token values are returned only at creation/exchange time.
 - Disconnecting a WordPress connection sets `disconnectedAt`, moves the site to `DISCONNECTED`, increments the token version, and invalidates unused challenges.
 - Synced content items are unique by `siteId + externalId` and scoped by `organizationId`.
-- Synced content item metadata stores bounded plugin-derived SEO signals such as author, publish date, featured image presence, taxonomies, word count, SEO title, meta description, canonical URL, robots directives, and detected SEO plugin source; WordPress post bodies are not stored in this inventory.
+- Synced content item metadata stores bounded plugin-derived SEO signals such as author, publish date, featured image presence, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, and detected SEO plugin source; WordPress post bodies are not stored in this inventory.
 - Synced content inventory queries must keep filters inside the organization/site scope before applying search or pagination.
 - Synced content detail lookups must include organization, site, and item IDs in the same scoped query.
 - Synced content health signals are computed from synced metadata; actionable signals can be materialized as deduplicated `AuditIssue` records when a site audit is queued.

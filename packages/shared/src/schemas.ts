@@ -121,6 +121,8 @@ export const pluginSyncMetadataSchema = z
     featuredImageUrl: z.string().url().max(2048).nullable().optional(),
     taxonomies: z.array(pluginSyncTaxonomyMetadataSchema).max(32).optional(),
     wordCount: z.number().int().nonnegative().max(1_000_000).nullable().optional(),
+    internalLinkCount: z.number().int().nonnegative().max(1_000_000).nullable().optional(),
+    externalLinkCount: z.number().int().nonnegative().max(1_000_000).nullable().optional(),
     seoPlugin: pluginSyncSeoPluginSchema.optional(),
     seoTitle: z.string().trim().max(512).nullable().optional(),
     metaDescription: z.string().trim().max(1024).nullable().optional(),

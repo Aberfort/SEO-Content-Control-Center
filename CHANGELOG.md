@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 67
+
+- Added local WordPress link counting for synced content inventory without sending post bodies.
+- Accepted and stored bounded internal/outbound link count metadata in plugin sync payloads.
+- Added synced content health signals for internal and outbound link counts.
+- Materialized missing internal links into backlog candidates and metadata audit issues.
+- Displayed link count evidence in the SaaS content detail panel and documented the link-check scope.
+
 ### Iteration 66
 
 - Added a computed SaaS onboarding checklist for the MVP setup path.

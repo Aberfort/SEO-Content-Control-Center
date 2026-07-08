@@ -553,7 +553,7 @@ Response:
 
 `POST /api/plugin/sync`
 
-Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and optional bounded metadata for author, publish date, featured image, taxonomies, locally computed word count, and SEO metadata from Yoast, Rank Math, or fallback WordPress title/robots/canonical signals. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
+Receives signed sync batches from WordPress. The plugin sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and optional bounded metadata for author, publish date, featured image, taxonomies, locally computed word count, internal/outbound link counts, and SEO metadata from Yoast, Rank Math, or fallback WordPress title/robots/canonical signals. The endpoint authenticates, validates, upserts synced content items, records `lastSyncAt`, and returns the accepted item count.
 
 The sync payload must not include WordPress post bodies. Metadata is optional for backward compatibility with older plugin payloads.
 
@@ -576,6 +576,8 @@ Example item:
     "featuredImageUrl": "https://example.com/image.jpg",
     "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
     "wordCount": 1200,
+    "internalLinkCount": 3,
+    "externalLinkCount": 1,
     "seoPlugin": "yoast",
     "seoTitle": "Example SEO title",
     "metaDescription": "Example meta description for search snippets.",
@@ -650,6 +652,8 @@ Response:
       "featuredImageUrl": "https://example.com/image.jpg",
       "taxonomies": [{ "taxonomy": "category", "terms": ["Guides"] }],
       "wordCount": 1200,
+      "internalLinkCount": 3,
+      "externalLinkCount": 1,
       "seoPlugin": "yoast",
       "seoTitle": "Example SEO title",
       "metaDescription": "Example meta description for search snippets.",
@@ -1222,7 +1226,7 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/audits`
 
-Creates a metadata audit when the member has `audit:run`. The MVP creates a tenant-scoped audit record, materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, and canonical mismatch, and marks that metadata audit pass as `COMPLETED` with start/completion timestamps. It does not crawl external URLs or mutate WordPress content inline.
+Creates a metadata audit when the member has `audit:run`. The MVP creates a tenant-scoped audit record, materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, canonical mismatch, and missing internal links, and marks that metadata audit pass as `COMPLETED` with start/completion timestamps. It does not crawl external URLs or mutate WordPress content inline.
 
 Response:
 

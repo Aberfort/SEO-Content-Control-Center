@@ -37,7 +37,7 @@
 - Secure token storage.
 - Manual sync.
 - Action Scheduler sync.
-- Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, and SEO metadata sync implemented for current posts/pages inventory.
+- Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, link counts, and SEO metadata sync implemented for current posts/pages inventory.
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
 - Disconnect flow. Status: SaaS dashboard and signed WordPress admin disconnect invalidate server-side plugin connections.
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
@@ -47,7 +47,7 @@
 - Metadata checks. Status: synced metadata issues are materialized into completed metadata audit runs.
 - Content freshness and thin content checks. Status: synced content freshness/thin content signals are materialized into completed metadata audit runs.
 - Indexability checks. Status: synced noindex and canonical mismatch signals are materialized into completed metadata audit runs.
-- Link checks.
+- Link checks. Status: synced internal/outbound link counts are materialized into content health signals and missing-internal-link audit issues.
 - Issue deduplication. Status: synced-content issue fingerprints are deduplicated by organization/site/fingerprint.
 - Issue lifecycle: open, ignored, resolved, snoozed. Status: audit run listings expose scoped issue summary counts.
 

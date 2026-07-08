@@ -88,7 +88,7 @@
 - Plugin admin disconnect sends a signed disconnect request before clearing local credentials.
 - SaaS users with integration permission can disconnect a connected WordPress site and invalidate the server-side connection.
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
-- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
+- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.
 - Plugin sync log failure details redact tokens, signatures, authorization values, and endpoint URLs.
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
@@ -96,10 +96,10 @@
 - SaaS users can list only synced content for sites inside their organization.
 - SaaS synced content inventory supports search, type/status filters, and cursor pagination without leaking cross-tenant data.
 - SaaS synced content detail opens only for an item inside the requested organization and site.
-- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex, and canonical mismatch.
+- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex, canonical mismatch, and link counts.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - SaaS users with audit run permission can create a site metadata audit and generate an activity log entry.
-- Creating a site metadata audit materializes scoped audit issues from synced content health signals, marks the audit completed, and does not crawl external URLs.
+- Creating a site metadata audit materializes scoped audit issues from synced content health signals, including missing internal links, marks the audit completed, and does not crawl external URLs.
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.
 - SaaS dashboard users can create an audit for the selected site and see the recent completed metadata run.
 - SaaS audit run listing includes total, open, resolved, high, and critical issue summary counts scoped to each audit.

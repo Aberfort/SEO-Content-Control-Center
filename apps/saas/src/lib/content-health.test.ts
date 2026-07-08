@@ -23,7 +23,9 @@ const baseItem: SyncedContentItem = {
     metaDescription: "A practical guide to revenue-focused SEO.",
     canonicalUrl: "https://example.com/post/",
     robotsNoindex: false,
-    robotsNofollow: false
+    robotsNofollow: false,
+    internalLinkCount: 2,
+    externalLinkCount: 1
   },
   firstSeenAt: "2026-06-29T12:00:00.000Z",
   lastSeenAt: "2026-07-01T10:00:00.000Z"
@@ -42,7 +44,9 @@ describe("buildSyncedContentHealthSignals", () => {
       "seo-title-present",
       "meta-description-present",
       "robots-indexable",
-      "canonical-self"
+      "canonical-self",
+      "internal-links-present",
+      "external-links-present"
     ]);
     expect(signals.every((signal) => signal.severity !== "critical")).toBe(true);
     expect(buildSyncedContentBacklogCandidates(baseItem, signals)).toEqual([]);
@@ -58,7 +62,9 @@ describe("buildSyncedContentHealthSignals", () => {
         metadata: {
           wordCount: 120,
           robotsNoindex: true,
-          canonicalUrl: "https://example.com/preferred-post"
+          canonicalUrl: "https://example.com/preferred-post",
+          internalLinkCount: 0,
+          externalLinkCount: 0
         },
         lastSeenAt: "2026-06-01T00:00:00.000Z"
       },
@@ -74,7 +80,9 @@ describe("buildSyncedContentHealthSignals", () => {
       ["seo-title-missing", "warning"],
       ["meta-description-missing", "warning"],
       ["robots-noindex", "critical"],
-      ["canonical-different", "warning"]
+      ["canonical-different", "warning"],
+      ["internal-links-missing", "warning"],
+      ["external-links-missing", "info"]
     ]);
   });
 
@@ -87,7 +95,9 @@ describe("buildSyncedContentHealthSignals", () => {
       metadata: {
         wordCount: 120,
         robotsNoindex: true,
-        canonicalUrl: "https://example.com/preferred-post"
+        canonicalUrl: "https://example.com/preferred-post",
+        internalLinkCount: 0,
+        externalLinkCount: 0
       },
       lastSeenAt: "2026-06-01T00:00:00.000Z"
     };
@@ -103,7 +113,8 @@ describe("buildSyncedContentHealthSignals", () => {
       ["seo-title-missing", "medium"],
       ["meta-description-missing", "medium"],
       ["robots-noindex", "high"],
-      ["canonical-different", "medium"]
+      ["canonical-different", "medium"],
+      ["internal-links-missing", "medium"]
     ]);
     expect(candidates[0]?.nextStep).toContain("run plugin sync again");
   });

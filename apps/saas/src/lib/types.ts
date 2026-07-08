@@ -246,6 +246,8 @@ export type SyncedContentMetadata = {
     terms: string[];
   }>;
   wordCount?: number | null;
+  internalLinkCount?: number | null;
+  externalLinkCount?: number | null;
   seoPlugin?: "yoast" | "rank_math" | "fallback";
   seoTitle?: string | null;
   metaDescription?: string | null;
