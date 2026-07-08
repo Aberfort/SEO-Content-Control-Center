@@ -167,6 +167,33 @@ export type BillingPortalSession = {
   url: string;
 };
 
+export type GscConnectionSummary = {
+  id: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  connectedAt: string;
+  updatedAt: string;
+  disconnectedAt: string | null;
+};
+
+export type GscConnectAction = {
+  type: "gsc_oauth";
+  label: string;
+  enabled: boolean;
+  disabledReason: string | null;
+  requiresIntegrationManage: true;
+  noMutation: boolean;
+};
+
+export type GscConnectionOverview = {
+  siteId: string;
+  connections: GscConnectionSummary[];
+  connected: boolean;
+  oauthConfigured: boolean;
+  action: GscConnectAction;
+};
+
 export type AssistantRecommendationPriority = "low" | "medium" | "high";
 
 export type AssistantRecommendationSource = {

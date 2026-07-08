@@ -168,6 +168,45 @@ Current MVP activity actions:
 - `plugin.connected`
 - `plugin.disconnected`
 
+## Google Search Console
+
+`GET /api/organizations/:organizationId/sites/:siteId/gsc`
+
+Returns the Google Search Console connection overview for a site when the current user has `site:read` access to the organization/site scope. The response is read-only and exposes property/account metadata only; encrypted refresh tokens are never returned. The connect action remains disabled until the OAuth callback and token exchange flow is implemented.
+
+OAuth readiness requires non-empty `SCCC_GSC_CLIENT_ID`, `SCCC_GSC_CLIENT_SECRET`, and `SCCC_GSC_REDIRECT_URI`.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "connections": [
+      {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "googleAccountEmail": "search@example.com",
+        "propertyUrl": "sc-domain:example.com",
+        "connectedAt": "2026-07-08T10:00:00.000Z",
+        "updatedAt": "2026-07-08T10:00:00.000Z",
+        "disconnectedAt": null
+      }
+    ],
+    "connected": true,
+    "oauthConfigured": false,
+    "action": {
+      "type": "gsc_oauth",
+      "label": "Connect Google Search Console",
+      "enabled": false,
+      "disabledReason": "Google Search Console OAuth is not configured.",
+      "requiresIntegrationManage": true,
+      "noMutation": true
+    }
+  }
+}
+```
+
 ## Billing Overview
 
 `GET /api/organizations/:organizationId/billing`

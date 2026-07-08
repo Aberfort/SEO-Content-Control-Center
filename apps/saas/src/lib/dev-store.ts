@@ -71,6 +71,8 @@ import type {
   BacklogTaskSummary,
   BacklogTasksFromAuditResult,
   BillingCheckoutContext,
+  GscConnectionOverview,
+  GscConnectionSummary,
   BillingOverview,
   BillingPortalContext,
   BillingSubscription,
@@ -105,6 +107,7 @@ import {
   normalizeLocalTrialStatus
 } from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
 type DevStoreState = {
@@ -121,6 +124,7 @@ type DevStoreState = {
   activityLogs: ActivityLog[];
   notifications: Notification[];
   subscriptions: BillingSubscription[];
+  gscConnections: GscConnectionSummary[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -220,7 +224,8 @@ function initialState(): DevStoreState {
     bulkOperationItems: [],
     activityLogs: [],
     notifications: [],
-    subscriptions: []
+    subscriptions: [],
+    gscConnections: []
   };
 }
 
@@ -525,6 +530,40 @@ export function listSitesForOrganization(userId: string, organizationId: string)
   });
 
   return getDevStore().sites.filter((site) => site.organizationId === organizationId);
+}
+
+export function getGscConnectionOverviewForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): GscConnectionOverview {
+  const member = requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const connections = store.gscConnections
+    .filter((connection) => connection.siteId === siteId && connection.disconnectedAt === null)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+  return {
+    siteId,
+    connections,
+    connected: connections.length > 0,
+    oauthConfigured: isGscOAuthConfigured(),
+    action: buildGscConnectAction({
+      canManageIntegrations: hasPermission(member.role, "integration:manage")
+    })
+  };
 }
 
 export function listActivityLogsForOrganization(

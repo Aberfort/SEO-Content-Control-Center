@@ -68,6 +68,7 @@ import {
   createOrganization as createDevOrganization,
   createSite as createDevSite,
   getSyncedContentItem as getDevSyncedContentItem,
+  getGscConnectionOverviewForSite as getDevGscConnectionOverviewForSite,
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
   listActivityLogsForOrganization as listDevActivityLogsForOrganization,
@@ -135,6 +136,7 @@ import {
 } from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
   ActivityLog,
@@ -159,6 +161,8 @@ import type {
   BillingSubscription,
   BulkOperation,
   BulkOperationListOptions,
+  GscConnectionOverview,
+  GscConnectionSummary,
   InviteResult,
   NotificationBulkUpdateResult,
   Notification,
@@ -324,6 +328,11 @@ type AppRepository = {
     siteId: string,
     options?: SyncedContentListOptions
   ): Promise<SyncedContentList>;
+  getGscConnectionOverviewForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<GscConnectionOverview>;
   listAssistantRecommendationsForSite(
     userId: string,
     organizationId: string,
@@ -453,6 +462,9 @@ const devStoreRepository: AppRepository = {
   },
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
+  },
+  async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
+    return getDevGscConnectionOverviewForSite(userId, organizationId, siteId);
   },
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
     return listDevAssistantRecommendationsForSite(userId, organizationId, siteId, options);
@@ -1373,6 +1385,46 @@ const prismaRepository: AppRepository = {
           ? (visibleItems[visibleItems.length - 1]?.id ?? null)
           : null,
       total
+    };
+  },
+
+  async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
+    const membership = await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const connections = await prisma.gscConnection.findMany({
+      where: {
+        siteId,
+        disconnectedAt: null
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    });
+    const mappedConnections = connections.map(mapGscConnectionSummary);
+
+    return {
+      siteId,
+      connections: mappedConnections,
+      connected: mappedConnections.length > 0,
+      oauthConfigured: isGscOAuthConfigured(),
+      action: buildGscConnectAction({
+        canManageIntegrations: hasPermission(membership.role, "integration:manage")
+      })
     };
   },
 
@@ -3822,6 +3874,26 @@ function mapSite(site: {
     url: site.url,
     status: site.status,
     createdAt: site.createdAt.toISOString()
+  };
+}
+
+function mapGscConnectionSummary(connection: {
+  id: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  disconnectedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): GscConnectionSummary {
+  return {
+    id: connection.id,
+    siteId: connection.siteId,
+    googleAccountEmail: connection.googleAccountEmail,
+    propertyUrl: connection.propertyUrl,
+    connectedAt: connection.createdAt.toISOString(),
+    updatedAt: connection.updatedAt.toISOString(),
+    disconnectedAt: connection.disconnectedAt?.toISOString() ?? null
   };
 }
 

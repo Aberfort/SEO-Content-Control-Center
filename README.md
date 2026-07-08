@@ -73,6 +73,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin SEO metadata sync for Yoast, Rank Math, and fallback title/canonical/robots signals;
 - WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;
 - SaaS persistence and dashboard inventory for synced WordPress content;
+- Google Search Console connection overview scaffold with tenant-scoped property state and OAuth readiness guardrails;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;

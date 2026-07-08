@@ -38,7 +38,12 @@ import {
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
 import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
-import type { BillingSubscription, Site, SyncedContentMetadata } from "@/lib/types";
+import type {
+  BillingSubscription,
+  GscConnectionOverview,
+  Site,
+  SyncedContentMetadata
+} from "@/lib/types";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
@@ -109,12 +114,23 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
     ? await repository.listMembersForOrganization(user.id, activeOrganization.id)
     : [];
   const assignableMembers = activeMembers.filter((member) => member.status === "ACTIVE");
+  const canReadSite = activeOrganization
+    ? hasPermission(activeOrganization.role, "site:read")
+    : false;
   const canReadBilling = activeOrganization
     ? hasPermission(activeOrganization.role, "billing:read")
     : false;
   const billingOverview =
     activeOrganization && canReadBilling
       ? await repository.getBillingOverviewForOrganization(user.id, activeOrganization.id)
+      : null;
+  const gscOverview =
+    activeOrganization && activeSite && canReadSite
+      ? await repository.getGscConnectionOverviewForSite(
+          user.id,
+          activeOrganization.id,
+          activeSite.id
+        )
       : null;
   const syncedContent =
     activeOrganization && activeSite
@@ -386,6 +402,80 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             <p className="empty-copy">
               No sites yet. Add a WordPress site to prepare plugin setup.
             </p>
+          )}
+        </section>
+
+        <section className="panel" aria-labelledby="gsc-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="gsc-title">Google Search Console</h2>
+              <p>Search performance property state for the selected site.</p>
+            </div>
+            {gscOverview ? (
+              <span className="metric-pill">{formatGscConnectionCount(gscOverview)}</span>
+            ) : null}
+          </div>
+
+          {activeOrganization && activeSite ? (
+            canReadSite && gscOverview ? (
+              <>
+                <div className="billing-current">
+                  <div>
+                    <small>Selected site</small>
+                    <strong>{activeSite.name}</strong>
+                    <span>{activeSite.url}</span>
+                  </div>
+                  <div>
+                    <small>Status</small>
+                    <strong>{gscOverview.connected ? "Connected" : "Not connected"}</strong>
+                    <span>
+                      {gscOverview.oauthConfigured ? "OAuth configured" : "OAuth not configured"}
+                    </span>
+                  </div>
+                  <div className="billing-action-cell">
+                    <button className="secondary-button" disabled type="button">
+                      {gscOverview.action.label}
+                    </button>
+                    <span>{gscOverview.action.disabledReason}</span>
+                  </div>
+                </div>
+
+                {gscOverview.connections.length > 0 ? (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Property</th>
+                          <th>Google account</th>
+                          <th>Connected</th>
+                          <th>Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gscOverview.connections.map((connection) => (
+                          <tr key={connection.id}>
+                            <td>{connection.propertyUrl}</td>
+                            <td>{connection.googleAccountEmail}</td>
+                            <td>{formatDateTime(connection.connectedAt)}</td>
+                            <td>{formatDateTime(connection.updatedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="empty-copy">
+                    No Google Search Console property is connected for this site yet.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="empty-copy">
+                Your role can not view Google Search Console connections for this site.
+              </p>
+            )
+          ) : (
+            <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
           )}
         </section>
 
@@ -2074,6 +2164,16 @@ function formatOptionalDateTime(value: string | null | undefined): string {
 
 function formatOptionalNumber(value: number | null | undefined): string {
   return typeof value === "number" ? value.toLocaleString("en") : "n/a";
+}
+
+function formatGscConnectionCount(overview: GscConnectionOverview): string {
+  if (!overview.connected) {
+    return "Not connected";
+  }
+
+  const count = overview.connections.length;
+
+  return count === 1 ? "1 property" : `${count.toLocaleString("en")} properties`;
 }
 
 function formatAuditIssueTotal(total: number): string {

@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 73
+
+- Added a tenant-scoped Google Search Console connection overview for each site.
+- Added a read-only GSC API endpoint that exposes property/account metadata without refresh tokens.
+- Added OAuth configuration readiness guardrails and a disabled connect action until the callback flow is implemented.
+- Surfaced GSC property state on the SaaS dashboard for the selected site.
+- Documented GSC scope, security boundaries, and QA coverage for the first Search Console foundation slice.
+
 ### Iteration 72
 
 - Added WordPress admin success/error notices for connection, manual sync, and disconnect redirects.

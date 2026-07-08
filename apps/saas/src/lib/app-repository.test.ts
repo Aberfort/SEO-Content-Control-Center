@@ -35,13 +35,43 @@ describe("app repository", () => {
 
     expect(organizations).toHaveLength(1);
     expect(organizations[0]?.sites).toHaveLength(1);
-    expect(
-      await repository.listSyncedContentForSite(
-        user.id,
-        organization.id,
-        organizations[0]?.sites[0]?.id ?? ""
-      )
-    ).toEqual({
+    const siteId = organizations[0]?.sites[0]?.id ?? "";
+    await expect(
+      repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
+    ).resolves.toMatchObject({
+      siteId,
+      connections: [],
+      connected: false,
+      oauthConfigured: false,
+      action: {
+        type: "gsc_oauth",
+        enabled: false,
+        disabledReason: "Google Search Console OAuth is not configured.",
+        noMutation: true
+      }
+    });
+    getDevStore().gscConnections.push({
+      id: "00000000-0000-4000-8000-000000000909",
+      siteId,
+      googleAccountEmail: "search@example.com",
+      propertyUrl: "sc-domain:repository.example.com",
+      connectedAt: "2026-07-08T10:00:00.000Z",
+      updatedAt: "2026-07-08T10:00:00.000Z",
+      disconnectedAt: null
+    });
+    await expect(
+      repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
+    ).resolves.toMatchObject({
+      connected: true,
+      connections: [
+        {
+          googleAccountEmail: "search@example.com",
+          propertyUrl: "sc-domain:repository.example.com",
+          disconnectedAt: null
+        }
+      ]
+    });
+    expect(await repository.listSyncedContentForSite(user.id, organization.id, siteId)).toEqual({
       items: [],
       nextCursor: null,
       total: 0
@@ -50,7 +80,7 @@ describe("app repository", () => {
       await repository.getSyncedContentItem(
         user.id,
         organization.id,
-        organizations[0]?.sites[0]?.id ?? "",
+        siteId,
         "00000000-0000-4000-8000-000000000303"
       )
     ).toBeNull();
