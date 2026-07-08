@@ -9,6 +9,7 @@ import {
   backlogTaskCommentCreateSchema,
   backlogTaskFromAuditIssueSchema,
   backlogTaskFromCandidateSchema,
+  backlogTasksFromAuditSchema,
   backlogTaskListQuerySchema,
   bulkOperationConfirmSchema,
   bulkOperationDryRunSchema,
@@ -36,6 +37,7 @@ import {
   type BacklogTaskCommentCreateInput,
   type BacklogTaskFromAuditIssueInput,
   type BacklogTaskFromCandidateInput,
+  type BacklogTasksFromAuditInput,
   type BacklogTaskListQuery,
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
@@ -61,6 +63,7 @@ import {
   cancelInvite as cancelDevInvite,
   createBacklogTaskComment as createDevBacklogTaskComment,
   createBacklogTaskFromAuditIssue as createDevBacklogTaskFromAuditIssue,
+  createBacklogTasksFromAudit as createDevBacklogTasksFromAudit,
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
@@ -143,6 +146,7 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BacklogTasksFromAuditResult,
   BillingOverview,
   BillingCheckoutContext,
   BillingPlan,
@@ -186,6 +190,10 @@ type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
 };
 
 type CreateBacklogTaskFromAuditIssueWithUser = BacklogTaskFromAuditIssueInput & {
+  user: AppUser;
+};
+
+type CreateBacklogTasksFromAuditWithUser = BacklogTasksFromAuditInput & {
   user: AppUser;
 };
 
@@ -342,6 +350,9 @@ type AppRepository = {
   createBacklogTaskFromAuditIssue(
     input: CreateBacklogTaskFromAuditIssueWithUser
   ): Promise<BacklogTask>;
+  createBacklogTasksFromAudit(
+    input: CreateBacklogTasksFromAuditWithUser
+  ): Promise<BacklogTasksFromAuditResult>;
   listBacklogTasksForSite(
     userId: string,
     organizationId: string,
@@ -461,6 +472,9 @@ const devStoreRepository: AppRepository = {
   },
   async createBacklogTaskFromAuditIssue(input) {
     return createDevBacklogTaskFromAuditIssue(input);
+  },
+  async createBacklogTasksFromAudit(input) {
+    return createDevBacklogTasksFromAudit(input);
   },
   async listBacklogTasksForSite(userId, organizationId, siteId, options) {
     return listDevBacklogTasksForSite(userId, organizationId, siteId, options);
@@ -1877,6 +1891,140 @@ const prismaRepository: AppRepository = {
     });
 
     return mapBacklogTask(task);
+  },
+
+  async createBacklogTasksFromAudit(input) {
+    const parsed = backlogTasksFromAuditSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+
+    const audit = await prisma.audit.findFirst({
+      where: {
+        id: parsed.auditId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!audit) {
+      throw new Error("AUDIT_NOT_FOUND");
+    }
+
+    const issues = await prisma.auditIssue.findMany({
+      where: {
+        auditId: audit.id,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        status: parsed.status
+      },
+      orderBy: [
+        {
+          severity: "desc"
+        },
+        {
+          updatedAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      take: 500
+    });
+    const issueIds = issues.map((issue) => issue.id);
+
+    const taskResult = await prisma.$transaction(async (tx) => {
+      const existingTasks =
+        issueIds.length > 0
+          ? await tx.backlogTask.findMany({
+              where: {
+                organizationId: parsed.organizationId,
+                siteId: parsed.siteId,
+                auditIssueId: {
+                  in: issueIds
+                }
+              },
+              orderBy: {
+                createdAt: "asc"
+              }
+            })
+          : [];
+      const existingTaskByIssueId = new Map<string, (typeof existingTasks)[number]>();
+
+      for (const task of existingTasks) {
+        if (task.auditIssueId && !existingTaskByIssueId.has(task.auditIssueId)) {
+          existingTaskByIssueId.set(task.auditIssueId, task);
+        }
+      }
+
+      const issuesToCreate = issues.filter((issue) => !existingTaskByIssueId.has(issue.id));
+      const createdTasks = await Promise.all(
+        issuesToCreate.map((issue) =>
+          tx.backlogTask.create({
+            data: {
+              organizationId: parsed.organizationId,
+              siteId: parsed.siteId,
+              auditIssueId: issue.id,
+              title: issue.recommendedAction,
+              url: issue.affectedUrl,
+              issueType: `audit.${issue.issueType}`,
+              severity: issue.severity,
+              potentialImpact: issue.potentialImpact ?? issue.explanation,
+              effortEstimate: mapIssueSeverityToEffort(issue.severity),
+              tags: ["audit", issue.issueType]
+            }
+          })
+        )
+      );
+      const taskByIssueId = new Map(existingTaskByIssueId);
+
+      for (const task of createdTasks) {
+        if (task.auditIssueId) {
+          taskByIssueId.set(task.auditIssueId, task);
+        }
+      }
+
+      if (issues.length > 0) {
+        await tx.activityLog.create({
+          data: {
+            organizationId: parsed.organizationId,
+            userId: input.user.id,
+            action: "backlog_task.bulk_created_from_audit",
+            entityType: "Audit",
+            entityId: audit.id,
+            metadata: {
+              siteId: parsed.siteId,
+              auditId: audit.id,
+              status: parsed.status,
+              totalIssues: issues.length,
+              createdCount: createdTasks.length,
+              existingCount: existingTaskByIssueId.size
+            }
+          }
+        });
+      }
+
+      return {
+        createdCount: createdTasks.length,
+        existingCount: existingTaskByIssueId.size,
+        tasks: issues
+          .map((issue) => taskByIssueId.get(issue.id))
+          .filter((task): task is NonNullable<typeof task> => Boolean(task))
+      };
+    });
+
+    return {
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      auditId: audit.id,
+      sourceStatus: parsed.status,
+      totalIssues: issues.length,
+      createdCount: taskResult.createdCount,
+      existingCount: taskResult.existingCount,
+      tasks: taskResult.tasks.map((task) => mapBacklogTask(task))
+    };
   },
 
   async listBacklogTasksForSite(userId, organizationId, siteId, options) {

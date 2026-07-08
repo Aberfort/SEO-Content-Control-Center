@@ -8,6 +8,7 @@ import {
   assistantRecommendationListQuerySchema,
   backlogTaskCommentCreateSchema,
   backlogTaskFromAuditIssueSchema,
+  backlogTasksFromAuditSchema,
   bulkOperationConfirmSchema,
   bulkOperationDryRunSchema,
   bulkOperationListQuerySchema,
@@ -31,6 +32,7 @@ import {
   type AuditListQuery,
   type BacklogTaskCommentCreateInput,
   type BacklogTaskFromAuditIssueInput,
+  type BacklogTasksFromAuditInput,
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
   type BulkOperationListQuery,
@@ -67,6 +69,7 @@ import type {
   BacklogTaskList,
   BacklogTaskListOptions,
   BacklogTaskSummary,
+  BacklogTasksFromAuditResult,
   BillingCheckoutContext,
   BillingOverview,
   BillingPortalContext,
@@ -1013,6 +1016,123 @@ export function createBacklogTaskFromAuditIssue(
   });
 
   return withBacklogDetails(task, store.backlogComments, store.activityLogs, 3);
+}
+
+export function createBacklogTasksFromAudit(
+  input: BacklogTasksFromAuditInput & {
+    user: AppUser;
+  }
+): BacklogTasksFromAuditResult {
+  const parsed = backlogTasksFromAuditSchema.parse(input);
+  const store = getDevStore();
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "backlog:update"
+  });
+
+  const audit = store.audits.find(
+    (candidate) =>
+      candidate.id === parsed.auditId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!audit) {
+    throw new Error("AUDIT_NOT_FOUND");
+  }
+
+  const issues = store.auditIssues
+    .filter(
+      (issue) =>
+        issue.auditId === parsed.auditId &&
+        issue.organizationId === parsed.organizationId &&
+        issue.siteId === parsed.siteId &&
+        issue.status === parsed.status
+    )
+    .sort((left, right) => {
+      const severityDelta = severityRank(right.severity) - severityRank(left.severity);
+
+      if (severityDelta !== 0) {
+        return severityDelta;
+      }
+
+      return right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id);
+    })
+    .slice(0, 500);
+  const tasks: BacklogTask[] = [];
+  let createdCount = 0;
+  let existingCount = 0;
+
+  for (const issue of issues) {
+    const existing = store.backlogTasks.find(
+      (task) =>
+        task.organizationId === parsed.organizationId &&
+        task.siteId === parsed.siteId &&
+        task.auditIssueId === issue.id
+    );
+
+    if (existing) {
+      tasks.push(withBacklogDetails(existing, store.backlogComments, store.activityLogs, 3));
+      existingCount += 1;
+      continue;
+    }
+
+    const timestamp = nowIso();
+    const task: BacklogTask = {
+      id: randomUUID(),
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      auditIssueId: issue.id,
+      title: issue.recommendedAction,
+      url: issue.affectedUrl,
+      issueType: `audit.${issue.issueType}`,
+      status: "TODO",
+      severity: issue.severity,
+      potentialImpact: issue.potentialImpact ?? issue.explanation,
+      effortEstimate: mapIssueSeverityToEffort(issue.severity),
+      assigneeId: null,
+      dueDate: null,
+      tags: ["audit", issue.issueType],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      comments: []
+    };
+
+    store.backlogTasks.push(task);
+    tasks.push(withBacklogDetails(task, store.backlogComments, store.activityLogs, 3));
+    createdCount += 1;
+  }
+
+  if (issues.length > 0) {
+    writeActivityLog({
+      organizationId: parsed.organizationId,
+      userId: input.user.id,
+      action: "backlog_task.bulk_created_from_audit",
+      entityType: "Audit",
+      entityId: audit.id,
+      metadata: {
+        siteId: parsed.siteId,
+        auditId: audit.id,
+        status: parsed.status,
+        totalIssues: issues.length,
+        createdCount,
+        existingCount
+      }
+    });
+  }
+
+  return {
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    auditId: audit.id,
+    sourceStatus: parsed.status,
+    totalIssues: issues.length,
+    createdCount,
+    existingCount,
+    tasks
+  };
 }
 
 export function listBacklogTasksForSite(

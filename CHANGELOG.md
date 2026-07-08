@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 62
+
+- Added bulk backlog task creation from open audit issues for a scoped audit run.
+- Kept audit-to-task bulk creation idempotent by reusing existing `auditIssueId`-linked tasks.
+- Added dashboard and server action support for creating tasks from all open issues in the selected audit.
+- Added API result counts for total issues, created tasks, and existing tasks.
+- Documented the bulk audit-to-backlog API behavior, security guardrails, data model notes, and QA coverage.
+
 ### Iteration 61
 
 - Added computed audit issue summary counts to audit run API responses.

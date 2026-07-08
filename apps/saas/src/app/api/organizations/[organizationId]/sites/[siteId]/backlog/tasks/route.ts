@@ -73,22 +73,30 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const task = readString(body, "auditIssueId")
-      ? await repository.createBacklogTaskFromAuditIssue({
+    const data = readString(body, "auditId")
+      ? await repository.createBacklogTasksFromAudit({
           user,
           organizationId,
           siteId,
-          auditIssueId: readString(body, "auditIssueId")
+          auditId: readString(body, "auditId"),
+          status: (readString(body, "status") || "OPEN") as never
         })
-      : await repository.createBacklogTaskFromCandidate({
-          user,
-          organizationId,
-          siteId,
-          contentItemId: readString(body, "contentItemId"),
-          candidateId: readString(body, "candidateId")
-        });
+      : readString(body, "auditIssueId")
+        ? await repository.createBacklogTaskFromAuditIssue({
+            user,
+            organizationId,
+            siteId,
+            auditIssueId: readString(body, "auditIssueId")
+          })
+        : await repository.createBacklogTaskFromCandidate({
+            user,
+            organizationId,
+            siteId,
+            contentItemId: readString(body, "contentItemId"),
+            candidateId: readString(body, "candidateId")
+          });
 
-    return Response.json({ data: task }, { status: 201 });
+    return Response.json({ data }, { status: 201 });
   } catch (error) {
     const response = securityError(error);
 
@@ -106,6 +114,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (error instanceof Error && error.message === "BACKLOG_CANDIDATE_NOT_FOUND") {
       return jsonError(404, "BACKLOG_CANDIDATE_NOT_FOUND", "Backlog candidate was not found.");
+    }
+
+    if (error instanceof Error && error.message === "AUDIT_NOT_FOUND") {
+      return jsonError(404, "AUDIT_NOT_FOUND", "Audit was not found.");
     }
 
     if (error instanceof Error && error.message === "AUDIT_ISSUE_NOT_FOUND") {

@@ -80,6 +80,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - tenant-scoped audit issue status updates with audit logging;
 - persisted backlog task creation from synced content candidates;
 - persisted backlog task creation from scoped audit issues;
+- bulk backlog task creation from open issues in a scoped audit run;
 - SaaS backlog task listing for persisted candidate-created tasks;
 - backlog text search and status/severity filtering with summary counts;
 - backlog task status updates with audit logging;

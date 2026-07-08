@@ -310,6 +310,17 @@ export type BacklogTask = {
   activityLogs?: ActivityLog[];
 };
 
+export type BacklogTasksFromAuditResult = {
+  organizationId: string;
+  siteId: string;
+  auditId: string;
+  sourceStatus: AuditIssue["status"];
+  totalIssues: number;
+  createdCount: number;
+  existingCount: number;
+  tasks: BacklogTask[];
+};
+
 export type Audit = {
   id: string;
   organizationId: string;

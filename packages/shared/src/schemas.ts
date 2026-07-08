@@ -151,6 +151,13 @@ export const auditIssueStatusSchema = z.enum(["OPEN", "IGNORED", "RESOLVED", "SN
 
 export const auditIssueSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 
+export const backlogTasksFromAuditSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  auditId: auditIdSchema,
+  status: auditIssueStatusSchema.default("OPEN")
+});
+
 export const auditIssueListQuerySchema = z.object({
   query: z.string().trim().max(160).optional(),
   status: auditIssueStatusSchema.optional(),
@@ -325,6 +332,7 @@ export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
 export type BacklogTaskFromAuditIssueInput = z.infer<typeof backlogTaskFromAuditIssueSchema>;
+export type BacklogTasksFromAuditInput = z.infer<typeof backlogTasksFromAuditSchema>;
 export type AuditListQuery = z.infer<typeof auditListQuerySchema>;
 export type AuditIssueListQuery = z.infer<typeof auditIssueListQuerySchema>;
 export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;

@@ -51,6 +51,7 @@
 - Updating audit issue status requires audit run permission and organization/site/audit/issue scoping.
 - Creating persisted backlog tasks from candidates requires backlog update permission and server-side candidate recomputation.
 - Creating persisted backlog tasks from audit issues requires backlog update permission and organization/site/issue scoping.
+- Creating backlog tasks in bulk from an audit requires backlog update permission and organization/site/audit scoping before issues are selected.
 - Listing persisted backlog tasks requires backlog read permission and organization/site scoping.
 - Backlog search, filters, and summary counts must be applied only after organization/site scope is fixed.
 - Updating backlog task status requires backlog update permission and organization/site/task scoping.

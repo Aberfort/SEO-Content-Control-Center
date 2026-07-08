@@ -610,7 +610,7 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
 
-Creates a persisted backlog task from a synced content backlog candidate or scoped audit issue. The server recomputes candidate details from the scoped content item and ignores user-supplied task titles or priority. Repeated candidate requests for the same organization, site, URL, and issue type return the existing task. Repeated audit issue requests for the same `auditIssueId` return the existing task.
+Creates persisted backlog tasks from a synced content backlog candidate, a scoped audit issue, or all issues matching a scoped audit run/status. The server recomputes candidate details from the scoped content item and ignores user-supplied task titles or priority. Repeated candidate requests for the same organization, site, URL, and issue type return the existing task. Repeated audit issue requests for the same `auditIssueId` return the existing task. Repeated audit run requests create only missing tasks and return existing tasks for already converted issues.
 
 Candidate request:
 
@@ -626,6 +626,15 @@ Audit issue request:
 ```json
 {
   "auditIssueId": "77777777-7777-4777-8777-777777777777"
+}
+```
+
+Audit run request:
+
+```json
+{
+  "auditId": "66666666-6666-4666-8666-666666666666",
+  "status": "OPEN"
 }
 ```
 
@@ -645,6 +654,33 @@ Response:
     "potentialImpact": "WordPress modified timestamp is 200 days old.",
     "effortEstimate": 1,
     "tags": ["synced-content", "content-stale"]
+  }
+}
+```
+
+Audit run response:
+
+```json
+{
+  "data": {
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "auditId": "66666666-6666-4666-8666-666666666666",
+    "sourceStatus": "OPEN",
+    "totalIssues": 2,
+    "createdCount": 2,
+    "existingCount": 0,
+    "tasks": [
+      {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "auditIssueId": "77777777-7777-4777-8777-777777777777",
+        "title": "Add a concise meta description.",
+        "url": "https://example.com/page",
+        "issueType": "audit.meta_description_missing",
+        "status": "TODO",
+        "severity": "HIGH"
+      }
+    ]
   }
 }
 ```

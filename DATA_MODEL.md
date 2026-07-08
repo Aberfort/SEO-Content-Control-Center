@@ -53,6 +53,7 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Audit issue status changes update the issue record and write organization-scoped activity logs.
 - Backlog tasks created from synced content candidates use `synced_content.*` issue types and remain scoped by organization and site.
 - Backlog tasks created from audit issues use `audit.*` issue types and retain the source `auditIssueId`.
+- Bulk backlog creation from audits filters issues through organization/site/audit scope and creates only tasks missing for the selected source status.
 - Backlog task lists must be queried by organization and site scope before display.
 - Backlog task search, filters, and summary counts must be computed inside the same organization/site scope.
 - Backlog task status transitions update the task record and write organization-scoped activity logs.

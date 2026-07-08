@@ -61,8 +61,8 @@
 
 ## Phase 5 - SEO Backlog
 
-- Audit issue to task conversion.
-- Deduplication.
+- Audit issue to task conversion. Status: single issue and bulk open-issue conversion implemented.
+- Deduplication. Status: candidate, single audit issue, and bulk audit conversions reuse existing tasks.
 - Filters and search.
 - Assignment and status workflows.
 - Comments and change history.

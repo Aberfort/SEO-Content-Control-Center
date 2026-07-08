@@ -443,8 +443,46 @@ describe("app repository", () => {
       createdAt: now,
       updatedAt: now
     };
+    const criticalIssue: AuditIssue = {
+      id: "00000000-0000-4000-8000-000000000708",
+      auditId: audit.id,
+      organizationId: organization.id,
+      siteId: site.id,
+      issueType: "synced_content.meta-description-missing",
+      status: "OPEN",
+      severity: "CRITICAL",
+      affectedUrl: "https://audit.repository.example.com/missing-description",
+      evidence: {
+        source: "synced_content_health"
+      },
+      explanation: "The page does not provide a meta description.",
+      recommendedAction: "Write a focused meta description",
+      potentialImpact: "Search snippets may be generated from weak page text.",
+      fingerprint: "synced_content:post:2:meta-description-missing",
+      createdAt: now,
+      updatedAt: now
+    };
+    const mediumIssue: AuditIssue = {
+      id: "00000000-0000-4000-8000-000000000709",
+      auditId: audit.id,
+      organizationId: organization.id,
+      siteId: site.id,
+      issueType: "synced_content.featured-image-missing",
+      status: "OPEN",
+      severity: "MEDIUM",
+      affectedUrl: "https://audit.repository.example.com/no-image",
+      evidence: {
+        source: "synced_content_health"
+      },
+      explanation: "The page does not have a featured image.",
+      recommendedAction: "Add a relevant featured image",
+      potentialImpact: "Social previews and editorial review can be weaker.",
+      fingerprint: "synced_content:post:3:featured-image-missing",
+      createdAt: now,
+      updatedAt: now
+    };
 
-    getDevStore().auditIssues.push(issue);
+    getDevStore().auditIssues.push(issue, criticalIssue, mediumIssue);
 
     await expect(
       repository.listAuditsForSite(user.id, organization.id, site.id, { status: "COMPLETED" })
@@ -452,11 +490,11 @@ describe("app repository", () => {
       expect.objectContaining({
         id: audit.id,
         issueSummary: {
-          total: 1,
-          open: 1,
+          total: 3,
+          open: 3,
           resolved: 0,
           high: 1,
-          critical: 0
+          critical: 1
         }
       })
     ]);
@@ -487,11 +525,11 @@ describe("app repository", () => {
       expect.objectContaining({
         id: audit.id,
         issueSummary: {
-          total: 1,
-          open: 0,
+          total: 3,
+          open: 2,
           resolved: 1,
           high: 1,
-          critical: 0
+          critical: 1
         }
       })
     ]);
@@ -518,6 +556,47 @@ describe("app repository", () => {
       })
     ).resolves.toMatchObject({
       id: task.id
+    });
+
+    const bulkResult = await repository.createBacklogTasksFromAudit({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      auditId: audit.id,
+      status: "OPEN"
+    });
+
+    expect(bulkResult).toMatchObject({
+      auditId: audit.id,
+      sourceStatus: "OPEN",
+      totalIssues: 2,
+      createdCount: 2,
+      existingCount: 0
+    });
+    expect(bulkResult.tasks.map((createdTask) => createdTask.auditIssueId).sort()).toEqual(
+      [criticalIssue.id, mediumIssue.id].sort()
+    );
+
+    await expect(
+      repository.createBacklogTasksFromAudit({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        auditId: audit.id,
+        status: "OPEN"
+      })
+    ).resolves.toMatchObject({
+      totalIssues: 2,
+      createdCount: 0,
+      existingCount: 2,
+      tasks: expect.arrayContaining([
+        expect.objectContaining({
+          auditIssueId: criticalIssue.id
+        }),
+        expect.objectContaining({
+          auditIssueId: mediumIssue.id
+        })
+      ])
     });
   });
 

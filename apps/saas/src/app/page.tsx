@@ -8,6 +8,7 @@ import {
   createBacklogTaskCommentAction,
   createBacklogTaskFromAuditIssueAction,
   createBacklogTaskFromCandidateAction,
+  createBacklogTasksFromAuditAction,
   createBillingCheckoutSessionAction,
   createBillingPortalSessionAction,
   createBulkOperationPreviewAction,
@@ -959,11 +960,34 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                         {formatDateTime(activeAudit.createdAt)}.
                       </p>
                     </div>
-                    <span
-                      className={`audit-status audit-status-${activeAudit.status.toLowerCase()}`}
-                    >
-                      {activeAudit.status.toLowerCase()}
-                    </span>
+                    <div className="audit-issue-heading-actions">
+                      <span
+                        className={`audit-status audit-status-${activeAudit.status.toLowerCase()}`}
+                      >
+                        {activeAudit.status.toLowerCase()}
+                      </span>
+                      <form action={createBacklogTasksFromAuditAction}>
+                        <input name="organizationId" type="hidden" value={activeOrganization.id} />
+                        <input name="siteId" type="hidden" value={activeSite.id} />
+                        <input name="auditId" type="hidden" value={activeAudit.id} />
+                        <input name="status" type="hidden" value="OPEN" />
+                        <input
+                          name="redirectTo"
+                          type="hidden"
+                          value={buildContentHref(params, {
+                            site: activeSite.id,
+                            audit: activeAudit.id
+                          })}
+                        />
+                        <button
+                          className="secondary-button"
+                          disabled={auditIssueSummary.open === 0}
+                          type="submit"
+                        >
+                          Create tasks from open
+                        </button>
+                      </form>
+                    </div>
                   </div>
 
                   <div className="audit-issue-summary" aria-label="Audit issue summary">

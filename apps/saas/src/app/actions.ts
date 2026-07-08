@@ -339,6 +339,24 @@ export async function createBacklogTaskFromAuditIssueAction(formData: FormData):
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function createBacklogTasksFromAuditAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await repository.createBacklogTasksFromAudit({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    auditId: String(formData.get("auditId") ?? ""),
+    status: String(formData.get("status") ?? "OPEN") as never
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
 export async function createBacklogTaskFromCandidateAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();

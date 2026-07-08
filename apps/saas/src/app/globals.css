@@ -748,6 +748,18 @@ th {
   margin: 0 0 6px;
 }
 
+.audit-issue-heading-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.audit-issue-heading-actions form {
+  margin: 0;
+}
+
 .audit-issue-summary {
   display: flex;
   flex-wrap: wrap;
