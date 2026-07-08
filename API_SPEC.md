@@ -11,6 +11,7 @@
 - Browser mutations require a same-origin `Origin` header that matches `Host`, `X-Forwarded-Host`, or `NEXT_PUBLIC_APP_URL`.
 - Login, registration, password reset, invite creation/resend, invite acceptance, and safe content operation mutations are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
 - Persistence: organization, site, and activity APIs use the repository abstraction. Set `SCCC_DATA_STORE=prisma` with `DATABASE_URL` to use PostgreSQL.
+- WordPress plugin integration details are documented in [docs/PLUGIN_API.md](docs/PLUGIN_API.md).
 
 ## Health
 

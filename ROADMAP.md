@@ -27,7 +27,7 @@
 - Onboarding checklist. Status: computed workspace setup checklist is shown on the main app and dashboard.
 - Basic audit log. Status: organization/site activity writes implemented through repository layer.
 - Trial plan without real charges.
-- Plugin API documentation.
+- Plugin API documentation. Status: dedicated connection, signing, sync, disconnect, and metadata contract documented.
 
 ## Phase 2 - WordPress Plugin MVP
 

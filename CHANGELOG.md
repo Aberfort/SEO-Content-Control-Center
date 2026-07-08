@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 68
+
+- Added dedicated WordPress plugin API documentation for the connection challenge and exchange flow.
+- Documented signed plugin sync and plugin-initiated disconnect request authentication.
+- Documented plugin sync metadata bounds, supported fields, and no-post-body guardrails.
+- Added plugin API error-code and operational notes for integrators.
+- Linked the plugin API guide from the API spec, README, roadmap, and QA checklist.
+
 ### Iteration 67
 
 - Added local WordPress link counting for synced content inventory without sending post bodies.

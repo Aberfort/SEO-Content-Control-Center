@@ -9,7 +9,7 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 - `packages/shared` - shared TypeScript domain types, RBAC, plans, and validation helpers.
 - `packages/database` - Prisma schema, migrations, and seed entry points.
 - `wordpress-plugin` - production WordPress plugin skeleton.
-- `docs` - product, architecture, API, security, QA, deployment, and content documents.
+- `docs` - integration guides and product documentation.
 
 ## Local Requirements
 
@@ -62,6 +62,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - SMTP invite email delivery with local Mailpit support;
 - same-origin CSRF guard and MVP rate limits for auth, invite, and safe content operation mutations;
 - WordPress plugin challenge/exchange and signed sync API foundation;
+- dedicated WordPress plugin API documentation for connection, signing, sync, disconnect, and metadata contracts;
 - WordPress plugin admin challenge exchange and signed manual sync request;
 - WordPress plugin and SaaS dashboard disconnect flow with server-side token invalidation;
 - WordPress plugin posts/pages inventory payload for signed sync;
