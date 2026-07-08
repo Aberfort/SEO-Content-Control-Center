@@ -36,7 +36,7 @@
 - Connection status.
 - Secure token storage.
 - Manual sync.
-- Action Scheduler sync.
+- Action Scheduler sync. Status: connected plugins schedule recurring sync through Action Scheduler with hourly WP-Cron fallback.
 - Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, link counts, and SEO metadata sync implemented for current posts/pages inventory.
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
 - Disconnect flow. Status: SaaS dashboard and signed WordPress admin disconnect invalidate server-side plugin connections.

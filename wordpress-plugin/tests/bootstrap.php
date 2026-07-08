@@ -23,6 +23,67 @@ if (! function_exists('get_option')) {
 
         return true;
     }
+
+    function delete_option(string $name): bool
+    {
+        unset($GLOBALS['sccc_test_options'][$name], $GLOBALS['sccc_test_option_autoload'][$name]);
+
+        return true;
+    }
+}
+
+if (! function_exists('wp_next_scheduled')) {
+    $GLOBALS['sccc_test_scheduled_events'] = [];
+
+    function wp_next_scheduled(string $hook): int|false
+    {
+        $matches = array_filter(
+            $GLOBALS['sccc_test_scheduled_events'],
+            static fn (array $event): bool => $event['hook'] === $hook
+        );
+
+        if ([] === $matches) {
+            return false;
+        }
+
+        usort($matches, static fn (array $left, array $right): int => $left['timestamp'] <=> $right['timestamp']);
+
+        return (int) $matches[0]['timestamp'];
+    }
+
+    function wp_schedule_single_event(int $timestamp, string $hook): bool
+    {
+        $GLOBALS['sccc_test_scheduled_events'][] = [
+            'hook' => $hook,
+            'timestamp' => $timestamp,
+            'recurrence' => null,
+        ];
+
+        return true;
+    }
+
+    function wp_schedule_event(int $timestamp, string $recurrence, string $hook): bool
+    {
+        $GLOBALS['sccc_test_scheduled_events'][] = [
+            'hook' => $hook,
+            'timestamp' => $timestamp,
+            'recurrence' => $recurrence,
+        ];
+
+        return true;
+    }
+
+    function wp_unschedule_event(int $timestamp, string $hook): bool
+    {
+        $GLOBALS['sccc_test_scheduled_events'] = array_values(
+            array_filter(
+                $GLOBALS['sccc_test_scheduled_events'],
+                static fn (array $event): bool => ! ($event['hook'] === $hook && $event['timestamp'] === $timestamp)
+            )
+        );
+
+        return true;
+    }
 }
 
 if (! function_exists('get_post_meta')) {
@@ -38,8 +99,10 @@ if (! function_exists('get_post_meta')) {
 
 require_once __DIR__ . '/../includes/RequestSigner.php';
 require_once __DIR__ . '/../includes/ApiClient.php';
+require_once __DIR__ . '/../includes/ConnectionStore.php';
 require_once __DIR__ . '/../includes/ContentCollector.php';
 require_once __DIR__ . '/../includes/SyncLogStore.php';
+require_once __DIR__ . '/../includes/SyncScheduler.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
 $api_client = new SCCC\Plugin\ApiClient($signer);
@@ -175,6 +238,60 @@ if (! $signer->verify('POST', '/api/plugin/connections/disconnect', $timestamp, 
     fwrite(STDERR, "ApiClient disconnect signed headers failed.\n");
     exit(1);
 }
+
+$connection_store = new SCCC\Plugin\ConnectionStore();
+$scheduler = new SCCC\Plugin\SyncScheduler($connection_store, $api_client, $collector, $sync_log_store);
+
+if ('not connected' !== $scheduler->ensureRecurringSync()) {
+    fwrite(STDERR, "SyncScheduler did not skip recurring sync while disconnected.\n");
+    exit(1);
+}
+
+$connection_store->save(
+    $connection['organization_id'],
+    $connection['site_id'],
+    $connection['token'],
+    $connection['endpoint']
+);
+
+if ('WP-Cron' !== $scheduler->queueSync() || false === wp_next_scheduled('sccc_run_manual_sync')) {
+    fwrite(STDERR, "SyncScheduler did not queue manual sync on its own hook.\n");
+    exit(1);
+}
+
+if ('WP-Cron' !== $scheduler->ensureRecurringSync()) {
+    fwrite(STDERR, "SyncScheduler did not use WP-Cron fallback.\n");
+    exit(1);
+}
+
+if (false === wp_next_scheduled('sccc_run_incremental_sync')) {
+    fwrite(STDERR, "SyncScheduler did not schedule recurring sync on its own hook.\n");
+    exit(1);
+}
+
+$recurring_status = $scheduler->getRecurringSyncStatus();
+
+if (! $recurring_status['enabled'] || 'WP-Cron' !== $recurring_status['scheduler'] || null === $recurring_status['next_run_at']) {
+    fwrite(STDERR, "SyncScheduler recurring status failed.\n");
+    exit(1);
+}
+
+$scheduled_count = count($GLOBALS['sccc_test_scheduled_events']);
+$scheduler->ensureRecurringSync();
+
+if ($scheduled_count !== count($GLOBALS['sccc_test_scheduled_events'])) {
+    fwrite(STDERR, "SyncScheduler duplicated recurring events.\n");
+    exit(1);
+}
+
+$scheduler->cancelScheduledSyncs();
+
+if (false !== wp_next_scheduled('sccc_run_incremental_sync') || false !== wp_next_scheduled('sccc_run_manual_sync')) {
+    fwrite(STDERR, "SyncScheduler did not cancel scheduled sync jobs.\n");
+    exit(1);
+}
+
+$connection_store->disconnect();
 
 $sync_log_store->recordQueued('Action Scheduler');
 $sync_log_store->recordSuccess(3);

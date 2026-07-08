@@ -207,7 +207,9 @@ Supported metadata keys:
 - `robotsNofollow`: boolean or `null`.
 
 The official WordPress plugin computes word count and link counts locally from post content, extracts
-bounded Yoast/Rank Math/fallback SEO metadata, then sends only the resulting metadata.
+bounded Yoast/Rank Math/fallback SEO metadata, then sends only the resulting metadata. Connected
+plugins schedule recurring sync through Action Scheduler when available, with an hourly WP-Cron
+fallback. Manual and recurring sync use the same signed request path.
 
 ## Plugin-Initiated Disconnect
 

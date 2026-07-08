@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 71
+
+- Added automatic recurring WordPress plugin sync scheduling after a site is connected.
+- Prefer Action Scheduler recurring actions when available and fall back to hourly WP-Cron events.
+- Unschedule recurring and pending manual plugin sync jobs when the site disconnects or the plugin deactivates.
+- Display automatic sync scheduler status and next run time on the WordPress settings page.
+- Extended plugin smoke coverage for recurring sync scheduling, deduplication, and cleanup.
+
 ### Iteration 70
 
 - Added local Trial expiry handling that derives expired no-provider Trial subscriptions as `PAST_DUE`.

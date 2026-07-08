@@ -25,7 +25,9 @@ final class Plugin
         add_action('admin_post_sccc_exchange_connection', [$this, 'exchangeConnection']);
         add_action('admin_post_sccc_disconnect', [$this, 'disconnect']);
         add_action('admin_post_sccc_manual_sync', [$this->syncScheduler, 'handleManualSync']);
+        add_action('sccc_run_manual_sync', [$this->syncScheduler, 'runSync']);
         add_action('sccc_run_incremental_sync', [$this->syncScheduler, 'runSync']);
+        add_action('init', [$this->syncScheduler, 'ensureRecurringSync']);
     }
 
     public function exchangeConnection(): void
@@ -57,6 +59,7 @@ final class Plugin
             $connection['token'],
             $connection['endpoint']
         );
+        $this->syncScheduler->ensureRecurringSync();
 
         wp_safe_redirect(add_query_arg('sccc_status', 'connected', admin_url('options-general.php?page=sccc')));
         exit;
@@ -82,6 +85,7 @@ final class Plugin
         }
 
         $this->connectionStore->disconnect();
+        $this->syncScheduler->cancelScheduledSyncs();
 
         wp_safe_redirect(add_query_arg('sccc_status', 'disconnected', admin_url('options-general.php?page=sccc')));
         exit;

@@ -32,6 +32,13 @@ final class AdminPage
         $connection = $store->get();
         $syncLogStore = new SyncLogStore();
         $syncLogs = $syncLogStore->all();
+        $scheduler = new SyncScheduler(
+            $store,
+            new ApiClient(new RequestSigner()),
+            new ContentCollector(),
+            $syncLogStore
+        );
+        $recurringSync = $scheduler->getRecurringSyncStatus();
         ?>
         <div class="wrap">
             <h1><?php echo esc_html__('SEO Content Control Center', 'seo-content-control-center'); ?></h1>
@@ -68,6 +75,9 @@ final class AdminPage
                         )
                     );
                     ?>
+                </p>
+                <p>
+                    <?php echo esc_html($this->formatRecurringSyncStatus($recurringSync)); ?>
                 </p>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
                     <input type="hidden" name="action" value="sccc_manual_sync" />
@@ -135,5 +145,22 @@ final class AdminPage
             'error' => __('Error', 'seo-content-control-center'),
             default => __('Unknown', 'seo-content-control-center'),
         };
+    }
+
+    /**
+     * @param array{enabled:bool,scheduler:string|null,next_run_at:int|null} $status
+     */
+    private function formatRecurringSyncStatus(array $status): string
+    {
+        if (! $status['enabled'] || null === $status['scheduler'] || null === $status['next_run_at']) {
+            return __('Automatic sync is not scheduled yet.', 'seo-content-control-center');
+        }
+
+        return sprintf(
+            /* translators: 1: scheduler name, 2: formatted next run date. */
+            __('Automatic sync runs via %1$s. Next run: %2$s.', 'seo-content-control-center'),
+            $status['scheduler'],
+            $this->formatTimestamp($status['next_run_at'])
+        );
     }
 }

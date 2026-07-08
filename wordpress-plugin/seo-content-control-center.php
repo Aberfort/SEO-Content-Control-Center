@@ -55,3 +55,19 @@ add_action(
         $plugin->register();
     }
 );
+
+register_deactivation_hook(
+    __FILE__,
+    static function (): void {
+        $requestSigner = new SCCC\Plugin\RequestSigner();
+        $apiClient = new SCCC\Plugin\ApiClient($requestSigner);
+        $scheduler = new SCCC\Plugin\SyncScheduler(
+            new SCCC\Plugin\ConnectionStore(),
+            $apiClient,
+            new SCCC\Plugin\ContentCollector(),
+            new SCCC\Plugin\SyncLogStore()
+        );
+
+        $scheduler->cancelScheduledSyncs();
+    }
+);

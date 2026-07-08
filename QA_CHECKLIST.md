@@ -91,6 +91,8 @@
 - Plugin admin disconnect sends a signed disconnect request before clearing local credentials.
 - SaaS users with integration permission can disconnect a connected WordPress site and invalidate the server-side connection.
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
+- Connected plugins schedule recurring sync through Action Scheduler or hourly WP-Cron fallback without duplicating scheduled jobs.
+- Plugin disconnect and deactivation unschedule recurring and pending manual sync jobs.
 - Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.
 - Plugin sync log failure details redact tokens, signatures, authorization values, and endpoint URLs.

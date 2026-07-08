@@ -40,6 +40,7 @@
 - Plugin disconnect requests are signed with the active plugin token before local credentials are cleared, so SaaS can invalidate the server-side connection first.
 - Plugin sync inventory contains bounded metadata only; content bodies are not sent in the MVP sync payload, word count and link counts are computed locally in the plugin, and SEO plugin metadata is limited to title, description, canonical URL, robots directives, and source.
 - Plugin sync logs must be bounded and sanitize failure details so tokens, signatures, authorization values, and endpoint URLs are not stored.
+- Plugin recurring sync jobs must use the same signed sync path as manual sync, and scheduled sync jobs must be unscheduled when the site disconnects or the plugin deactivates.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
