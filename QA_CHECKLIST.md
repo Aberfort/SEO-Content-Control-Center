@@ -80,6 +80,8 @@
 - Plugin can exchange a valid challenge once for connection credentials.
 - Plugin admin stores exchanged organization/site/token/endpoint connection data without autoloading the option.
 - Used, expired, or unknown challenges are rejected.
+- Plugin admin disconnect sends a signed disconnect request before clearing local credentials.
+- SaaS users with integration permission can disconnect a connected WordPress site and invalidate the server-side connection.
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
 - Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.

@@ -5,9 +5,11 @@ import { prisma } from "@sccc/database";
 import {
   assertPermission,
   pluginConnectionChallengeCreateSchema,
+  pluginConnectionDisconnectSchema,
   pluginConnectionExchangeSchema,
   pluginSyncBatchSchema,
   type PluginConnectionChallengeCreateInput,
+  type PluginConnectionDisconnectInput,
   type PluginConnectionExchangeInput,
   type PluginSyncBatch
 } from "@sccc/shared";
@@ -35,6 +37,15 @@ export type PluginSyncAuthentication = {
   siteId: string;
   organizationId: string;
   tokenVersion: number;
+};
+
+export type PluginConnectionDisconnectResult = {
+  siteId: string;
+  organizationId: string;
+  status: "DISCONNECTED";
+  disconnectedAt: string;
+  invalidatedChallenges: number;
+  alreadyDisconnected: boolean;
 };
 
 export async function createPluginConnectionChallenge(input: {
@@ -175,6 +186,57 @@ export async function exchangePluginConnectionChallenge(
     tokenVersion: connection.tokenVersion,
     endpoint: parsed.endpoint ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
   };
+}
+
+export async function disconnectPluginConnection(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+}): Promise<PluginConnectionDisconnectResult> {
+  const parsed: PluginConnectionDisconnectInput = pluginConnectionDisconnectSchema.parse(input);
+  const membership = await prisma.organizationMember.findFirst({
+    where: {
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      status: "ACTIVE"
+    }
+  });
+
+  if (!membership) {
+    throw new Error("ORGANIZATION_NOT_FOUND");
+  }
+
+  assertPermission(membership.role, "integration:manage");
+
+  return markPluginConnectionDisconnected({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    userId: input.user.id,
+    source: "saas"
+  });
+}
+
+export async function disconnectAuthenticatedPluginConnection(input: {
+  authentication: PluginSyncAuthentication;
+  body: unknown;
+}): Promise<PluginConnectionDisconnectResult> {
+  const parsed: PluginConnectionDisconnectInput = pluginConnectionDisconnectSchema.parse(
+    input.body
+  );
+
+  if (
+    parsed.organizationId !== input.authentication.organizationId ||
+    parsed.siteId !== input.authentication.siteId
+  ) {
+    throw new Error("PLUGIN_DISCONNECT_SCOPE_MISMATCH");
+  }
+
+  return markPluginConnectionDisconnected({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    userId: null,
+    source: "plugin"
+  });
 }
 
 export async function authenticatePluginSyncRequest(input: {
@@ -332,6 +394,116 @@ export function signPluginRequest(input: {
   ].join("\n");
 
   return createHmac("sha256", input.secret).update(payload).digest("hex");
+}
+
+async function markPluginConnectionDisconnected(input: {
+  organizationId: string;
+  siteId: string;
+  userId: string | null;
+  source: "plugin" | "saas";
+}): Promise<PluginConnectionDisconnectResult> {
+  const site = await prisma.site.findFirst({
+    where: {
+      id: input.siteId,
+      organizationId: input.organizationId
+    },
+    include: {
+      wordpressConnection: true
+    }
+  });
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  if (!site.wordpressConnection) {
+    throw new Error("PLUGIN_CONNECTION_NOT_FOUND");
+  }
+
+  if (site.wordpressConnection.disconnectedAt) {
+    if (site.status !== "DISCONNECTED") {
+      await prisma.site.update({
+        where: {
+          id: site.id
+        },
+        data: {
+          status: "DISCONNECTED"
+        }
+      });
+    }
+
+    return {
+      siteId: site.id,
+      organizationId: site.organizationId,
+      status: "DISCONNECTED",
+      disconnectedAt: site.wordpressConnection.disconnectedAt.toISOString(),
+      invalidatedChallenges: 0,
+      alreadyDisconnected: true
+    };
+  }
+
+  const disconnectedAt = new Date();
+  const result = await prisma.$transaction(async (tx) => {
+    const connection = await tx.wordPressConnection.update({
+      where: {
+        siteId: site.id
+      },
+      data: {
+        disconnectedAt,
+        tokenVersion: {
+          increment: 1
+        }
+      }
+    });
+    const invalidatedChallenges = await tx.wordPressConnectionChallenge.updateMany({
+      where: {
+        siteId: site.id,
+        usedAt: null
+      },
+      data: {
+        usedAt: disconnectedAt
+      }
+    });
+
+    await tx.site.update({
+      where: {
+        id: site.id
+      },
+      data: {
+        status: "DISCONNECTED"
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        organizationId: site.organizationId,
+        userId: input.userId,
+        action: "plugin.disconnected",
+        entityType: "Site",
+        entityId: site.id,
+        metadata: {
+          siteId: site.id,
+          source: input.source,
+          tokenVersion: connection.tokenVersion,
+          invalidatedChallenges: invalidatedChallenges.count
+        }
+      }
+    });
+
+    return {
+      connection,
+      invalidatedChallenges: invalidatedChallenges.count
+    };
+  });
+
+  return {
+    siteId: site.id,
+    organizationId: site.organizationId,
+    status: "DISCONNECTED",
+    disconnectedAt: result.connection.disconnectedAt?.toISOString() ?? disconnectedAt.toISOString(),
+    invalidatedChallenges: result.invalidatedChallenges,
+    alreadyDisconnected: false
+  };
 }
 
 function safeEqual(left: string, right: string): boolean {

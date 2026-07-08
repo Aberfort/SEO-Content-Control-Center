@@ -39,7 +39,7 @@
 - Action Scheduler sync.
 - Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, and SEO metadata sync implemented for current posts/pages inventory.
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
-- Disconnect flow.
+- Disconnect flow. Status: SaaS dashboard and signed WordPress admin disconnect invalidate server-side plugin connections.
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
 
 ## Phase 3 - SEO Audit MVP

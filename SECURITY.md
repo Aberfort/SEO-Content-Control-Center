@@ -35,6 +35,7 @@
 - Prepared queries if direct SQL is ever used.
 - Options containing secrets use `autoload = false`.
 - Plugin connection tokens are stored in WordPress options only after one-time challenge exchange.
+- Plugin disconnect requests are signed with the active plugin token before local credentials are cleared, so SaaS can invalidate the server-side connection first.
 - Plugin sync inventory contains bounded metadata only; content bodies are not sent in the MVP sync payload, word count is computed locally in the plugin, and SEO plugin metadata is limited to title, description, canonical URL, robots directives, and source.
 - Plugin sync logs must be bounded and sanitize failure details so tokens, signatures, authorization values, and endpoint URLs are not stored.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.

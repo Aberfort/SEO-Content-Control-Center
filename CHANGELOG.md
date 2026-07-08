@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 63
+
+- Added SaaS-side WordPress plugin disconnect support for scoped sites.
+- Added a signed plugin disconnect endpoint so WordPress admin disconnects can invalidate SaaS tokens before clearing local credentials.
+- Marked disconnected sites as `DISCONNECTED`, recorded `disconnectedAt`, incremented token versions, and invalidated unused connection challenges.
+- Added a dashboard disconnect action for connected WordPress sites.
+- Documented plugin disconnect API behavior, data model notes, security guardrails, and QA coverage.
+
 ### Iteration 62
 
 - Added bulk backlog task creation from open audit issues for a scoped audit run.

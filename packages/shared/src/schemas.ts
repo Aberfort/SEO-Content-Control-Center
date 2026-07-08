@@ -82,6 +82,11 @@ export const pluginConnectionExchangeSchema = z.object({
   endpoint: z.string().url().max(2048).optional()
 });
 
+export const pluginConnectionDisconnectSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema
+});
+
 export const pluginSyncTaxonomyMetadataSchema = z.object({
   taxonomy: z.string().trim().min(1).max(64),
   terms: z.array(z.string().trim().min(1).max(120)).max(100)
@@ -328,6 +333,7 @@ export type PluginConnectionChallengeCreateInput = z.infer<
   typeof pluginConnectionChallengeCreateSchema
 >;
 export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExchangeSchema>;
+export type PluginConnectionDisconnectInput = z.infer<typeof pluginConnectionDisconnectSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;

@@ -120,6 +120,8 @@ Current MVP activity actions:
 - `member.invite_canceled`
 - `member.role_updated`
 - `member.accepted_invite`
+- `plugin.connected`
+- `plugin.disconnected`
 
 ## Billing Overview
 
@@ -475,6 +477,34 @@ Request:
 {
   "challenge": "opaque-challenge-token",
   "endpoint": "https://app.example.com"
+}
+```
+
+`POST /api/plugin/connections/disconnect`
+
+Disconnects a WordPress plugin connection through a signed plugin request. The plugin sends the current organization and site IDs, signs the body with the stored plugin token, and clears its local credentials only after the SaaS endpoint confirms the disconnect. The SaaS marks the site `DISCONNECTED`, sets `disconnectedAt`, increments the connection token version, invalidates unused connection challenges, and writes a `plugin.disconnected` activity log.
+
+Request:
+
+```json
+{
+  "organizationId": "11111111-1111-4111-8111-111111111111",
+  "siteId": "22222222-2222-4222-8222-222222222222"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "organizationId": "11111111-1111-4111-8111-111111111111",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "status": "DISCONNECTED",
+    "disconnectedAt": "2026-07-08T10:00:00.000Z",
+    "invalidatedChallenges": 0,
+    "alreadyDisconnected": false
+  }
 }
 ```
 

@@ -69,6 +69,18 @@ final class Plugin
         }
 
         check_admin_referer('sccc_disconnect');
+
+        $connection = $this->connectionStore->get();
+
+        if (null !== $connection) {
+            try {
+                $this->apiClient->sendDisconnect($connection);
+            } catch (\RuntimeException) {
+                wp_safe_redirect(add_query_arg('sccc_error', 'disconnect_failed', admin_url('options-general.php?page=sccc')));
+                exit;
+            }
+        }
+
         $this->connectionStore->disconnect();
 
         wp_safe_redirect(add_query_arg('sccc_status', 'disconnected', admin_url('options-general.php?page=sccc')));

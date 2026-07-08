@@ -103,6 +103,38 @@ final class ApiClient
         }
     }
 
+    /**
+     * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+     */
+    public function sendDisconnect(array $connection): void
+    {
+        $path = '/api/plugin/connections/disconnect';
+        $body = $this->buildDisconnectBody($connection);
+        $timestamp = time();
+        $headers = $this->buildSignedHeaders($connection, $path, $body, $timestamp);
+        $response = wp_remote_post(
+            $this->buildApiUrl($connection['endpoint'], $path),
+            [
+                'headers' => array_merge(
+                    [
+                        'Content-Type' => 'application/json',
+                    ],
+                    $headers
+                ),
+                'body' => $body,
+                'timeout' => 15,
+            ]
+        );
+
+        if (is_wp_error($response)) {
+            throw new RuntimeException('disconnect_failed');
+        }
+
+        if (200 !== wp_remote_retrieve_response_code($response)) {
+            throw new RuntimeException('disconnect_failed');
+        }
+    }
+
     public function buildApiUrl(string $endpoint, string $path): string
     {
         return rtrim($endpoint, '/') . '/' . ltrim($path, '/');
@@ -122,6 +154,19 @@ final class ApiClient
                 'siteId' => $connection['site_id'],
                 'cursor' => null,
                 'items' => $items,
+            ]
+        );
+    }
+
+    /**
+     * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+     */
+    public function buildDisconnectBody(array $connection): string
+    {
+        return $this->encodeJson(
+            [
+                'organizationId' => $connection['organization_id'],
+                'siteId' => $connection['site_id'],
             ]
         );
     }

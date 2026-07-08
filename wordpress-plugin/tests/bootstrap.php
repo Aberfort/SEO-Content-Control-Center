@@ -79,6 +79,13 @@ if ('{"organizationId":"11111111-1111-4111-8111-111111111111","siteId":"22222222
     exit(1);
 }
 
+$disconnect_body = $api_client->buildDisconnectBody($connection);
+
+if ('{"organizationId":"11111111-1111-4111-8111-111111111111","siteId":"22222222-2222-4222-8222-222222222222"}' !== $disconnect_body) {
+    fwrite(STDERR, "ApiClient disconnect body builder failed.\n");
+    exit(1);
+}
+
 $GLOBALS['sccc_test_post_meta'][123] = [
     '_yoast_wpseo_title' => 'Yoast SEO title',
     '_yoast_wpseo_metadesc' => 'Yoast description',
@@ -152,6 +159,13 @@ $headers = $api_client->buildSignedHeaders($connection, '/api/plugin/sync', $syn
 
 if (empty($headers['X-SCCC-Signature']) || empty($headers['X-SCCC-Token']) || 'secret' !== $headers['X-SCCC-Token']) {
     fwrite(STDERR, "ApiClient signed headers failed.\n");
+    exit(1);
+}
+
+$disconnect_headers = $api_client->buildSignedHeaders($connection, '/api/plugin/connections/disconnect', $disconnect_body, $timestamp);
+
+if (! $signer->verify('POST', '/api/plugin/connections/disconnect', $timestamp, $disconnect_body, 'secret', $disconnect_headers['X-SCCC-Signature'])) {
+    fwrite(STDERR, "ApiClient disconnect signed headers failed.\n");
     exit(1);
 }
 

@@ -19,6 +19,7 @@ import { createBillingPortalSession } from "@/lib/billing-portal";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendInviteEmail } from "@/lib/email";
+import { disconnectPluginConnection } from "@/lib/plugin-connection";
 import {
   assertRateLimit,
   isRateLimitError,
@@ -75,6 +76,22 @@ export async function createSiteAction(
   revalidatePath("/");
   revalidatePath("/dashboard");
   redirect("/");
+}
+
+export async function disconnectPluginConnectionAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  await assertServerActionSameOrigin();
+  await disconnectPluginConnection({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? "")
+  });
+
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
 export async function createBillingCheckoutSessionAction(formData: FormData): Promise<void> {

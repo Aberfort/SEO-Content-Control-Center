@@ -12,6 +12,7 @@ import {
   createBillingCheckoutSessionAction,
   createBillingPortalSessionAction,
   createBulkOperationPreviewAction,
+  disconnectPluginConnectionAction,
   finishBulkOperationAction,
   markAllNotificationsReadAction,
   rollbackBulkOperationAction,
@@ -35,7 +36,7 @@ import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
-import type { SyncedContentMetadata } from "@/lib/types";
+import type { Site, SyncedContentMetadata } from "@/lib/types";
 
 const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
 
@@ -326,6 +327,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     <th>Name</th>
                     <th>URL</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -335,6 +337,24 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       <td>{site.url}</td>
                       <td>
                         <span className="status-pill">{site.status.replaceAll("_", " ")}</span>
+                      </td>
+                      <td>
+                        {canDisconnectSiteStatus(site.status) ? (
+                          <form action={disconnectPluginConnectionAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={activeOrganization.id}
+                            />
+                            <input name="siteId" type="hidden" value={site.id} />
+                            <input name="redirectTo" type="hidden" value={currentHref} />
+                            <button className="secondary-button" type="submit">
+                              Disconnect
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="muted-text">No action</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -2129,4 +2149,8 @@ function formatLimitValue(value: number | "custom"): string {
 
 function formatDateInput(value: string | null): string {
   return value ? value.slice(0, 10) : "";
+}
+
+function canDisconnectSiteStatus(status: Site["status"]): boolean {
+  return status === "CONNECTED" || status === "SYNCING" || status === "ERROR";
 }
