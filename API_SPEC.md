@@ -348,6 +348,68 @@ Response:
 
 Syncs top Search Analytics page/query rows for a connected GSC property when the current user can manage integrations and the request is same-origin. The endpoint decrypts the refresh token server-side, refreshes a short-lived Google access token, queries Search Analytics grouped by `page` and `query`, and replaces the stored snapshot for `siteId + propertyUrl + startDate + endDate`. Request body accepts optional `startDate`, `endDate`, and numeric `rowLimit`; when dates are omitted, the default range is the last finalized 30-to-3-day window. The response returns stored insight rows and never returns tokens.
 
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/traffic-loss`
+
+Computes a deterministic, read-only traffic loss overview from already-persisted Search Console data; the endpoint never calls Google. Optional `propertyUrl` scopes the computation to one connected property. `data.site` compares the latest 14-day window of daily metrics against the previous 14 days and reports `clicksDelta`, `clicksDropRatio`, and a `severity` of `none`, `medium` (click drop >= 25%), or `high` (>= 50%) once the previous window has at least 50 clicks. `data.pages` joins the latest page/query insight snapshot with the snapshot from 7 days earlier, aggregates rows per page, and returns up to 10 pages with a click drop of at least 25% against a baseline of at least 10 clicks, sorted by absolute click loss. Both sections degrade to `available: false` with a human-readable `reason` while history is still accumulating.
+
+Each drop additionally carries a `content` object matching the page URL against the synced WordPress inventory (`null` when the page is not in the inventory). Matching normalizes protocol, a leading `www.` host prefix, trailing slashes, query strings, and fragments; URL collisions resolve deterministically by external id order. The summary contains `contentItemId`, `externalId`, and `title` only.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "propertyUrl": null,
+    "site": {
+      "available": true,
+      "reason": null,
+      "current": {
+        "startDate": "2026-06-23",
+        "endDate": "2026-07-06",
+        "clicks": 70,
+        "impressions": 700,
+        "ctr": 0.1,
+        "position": 5
+      },
+      "previous": {
+        "startDate": "2026-06-09",
+        "endDate": "2026-06-22",
+        "clicks": 140,
+        "impressions": 1400,
+        "ctr": 0.1,
+        "position": 5
+      },
+      "clicksDelta": -70,
+      "clicksDropRatio": 0.5,
+      "severity": "high"
+    },
+    "pages": {
+      "available": true,
+      "reason": null,
+      "currentRange": { "startDate": "2026-06-09", "endDate": "2026-07-06" },
+      "baselineRange": { "startDate": "2026-06-02", "endDate": "2026-06-29" },
+      "drops": [
+        {
+          "page": "https://www.example.com/post/",
+          "currentClicks": 10,
+          "baselineClicks": 100,
+          "clicksDelta": -90,
+          "dropRatio": 0.9,
+          "currentPosition": 4,
+          "baselinePosition": 4,
+          "content": {
+            "contentItemId": "77777777-7777-4777-8777-777777777777",
+            "externalId": "post:123",
+            "title": "Post title"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Billing Overview
 
 `GET /api/organizations/:organizationId/billing`
@@ -1108,6 +1170,10 @@ Optional query params:
 - `status`: one of `DRAFT`, `PREVIEWED`, `DRY_RUN_PASSED`, `CONFIRMED`, `RUNNING`, `COMPLETED`, `FAILED`, `ROLLED_BACK`
 - `limit`: number from `1` to `100`
 
+Bulk operation responses include `itemStatusSummary` with per-status item counts. They also include
+`retryMode` as `execute` or `rollback` when a failed operation or active retry can be retried safely
+through execution or rollback restore.
+
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations`
 
 Creates a bulk operation preview from a scoped backlog task when the member has `content_operation:preview`.
@@ -1148,6 +1214,18 @@ Response:
     },
     "dryRunResult": null,
     "confirmedAt": null,
+    "retryMode": null,
+    "itemStatusSummary": {
+      "total": 1,
+      "previewed": 1,
+      "dryRunPassed": 0,
+      "confirmed": 0,
+      "running": 0,
+      "completed": 0,
+      "failed": 0,
+      "rolledBack": 0,
+      "other": 0
+    },
     "items": [
       {
         "externalId": "post:123",
@@ -1313,7 +1391,7 @@ signed. See [docs/PLUGIN_API.md](docs/PLUGIN_API.md) for the full WordPress-host
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/retry`
 
 Retries failed items for a scoped `FAILED` bulk operation when the member has `content_operation:confirm`.
-This endpoint moves the SaaS operation back to `RUNNING`, resets only failed items to `RUNNING`, records an activity log, creates an organization notification, and does not perform WordPress writes inline.
+This endpoint moves the SaaS operation back to `RUNNING`, resets only failed items to `RUNNING`, records an activity log with `retryMode`, creates an organization notification, and does not perform WordPress writes inline. If the failed operation previously entered rollback, retry enqueues `bulk-operation.rollback`; otherwise it enqueues `bulk-operation.execute`.
 
 Request:
 
@@ -1330,10 +1408,22 @@ Response:
   "data": {
     "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     "status": "RUNNING",
+    "retryMode": "execute",
+    "itemStatusSummary": {
+      "total": 1,
+      "previewed": 0,
+      "dryRunPassed": 0,
+      "confirmed": 0,
+      "running": 1,
+      "completed": 0,
+      "failed": 0,
+      "rolledBack": 0,
+      "other": 0
+    },
     "items": [
       {
         "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-        "externalId": "https://example.com/post",
+        "externalId": "post:123",
         "status": "RUNNING",
         "error": null
       }
@@ -1344,8 +1434,8 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/rollback`
 
-Records rollback for a scoped `COMPLETED` or `FAILED` bulk operation when the member has `content_operation:confirm`.
-This endpoint marks the SaaS operation and items as `ROLLED_BACK`, records an activity log with the previous status, creates an organization notification, and does not perform WordPress writes inline.
+Starts rollback restore for a scoped `COMPLETED` or partially `FAILED` bulk operation when the member has `content_operation:confirm`.
+The endpoint moves restorable completed items to `RUNNING`, records `bulk_operation.rollback_started`, and enqueues `bulk-operation.rollback` on `sccc-bulk-operations` when Redis is configured. It does not write to WordPress inline. The worker restores captured item `beforeValue` through the signed plugin apply endpoint and records the final `ROLLED_BACK` or `FAILED` result.
 
 Request:
 
@@ -1361,12 +1451,12 @@ Response:
 {
   "data": {
     "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    "status": "ROLLED_BACK",
+    "status": "RUNNING",
     "items": [
       {
         "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-        "externalId": "https://example.com/post",
-        "status": "ROLLED_BACK",
+        "externalId": "post:123",
+        "status": "RUNNING",
         "error": null
       }
     ]

@@ -29,6 +29,13 @@ import {
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { GscPropertyPicker } from "@/components/gsc-property-picker";
+import { matchTrafficLossPages } from "@/lib/gsc-content-matching";
+import {
+  buildPageTrafficLoss,
+  buildSiteTrafficLoss,
+  shiftDateOnly,
+  type SiteTrafficLoss
+} from "@/lib/gsc-traffic-loss";
 import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
@@ -163,6 +170,40 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           limit: 10
         })
       : [];
+  const gscFullInsights =
+    activeOrganization && activeSite && canReadSite && activeGscConnection
+      ? await repository.listGscSearchInsights(user.id, activeOrganization.id, activeSite.id, {
+          propertyUrl: activeGscConnection.propertyUrl
+        })
+      : [];
+  const gscBaselineInsights =
+    activeOrganization && activeSite && activeGscConnection && gscFullInsights.length > 0
+      ? await repository.listGscSearchInsights(user.id, activeOrganization.id, activeSite.id, {
+          propertyUrl: activeGscConnection.propertyUrl,
+          startDate: shiftDateOnly(gscFullInsights[0]!.startDate, -7),
+          endDate: shiftDateOnly(gscFullInsights[0]!.endDate, -7)
+        })
+      : [];
+  const gscSiteTrafficLoss = activeGscConnection ? buildSiteTrafficLoss(gscMetrics) : null;
+  const gscPageTrafficLossBase = activeGscConnection
+    ? buildPageTrafficLoss(gscFullInsights, gscBaselineInsights)
+    : null;
+  const gscTrafficLossContentUrls =
+    activeOrganization && activeSite && gscPageTrafficLossBase
+      ? gscPageTrafficLossBase.drops.length > 0
+        ? await repository.listSyncedContentUrlsForSite(
+            user.id,
+            activeOrganization.id,
+            activeSite.id
+          )
+        : []
+      : [];
+  const gscPageTrafficLoss = gscPageTrafficLossBase
+    ? {
+        ...gscPageTrafficLossBase,
+        drops: matchTrafficLossPages(gscPageTrafficLossBase.drops, gscTrafficLossContentUrls)
+      }
+    : null;
   const syncedContent =
     activeOrganization && activeSite
       ? await repository.listSyncedContentForSite(
@@ -623,6 +664,69 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       Search Console page/query insights will appear after the first insight sync.
                     </p>
                   )
+                ) : null}
+
+                {activeGscConnection && gscSiteTrafficLoss && gscPageTrafficLoss ? (
+                  <div className="stack-sm">
+                    <h3 id="gsc-traffic-loss-title">Traffic loss</h3>
+                    {gscSiteTrafficLoss.available &&
+                    gscSiteTrafficLoss.current &&
+                    gscSiteTrafficLoss.previous ? (
+                      <p>
+                        Clicks {gscSiteTrafficLoss.current.startDate} to{" "}
+                        {gscSiteTrafficLoss.current.endDate}:{" "}
+                        <strong>{gscSiteTrafficLoss.current.clicks.toLocaleString("en")}</strong> vs
+                        previous window{" "}
+                        <strong>{gscSiteTrafficLoss.previous.clicks.toLocaleString("en")}</strong> (
+                        {formatTrafficLossDelta(gscSiteTrafficLoss)}) - severity:{" "}
+                        <strong>{gscSiteTrafficLoss.severity}</strong>
+                      </p>
+                    ) : (
+                      <p className="empty-copy">{gscSiteTrafficLoss.reason}</p>
+                    )}
+                    {gscPageTrafficLoss.available ? (
+                      gscPageTrafficLoss.drops.length > 0 ? (
+                        <div className="table-wrap">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Page</th>
+                                <th>Content</th>
+                                <th>Clicks now</th>
+                                <th>Clicks baseline</th>
+                                <th>Delta</th>
+                                <th>Drop</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gscPageTrafficLoss.drops.map((drop) => (
+                                <tr key={drop.page}>
+                                  <td>{drop.page}</td>
+                                  <td>
+                                    {drop.content
+                                      ? drop.content.title || drop.content.externalId
+                                      : "Not in synced inventory"}
+                                  </td>
+                                  <td>{drop.currentClicks.toLocaleString("en")}</td>
+                                  <td>{drop.baselineClicks.toLocaleString("en")}</td>
+                                  <td>{drop.clicksDelta.toLocaleString("en")}</td>
+                                  <td>{`${(drop.dropRatio * 100).toLocaleString("en", {
+                                    maximumFractionDigits: 1
+                                  })}%`}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="empty-copy">
+                          No pages exceed the traffic loss thresholds against the baseline snapshot.
+                        </p>
+                      )
+                    ) : (
+                      <p className="empty-copy">{gscPageTrafficLoss.reason}</p>
+                    )}
+                  </div>
                 ) : null}
               </>
             ) : (
@@ -1749,6 +1853,17 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                           {operation.dryRunResult ? (
                             <span>{formatBulkOperationDryRun(operation.dryRunResult)}</span>
                           ) : null}
+                          <span>
+                            {formatBulkOperationItemStatusSummary(
+                              operation.itemStatusSummary,
+                              operation.items
+                            )}
+                          </span>
+                          {operation.retryMode ? (
+                            <span>
+                              {formatBulkOperationRetryMode(operation.retryMode, operation.status)}
+                            </span>
+                          ) : null}
                         </div>
                         <span className="status-pill">{operation.status.replaceAll("_", " ")}</span>
                         <time dateTime={operation.createdAt}>
@@ -2300,6 +2415,140 @@ function formatBulkOperationDryRun(dryRunResult: unknown): string {
   return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
 }
 
+type BulkOperationItemStatusSummaryView = {
+  total: number;
+  previewed: number;
+  dryRunPassed: number;
+  confirmed: number;
+  running: number;
+  completed: number;
+  failed: number;
+  rolledBack: number;
+  other: number;
+};
+
+function formatBulkOperationItemStatusSummary(
+  summary: unknown,
+  items: Array<{
+    status: string;
+  }>
+): string {
+  const normalized = normalizeBulkOperationItemStatusSummary(summary, items);
+  const parts = [
+    { label: "previewed", count: normalized.previewed },
+    { label: "dry-run", count: normalized.dryRunPassed },
+    { label: "confirmed", count: normalized.confirmed },
+    { label: "running", count: normalized.running },
+    { label: "completed", count: normalized.completed },
+    { label: "failed", count: normalized.failed },
+    { label: "rolled back", count: normalized.rolledBack },
+    { label: "other", count: normalized.other }
+  ]
+    .filter((part) => part.count > 0)
+    .map((part) => `${part.count} ${part.label}`);
+
+  return parts.length > 0
+    ? `Items: ${normalized.total} total (${parts.join(", ")}).`
+    : `Items: ${normalized.total} total.`;
+}
+
+function formatBulkOperationRetryMode(retryMode: unknown, status: string): string {
+  if (retryMode === "rollback") {
+    return status === "RUNNING"
+      ? "Rollback restore in progress."
+      : "Retry will restore failed rollback items.";
+  }
+
+  if (retryMode === "execute") {
+    return status === "RUNNING"
+      ? "Execution retry in progress."
+      : "Retry will execute failed items.";
+  }
+
+  return "";
+}
+
+function normalizeBulkOperationItemStatusSummary(
+  summary: unknown,
+  items: Array<{
+    status: string;
+  }>
+): BulkOperationItemStatusSummaryView {
+  if (typeof summary === "object" && summary !== null) {
+    const candidate = summary as Partial<Record<keyof BulkOperationItemStatusSummaryView, unknown>>;
+    const normalized = {
+      total: readNonNegativeCount(candidate.total),
+      previewed: readNonNegativeCount(candidate.previewed),
+      dryRunPassed: readNonNegativeCount(candidate.dryRunPassed),
+      confirmed: readNonNegativeCount(candidate.confirmed),
+      running: readNonNegativeCount(candidate.running),
+      completed: readNonNegativeCount(candidate.completed),
+      failed: readNonNegativeCount(candidate.failed),
+      rolledBack: readNonNegativeCount(candidate.rolledBack),
+      other: readNonNegativeCount(candidate.other)
+    };
+
+    if (normalized.total > 0 || items.length === 0) {
+      return normalized;
+    }
+  }
+
+  return summarizeBulkOperationItems(items);
+}
+
+function summarizeBulkOperationItems(
+  items: Array<{
+    status: string;
+  }>
+): BulkOperationItemStatusSummaryView {
+  const summary: BulkOperationItemStatusSummaryView = {
+    total: items.length,
+    previewed: 0,
+    dryRunPassed: 0,
+    confirmed: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    rolledBack: 0,
+    other: 0
+  };
+
+  for (const item of items) {
+    switch (item.status) {
+      case "PREVIEWED":
+        summary.previewed += 1;
+        break;
+      case "DRY_RUN_PASSED":
+        summary.dryRunPassed += 1;
+        break;
+      case "CONFIRMED":
+        summary.confirmed += 1;
+        break;
+      case "RUNNING":
+        summary.running += 1;
+        break;
+      case "COMPLETED":
+        summary.completed += 1;
+        break;
+      case "FAILED":
+        summary.failed += 1;
+        break;
+      case "ROLLED_BACK":
+        summary.rolledBack += 1;
+        break;
+      default:
+        summary.other += 1;
+        break;
+    }
+  }
+
+  return summary;
+}
+
+function readNonNegativeCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
 function formatMetadataValue(
   value: string | number | boolean | null | undefined,
   fallback = "none"
@@ -2457,6 +2706,15 @@ function formatGscPosition(metric: GscDailyMetric | GscSearchInsight): string {
     maximumFractionDigits: 1,
     minimumFractionDigits: 0
   });
+}
+
+function formatTrafficLossDelta(loss: SiteTrafficLoss): string {
+  const delta = loss.clicksDelta.toLocaleString("en", { signDisplay: "always" });
+  const ratio = `${(loss.clicksDropRatio * 100).toLocaleString("en", {
+    maximumFractionDigits: 1
+  })}%`;
+
+  return loss.clicksDelta < 0 ? `${delta} clicks, -${ratio}` : `${delta} clicks`;
 }
 
 function formatSubscriptionStatus(subscription: BillingSubscription | null): string {

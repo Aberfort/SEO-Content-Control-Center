@@ -16,6 +16,8 @@ export type BulkOperationExecutionEnqueueResult =
       reason: "redis_not_configured";
     };
 
+export type BulkOperationRollbackEnqueueResult = BulkOperationExecutionEnqueueResult;
+
 export async function enqueueBulkOperationExecutionJob(input: {
   organizationId: string;
   siteId: string;
@@ -46,6 +48,61 @@ export async function enqueueBulkOperationExecutionJob(input: {
   try {
     await queue.add(
       jobNames.bulkOperationExecute,
+      {
+        organizationId: input.organizationId,
+        siteId: input.siteId,
+        operationId: input.operationId
+      },
+      {
+        jobId
+      }
+    );
+  } catch (error) {
+    enqueueError = error;
+  }
+
+  await Promise.allSettled([queue.close(), connection.quit()]);
+
+  if (enqueueError) {
+    throw enqueueError;
+  }
+
+  return {
+    enqueued: true,
+    jobId
+  };
+}
+
+export async function enqueueBulkOperationRollbackJob(input: {
+  organizationId: string;
+  siteId: string;
+  operationId: string;
+  env?: NodeJS.ProcessEnv;
+}): Promise<BulkOperationRollbackEnqueueResult> {
+  const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
+
+  if (!redisUrl) {
+    return {
+      enqueued: false,
+      reason: "redis_not_configured"
+    };
+  }
+
+  const connection = createQueueRedisConnection(redisUrl);
+  const queue = createQueueProducer(queueNames.bulkOperations, connection);
+  const jobId = buildJobId([
+    "bulk-operation",
+    "rollback",
+    input.organizationId,
+    input.siteId,
+    input.operationId
+  ]);
+
+  let enqueueError: unknown;
+
+  try {
+    await queue.add(
+      jobNames.bulkOperationRollback,
       {
         organizationId: input.organizationId,
         siteId: input.siteId,

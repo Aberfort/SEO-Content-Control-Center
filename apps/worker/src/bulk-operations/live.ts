@@ -1,7 +1,13 @@
 import { decryptSecret, isTokenEncryptionConfigured } from "@sccc/gsc";
 import { Prisma } from "@prisma/client";
 
-import type { BulkOperationExecutionDeps, BulkOperationExecutionResultItem } from "./handlers";
+import type {
+  BulkOperationApplyDeps,
+  BulkOperationExecutionDeps,
+  BulkOperationExecutionResultItem,
+  BulkOperationRollbackDeps,
+  BulkOperationRollbackResultItem
+} from "./handlers";
 
 async function getPrisma() {
   const { prisma } = await import("@sccc/database");
@@ -13,6 +19,24 @@ export function isBulkOperationWorkerConfigured(env: NodeJS.ProcessEnv = process
 }
 
 export function buildLiveBulkOperationExecutionDeps(): BulkOperationExecutionDeps {
+  return {
+    ...buildLiveBulkOperationApplyDeps(),
+    recordResult(input) {
+      return recordBulkOperationResult(input);
+    }
+  };
+}
+
+export function buildLiveBulkOperationRollbackDeps(): BulkOperationRollbackDeps {
+  return {
+    ...buildLiveBulkOperationApplyDeps(),
+    recordRollbackResult(input) {
+      return recordBulkOperationRollbackResult(input);
+    }
+  };
+}
+
+function buildLiveBulkOperationApplyDeps(): BulkOperationApplyDeps {
   return {
     async loadOperation(organizationId, siteId, operationId) {
       const prisma = await getPrisma();
@@ -76,9 +100,6 @@ export function buildLiveBulkOperationExecutionDeps(): BulkOperationExecutionDep
       }
 
       return response.json();
-    },
-    recordResult(input) {
-      return recordBulkOperationResult(input);
     }
   };
 }
@@ -175,6 +196,107 @@ async function recordBulkOperationResult(input: {
   });
 }
 
+async function recordBulkOperationRollbackResult(input: {
+  organizationId: string;
+  siteId: string;
+  operationId: string;
+  status: "ROLLED_BACK" | "FAILED";
+  message: string | null;
+  itemResults: BulkOperationRollbackResultItem[];
+}): Promise<void> {
+  const prisma = await getPrisma();
+  const failedItemCount = input.itemResults.filter((item) => item.status === "FAILED").length;
+
+  await prisma.$transaction(async (tx) => {
+    const operation = await tx.bulkOperation.findFirst({
+      where: {
+        id: input.operationId,
+        organizationId: input.organizationId,
+        siteId: input.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!operation) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (operation.status !== "RUNNING") {
+      throw new Error("BULK_OPERATION_NOT_RUNNING");
+    }
+
+    const operationItemIds = new Set(operation.items.map((item) => item.id));
+    const operationItemsById = new Map(operation.items.map((item) => [item.id, item]));
+
+    for (const item of input.itemResults) {
+      const existingItem = operationItemsById.get(item.itemId);
+
+      if (!existingItem || !operationItemIds.has(item.itemId)) {
+        throw new Error("BULK_OPERATION_ITEM_NOT_FOUND");
+      }
+
+      const data: Prisma.BulkOperationItemUpdateInput = {
+        status: item.status,
+        error: item.status === "FAILED" ? (item.error ?? "Rollback item failed.") : null
+      };
+
+      if (item.status === "ROLLED_BACK") {
+        data.beforeValue = toNullableJson(item.beforeValue);
+        data.afterValue = toNullableJson(item.afterValue);
+      }
+
+      await tx.bulkOperationItem.update({
+        where: {
+          id: item.itemId
+        },
+        data
+      });
+    }
+
+    await tx.bulkOperation.update({
+      where: {
+        id: operation.id
+      },
+      data: {
+        status: input.status
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: null,
+        action:
+          input.status === "ROLLED_BACK" ? "bulk_operation.rolled_back" : "bulk_operation.failed",
+        entityType: "BulkOperation",
+        entityId: operation.id,
+        metadata: {
+          siteId: input.siteId,
+          type: operation.type,
+          itemCount: input.itemResults.length,
+          failedItemCount,
+          message: input.message,
+          trigger: "worker_rollback"
+        }
+      }
+    });
+
+    await tx.notification.create({
+      data: {
+        organizationId: input.organizationId,
+        ...buildRollbackNotification({
+          status: input.status,
+          itemCount: input.itemResults.length,
+          failedItemCount,
+          message: input.message
+        })
+      }
+    });
+  });
+}
+
 function toNullableJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (value === null || typeof value === "undefined") {
     return Prisma.JsonNull;
@@ -201,6 +323,27 @@ function buildNotification(input: {
     type: "bulk_operation.failed",
     title: "Safe operation failed",
     body: `Safe content operation failed for ${input.failedItemCount} of ${input.itemCount} item${pluralize(input.itemCount)}.${formatOptionalDetail(input.message)}`
+  };
+}
+
+function buildRollbackNotification(input: {
+  status: "ROLLED_BACK" | "FAILED";
+  itemCount: number;
+  failedItemCount: number;
+  message: string | null;
+}): { type: string; title: string; body: string } {
+  if (input.status === "ROLLED_BACK") {
+    return {
+      type: "bulk_operation.rolled_back",
+      title: "Safe operation rolled back",
+      body: `Safe content operation rollback restored ${input.itemCount} item${pluralize(input.itemCount)}.`
+    };
+  }
+
+  return {
+    type: "bulk_operation.failed",
+    title: "Safe operation rollback failed",
+    body: `Safe content operation rollback failed for ${input.failedItemCount} of ${input.itemCount} item${pluralize(input.itemCount)}.${formatOptionalDetail(input.message)}`
   };
 }
 

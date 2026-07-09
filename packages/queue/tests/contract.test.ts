@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bulkOperationExecuteJobDataSchema,
+  bulkOperationRollbackJobDataSchema,
   buildJobId,
   buildWorkerHeartbeatKey,
   defaultJobOptions,
@@ -76,6 +77,24 @@ describe("queue contract", () => {
     ).toThrow();
   });
 
+  it("validates bulk operation rollback payloads strictly", () => {
+    expect(
+      bulkOperationRollbackJobDataSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        siteId: "22222222-2222-4222-8222-222222222222",
+        operationId: "33333333-3333-4333-8333-333333333333"
+      })
+    ).toMatchObject({
+      operationId: "33333333-3333-4333-8333-333333333333"
+    });
+    expect(() =>
+      bulkOperationRollbackJobDataSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        siteId: "22222222-2222-4222-8222-222222222222"
+      })
+    ).toThrow();
+  });
+
   it("keeps retry defaults bounded", () => {
     expect(defaultJobOptions.attempts).toBeGreaterThanOrEqual(2);
     expect(defaultJobOptions.backoff.type).toBe("exponential");
@@ -113,5 +132,6 @@ describe("queue contract", () => {
     expect(jobNames.maintenancePing).toBe("maintenance.ping");
     expect(jobNames.gscDailyMetricsSync).toBe("gsc.daily-metrics.sync");
     expect(jobNames.bulkOperationExecute).toBe("bulk-operation.execute");
+    expect(jobNames.bulkOperationRollback).toBe("bulk-operation.rollback");
   });
 });

@@ -60,6 +60,8 @@
 - Historical metric sync. Status: persisted daily property-level Search Analytics sync implemented for clicks, impressions, CTR, and average position.
 - Page/query insights. Status: persisted top page/query Search Analytics sync implemented for the active property and shown on the dashboard.
 - Scheduled sync. Status: the worker process schedules daily metric and insight sync jobs for every active connection through a repeatable queue job, in addition to the manual dashboard sync.
+- Traffic loss detection. Status: deterministic read-only site-level window comparison (14 vs previous 14 days) and page-level insight snapshot comparison (latest vs 7 days earlier) implemented with severity thresholds, a dashboard panel, and a scoped API endpoint.
+- Content matching. Status: traffic loss pages are matched to synced WordPress inventory items through normalized URLs (protocol, www, trailing slash, query, and fragment insensitive) in the API and dashboard.
 
 ## Phase 5 - SEO Backlog
 
@@ -74,15 +76,16 @@
 
 - Preview, dry run, validation, confirmation. Status: preview, dry run, explicit confirmation, and controlled start implemented.
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
-- Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
-- Retry failed items. Status: failed item retry state capture implemented without inline WordPress writes.
+- Rollback. Status: worker-backed rollback restore implemented for completed operation items with captured previous WordPress SEO values.
+- Retry failed items. Status: queue-backed retry implemented for failed execution items and failed rollback restore items without inline WordPress writes.
+- Partial outcome visibility. Status: bulk operation responses and dashboard previews expose per-status item summaries and retry mode.
 - Executable SEO payloads. Status: missing SEO title and missing meta description backlog tasks can produce bounded Yoast/Rank Math apply payloads when backed by scoped synced content evidence.
 - Signed WordPress apply endpoint. Status: plugin-hosted endpoint implemented for bounded Yoast/Rank Math SEO metadata writes with signed request validation and per-item results.
 - Worker execution. Status: bulk operation execution jobs, worker handler, signed plugin apply calls, and per-item result persistence implemented for executable SEO metadata payloads.
 - Audit logs. Status: lifecycle activity logs implemented for preview, dry run, confirmation, start, result, rollback, and retry transitions.
 - Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
 
-Phase 6 execution status: the SaaS state machine, executable SEO title/meta description payload creation, worker foundation, signed WordPress plugin apply endpoint, execution queue, and worker result persistence are implemented. Preview creation remains conservative: unsupported issue types, missing synced content, fallback SEO metadata, invalid WordPress targets, and stale already-present metadata stay `noMutation`. The remaining major gap is true rollback restore on WordPress.
+Phase 6 execution status: the SaaS state machine, executable SEO title/meta description payload creation, worker foundation, signed WordPress plugin apply endpoint, execution queue, worker result persistence, rollback restore for restorable completed items, retry queueing for failed execution/rollback items, and partial outcome visibility are implemented. Preview creation remains conservative: unsupported issue types, missing synced content, fallback SEO metadata, invalid WordPress targets, and stale already-present metadata stay `noMutation`. Remaining work is broader safe-operation payload coverage and deeper operator guidance for partial/non-restorable failures.
 
 ## Phase 7 - AI Assistant
 

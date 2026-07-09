@@ -5,8 +5,8 @@ syncing bounded content inventory metadata, and disconnecting a plugin connectio
 
 The current MVP intentionally syncs inventory metadata only. It does not send WordPress post bodies,
 does not crawl external URLs from the SaaS app, and does not mutate WordPress content inline. The
-WordPress plugin also exposes a separate signed apply endpoint for future worker execution; that
-endpoint is limited to bounded Yoast/Rank Math SEO metadata fields.
+WordPress plugin also exposes a separate signed apply endpoint for worker execution and rollback
+restore; that endpoint is limited to bounded Yoast/Rank Math SEO metadata fields.
 
 ## Base URL
 
@@ -417,6 +417,8 @@ Signed apply:
 - Treat safe operation apply batches as worker-only traffic. They must be created from confirmed
   executable operation items with synced `post_type:id` targets and recorded through the SaaS result
   endpoint after the plugin responds.
+- Treat rollback apply batches the same way: the worker sends captured previous SEO metadata values
+  back through this signed endpoint and records the final rollback result in SaaS.
 - Reconnect WordPress sites created before encrypted plugin-token storage if worker apply returns
   `plugin_apply_secret_not_available`.
 - Clear local credentials only after a successful plugin-initiated disconnect response.

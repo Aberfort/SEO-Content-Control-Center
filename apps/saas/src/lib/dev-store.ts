@@ -85,7 +85,9 @@ import type {
   BillingSubscription,
   BulkOperation,
   BulkOperationItem,
+  BulkOperationItemStatusSummary,
   BulkOperationListOptions,
+  BulkOperationRetryMode,
   InviteResult,
   NotificationBulkUpdateResult,
   Notification,
@@ -1249,6 +1251,22 @@ export function listSyncedContentForSite(
   };
 }
 
+export function listSyncedContentUrlsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): Array<{ id: string; externalId: string; url: string; title: string | null }> {
+  void siteId;
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+
+  return [];
+}
+
 export function getSyncedContentItem(
   userId: string,
   organizationId: string,
@@ -1985,10 +2003,15 @@ export function listBulkOperationsForSite(
     })
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .slice(0, parsed.limit ?? 5)
-    .map((operation) => ({
-      ...operation,
-      items: store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id)
-    }));
+    .map((operation) =>
+      withBulkOperationDerivedFields(
+        {
+          ...operation,
+          items: store.bulkOperationItems.filter((item) => item.bulkOperationId === operation.id)
+        },
+        store.activityLogs
+      )
+    );
 }
 
 export function createBulkOperationPreview(
@@ -2064,7 +2087,7 @@ export function createBulkOperationPreview(
     }
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function runBulkOperationDryRun(
@@ -2124,7 +2147,7 @@ export function runBulkOperationDryRun(
     }
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function confirmBulkOperation(
@@ -2183,7 +2206,7 @@ export function confirmBulkOperation(
     }
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function startBulkOperation(
@@ -2241,7 +2264,7 @@ export function startBulkOperation(
     }
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function finishBulkOperation(
@@ -2332,7 +2355,7 @@ export function finishBulkOperation(
     })
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function rollbackBulkOperation(
@@ -2401,7 +2424,7 @@ export function rollbackBulkOperation(
     })
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
 export function retryBulkOperation(
@@ -2440,6 +2463,7 @@ export function retryBulkOperation(
   }
 
   const previousStatus = operation.status;
+  const retryMode = items.some((item) => item.status === "ROLLED_BACK") ? "rollback" : "execute";
   const timestamp = nowIso();
 
   operation.status = "RUNNING";
@@ -2464,8 +2488,9 @@ export function retryBulkOperation(
       previousStatus,
       itemCount: items.length,
       retryItemCount: failedItems.length,
+      retryMode,
       reason: parsed.reason ?? null,
-      noMutation: true
+      noMutation: false
     }
   });
   writeNotification({
@@ -2478,7 +2503,116 @@ export function retryBulkOperation(
     })
   });
 
-  return operation;
+  return withBulkOperationDerivedFields(operation, store.activityLogs);
+}
+
+function withBulkOperationDerivedFields(
+  operation: BulkOperation,
+  activityLogs: ActivityLog[]
+): BulkOperation {
+  const operationActivityLogs = activityLogs.filter(
+    (log) => log.entityType === "BulkOperation" && log.entityId === operation.id
+  );
+  const hasRollbackLifecycle = operationActivityLogs.some(
+    (log) =>
+      log.action === "bulk_operation.rollback_started" ||
+      log.action === "bulk_operation.rolled_back"
+  );
+  const latestRetryMode = operationActivityLogs
+    .filter((log) => log.action === "bulk_operation.retry_started")
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((log) => readBulkOperationRetryModeFromMetadata(log.metadata))
+    .find((retryMode): retryMode is BulkOperationRetryMode => retryMode !== null);
+
+  return {
+    ...operation,
+    retryMode: inferBulkOperationRetryMode({
+      status: operation.status,
+      hasRollbackLifecycle,
+      latestRetryMode,
+      items: operation.items
+    }),
+    itemStatusSummary: summarizeBulkOperationItemStatuses(operation.items)
+  };
+}
+
+function summarizeBulkOperationItemStatuses(
+  items: Array<{
+    status: string;
+  }>
+): BulkOperationItemStatusSummary {
+  const summary: BulkOperationItemStatusSummary = {
+    total: items.length,
+    previewed: 0,
+    dryRunPassed: 0,
+    confirmed: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    rolledBack: 0,
+    other: 0
+  };
+
+  for (const item of items) {
+    switch (item.status) {
+      case "PREVIEWED":
+        summary.previewed += 1;
+        break;
+      case "DRY_RUN_PASSED":
+        summary.dryRunPassed += 1;
+        break;
+      case "CONFIRMED":
+        summary.confirmed += 1;
+        break;
+      case "RUNNING":
+        summary.running += 1;
+        break;
+      case "COMPLETED":
+        summary.completed += 1;
+        break;
+      case "FAILED":
+        summary.failed += 1;
+        break;
+      case "ROLLED_BACK":
+        summary.rolledBack += 1;
+        break;
+      default:
+        summary.other += 1;
+        break;
+    }
+  }
+
+  return summary;
+}
+
+function inferBulkOperationRetryMode(input: {
+  status: BulkOperation["status"];
+  hasRollbackLifecycle?: boolean;
+  latestRetryMode?: BulkOperationRetryMode | null;
+  items?: Array<{
+    status: string;
+  }>;
+}): BulkOperationRetryMode | null {
+  const hasRollbackItem = input.items?.some((item) => item.status === "ROLLED_BACK") ?? false;
+
+  if (input.hasRollbackLifecycle === true || hasRollbackItem) {
+    return input.status === "FAILED" || input.status === "RUNNING" ? "rollback" : null;
+  }
+
+  if (input.latestRetryMode && (input.status === "FAILED" || input.status === "RUNNING")) {
+    return input.latestRetryMode;
+  }
+
+  return input.status === "FAILED" ? "execute" : null;
+}
+
+function readBulkOperationRetryModeFromMetadata(metadata: unknown): BulkOperationRetryMode | null {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const retryMode = (metadata as Record<string, unknown>).retryMode;
+  return retryMode === "execute" || retryMode === "rollback" ? retryMode : null;
 }
 
 function withBacklogDetails(

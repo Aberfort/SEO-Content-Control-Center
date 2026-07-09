@@ -107,6 +107,8 @@
 - Google Search Console property selection requires same-origin requests and integration management permission, verifies the selected property against Google's property list for the connected account, and never returns raw or encrypted refresh tokens.
 - Google Search Console metric sync requires same-origin requests and integration management permission, decrypts refresh tokens only server-side, stores aggregate daily metrics only, and never returns tokens.
 - Google Search Console insight sync requires same-origin requests and integration management permission, stores aggregate page/query Search Analytics rows only, and never returns tokens.
+- Traffic loss computation reads only persisted, organization/site-scoped Search Console data, never calls Google inline, and returns aggregate metrics without tokens.
+- Traffic loss content matching reads only organization/site-scoped synced inventory URLs and returns a bounded content summary (content item id, external id, title) without metadata payloads.
 - Background jobs validate connection state before execution.
 - Worker job handlers for tenant-scoped work must validate organization/site payload scope before running; jobs without tenant context fail fast.
 - Bulk operation execution jobs must validate organization/site/operation scope, process only `RUNNING` operations, fail preview-only/no-mutation items without calling WordPress, and record per-item outcomes.
@@ -143,7 +145,9 @@ Every risky bulk operation must have:
 
 Executable backlog-derived payloads are limited to missing SEO title and missing meta description tasks backed by scoped synced content evidence, valid `post_type:id` WordPress targets, and Yoast or Rank Math metadata. Unsupported issues, missing inventory evidence, fallback metadata, invalid targets, and stale already-present metadata remain preview-only.
 
-Known gap as of Iteration 86: rollback still captures SaaS state without restoring previous values on the WordPress site.
+Rollback restore is worker-only for completed items with captured previous SEO metadata. The SaaS rollback endpoint queues restore work and does not mark the operation `ROLLED_BACK` until the worker records the signed plugin result.
+
+Retry is also worker-only: failed execution retries enqueue execution jobs, while failed rollback retries enqueue rollback jobs based on the operation lifecycle activity. Retry does not perform inline WordPress writes.
 
 ## Roadmap Security Items
 

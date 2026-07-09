@@ -35,7 +35,7 @@ export function buildBulkOperationNotification(
       return {
         type: "bulk_operation.rolled_back",
         title: "Safe operation rolled back",
-        body: `Safe content operation rollback was captured for ${input.itemCount} item${pluralize(input.itemCount)}.${formatOptionalDetail(input.reason)}`
+        body: `Safe content operation rollback was recorded for ${input.itemCount} item${pluralize(input.itemCount)}.${formatOptionalDetail(input.reason)}`
       };
     case "retry_started":
       return {

@@ -15,7 +15,7 @@ The target architecture above is not fully built yet. As of Iteration 85 the cod
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
 - Google Search Console metric and insight syncs run on a daily repeatable worker schedule for every active connection, and can still be triggered manually from the dashboard. The shared Google API client lives in `packages/gsc`.
-- Safe content operations now have state capture, executable SEO title/meta description payload generation from synced content evidence, queue execution, a signed WordPress apply endpoint, and worker result persistence for executable SEO metadata payloads. True rollback restore remains future work.
+- Safe content operations now have state capture, executable SEO title/meta description payload generation from synced content evidence, queue execution, a signed WordPress apply endpoint, worker result persistence, worker-backed rollback restore for completed items with captured previous SEO values, and queue-backed retry for failed execution or rollback items.
 - S3-compatible storage is provisioned in Docker but unused by application code.
 
 ## Monorepo Boundaries

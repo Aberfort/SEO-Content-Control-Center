@@ -91,6 +91,7 @@ import {
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
+  listSyncedContentUrlsForSite as listDevSyncedContentUrlsForSite,
   listGscDailyMetrics as listDevGscDailyMetrics,
   listGscSearchInsights as listDevGscSearchInsights,
   resendInvite as resendDevInvite,
@@ -116,6 +117,7 @@ import {
   buildSyncedContentHealthSignals
 } from "./content-health";
 import { buildAuditIssueInputsFromSyncedContent } from "./audit-issue-generation";
+import type { SyncedContentUrlEntry } from "./gsc-content-matching";
 import {
   buildAssistantRecommendationFromBacklogTask,
   buildAssistantRecommendationsFromSyncedContent,
@@ -148,7 +150,10 @@ import {
   buildSafeOperationPreview,
   countExecutableSafeOperationItems
 } from "./bulk-operation-preview";
-import { enqueueBulkOperationExecutionJob } from "./bulk-operation-queue";
+import {
+  enqueueBulkOperationExecutionJob,
+  enqueueBulkOperationRollbackJob
+} from "./bulk-operation-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -173,7 +178,9 @@ import type {
   BillingPortalContext,
   BillingSubscription,
   BulkOperation,
+  BulkOperationItemStatusSummary,
   BulkOperationListOptions,
+  BulkOperationRetryMode,
   GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
@@ -381,6 +388,11 @@ type AppRepository = {
     siteId: string,
     options?: SyncedContentListOptions
   ): Promise<SyncedContentList>;
+  listSyncedContentUrlsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<SyncedContentUrlEntry[]>;
   getGscConnectionOverviewForSite(
     userId: string,
     organizationId: string,
@@ -540,6 +552,9 @@ const devStoreRepository: AppRepository = {
   },
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
+  },
+  async listSyncedContentUrlsForSite(userId, organizationId, siteId) {
+    return listDevSyncedContentUrlsForSite(userId, organizationId, siteId);
   },
   async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
     return getDevGscConnectionOverviewForSite(userId, organizationId, siteId);
@@ -1485,6 +1500,43 @@ const prismaRepository: AppRepository = {
           : null,
       total
     };
+  },
+
+  async listSyncedContentUrlsForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const items = await prisma.syncedContentItem.findMany({
+      where: {
+        organizationId,
+        siteId
+      },
+      select: {
+        id: true,
+        externalId: true,
+        url: true,
+        title: true
+      },
+      orderBy: {
+        externalId: "asc"
+      }
+    });
+
+    return items;
   },
 
   async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
@@ -3058,7 +3110,73 @@ const prismaRepository: AppRepository = {
       take: parsed.limit ?? 5
     });
 
-    return operations.map(mapBulkOperation);
+    const operationIds = operations.map((operation) => operation.id);
+    const lifecycleLogs =
+      operationIds.length > 0
+        ? await prisma.activityLog.findMany({
+            where: {
+              organizationId,
+              entityType: "BulkOperation",
+              entityId: {
+                in: operationIds
+              },
+              action: {
+                in: [
+                  "bulk_operation.rollback_started",
+                  "bulk_operation.rolled_back",
+                  "bulk_operation.retry_started"
+                ]
+              }
+            },
+            select: {
+              entityId: true,
+              action: true,
+              metadata: true
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          })
+        : [];
+    const rollbackOperationIds = new Set<string>();
+    const retryModeByOperationId = new Map<string, BulkOperationRetryMode>();
+
+    for (const log of lifecycleLogs) {
+      if (typeof log.entityId !== "string") {
+        continue;
+      }
+
+      if (
+        log.action === "bulk_operation.rollback_started" ||
+        log.action === "bulk_operation.rolled_back"
+      ) {
+        rollbackOperationIds.add(log.entityId);
+        continue;
+      }
+
+      if (
+        log.action === "bulk_operation.retry_started" &&
+        !retryModeByOperationId.has(log.entityId)
+      ) {
+        const retryMode = readBulkOperationRetryModeFromMetadata(log.metadata);
+
+        if (retryMode) {
+          retryModeByOperationId.set(log.entityId, retryMode);
+        }
+      }
+    }
+
+    return operations.map((operation) =>
+      mapBulkOperation(
+        operation,
+        inferBulkOperationRetryMode({
+          status: operation.status,
+          hasRollbackLifecycle: rollbackOperationIds.has(operation.id),
+          latestRetryMode: retryModeByOperationId.get(operation.id),
+          items: operation.items
+        })
+      )
+    );
   },
 
   async createBulkOperationPreview(input) {
@@ -3386,13 +3504,13 @@ const prismaRepository: AppRepository = {
       });
 
       if (failedOperation) {
-        return mapBulkOperation(failedOperation);
+        return mapBulkOperation(failedOperation, "rollback");
       }
 
       throw error;
     }
 
-    return mapBulkOperation(operation);
+    return mapBulkOperation(operation, "rollback");
   },
 
   async finishBulkOperation(input) {
@@ -3545,13 +3663,24 @@ const prismaRepository: AppRepository = {
     }
 
     const previousStatus = existing.status;
+    const restorableItemIds = existing.items
+      .filter((item) => item.status === "COMPLETED")
+      .map((item) => item.id);
+
+    if (restorableItemIds.length === 0) {
+      throw new Error("BULK_OPERATION_NOT_RESTORABLE");
+    }
+
     const operation = await prisma.$transaction(async (tx) => {
       await tx.bulkOperationItem.updateMany({
         where: {
-          bulkOperationId: existing.id
+          bulkOperationId: existing.id,
+          id: {
+            in: restorableItemIds
+          }
         },
         data: {
-          status: "ROLLED_BACK",
+          status: "RUNNING",
           error: null
         }
       });
@@ -3560,7 +3689,7 @@ const prismaRepository: AppRepository = {
           id: existing.id
         },
         data: {
-          status: "ROLLED_BACK"
+          status: "RUNNING"
         },
         include: {
           items: {
@@ -3575,35 +3704,48 @@ const prismaRepository: AppRepository = {
         data: {
           organizationId: parsed.organizationId,
           userId: input.user.id,
-          action: "bulk_operation.rolled_back",
+          action: "bulk_operation.rollback_started",
           entityType: "BulkOperation",
           entityId: updated.id,
           metadata: {
             siteId: parsed.siteId,
             type: updated.type,
             previousStatus,
-            itemCount: updated.items.length,
+            itemCount: restorableItemIds.length,
             reason: parsed.reason ?? null,
-            noMutation: true
+            noMutation: false,
+            trigger: "queue_enqueue"
           }
-        }
-      });
-
-      await tx.notification.create({
-        data: {
-          organizationId: parsed.organizationId,
-          ...buildBulkOperationNotification({
-            event: "rolled_back",
-            itemCount: updated.items.length,
-            reason: parsed.reason ?? null
-          })
         }
       });
 
       return updated;
     });
 
-    return mapBulkOperation(operation);
+    try {
+      await enqueueBulkOperationRollbackJob({
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        operationId: operation.id
+      });
+    } catch (error) {
+      const failedOperation = await markBulkOperationExecutionQueueFailure({
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        operationId: operation.id,
+        type: operation.type,
+        itemCount: restorableItemIds.length,
+        message: "Could not enqueue bulk operation rollback job."
+      });
+
+      if (failedOperation) {
+        return mapBulkOperation(failedOperation, "rollback");
+      }
+
+      throw error;
+    }
+
+    return mapBulkOperation(operation, "rollback");
   },
 
   async retryBulkOperation(input) {
@@ -3638,6 +3780,21 @@ const prismaRepository: AppRepository = {
     if (!failedItems.length) {
       throw new Error("BULK_OPERATION_RETRY_NOT_AVAILABLE");
     }
+
+    const rollbackAttempt = await prisma.activityLog.findFirst({
+      where: {
+        organizationId: parsed.organizationId,
+        entityType: "BulkOperation",
+        entityId: existing.id,
+        action: {
+          in: ["bulk_operation.rollback_started", "bulk_operation.rolled_back"]
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+    const retryMode = rollbackAttempt ? "rollback" : "execute";
 
     const operation = await prisma.$transaction(async (tx) => {
       await tx.bulkOperationItem.updateMany({
@@ -3679,8 +3836,9 @@ const prismaRepository: AppRepository = {
             previousStatus: existing.status,
             itemCount: updated.items.length,
             retryItemCount: failedItems.length,
+            retryMode,
             reason: parsed.reason ?? null,
-            noMutation: true
+            noMutation: false
           }
         }
       });
@@ -3700,7 +3858,38 @@ const prismaRepository: AppRepository = {
       return updated;
     });
 
-    return mapBulkOperation(operation);
+    try {
+      if (retryMode === "rollback") {
+        await enqueueBulkOperationRollbackJob({
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          operationId: operation.id
+        });
+      } else {
+        await enqueueBulkOperationExecutionJob({
+          organizationId: parsed.organizationId,
+          siteId: parsed.siteId,
+          operationId: operation.id
+        });
+      }
+    } catch (error) {
+      const failedOperation = await markBulkOperationExecutionQueueFailure({
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        operationId: operation.id,
+        type: operation.type,
+        itemCount: failedItems.length,
+        message: `Could not enqueue bulk operation ${retryMode} retry job.`
+      });
+
+      if (failedOperation) {
+        return mapBulkOperation(failedOperation, retryMode);
+      }
+
+      throw error;
+    }
+
+    return mapBulkOperation(operation, retryMode);
   },
 
   async listMembersForOrganization(userId, organizationId) {
@@ -5014,7 +5203,8 @@ async function markBulkOperationExecutionQueueFailure(input: {
 
     await tx.bulkOperationItem.updateMany({
       where: {
-        bulkOperationId: existing.id
+        bulkOperationId: existing.id,
+        status: "RUNNING"
       },
       data: {
         status: "FAILED",
@@ -5072,29 +5262,34 @@ async function markBulkOperationExecutionQueueFailure(input: {
   });
 }
 
-function mapBulkOperation(operation: {
-  id: string;
-  organizationId: string;
-  siteId: string;
-  type: string;
-  status: BulkOperation["status"];
-  preview: unknown;
-  dryRunResult: unknown;
-  confirmedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  items?: Array<{
+function mapBulkOperation(
+  operation: {
     id: string;
-    bulkOperationId: string;
-    externalId: string;
-    status: string;
-    beforeValue: unknown;
-    afterValue: unknown;
-    error: string | null;
+    organizationId: string;
+    siteId: string;
+    type: string;
+    status: BulkOperation["status"];
+    preview: unknown;
+    dryRunResult: unknown;
+    confirmedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
-  }>;
-}): BulkOperation {
+    items?: Array<{
+      id: string;
+      bulkOperationId: string;
+      externalId: string;
+      status: string;
+      beforeValue: unknown;
+      afterValue: unknown;
+      error: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+  },
+  retryMode?: BulkOperationRetryMode | null
+): BulkOperation {
+  const items = operation.items?.map(mapBulkOperationItem) ?? [];
+
   return {
     id: operation.id,
     organizationId: operation.organizationId,
@@ -5106,8 +5301,94 @@ function mapBulkOperation(operation: {
     confirmedAt: operation.confirmedAt?.toISOString() ?? null,
     createdAt: operation.createdAt.toISOString(),
     updatedAt: operation.updatedAt.toISOString(),
-    items: operation.items?.map(mapBulkOperationItem) ?? []
+    items,
+    retryMode:
+      retryMode ??
+      inferBulkOperationRetryMode({
+        status: operation.status,
+        items
+      }),
+    itemStatusSummary: summarizeBulkOperationItemStatuses(items)
   };
+}
+
+function summarizeBulkOperationItemStatuses(
+  items: Array<{
+    status: string;
+  }>
+): BulkOperationItemStatusSummary {
+  const summary: BulkOperationItemStatusSummary = {
+    total: items.length,
+    previewed: 0,
+    dryRunPassed: 0,
+    confirmed: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    rolledBack: 0,
+    other: 0
+  };
+
+  for (const item of items) {
+    switch (item.status) {
+      case "PREVIEWED":
+        summary.previewed += 1;
+        break;
+      case "DRY_RUN_PASSED":
+        summary.dryRunPassed += 1;
+        break;
+      case "CONFIRMED":
+        summary.confirmed += 1;
+        break;
+      case "RUNNING":
+        summary.running += 1;
+        break;
+      case "COMPLETED":
+        summary.completed += 1;
+        break;
+      case "FAILED":
+        summary.failed += 1;
+        break;
+      case "ROLLED_BACK":
+        summary.rolledBack += 1;
+        break;
+      default:
+        summary.other += 1;
+        break;
+    }
+  }
+
+  return summary;
+}
+
+function inferBulkOperationRetryMode(input: {
+  status: BulkOperation["status"];
+  hasRollbackLifecycle?: boolean;
+  latestRetryMode?: BulkOperationRetryMode | null;
+  items?: Array<{
+    status: string;
+  }>;
+}): BulkOperationRetryMode | null {
+  const hasRollbackItem = input.items?.some((item) => item.status === "ROLLED_BACK") ?? false;
+
+  if (input.hasRollbackLifecycle === true || hasRollbackItem) {
+    return input.status === "FAILED" || input.status === "RUNNING" ? "rollback" : null;
+  }
+
+  if (input.latestRetryMode && (input.status === "FAILED" || input.status === "RUNNING")) {
+    return input.latestRetryMode;
+  }
+
+  return input.status === "FAILED" ? "execute" : null;
+}
+
+function readBulkOperationRetryModeFromMetadata(metadata: unknown): BulkOperationRetryMode | null {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const retryMode = (metadata as Record<string, unknown>).retryMode;
+  return retryMode === "execute" || retryMode === "rollback" ? retryMode : null;
 }
 
 function mapBulkOperationItem(item: {

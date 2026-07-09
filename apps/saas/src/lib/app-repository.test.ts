@@ -999,15 +999,45 @@ describe("app repository", () => {
     });
 
     expect(retried.status).toBe("RUNNING");
+    expect(retried.retryMode).toBe("execute");
+    expect(retried.itemStatusSummary).toMatchObject({
+      total: 1,
+      running: 1,
+      failed: 0
+    });
     expect(retried.items[0]).toMatchObject({
       status: "RUNNING",
       error: null
     });
+    const operationsAfterRetry = await repository.listBulkOperationsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      {
+        limit: 1
+      }
+    );
+    expect(operationsAfterRetry[0]).toMatchObject({
+      id: retried.id,
+      retryMode: "execute",
+      itemStatusSummary: expect.objectContaining({
+        total: 1,
+        running: 1
+      })
+    });
+    const activityLogsAfterRetry = await repository.listActivityLogsForOrganization(
+      user.id,
+      organization.id
+    );
+    expect(activityLogsAfterRetry.map((log) => log.action)).toContain(
+      "bulk_operation.retry_started"
+    );
     expect(
-      (await repository.listActivityLogsForOrganization(user.id, organization.id)).map(
-        (log) => log.action
-      )
-    ).toContain("bulk_operation.retry_started");
+      activityLogsAfterRetry.find((log) => log.action === "bulk_operation.retry_started")?.metadata
+    ).toMatchObject({
+      retryMode: "execute",
+      noMutation: false
+    });
     expect(
       (await repository.listNotificationsForOrganization(user.id, organization.id)).map(
         (notification) => notification.type
@@ -1160,6 +1190,11 @@ describe("app repository", () => {
     });
 
     expect(rolledBack.status).toBe("ROLLED_BACK");
+    expect(rolledBack.retryMode).toBeNull();
+    expect(rolledBack.itemStatusSummary).toMatchObject({
+      total: 1,
+      rolledBack: 1
+    });
     expect(rolledBack.items.every((item) => item.status === "ROLLED_BACK")).toBe(true);
     expect(rolledBack.items.every((item) => item.error === null)).toBe(true);
     expect(

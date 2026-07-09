@@ -138,8 +138,9 @@
 - SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.
 - SaaS users with content operation confirm permission can start confirmed bulk operations into `RUNNING` without inline WordPress writes.
 - SaaS users with content operation confirm permission can record completed or failed results for running bulk operations without inline WordPress writes.
-- SaaS users with content operation confirm permission can roll back completed or failed bulk operations without inline WordPress writes.
-- SaaS users with content operation confirm permission can retry failed bulk operation items without inline WordPress writes.
+- SaaS users with content operation confirm permission can start rollback restore for completed or partially failed bulk operations without inline WordPress writes.
+- SaaS users with content operation confirm permission can retry failed bulk operation items without inline WordPress writes, and retry enqueues execution or rollback based on operation lifecycle.
+- SaaS dashboard and API responses expose per-status bulk operation item summaries and retry mode for failed or active retry work.
 - SaaS safe content operation mutation limits return `429 RATE_LIMITED` with `Retry-After`.
 - SaaS users with organization read permission can list organization notifications for safe operation lifecycle events.
 - Safe operation completion, failure, rollback, and retry state changes create organization notifications.
@@ -183,10 +184,21 @@
 - Bulk operation execution fails preview-only/no-mutation items without calling WordPress.
 - Bulk operation execution signs WordPress apply requests with the encrypted plugin token and records plugin per-item results.
 - Bulk operation execution records failed results when the WordPress connection is disconnected or lacks an encrypted apply token.
+- Bulk operation rollback jobs restore captured item `beforeValue` through signed WordPress apply requests and record final `ROLLED_BACK` or `FAILED` results.
+- Bulk operation rollback jobs fail non-restorable items locally without calling WordPress.
+- Bulk operation retry keeps failed item enqueue optional without Redis and chooses `bulk-operation.rollback` after rollback attempts.
 - Plugin sync paginates inventories larger than one batch and sends offset cursors with every batch.
 - Plugin sync batches are ordered by post ID ascending so pagination stays stable while content changes.
 - Posts without permalinks are skipped inside a batch without ending pagination early.
 - A single plugin sync run stops after the 50-batch safety bound and the sync log records the total synced item count.
+- Traffic loss severity is `high` at a 50% click drop, `medium` at 25%, and `none` below the minimum previous-window click volume.
+- Traffic loss reports `available: false` with a reason instead of guessing when metric history or a baseline insight snapshot is missing.
+- Page-level traffic loss aggregates insight rows per page across queries before comparing against the baseline snapshot.
+- The traffic loss endpoint and dashboard panel read persisted data only and never call Google inline.
+- Traffic loss pages match synced content regardless of protocol, `www.` prefix, trailing slash, query string, or fragment differences.
+- Traffic loss pages missing from the synced inventory return `content: null` and the dashboard labels them as not in inventory.
+- Normalized URL collisions between synced items resolve deterministically by external id order.
+- Content URL lookups for matching stay inside organization/site scope.
 - Plugin safe operation apply requests reject missing or invalid HMAC signatures.
 - Plugin safe operation apply requests can update bounded Yoast/Rank Math SEO metadata fields for a signed `post_type:id` target.
 - Plugin safe operation apply requests reject unsupported fields such as post body before writing any metadata for that item.
@@ -203,8 +215,8 @@
 - Starting confirmed bulk operations records the running state and still does not write to WordPress inline.
 - Running bulk operation result capture records per-item outcomes and inline SaaS requests still do not write to WordPress.
 - Worker execution may write only bounded signed WordPress SEO metadata after preview, dry run, confirmation, and start.
-- Rollback state capture records restored operation state and still does not write to WordPress inline.
-- Retry state capture records failed item retry state and still does not write to WordPress inline.
+- Rollback restore may write only captured previous bounded SEO metadata through the worker and signed plugin apply endpoint.
+- Retry records failed item retry state, enqueues the correct worker job when Redis is configured, and still does not write to WordPress inline.
 - Every risky mutation writes an audit log, including safe content operation lifecycle transitions.
 - Safe operation lifecycle outcomes create tenant-scoped notifications.
 - Notification read state updates stay scoped to the authenticated member's organization.

@@ -2,6 +2,51 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 91
+
+- Added normalized URL matching between Search Console traffic loss pages and synced WordPress content items.
+- Normalization ignores protocol, a leading `www.` host prefix, trailing slashes, query strings, and fragments while keeping paths distinct; invalid and non-HTTP URLs never match.
+- Added deterministic collision handling for synced items that normalize to the same URL (first by external id order wins).
+- Added a scoped `listSyncedContentUrlsForSite` repository method returning bounded id/external id/url/title entries in both the Prisma repository and the dev store.
+- Enriched traffic loss API drops with a `content` summary (`contentItemId`, `externalId`, `title`, or `null` when the page is not in the synced inventory) and added a Content column to the dashboard traffic loss table.
+- Added unit tests for URL normalization, index collisions, bounded match summaries, and drop enrichment.
+
+### Iteration 90
+
+- Added deterministic Google Search Console traffic loss detection from persisted data without inline Google calls.
+- Added site-level detection comparing the latest 14-day daily-metric window against the previous 14 days with `medium` (>= 25% click drop) and `high` (>= 50%) severities gated by a 50-click previous-window volume floor.
+- Added page-level detection joining the latest page/query insight snapshot with the snapshot from 7 days earlier, aggregating rows per page and returning the top pages losing clicks against a bounded baseline.
+- Added graceful `available: false` responses with human-readable reasons while metric history or baseline snapshots are still accumulating.
+- Added a read-only `GET /gsc/traffic-loss` endpoint scoped by organization/site with optional property filtering.
+- Added a dashboard traffic loss panel with the window comparison summary, severity, and top dropping pages table.
+- Added focused unit tests for window math, severity thresholds, volume floors, page aggregation, missing-history reasons, and date shifting.
+
+### Iteration 89
+
+- Added derived bulk operation item status summaries to SaaS responses so partial execution and rollback outcomes are visible without re-counting items client-side.
+- Exposed `retryMode` on bulk operation responses for failed operations and active retry/rollback restore work.
+- Updated the dashboard recent previews panel to show per-status item counts and whether retry will execute failed items or restore failed rollback items.
+- Kept Prisma and dev-store behavior aligned by deriving retry mode from operation activity logs and item statuses.
+- Added regression coverage for retry summary visibility and documented the response contract updates.
+
+### Iteration 88
+
+- Made failed bulk operation retry queue-aware for both execution retries and rollback restore retries.
+- Prisma-backed retry now detects prior rollback attempts from operation activity, resets only failed items to `RUNNING`, and enqueues either `bulk-operation.execute` or `bulk-operation.rollback`.
+- Preserved captured rollback `beforeValue` on failed rollback result persistence so retry can still restore the original SEO metadata.
+- Added retry metadata (`retryMode`, `noMutation: false`) to activity logs and kept retry notifications scoped to the existing lifecycle event.
+- Added SaaS tests for retry metadata and queue producer fallback coverage for execution and rollback jobs without Redis.
+- Updated API, roadmap, QA, and README documentation to reflect queue-backed retry behavior.
+
+### Iteration 87
+
+- Added queued rollback restore for completed safe operation items through the existing signed WordPress plugin apply endpoint.
+- Added a `bulk-operation.rollback` job payload contract, SaaS rollback queue producer, and worker handler on the `sccc-bulk-operations` queue.
+- Changed Prisma-backed rollback requests to start rollback work instead of immediately marking operations `ROLLED_BACK`; final `ROLLED_BACK` is recorded only after worker/plugin restore succeeds.
+- Restored previous SEO metadata from stored item `beforeValue` and kept non-restorable items failing locally without calling WordPress.
+- Added worker persistence for rollback results, activity logs, and rollback/failure notifications.
+- Added tests for rollback job schema validation, signed rollback apply payloads, and local rollback validation failures.
+
 ### Iteration 86
 
 - Added executable safe-operation preview payload generation for synced-content backed missing SEO title and missing meta description backlog tasks.

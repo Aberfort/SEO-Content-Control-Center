@@ -538,6 +538,20 @@ export type BulkOperationItem = {
   updatedAt: string;
 };
 
+export type BulkOperationRetryMode = "execute" | "rollback";
+
+export type BulkOperationItemStatusSummary = {
+  total: number;
+  previewed: number;
+  dryRunPassed: number;
+  confirmed: number;
+  running: number;
+  completed: number;
+  failed: number;
+  rolledBack: number;
+  other: number;
+};
+
 export type BulkOperation = {
   id: string;
   organizationId: string;
@@ -550,6 +564,8 @@ export type BulkOperation = {
   createdAt: string;
   updatedAt: string;
   items: BulkOperationItem[];
+  retryMode?: BulkOperationRetryMode | null;
+  itemStatusSummary?: BulkOperationItemStatusSummary;
 };
 
 export type BulkOperationListOptions = {

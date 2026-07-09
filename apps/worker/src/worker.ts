@@ -12,9 +12,13 @@ import {
 } from "@sccc/queue";
 import { Worker } from "bullmq";
 
-import { createBulkOperationExecuteHandler } from "./bulk-operations/handlers";
+import {
+  createBulkOperationExecuteHandler,
+  createBulkOperationRollbackHandler
+} from "./bulk-operations/handlers";
 import {
   buildLiveBulkOperationExecutionDeps,
+  buildLiveBulkOperationRollbackDeps,
   isBulkOperationWorkerConfigured
 } from "./bulk-operations/live";
 import {
@@ -185,6 +189,10 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     registry.register(
       jobNames.bulkOperationExecute,
       createBulkOperationExecuteHandler(buildLiveBulkOperationExecutionDeps())
+    );
+    registry.register(
+      jobNames.bulkOperationRollback,
+      createBulkOperationRollbackHandler(buildLiveBulkOperationRollbackDeps())
     );
     createQueueWorker(queueNames.bulkOperations);
   } else {

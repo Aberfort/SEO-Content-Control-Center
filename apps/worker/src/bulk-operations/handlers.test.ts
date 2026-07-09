@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   createBulkOperationExecuteHandler,
   type BulkOperationExecutionDeps,
-  type BulkOperationExecutionRecord
+  type BulkOperationExecutionRecord,
+  createBulkOperationRollbackHandler,
+  type BulkOperationRollbackDeps
 } from "./handlers";
 
 const tenantData = {
@@ -88,6 +90,61 @@ function createDeps(operation: BulkOperationExecutionRecord | null = createOpera
       });
     },
     recordResult: (input) => {
+      calls.recordedResults.push(input);
+      return Promise.resolve();
+    },
+    now: () => new Date("2026-07-09T12:00:00.000Z")
+  };
+
+  return { deps, calls };
+}
+
+function createRollbackDeps(operation: BulkOperationExecutionRecord | null = createOperation()) {
+  const calls = {
+    applyInputs: [] as Array<{
+      siteUrl: string;
+      path: string;
+      body: string;
+      headers: Record<string, string>;
+    }>,
+    recordedResults: [] as unknown[]
+  };
+  const deps: BulkOperationRollbackDeps = {
+    loadOperation: (organizationId, siteId, operationId) =>
+      Promise.resolve(
+        organizationId === tenantData.organizationId &&
+          siteId === tenantData.siteId &&
+          operationId === tenantData.operationId
+          ? operation
+          : null
+      ),
+    decryptSecret: (value) => `decrypted:${value}`,
+    applyToWordPress: (input) => {
+      calls.applyInputs.push(input);
+      const decoded = JSON.parse(input.body) as {
+        operationId: string;
+        siteId: string;
+        items: Array<{ itemId: string; externalId: string; afterValue: unknown }>;
+      };
+
+      return Promise.resolve({
+        data: {
+          operationId: decoded.operationId,
+          siteId: decoded.siteId,
+          appliedCount: decoded.items.length,
+          failedCount: 0,
+          results: decoded.items.map((item) => ({
+            itemId: item.itemId,
+            externalId: item.externalId,
+            status: "COMPLETED",
+            beforeValue: { seoPlugin: "yoast", seoTitle: "Updated SEO title" },
+            afterValue: item.afterValue,
+            error: null
+          }))
+        }
+      });
+    },
+    recordRollbackResult: (input) => {
       calls.recordedResults.push(input);
       return Promise.resolve();
     },
@@ -217,5 +274,116 @@ describe("bulk operation execution handler", () => {
         }
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("bulk operation rollback handler", () => {
+  it("restores executable item before values through the signed plugin apply endpoint", async () => {
+    const { deps, calls } = createRollbackDeps(
+      createOperation({
+        items: [
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            externalId: "post:123",
+            status: "RUNNING",
+            beforeValue: {
+              seoPlugin: "yoast",
+              seoTitle: "Original SEO title",
+              metaDescription: null,
+              canonicalUrl: null,
+              robotsNoindex: false,
+              robotsNofollow: false
+            },
+            afterValue: {
+              seoPlugin: "yoast",
+              seoTitle: "Updated SEO title"
+            }
+          }
+        ]
+      })
+    );
+    const handler = createBulkOperationRollbackHandler(deps);
+
+    const result = await handler({
+      id: "job-1",
+      name: "bulk-operation.rollback",
+      data: tenantData
+    });
+
+    expect(result).toEqual({
+      pluginCalled: true,
+      itemCount: 1,
+      appliedItems: 1,
+      failedItems: 0
+    });
+    expect(calls.applyInputs).toHaveLength(1);
+    expect(JSON.parse(calls.applyInputs[0]?.body ?? "{}")).toMatchObject({
+      items: [
+        {
+          itemId: "44444444-4444-4444-8444-444444444444",
+          externalId: "post:123",
+          afterValue: {
+            seoPlugin: "yoast",
+            seoTitle: "Original SEO title",
+            metaDescription: null,
+            robotsNoindex: false
+          }
+        }
+      ]
+    });
+    expect(calls.recordedResults[0]).toMatchObject({
+      organizationId: tenantData.organizationId,
+      siteId: tenantData.siteId,
+      operationId: tenantData.operationId,
+      status: "ROLLED_BACK",
+      itemResults: [
+        {
+          itemId: "44444444-4444-4444-8444-444444444444",
+          externalId: "post:123",
+          status: "ROLLED_BACK",
+          error: null
+        }
+      ]
+    });
+  });
+
+  it("fails rollback items without restorable before values before calling WordPress", async () => {
+    const { deps, calls } = createRollbackDeps(
+      createOperation({
+        items: [
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            externalId: "post:123",
+            status: "RUNNING",
+            beforeValue: null,
+            afterValue: {
+              seoPlugin: "yoast",
+              seoTitle: "Updated SEO title"
+            }
+          }
+        ]
+      })
+    );
+    const handler = createBulkOperationRollbackHandler(deps);
+
+    const result = await handler({
+      id: "job-1",
+      name: "bulk-operation.rollback",
+      data: tenantData
+    });
+
+    expect(result).toMatchObject({
+      pluginCalled: false,
+      failedItems: 1
+    });
+    expect(calls.applyInputs).toEqual([]);
+    expect(calls.recordedResults[0]).toMatchObject({
+      status: "FAILED",
+      itemResults: [
+        {
+          error: "before_value_required"
+        }
+      ]
+    });
   });
 });

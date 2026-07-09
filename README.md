@@ -90,6 +90,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Google Search Console manual property picker for connected accounts;
 - Google Search Console daily metric sync for property-level clicks, impressions, CTR, and average position;
 - Google Search Console page/query insight sync for top Search Analytics rows;
+- deterministic Search Console traffic loss detection with site-level window comparison, page-level baseline snapshot comparison, severity thresholds, a dashboard panel, and a scoped read-only API endpoint;
+- normalized URL matching between Search Console traffic loss pages and synced WordPress content items in the traffic loss API and dashboard;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;
@@ -119,8 +121,9 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - controlled start state for confirmed safe content operations without inline WordPress writes;
 - execution result recording for running safe content operations with per-item outcomes;
 - queued safe content operation execution through the worker for executable signed WordPress apply payloads;
-- rollback state capture for completed or failed safe content operations;
-- retry state capture for failed safe content operation items;
+- queued rollback restore for completed safe content operation items with captured previous WordPress SEO values;
+- queue-backed retry for failed safe content operation execution and rollback restore items;
+- item status summaries and retry-mode visibility for inspecting partial execution and rollback outcomes;
 - activity logs for safe content operation preview, dry run, confirmation, start, result, rollback, and retry transitions;
 - organization notifications for safe content operation lifecycle outcomes;
 - read and unread state management for organization notifications;

@@ -1,4 +1,4 @@
-import { bulkOperationExecuteJobDataSchema } from "@sccc/queue";
+import { bulkOperationExecuteJobDataSchema, bulkOperationRollbackJobDataSchema } from "@sccc/queue";
 import { signPluginRequest } from "@sccc/shared";
 import { z } from "zod";
 
@@ -72,7 +72,16 @@ export type BulkOperationExecutionResultItem = {
   error: string | null;
 };
 
-export type BulkOperationExecutionDeps = {
+export type BulkOperationRollbackResultItem = {
+  itemId: string;
+  externalId: string;
+  status: "ROLLED_BACK" | "FAILED";
+  beforeValue: unknown;
+  afterValue: unknown;
+  error: string | null;
+};
+
+export type BulkOperationApplyDeps = {
   loadOperation(
     organizationId: string,
     siteId: string,
@@ -85,6 +94,10 @@ export type BulkOperationExecutionDeps = {
     body: string;
     headers: Record<string, string>;
   }): Promise<unknown>;
+  now?: () => Date;
+};
+
+export type BulkOperationExecutionDeps = BulkOperationApplyDeps & {
   recordResult(input: {
     organizationId: string;
     siteId: string;
@@ -93,7 +106,17 @@ export type BulkOperationExecutionDeps = {
     message: string | null;
     itemResults: BulkOperationExecutionResultItem[];
   }): Promise<void>;
-  now?: () => Date;
+};
+
+export type BulkOperationRollbackDeps = BulkOperationApplyDeps & {
+  recordRollbackResult(input: {
+    organizationId: string;
+    siteId: string;
+    operationId: string;
+    status: "ROLLED_BACK" | "FAILED";
+    message: string | null;
+    itemResults: BulkOperationRollbackResultItem[];
+  }): Promise<void>;
 };
 
 type NormalizedApplyItem =
@@ -108,6 +131,20 @@ type NormalizedApplyItem =
   | {
       executable: false;
       result: BulkOperationExecutionResultItem;
+    };
+
+type NormalizedRollbackItem =
+  | {
+      executable: true;
+      item: {
+        itemId: string;
+        externalId: string;
+        afterValue: Record<string, unknown>;
+      };
+    }
+  | {
+      executable: false;
+      result: BulkOperationRollbackResultItem;
     };
 
 export function createBulkOperationExecuteHandler(deps: BulkOperationExecutionDeps): JobHandler {
@@ -250,39 +287,155 @@ export function createBulkOperationExecuteHandler(deps: BulkOperationExecutionDe
   };
 }
 
+export function createBulkOperationRollbackHandler(deps: BulkOperationRollbackDeps): JobHandler {
+  return async (job) => {
+    const data = bulkOperationRollbackJobDataSchema.parse(job.data);
+    const operation = await deps.loadOperation(data.organizationId, data.siteId, data.operationId);
+
+    if (!operation) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (operation.status !== "RUNNING") {
+      throw new Error("BULK_OPERATION_NOT_RUNNING");
+    }
+
+    const runningItems = operation.items.filter((item) => item.status === "RUNNING");
+
+    if (runningItems.length === 0) {
+      throw new Error("BULK_OPERATION_NO_ROLLBACK_ITEMS");
+    }
+
+    if (!operation.connection || operation.connection.disconnectedAt) {
+      const itemResults = failRollbackItems(runningItems, "wordpress_connection_not_available");
+      await deps.recordRollbackResult({
+        organizationId: data.organizationId,
+        siteId: data.siteId,
+        operationId: data.operationId,
+        status: "FAILED",
+        message: "WordPress connection is not available for safe operation rollback.",
+        itemResults
+      });
+
+      return buildSummary(false, itemResults);
+    }
+
+    if (!operation.connection.encryptedToken) {
+      const itemResults = failRollbackItems(runningItems, "plugin_apply_secret_not_available");
+      await deps.recordRollbackResult({
+        organizationId: data.organizationId,
+        siteId: data.siteId,
+        operationId: data.operationId,
+        status: "FAILED",
+        message: "Plugin apply secret is unavailable. Reconnect the WordPress plugin.",
+        itemResults
+      });
+
+      return buildSummary(false, itemResults);
+    }
+
+    const normalizedItems = runningItems.map(normalizeRollbackItem);
+    const localFailures = normalizedItems
+      .filter(
+        (item): item is Extract<NormalizedRollbackItem, { executable: false }> => !item.executable
+      )
+      .map((item) => item.result);
+    const executableItems = normalizedItems
+      .filter(
+        (item): item is Extract<NormalizedRollbackItem, { executable: true }> => item.executable
+      )
+      .map((item) => item.item);
+
+    if (executableItems.length === 0) {
+      await deps.recordRollbackResult({
+        organizationId: data.organizationId,
+        siteId: data.siteId,
+        operationId: data.operationId,
+        status: "FAILED",
+        message: "Safe operation rollback has no restorable WordPress apply items.",
+        itemResults: localFailures
+      });
+
+      return buildSummary(false, localFailures);
+    }
+
+    const token = deps.decryptSecret(operation.connection.encryptedToken);
+    const body = JSON.stringify({
+      organizationId: data.organizationId,
+      siteId: data.siteId,
+      operationId: data.operationId,
+      items: executableItems
+    });
+    const timestamp = Math.floor((deps.now?.() ?? new Date()).getTime() / 1000);
+    const headers = {
+      "Content-Type": "application/json",
+      "X-SCCC-Site-Id": data.siteId,
+      "X-SCCC-Timestamp": String(timestamp),
+      "X-SCCC-Signature": signPluginRequest({
+        method: "POST",
+        path: applyPath,
+        timestamp,
+        body,
+        secret: token
+      }),
+      "X-SCCC-Token": token
+    };
+
+    let pluginResults: BulkOperationRollbackResultItem[];
+
+    try {
+      const response = applyResponseSchema.parse(
+        await deps.applyToWordPress({
+          siteUrl: operation.siteUrl,
+          path: applyPath,
+          body,
+          headers
+        })
+      );
+
+      if (response.data.operationId !== data.operationId || response.data.siteId !== data.siteId) {
+        throw new Error("PLUGIN_APPLY_SCOPE_MISMATCH");
+      }
+
+      pluginResults = normalizeRollbackPluginResults(executableItems, response.data.results);
+    } catch (error) {
+      pluginResults = executableItems.map((item) => ({
+        itemId: item.itemId,
+        externalId: item.externalId,
+        status: "FAILED",
+        beforeValue: null,
+        afterValue: null,
+        error: toBoundedError(error, "plugin_rollback_request_failed")
+      }));
+    }
+
+    const itemResults = [...localFailures, ...pluginResults];
+    const failedCount = itemResults.filter((item) => item.status === "FAILED").length;
+    const status = failedCount > 0 ? "FAILED" : "ROLLED_BACK";
+
+    await deps.recordRollbackResult({
+      organizationId: data.organizationId,
+      siteId: data.siteId,
+      operationId: data.operationId,
+      status,
+      message:
+        status === "ROLLED_BACK"
+          ? "Worker restored safe operation items through the WordPress plugin."
+          : "Worker finished safe operation rollback with one or more failed items.",
+      itemResults
+    });
+
+    return buildSummary(true, itemResults);
+  };
+}
+
 function normalizeApplyItem(item: BulkOperationExecutionItem): NormalizedApplyItem {
-  if (!/^([A-Za-z0-9_-]+):([1-9][0-9]*)$/.test(item.externalId)) {
+  const normalized = normalizeItemValue(item, item.afterValue, "after_value_required");
+
+  if (!normalized.executable) {
     return {
       executable: false,
-      result: failedResult(item, "invalid_external_id")
-    };
-  }
-
-  if (!isRecord(item.afterValue)) {
-    return {
-      executable: false,
-      result: failedResult(item, "after_value_required")
-    };
-  }
-
-  const keys = Object.keys(item.afterValue);
-  const unknownFields = keys.filter(
-    (key) => !supportedApplyFields.includes(key as (typeof supportedApplyFields)[number])
-  );
-
-  if (unknownFields.length > 0) {
-    return {
-      executable: false,
-      result: failedResult(item, `unsupported_field:${unknownFields.join(",")}`)
-    };
-  }
-
-  if (
-    !keys.some((key) => mutationApplyFields.includes(key as (typeof mutationApplyFields)[number]))
-  ) {
-    return {
-      executable: false,
-      result: failedResult(item, "operation_item_not_executable")
+      result: failedResult(item, normalized.error)
     };
   }
 
@@ -291,8 +444,82 @@ function normalizeApplyItem(item: BulkOperationExecutionItem): NormalizedApplyIt
     item: {
       itemId: item.id,
       externalId: item.externalId,
-      afterValue: item.afterValue
+      afterValue: normalized.value
     }
+  };
+}
+
+function normalizeRollbackItem(item: BulkOperationExecutionItem): NormalizedRollbackItem {
+  const normalized = normalizeItemValue(item, item.beforeValue, "before_value_required");
+
+  if (!normalized.executable) {
+    return {
+      executable: false,
+      result: failedRollbackResult(item, normalized.error)
+    };
+  }
+
+  return {
+    executable: true,
+    item: {
+      itemId: item.id,
+      externalId: item.externalId,
+      afterValue: normalized.value
+    }
+  };
+}
+
+function normalizeItemValue(
+  item: BulkOperationExecutionItem,
+  value: unknown,
+  missingValueError: string
+):
+  | {
+      executable: true;
+      value: Record<string, unknown>;
+    }
+  | {
+      executable: false;
+      error: string;
+    } {
+  if (!/^([A-Za-z0-9_-]+):([1-9][0-9]*)$/.test(item.externalId)) {
+    return {
+      executable: false,
+      error: "invalid_external_id"
+    };
+  }
+
+  if (!isRecord(value)) {
+    return {
+      executable: false,
+      error: missingValueError
+    };
+  }
+
+  const keys = Object.keys(value);
+  const unknownFields = keys.filter(
+    (key) => !supportedApplyFields.includes(key as (typeof supportedApplyFields)[number])
+  );
+
+  if (unknownFields.length > 0) {
+    return {
+      executable: false,
+      error: `unsupported_field:${unknownFields.join(",")}`
+    };
+  }
+
+  if (
+    !keys.some((key) => mutationApplyFields.includes(key as (typeof mutationApplyFields)[number]))
+  ) {
+    return {
+      executable: false,
+      error: "operation_item_not_executable"
+    };
+  }
+
+  return {
+    executable: true,
+    value
   };
 }
 
@@ -327,11 +554,28 @@ function normalizePluginResults(
   });
 }
 
+function normalizeRollbackPluginResults(
+  requestedItems: Array<{ itemId: string; externalId: string }>,
+  rawResults: Array<z.infer<typeof applyResultSchema>>
+): BulkOperationRollbackResultItem[] {
+  return normalizePluginResults(requestedItems, rawResults).map((result) => ({
+    ...result,
+    status: result.status === "COMPLETED" ? "ROLLED_BACK" : "FAILED"
+  }));
+}
+
 function failItems(
   items: BulkOperationExecutionItem[],
   error: string
 ): BulkOperationExecutionResultItem[] {
   return items.map((item) => failedResult(item, error));
+}
+
+function failRollbackItems(
+  items: BulkOperationExecutionItem[],
+  error: string
+): BulkOperationRollbackResultItem[] {
+  return items.map((item) => failedRollbackResult(item, error));
 }
 
 function failedResult(
@@ -348,7 +592,24 @@ function failedResult(
   };
 }
 
-function buildSummary(pluginCalled: boolean, itemResults: BulkOperationExecutionResultItem[]) {
+function failedRollbackResult(
+  item: Pick<BulkOperationExecutionItem, "id" | "externalId" | "beforeValue" | "afterValue">,
+  error: string
+): BulkOperationRollbackResultItem {
+  return {
+    itemId: item.id,
+    externalId: item.externalId,
+    status: "FAILED",
+    beforeValue: item.beforeValue ?? null,
+    afterValue: item.afterValue ?? null,
+    error
+  };
+}
+
+function buildSummary(
+  pluginCalled: boolean,
+  itemResults: Array<{ status: "COMPLETED" | "ROLLED_BACK" | "FAILED" }>
+) {
   const failedItems = itemResults.filter((item) => item.status === "FAILED").length;
 
   return {

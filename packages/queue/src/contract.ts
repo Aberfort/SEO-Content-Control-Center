@@ -68,6 +68,16 @@ export const bulkOperationExecuteJobDataSchema = z
 
 export type BulkOperationExecuteJobData = z.infer<typeof bulkOperationExecuteJobDataSchema>;
 
+export const bulkOperationRollbackJobDataSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    siteId: z.string().uuid(),
+    operationId: z.string().uuid()
+  })
+  .strict();
+
+export type BulkOperationRollbackJobData = z.infer<typeof bulkOperationRollbackJobDataSchema>;
+
 /**
  * Cron pattern for the repeatable GSC sync scheduler job. Search Analytics
  * data lags days behind real time, so one daily run is enough.
