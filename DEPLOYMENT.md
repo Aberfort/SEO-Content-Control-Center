@@ -56,6 +56,8 @@ The worker requires `REDIS_URL`, processes the `sccc-maintenance` queue, writes 
 
 Scheduled Google Search Console sync additionally requires `DATABASE_URL`, `SCCC_TOKEN_ENCRYPTION_KEY`, `SCCC_GSC_CLIENT_ID`, and `SCCC_GSC_CLIENT_SECRET`. When configured, the worker processes the `sccc-gsc-sync` queue and registers a repeatable `gsc.schedule-sync` job (daily at 06:00 UTC) that enqueues one metrics job and one insights job per active connection with date-scoped deterministic job ids. Without those variables the worker starts with GSC sync disabled and logs the missing configuration.
 
+Bulk operation execution additionally requires `DATABASE_URL` and `SCCC_TOKEN_ENCRYPTION_KEY`. When configured, the worker processes the `sccc-bulk-operations` queue and executes `bulk-operation.execute` jobs by signing requests to the connected WordPress plugin apply endpoint. WordPress connections created before encrypted plugin-token storage must be reconnected before worker apply can run for that site.
+
 ## Health Checks
 
 - SaaS: `GET /api/health`.

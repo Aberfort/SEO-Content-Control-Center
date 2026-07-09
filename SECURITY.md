@@ -15,7 +15,7 @@
 - Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
 - Invite email bodies must not log raw tokens; raw invite URLs may appear only in the intended email/API response.
-- WordPress connection challenges and plugin tokens must be stored as hashes; sync requests must be timestamped and HMAC-signed.
+- WordPress connection challenges and plugin tokens must be stored as hashes; when outbound worker apply is enabled, the raw plugin token is additionally stored encrypted for recoverable signing and is never returned by read APIs.
 - Rate limiting for auth, invite flows, safe content operation mutations, WordPress plugin endpoints (challenge creation, challenge exchange, sync, disconnect), and the Stripe billing webhook.
 - Rate limit counters use Redis when `REDIS_URL` is configured so limits survive multiple SaaS instances; the in-memory fallback (no `REDIS_URL`, `SCCC_RATE_LIMIT_STORE=memory`, or a Redis outage) is process-local and acceptable only for a single instance.
 - Plugin endpoint rate limits run before signature verification so unauthenticated brute force against plugin tokens and challenges is throttled by client IP.
@@ -109,6 +109,8 @@
 - Google Search Console insight sync requires same-origin requests and integration management permission, stores aggregate page/query Search Analytics rows only, and never returns tokens.
 - Background jobs validate connection state before execution.
 - Worker job handlers for tenant-scoped work must validate organization/site payload scope before running; jobs without tenant context fail fast.
+- Bulk operation execution jobs must validate organization/site/operation scope, process only `RUNNING` operations, fail preview-only/no-mutation items without calling WordPress, and record per-item outcomes.
+- Bulk operation workers decrypt plugin apply tokens only in memory immediately before signing WordPress apply requests; tokens, signatures, headers, and request bodies must not be logged.
 - Scheduled GSC sync jobs load connections only through organization/site-scoped queries, decrypt refresh tokens in memory just before token refresh, and never place tokens in job payloads, job results, or logs.
 - Scheduled GSC sync writes activity logs as system entries without a user id and with bounded metadata only.
 - Worker logs are structured with primitive context values only and must never include tokens, signatures, or payload bodies.
@@ -139,7 +141,7 @@ Every risky bulk operation must have:
 - retry strategy;
 - rate limits.
 
-Known gaps as of Iteration 84: the signed WordPress apply endpoint exists, but SaaS bulk operation worker handlers do not call it yet; rollback still captures SaaS state without restoring previous values on the WordPress site.
+Known gaps as of Iteration 85: executable SEO payload creation is still pending for backlog-derived safe operations, and rollback still captures SaaS state without restoring previous values on the WordPress site.
 
 ## Roadmap Security Items
 

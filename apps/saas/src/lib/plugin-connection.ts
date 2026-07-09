@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
@@ -8,12 +8,14 @@ import {
   pluginConnectionDisconnectSchema,
   pluginConnectionExchangeSchema,
   pluginSyncBatchSchema,
+  signPluginRequest,
   type PluginConnectionChallengeCreateInput,
   type PluginConnectionDisconnectInput,
   type PluginConnectionExchangeInput,
   type PluginSyncBatch
 } from "@sccc/shared";
 
+import { encryptSecret, isTokenEncryptionConfigured } from "./token-encryption";
 import type { AppUser } from "./types";
 
 const challengeTtlMs = 1000 * 60 * 10;
@@ -126,6 +128,7 @@ export async function exchangePluginConnectionChallenge(
 
   const token = createOpaqueToken();
   const tokenHash = hashPluginToken(token);
+  const encryptedToken = isTokenEncryptionConfigured() ? encryptSecret(token) : null;
   const connection = await prisma.$transaction(async (tx) => {
     await tx.wordPressConnectionChallenge.update({
       where: {
@@ -142,6 +145,7 @@ export async function exchangePluginConnectionChallenge(
       },
       update: {
         tokenHash,
+        encryptedToken,
         tokenVersion: {
           increment: 1
         },
@@ -150,6 +154,7 @@ export async function exchangePluginConnectionChallenge(
       create: {
         siteId: challenge.siteId,
         tokenHash,
+        encryptedToken,
         tokenVersion: 1
       }
     });
@@ -377,23 +382,6 @@ export function createOpaqueToken(): string {
 
 export function hashPluginToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
-}
-
-export function signPluginRequest(input: {
-  method: string;
-  path: string;
-  timestamp: number;
-  body: string;
-  secret: string;
-}): string {
-  const payload = [
-    input.method.toUpperCase(),
-    input.path,
-    String(input.timestamp),
-    createHash("sha256").update(input.body).digest("hex")
-  ].join("\n");
-
-  return createHmac("sha256", input.secret).update(payload).digest("hex");
 }
 
 async function markPluginConnectionDisconnected(input: {

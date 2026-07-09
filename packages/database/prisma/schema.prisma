@@ -243,6 +243,7 @@ model WordPressConnection {
   id              String    @id @default(uuid())
   siteId          String    @unique
   tokenHash       String    @unique
+  encryptedToken  String?
   tokenVersion    Int       @default(1)
   lastSyncAt      DateTime?
   disconnectedAt  DateTime?

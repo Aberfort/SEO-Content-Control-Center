@@ -2,6 +2,17 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 85
+
+- Added bulk operation execution jobs on the `sccc-bulk-operations` queue with a strict `organizationId`, `siteId`, and `operationId` payload contract.
+- Added a worker execution handler for `bulk-operation.execute` that loads scoped `RUNNING` operations, validates executable SEO apply items, signs WordPress apply requests, and records per-item results back to the database.
+- Added worker fail-fast behavior for preview-only/no-mutation items, unavailable WordPress connections, and missing encrypted plugin apply secrets so operations do not stay indefinitely `RUNNING`.
+- Added live worker persistence for actual WordPress `beforeValue`/`afterValue` apply results, lifecycle activity logs, and completion/failure notifications.
+- Added optional encrypted WordPress plugin token storage for new plugin connections when `SCCC_TOKEN_ENCRYPTION_KEY` is configured; existing hash-only connections must reconnect before worker apply can sign outbound plugin requests.
+- Added a SaaS queue producer that enqueues bulk operation execution after `start` when `REDIS_URL` is configured, while preserving local/manual behavior when Redis is not configured.
+- Shared the plugin HMAC signing helper through `@sccc/shared` so SaaS and worker signing stay aligned.
+- Documented worker execution requirements and the remaining Phase 6 gaps: executable SEO payload creation and true rollback restore.
+
 ### Iteration 84
 
 - Added a WordPress-hosted signed safe operation apply endpoint at `/wp-json/sccc/v1/operations/apply`.

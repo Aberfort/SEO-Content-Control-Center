@@ -85,8 +85,10 @@ Response:
 }
 ```
 
-The plugin token is returned only once. The SaaS app stores only its hash. The WordPress plugin stores
-the raw token in local options with autoload disabled.
+The plugin token is returned only once. The SaaS app stores its hash and, when
+`SCCC_TOKEN_ENCRYPTION_KEY` is configured, an encrypted copy used only by the worker to sign outbound
+WordPress apply requests. The WordPress plugin stores the raw token in local options with autoload
+disabled.
 
 ## Signed Requests
 
@@ -414,5 +416,7 @@ Signed apply:
 - Retry sync batches safely. The SaaS app upserts by site and external ID.
 - Treat safe operation apply batches as worker-only traffic. They must be created from confirmed
   operation items and recorded through the SaaS result endpoint after the plugin responds.
+- Reconnect WordPress sites created before encrypted plugin-token storage if worker apply returns
+  `plugin_apply_secret_not_available`.
 - Clear local credentials only after a successful plugin-initiated disconnect response.
 - Use the API specification for broader SaaS endpoint details: [API_SPEC.md](../API_SPEC.md).

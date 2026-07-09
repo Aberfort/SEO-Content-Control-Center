@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { hashPluginToken, signPluginRequest } from "./plugin-connection";
+import { signPluginRequest } from "@sccc/shared";
+
+import { hashPluginToken } from "./plugin-connection";
 
 describe("plugin connection signing", () => {
   it("matches the WordPress plugin request signing payload format", () => {

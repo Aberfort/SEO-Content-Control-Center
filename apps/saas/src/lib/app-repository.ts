@@ -143,6 +143,7 @@ import {
 } from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import { enqueueBulkOperationExecutionJob } from "./bulk-operation-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import type {
@@ -3353,6 +3354,29 @@ const prismaRepository: AppRepository = {
       return updated;
     });
 
+    try {
+      await enqueueBulkOperationExecutionJob({
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        operationId: operation.id
+      });
+    } catch (error) {
+      const failedOperation = await markBulkOperationExecutionQueueFailure({
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        operationId: operation.id,
+        type: operation.type,
+        itemCount: operation.items.length,
+        message: "Could not enqueue bulk operation execution job."
+      });
+
+      if (failedOperation) {
+        return mapBulkOperation(failedOperation);
+      }
+
+      throw error;
+    }
+
     return mapBulkOperation(operation);
   },
 
@@ -4992,6 +5016,90 @@ function buildBulkOperationDryRunResult(operation: {
     ],
     nextRequiredStep: "confirmation"
   };
+}
+
+async function markBulkOperationExecutionQueueFailure(input: {
+  organizationId: string;
+  siteId: string;
+  operationId: string;
+  type: string;
+  itemCount: number;
+  message: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.bulkOperation.findFirst({
+      where: {
+        id: input.operationId,
+        organizationId: input.organizationId,
+        siteId: input.siteId
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!existing || existing.status !== "RUNNING") {
+      return null;
+    }
+
+    await tx.bulkOperationItem.updateMany({
+      where: {
+        bulkOperationId: existing.id
+      },
+      data: {
+        status: "FAILED",
+        error: input.message
+      }
+    });
+
+    const updated = await tx.bulkOperation.update({
+      where: {
+        id: existing.id
+      },
+      data: {
+        status: "FAILED"
+      },
+      include: {
+        items: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: null,
+        action: "bulk_operation.failed",
+        entityType: "BulkOperation",
+        entityId: updated.id,
+        metadata: {
+          siteId: input.siteId,
+          type: input.type,
+          itemCount: input.itemCount,
+          failedItemCount: input.itemCount,
+          message: input.message,
+          trigger: "queue_enqueue"
+        }
+      }
+    });
+
+    await tx.notification.create({
+      data: {
+        organizationId: input.organizationId,
+        ...buildBulkOperationNotification({
+          event: "failed",
+          itemCount: input.itemCount,
+          failedItemCount: input.itemCount,
+          message: input.message
+        })
+      }
+    });
+
+    return updated;
+  });
 }
 
 function mapBulkOperation(operation: {

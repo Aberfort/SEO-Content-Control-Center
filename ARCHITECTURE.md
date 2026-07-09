@@ -2,20 +2,20 @@
 
 ## System Components
 
-- SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis (rate limits today, queues planned), BullMQ workers (planned), S3-compatible storage (planned), Stripe billing.
+- SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis-backed rate limits and queues, BullMQ workers, S3-compatible storage (planned), Stripe billing.
 - WordPress plugin: PHP 8.1+, PSR-4 autoloading, WP REST API, Action Scheduler for background work, nonce/capability checks, sanitized inputs, escaped outputs.
 - Marketing site: public Next.js app with SEO metadata, lead/demo/trial forms, product content, status and legal pages.
-- Workers: BullMQ worker process foundation with heartbeat, handler registry, and graceful shutdown; background jobs for sync ingestion, audits, GSC pulls, exports, and bulk operations plug into this foundation in later iterations.
+- Workers: BullMQ worker process foundation with heartbeat, handler registry, graceful shutdown, scheduled Google Search Console sync, and safe bulk operation execution.
 
 ## Current Implementation Status
 
-The target architecture above is not fully built yet. As of Iteration 79 the codebase deviates as follows:
+The target architecture above is not fully built yet. As of Iteration 85 the codebase deviates as follows:
 
-- A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance` and `sccc-gsc-sync` queues with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-bulk-operations` and `sccc-plugin-sync` queue names are reserved contracts in `packages/queue`; no business jobs are enqueued or processed on them yet.
+- A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, and `sccc-bulk-operations` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-plugin-sync` queue name remains reserved.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
 - Google Search Console metric and insight syncs run on a daily repeatable worker schedule for every active connection, and can still be triggered manually from the dashboard. The shared Google API client lives in `packages/gsc`.
-- Safe content operations capture state only (preview, dry run, confirm, start, results, retry, rollback). No code path writes to WordPress, and the plugin exposes no REST endpoint for applying operations.
+- Safe content operations now have state capture, queue execution, a signed WordPress apply endpoint, and worker result persistence for executable SEO metadata payloads. Backlog-derived previews are still `noMutation`; executable payload generation and true rollback restore remain future work.
 - S3-compatible storage is provisioned in Docker but unused by application code.
 
 ## Monorepo Boundaries

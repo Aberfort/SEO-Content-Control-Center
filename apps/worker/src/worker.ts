@@ -12,6 +12,11 @@ import {
 } from "@sccc/queue";
 import { Worker } from "bullmq";
 
+import { createBulkOperationExecuteHandler } from "./bulk-operations/handlers";
+import {
+  buildLiveBulkOperationExecutionDeps,
+  isBulkOperationWorkerConfigured
+} from "./bulk-operations/live";
 import {
   createGscDailyMetricsSyncHandler,
   createGscScheduleHandler,
@@ -30,6 +35,7 @@ export type WorkerProcess = {
   workerId: string;
   registry: JobHandlerRegistry;
   gscSyncEnabled: boolean;
+  bulkOperationExecutionEnabled: boolean;
   shutdown(): Promise<void>;
 };
 
@@ -45,10 +51,6 @@ export function buildWorkerId(hostname = os.hostname(), pid = process.pid): stri
   return `${hostname}:${pid}`;
 }
 
-/**
- * Registers the handlers processed by the worker foundation. Future
- * iterations extend this registry with bulk operation handlers.
- */
 export function registerFoundationHandlers(registry: JobHandlerRegistry): void {
   registry.register(jobNames.maintenancePing, createMaintenancePingHandler());
 }
@@ -177,6 +179,21 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     });
   }
 
+  const bulkOperationExecutionEnabled = isBulkOperationWorkerConfigured(env);
+
+  if (bulkOperationExecutionEnabled) {
+    registry.register(
+      jobNames.bulkOperationExecute,
+      createBulkOperationExecuteHandler(buildLiveBulkOperationExecutionDeps())
+    );
+    createQueueWorker(queueNames.bulkOperations);
+  } else {
+    logWorkerEvent("warn", "worker.bulk_operation_execution_disabled", {
+      workerId,
+      hint: "Set DATABASE_URL and SCCC_TOKEN_ENCRYPTION_KEY to enable bulk operation execution."
+    });
+  }
+
   await heartbeat.recordOnce();
   heartbeat.start();
 
@@ -184,6 +201,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     workerId,
     queues: workers.length,
     gscSyncEnabled,
+    bulkOperationExecutionEnabled,
     handlers: registry.registeredJobNames().join(",")
   });
 
@@ -191,6 +209,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     workerId,
     registry,
     gscSyncEnabled,
+    bulkOperationExecutionEnabled,
     async shutdown() {
       heartbeat.stop();
 

@@ -176,6 +176,11 @@
 - Re-running the GSC schedule job on the same day deduplicates instead of duplicating sync work.
 - GSC sync jobs fail with `GSC_CONNECTION_NOT_FOUND` when the site has no active connection in the requested organization.
 - The worker starts with GSC sync disabled and logs a hint when GSC credentials, token encryption, or the database are not configured.
+- Starting a confirmed bulk operation enqueues a deterministic `bulk-operation.execute` job when `REDIS_URL` is configured.
+- Bulk operation execution jobs reject payloads without organization/site/operation scope.
+- Bulk operation execution fails preview-only/no-mutation items without calling WordPress.
+- Bulk operation execution signs WordPress apply requests with the encrypted plugin token and records plugin per-item results.
+- Bulk operation execution records failed results when the WordPress connection is disconnected or lacks an encrypted apply token.
 - Plugin sync paginates inventories larger than one batch and sends offset cursors with every batch.
 - Plugin sync batches are ordered by post ID ascending so pagination stays stable while content changes.
 - Posts without permalinks are skipped inside a batch without ending pagination early.
@@ -193,7 +198,8 @@
 - No risky mutation happens without explicit confirmation.
 - Confirmed bulk operations remain pending execution and still do not write to WordPress.
 - Starting confirmed bulk operations records the running state and still does not write to WordPress inline.
-- Running bulk operation result capture records per-item outcomes and still does not write to WordPress inline.
+- Running bulk operation result capture records per-item outcomes and inline SaaS requests still do not write to WordPress.
+- Worker execution may write only bounded signed WordPress SEO metadata after preview, dry run, confirmation, and start.
 - Rollback state capture records restored operation state and still does not write to WordPress inline.
 - Retry state capture records failed item retry state and still does not write to WordPress inline.
 - Every risky mutation writes an audit log, including safe content operation lifecycle transitions.

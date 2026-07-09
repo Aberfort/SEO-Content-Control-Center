@@ -118,6 +118,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - explicit confirmation for dry-run-passed safe content operations;
 - controlled start state for confirmed safe content operations without inline WordPress writes;
 - execution result recording for running safe content operations with per-item outcomes;
+- queued safe content operation execution through the worker for executable signed WordPress apply payloads;
 - rollback state capture for completed or failed safe content operations;
 - retry state capture for failed safe content operation items;
 - activity logs for safe content operation preview, dry run, confirmation, start, result, rollback, and retry transitions;
@@ -136,12 +137,13 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - BullMQ worker process foundation with maintenance queue processing, Redis heartbeat, job handler registry, tenant job payload validation, and graceful shutdown;
 - shared queue contract package with reserved queue/job names, deterministic job ids, and bounded retry defaults;
 - scheduled daily Google Search Console metric and insight sync through repeatable worker jobs for every active connection;
+- bulk operation execution queue processing with signed WordPress plugin apply calls and per-item result persistence;
 - shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
 - CI workflow.
 
-No end-to-end destructive SEO automation is implemented in this iteration.
+No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 
 ## Database
 

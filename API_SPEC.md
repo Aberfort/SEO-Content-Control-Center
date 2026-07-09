@@ -1221,10 +1221,10 @@ Response:
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/start`
 
 Starts a scoped `CONFIRMED` bulk operation when the member has `content_operation:confirm`.
-This moves the SaaS operation and items to `RUNNING` for future worker processing, records an activity log, and still does not write to WordPress inline.
-Future bulk operation worker handlers must load the scoped running operation, sign a request to the
-connected WordPress plugin apply endpoint, and then record per-item results through the result
-endpoint below.
+This moves the SaaS operation and items to `RUNNING`, records an activity log, and still does not
+write to WordPress inline. When `REDIS_URL` is configured, the SaaS app enqueues a deterministic
+`bulk-operation.execute` job on `sccc-bulk-operations`; otherwise the operation remains running for
+manual or later worker result capture.
 
 Response:
 
@@ -1292,8 +1292,8 @@ Response:
 
 `POST /wp-json/sccc/v1/operations/apply`
 
-This endpoint is hosted by the connected WordPress plugin, not by the SaaS app. It is the future
-worker target for running safe operation items after SaaS confirmation/start. Requests use the same
+This endpoint is hosted by the connected WordPress plugin, not by the SaaS app. It is the worker
+target for running safe operation items after SaaS confirmation/start. Requests use the same
 HMAC header scheme as plugin sync, signed against the WordPress REST path
 `/wp-json/sccc/v1/operations/apply`, and must include matching `organizationId`, `siteId`,
 `operationId`, and operation items.
@@ -1301,8 +1301,9 @@ HMAC header scheme as plugin sync, signed against the WordPress REST path
 The plugin accepts only bounded Yoast/Rank Math SEO metadata fields (`seoTitle`,
 `metaDescription`, `canonicalUrl`, `robotsNoindex`, `robotsNofollow`) for synced `post_type:id`
 targets and returns per-item `COMPLETED`/`FAILED` results with before/after values. Unsupported
-fields are rejected per item and are not written. See [docs/PLUGIN_API.md](docs/PLUGIN_API.md) for
-the full WordPress-hosted apply contract.
+fields are rejected per item and are not written. The worker requires an encrypted plugin token on
+the WordPress connection; older hash-only connections must reconnect before outbound apply can be
+signed. See [docs/PLUGIN_API.md](docs/PLUGIN_API.md) for the full WordPress-hosted apply contract.
 
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/retry`
 
