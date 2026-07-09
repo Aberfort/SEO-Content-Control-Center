@@ -175,6 +175,7 @@ Current MVP activity actions:
 Returns the Google Search Console connection overview for a site when the current user has `site:read` access to the organization/site scope. The response is read-only and exposes property/account metadata only; encrypted refresh tokens are never returned. The connect action remains disabled until the OAuth callback and token exchange flow is implemented.
 
 OAuth readiness requires non-empty `SCCC_GSC_CLIENT_ID`, `SCCC_GSC_CLIENT_SECRET`, and `SCCC_GSC_REDIRECT_URI`.
+The enabled connect flow also requires `SCCC_TOKEN_ENCRYPTION_KEY` and either `SCCC_GSC_STATE_SECRET` or `AUTH_SECRET`.
 
 Response:
 
@@ -199,6 +200,7 @@ Response:
       "type": "gsc_oauth",
       "label": "Connect Google Search Console",
       "enabled": false,
+      "href": null,
       "disabledReason": "Google Search Console OAuth is not configured.",
       "requiresIntegrationManage": true,
       "noMutation": true
@@ -206,6 +208,14 @@ Response:
   }
 }
 ```
+
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/oauth/start?propertyUrl=:propertyUrl`
+
+Starts the browser OAuth flow for an authenticated user who can manage integrations. The route verifies the selected site through the organization/site scope, signs a short-lived OAuth `state` containing the user, organization, site, and requested property URL, then redirects to Google's OAuth authorization endpoint with read-only Search Console scope and offline access. If configuration or permission checks fail, the route redirects back to the dashboard with a safe `gsc=error` status.
+
+`GET /api/integrations/gsc/callback`
+
+Completes the Google OAuth redirect. The route verifies the signed state, checks that the current signed-in user matches the state, exchanges the authorization code for Google tokens, fetches the connected Google account email, encrypts the refresh token, and upserts a `GscConnection` for the scoped site/property. The callback redirects back to the dashboard with `gsc=connected` or a safe `gsc=error` message. Raw and encrypted refresh tokens are never returned in API responses.
 
 ## Billing Overview
 

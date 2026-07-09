@@ -102,7 +102,8 @@ import {
   applyBillingWebhookUpdate as applyDevBillingWebhookUpdate,
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
-  updateMemberRole as updateDevMemberRole
+  updateMemberRole as updateDevMemberRole,
+  upsertGscConnection as upsertDevGscConnection
 } from "./dev-store";
 import {
   buildSyncedContentBacklogCandidates,
@@ -295,6 +296,15 @@ type BillingPortalContextInput = {
   organizationId: string;
 };
 
+type UpsertGscConnectionInput = {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  encryptedRefreshToken: string;
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -333,6 +343,7 @@ type AppRepository = {
     organizationId: string,
     siteId: string
   ): Promise<GscConnectionOverview>;
+  upsertGscConnection(input: UpsertGscConnectionInput): Promise<GscConnectionSummary>;
   listAssistantRecommendationsForSite(
     userId: string,
     organizationId: string,
@@ -465,6 +476,9 @@ const devStoreRepository: AppRepository = {
   },
   async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
     return getDevGscConnectionOverviewForSite(userId, organizationId, siteId);
+  },
+  async upsertGscConnection(input) {
+    return upsertDevGscConnection(input);
   },
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
     return listDevAssistantRecommendationsForSite(userId, organizationId, siteId, options);
@@ -1423,9 +1437,67 @@ const prismaRepository: AppRepository = {
       connected: mappedConnections.length > 0,
       oauthConfigured: isGscOAuthConfigured(),
       action: buildGscConnectAction({
-        canManageIntegrations: hasPermission(membership.role, "integration:manage")
+        canManageIntegrations: hasPermission(membership.role, "integration:manage"),
+        organizationId,
+        siteId,
+        propertyUrl: site.url
       })
     };
+  },
+
+  async upsertGscConnection(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "integration:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: input.siteId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const connection = await prisma.gscConnection.upsert({
+      where: {
+        siteId_propertyUrl: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl
+        }
+      },
+      update: {
+        googleAccountEmail: input.googleAccountEmail,
+        encryptedRefreshToken: input.encryptedRefreshToken,
+        disconnectedAt: null
+      },
+      create: {
+        siteId: input.siteId,
+        googleAccountEmail: input.googleAccountEmail,
+        propertyUrl: input.propertyUrl,
+        encryptedRefreshToken: input.encryptedRefreshToken
+      }
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: input.user.id,
+        action: "gsc.connected",
+        entityType: "GscConnection",
+        entityId: connection.id,
+        metadata: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl
+        }
+      }
+    });
+
+    return mapGscConnectionSummary(connection);
   },
 
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {

@@ -53,9 +53,9 @@
 
 ## Phase 4 - Google Search Console
 
-- OAuth. Status: tenant-scoped OAuth readiness and disabled connect action scaffold implemented; callback/token exchange is pending.
-- Property selection. Status: site-scoped connected property overview implemented for stored GSC connections.
-- Encrypted refresh token storage.
+- OAuth. Status: OAuth start/callback, signed state, token exchange, and connected Google account email lookup implemented.
+- Property selection. Status: site URL is used as the initial requested property; dedicated property picker is pending.
+- Encrypted refresh token storage. Status: refresh tokens are encrypted before storage and are never returned by read APIs.
 - Historical metric sync.
 - Page/query insights.
 

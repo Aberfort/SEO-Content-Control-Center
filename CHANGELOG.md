@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 74
+
+- Added Google Search Console OAuth start and callback routes with signed tenant/site state.
+- Added Google OAuth code exchange, connected Google account email lookup, and scoped GSC connection upsert.
+- Added AES-GCM recoverable secret encryption for refresh token storage.
+- Enabled the dashboard GSC connect action only when OAuth, state signing, and token encryption are configured.
+- Documented GSC OAuth routes, required environment variables, security guardrails, and QA coverage.
+
 ### Iteration 73
 
 - Added a tenant-scoped Google Search Console connection overview for each site.

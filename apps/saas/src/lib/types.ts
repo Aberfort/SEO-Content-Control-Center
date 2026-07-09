@@ -181,6 +181,7 @@ export type GscConnectAction = {
   type: "gsc_oauth";
   label: string;
   enabled: boolean;
+  href: string | null;
   disabledReason: string | null;
   requiresIntegrationManage: true;
   noMutation: boolean;

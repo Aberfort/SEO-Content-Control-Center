@@ -72,6 +72,7 @@ const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", 
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
+const gscStatuses = ["connected", "error"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -108,6 +109,8 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   };
   const billingStatus = readEnumQueryParam(params, "billing", billingStatuses);
   const billingMessage = readQueryParam(params, "message");
+  const gscStatus = readEnumQueryParam(params, "gsc", gscStatuses);
+  const gscMessage = readQueryParam(params, "message");
   const selectedContentId = readQueryParam(params, "content");
   const selectedAuditId = readQueryParam(params, "audit");
   const activeMembers = activeOrganization
@@ -416,6 +419,16 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
             ) : null}
           </div>
 
+          {gscStatus ? (
+            <p
+              className={`billing-feedback billing-feedback-${
+                gscStatus === "connected" ? "success" : "error"
+              }`}
+            >
+              {formatGscFeedback(gscStatus, gscMessage)}
+            </p>
+          ) : null}
+
           {activeOrganization && activeSite ? (
             canReadSite && gscOverview ? (
               <>
@@ -433,10 +446,20 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     </span>
                   </div>
                   <div className="billing-action-cell">
-                    <button className="secondary-button" disabled type="button">
-                      {gscOverview.action.label}
-                    </button>
-                    <span>{gscOverview.action.disabledReason}</span>
+                    {gscOverview.action.enabled && gscOverview.action.href ? (
+                      <Link className="secondary-button" href={gscOverview.action.href}>
+                        {gscOverview.action.label}
+                      </Link>
+                    ) : (
+                      <button className="secondary-button" disabled type="button">
+                        {gscOverview.action.label}
+                      </button>
+                    )}
+                    <span>
+                      {gscOverview.action.enabled
+                        ? "Requests read-only Search Console access from Google."
+                        : gscOverview.action.disabledReason}
+                    </span>
                   </div>
                 </div>
 
@@ -2266,6 +2289,14 @@ function formatBillingFeedback(status: (typeof billingStatuses)[number], message
   }
 
   return message || "Checkout could not be started.";
+}
+
+function formatGscFeedback(status: (typeof gscStatuses)[number], message: string): string {
+  if (status === "connected") {
+    return "Google Search Console connection completed.";
+  }
+
+  return message || "Google Search Console connection could not be completed.";
 }
 
 function formatSubscriptionStatus(subscription: BillingSubscription | null): string {

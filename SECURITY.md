@@ -96,7 +96,9 @@
 - Billing webhook processing must verify the Stripe signature over the raw request body and record provider event ids before reconciling local subscription state, so replayed events cannot repeat mutations.
 - Billing feature gates must enforce current organization plan limits before creating sites or inviting members.
 - Billing limit notifications must be tenant-scoped and created only after successful usage changes reach a finite plan limit.
-- Google Search Console overview reads require organization/site scoping and `site:read`; responses must never expose encrypted refresh tokens, and connect controls stay disabled until OAuth callback/token storage is implemented.
+- Google Search Console overview reads require organization/site scoping and `site:read`; responses must never expose raw or encrypted refresh tokens.
+- Google Search Console OAuth start requires signed tenant/site/user state, integration management permission, read-only Search Console scope, and configured token encryption before the connect control is enabled.
+- Google Search Console OAuth callback must verify state, match the current signed-in user, encrypt refresh tokens before storage, and upsert only through organization/site-scoped repository methods.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

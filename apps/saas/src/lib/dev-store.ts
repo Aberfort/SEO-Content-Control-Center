@@ -124,11 +124,15 @@ type DevStoreState = {
   activityLogs: ActivityLog[];
   notifications: Notification[];
   subscriptions: BillingSubscription[];
-  gscConnections: GscConnectionSummary[];
+  gscConnections: StoreGscConnection[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
   inviteTokenHash?: string | null;
+};
+
+type StoreGscConnection = GscConnectionSummary & {
+  encryptedRefreshToken: string;
 };
 
 type CreateOrganizationInput = {
@@ -554,16 +558,95 @@ export function getGscConnectionOverviewForSite(
   const connections = store.gscConnections
     .filter((connection) => connection.siteId === siteId && connection.disconnectedAt === null)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const mappedConnections = connections.map(mapGscConnectionSummary);
 
   return {
     siteId,
-    connections,
-    connected: connections.length > 0,
+    connections: mappedConnections,
+    connected: mappedConnections.length > 0,
     oauthConfigured: isGscOAuthConfigured(),
     action: buildGscConnectAction({
-      canManageIntegrations: hasPermission(member.role, "integration:manage")
+      canManageIntegrations: hasPermission(member.role, "integration:manage"),
+      organizationId,
+      siteId,
+      propertyUrl: site.url
     })
   };
+}
+
+export function upsertGscConnection(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  encryptedRefreshToken: string;
+}): GscConnectionSummary {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "integration:manage"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) =>
+      candidate.id === input.siteId && candidate.organizationId === input.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const now = new Date().toISOString();
+  const existing = store.gscConnections.find(
+    (connection) =>
+      connection.siteId === input.siteId && connection.propertyUrl === input.propertyUrl
+  );
+
+  if (existing) {
+    existing.googleAccountEmail = input.googleAccountEmail;
+    existing.encryptedRefreshToken = input.encryptedRefreshToken;
+    existing.disconnectedAt = null;
+    existing.updatedAt = now;
+    writeActivityLog({
+      organizationId: input.organizationId,
+      userId: input.user.id,
+      action: "gsc.connected",
+      entityType: "GscConnection",
+      entityId: existing.id,
+      metadata: {
+        siteId: input.siteId,
+        propertyUrl: input.propertyUrl
+      }
+    });
+
+    return mapGscConnectionSummary(existing);
+  }
+
+  const connection: StoreGscConnection = {
+    id: randomUUID(),
+    siteId: input.siteId,
+    googleAccountEmail: input.googleAccountEmail,
+    propertyUrl: input.propertyUrl,
+    encryptedRefreshToken: input.encryptedRefreshToken,
+    connectedAt: now,
+    updatedAt: now,
+    disconnectedAt: null
+  };
+  store.gscConnections.push(connection);
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "gsc.connected",
+    entityType: "GscConnection",
+    entityId: connection.id,
+    metadata: {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl
+    }
+  });
+
+  return mapGscConnectionSummary(connection);
 }
 
 export function listActivityLogsForOrganization(
@@ -2590,6 +2673,18 @@ function emptyAuditIssueSummary(): AuditIssueSummary {
     resolved: 0,
     high: 0,
     critical: 0
+  };
+}
+
+function mapGscConnectionSummary(connection: StoreGscConnection): GscConnectionSummary {
+  return {
+    id: connection.id,
+    siteId: connection.siteId,
+    googleAccountEmail: connection.googleAccountEmail,
+    propertyUrl: connection.propertyUrl,
+    connectedAt: connection.connectedAt,
+    updatedAt: connection.updatedAt,
+    disconnectedAt: connection.disconnectedAt
   };
 }
 

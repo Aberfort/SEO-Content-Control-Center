@@ -14,6 +14,7 @@ describe("app repository", () => {
   beforeEach(() => {
     delete process.env.SCCC_DATA_STORE;
     delete process.env.DATABASE_URL;
+    clearGscEnv();
     resetDevStore();
   });
 
@@ -50,15 +51,34 @@ describe("app repository", () => {
         noMutation: true
       }
     });
-    getDevStore().gscConnections.push({
-      id: "00000000-0000-4000-8000-000000000909",
+    configureGscEnv();
+    await expect(
+      repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
+    ).resolves.toMatchObject({
+      action: {
+        enabled: true,
+        href: `/api/organizations/${organization.id}/sites/${siteId}/gsc/oauth/start?propertyUrl=https%3A%2F%2Frepository.example.com%2F`,
+        disabledReason: null,
+        noMutation: false
+      }
+    });
+    const connection = await repository.upsertGscConnection({
+      user,
+      organizationId: organization.id,
       siteId,
       googleAccountEmail: "search@example.com",
       propertyUrl: "sc-domain:repository.example.com",
-      connectedAt: "2026-07-08T10:00:00.000Z",
-      updatedAt: "2026-07-08T10:00:00.000Z",
+      encryptedRefreshToken: "encrypted-refresh-token"
+    });
+
+    expect(connection).toMatchObject({
+      siteId,
+      googleAccountEmail: "search@example.com",
+      propertyUrl: "sc-domain:repository.example.com",
       disconnectedAt: null
     });
+    expect(connection).not.toHaveProperty("encryptedRefreshToken");
+    expect(getDevStore().gscConnections[0]?.encryptedRefreshToken).toBe("encrypted-refresh-token");
     await expect(
       repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
     ).resolves.toMatchObject({
@@ -71,6 +91,23 @@ describe("app repository", () => {
         }
       ]
     });
+    await repository.upsertGscConnection({
+      user,
+      organizationId: organization.id,
+      siteId,
+      googleAccountEmail: "updated-search@example.com",
+      propertyUrl: "sc-domain:repository.example.com",
+      encryptedRefreshToken: "updated-encrypted-refresh-token"
+    });
+    expect(getDevStore().gscConnections).toHaveLength(1);
+    expect(getDevStore().gscConnections[0]).toMatchObject({
+      googleAccountEmail: "updated-search@example.com",
+      encryptedRefreshToken: "updated-encrypted-refresh-token"
+    });
+    expect(getDevStore().activityLogs.filter((log) => log.action === "gsc.connected")).toHaveLength(
+      2
+    );
+    clearGscEnv();
     expect(await repository.listSyncedContentForSite(user.id, organization.id, siteId)).toEqual({
       items: [],
       nextCursor: null,
@@ -1130,3 +1167,20 @@ describe("app repository", () => {
     ).toEqual(expect.arrayContaining(["bulk_operation.completed", "bulk_operation.rolled_back"]));
   });
 });
+
+function configureGscEnv(): void {
+  process.env.SCCC_GSC_CLIENT_ID = "client-id";
+  process.env.SCCC_GSC_CLIENT_SECRET = "client-secret";
+  process.env.SCCC_GSC_REDIRECT_URI = "https://app.example.com/api/integrations/gsc/callback";
+  process.env.SCCC_TOKEN_ENCRYPTION_KEY = "local-test-token-encryption-key";
+  process.env.AUTH_SECRET = "local-test-auth-secret";
+}
+
+function clearGscEnv(): void {
+  delete process.env.SCCC_GSC_CLIENT_ID;
+  delete process.env.SCCC_GSC_CLIENT_SECRET;
+  delete process.env.SCCC_GSC_REDIRECT_URI;
+  delete process.env.SCCC_TOKEN_ENCRYPTION_KEY;
+  delete process.env.AUTH_SECRET;
+  delete process.env.SCCC_GSC_STATE_SECRET;
+}

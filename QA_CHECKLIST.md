@@ -145,7 +145,9 @@
 - SaaS users with organization read permission can mark organization notifications read or unread.
 - SaaS users with organization read permission can mark all unread organization notifications read.
 - SaaS users with site read permission can view a scoped Google Search Console connection overview without refresh token data.
-- Google Search Console connect action stays disabled when OAuth is unconfigured or the callback flow is not implemented.
+- Google Search Console connect action stays disabled when OAuth, state signing, or token encryption is unconfigured.
+- Google Search Console OAuth start signs tenant/site/user state and redirects to Google with read-only Search Console scope.
+- Google Search Console OAuth callback verifies state, stores only encrypted refresh tokens, and returns only scoped connection metadata.
 - SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.
 - SaaS assistant recommendations show source evidence and do not mutate WordPress or SaaS records.
 - SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.
