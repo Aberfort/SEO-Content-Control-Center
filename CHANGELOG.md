@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 77
+
+- Added manual Google Search Console property selection for connected sites.
+- Added a tenant-scoped `POST /gsc/properties` endpoint that validates selected properties against the connected Google account before switching the active property.
+- Added a dashboard property picker that loads Google properties on demand instead of calling Google during every page render.
+- Added service coverage for successful property selection and inaccessible property rejection.
+- Documented property selection API behavior, security boundaries, and QA coverage.
+
 ### Iteration 76
 
 - Added persisted Google Search Console daily metrics storage for site/property/date snapshots.

@@ -76,6 +76,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Google Search Console connection overview scaffold with tenant-scoped property state and OAuth readiness guardrails;
 - Google Search Console OAuth start/callback with signed state and encrypted refresh token storage;
 - Google Search Console property discovery with automatic URL-prefix or domain-property matching;
+- Google Search Console manual property picker for connected accounts;
 - Google Search Console daily metric sync for property-level clicks, impressions, CTR, and average position;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;

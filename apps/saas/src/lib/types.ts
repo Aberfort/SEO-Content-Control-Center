@@ -196,6 +196,10 @@ export type GscPropertyList = {
   properties: GscPropertyListItem[];
 };
 
+export type GscPropertySelectionResult = GscPropertyList & {
+  connection: GscConnectionSummary;
+};
+
 export type GscDailyMetric = {
   id: string;
   siteId: string;

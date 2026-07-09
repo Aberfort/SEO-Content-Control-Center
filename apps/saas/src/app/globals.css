@@ -241,6 +241,20 @@ h1 {
   grid-template-columns: minmax(160px, 1fr) auto;
 }
 
+.gsc-property-picker {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.gsc-property-picker .inline-form {
+  align-items: end;
+}
+
+.gsc-property-picker select {
+  min-width: min(32rem, 100%);
+}
+
 .secondary-button {
   background: #ffffff;
   border: 1px solid var(--border);

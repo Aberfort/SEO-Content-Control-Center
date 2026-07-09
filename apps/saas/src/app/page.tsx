@@ -27,6 +27,7 @@ import {
 } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { GscPropertyPicker } from "@/components/gsc-property-picker";
 import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
@@ -74,7 +75,7 @@ const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", 
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
-const gscStatuses = ["connected", "metrics_synced", "error"] as const;
+const gscStatuses = ["connected", "metrics_synced", "property_selected", "error"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -484,6 +485,15 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     ) : null}
                   </div>
                 </div>
+
+                {activeGscConnection && gscOverview.action.enabled ? (
+                  <GscPropertyPicker
+                    organizationId={activeOrganization.id}
+                    siteId={activeSite.id}
+                    currentPropertyUrl={activeGscConnection.propertyUrl}
+                    returnHref={currentHref}
+                  />
+                ) : null}
 
                 {gscOverview.connections.length > 0 ? (
                   <div className="table-wrap">
@@ -2353,6 +2363,10 @@ function formatGscFeedback(status: (typeof gscStatuses)[number], message: string
 
   if (status === "metrics_synced") {
     return "Google Search Console metrics synced.";
+  }
+
+  if (status === "property_selected") {
+    return "Google Search Console property selected.";
   }
 
   return message || "Google Search Console connection could not be completed.";

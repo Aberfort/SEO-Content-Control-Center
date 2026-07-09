@@ -150,6 +150,8 @@
 - Google Search Console OAuth callback verifies state, stores only encrypted refresh tokens, and returns only scoped connection metadata.
 - Google Search Console OAuth callback auto-selects an exact URL-prefix or matching `sc-domain:` property from the connected Google account.
 - Google Search Console property listing refreshes Google access server-side and returns property metadata without token data.
+- Google Search Console property selection verifies the selected property against the connected Google account before switching active property state.
+- Google Search Console property picker loads available properties on demand and does not fetch Google properties during every dashboard render.
 - Google Search Console metric sync upserts daily property-level clicks, impressions, CTR, and position without duplicating dates.
 - Google Search Console metric listing returns stored scoped rows without token data or live Google calls.
 - SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.

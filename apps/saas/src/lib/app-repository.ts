@@ -105,6 +105,7 @@ import {
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole,
+  selectGscConnectionProperty as selectDevGscConnectionProperty,
   upsertGscDailyMetrics as upsertDevGscDailyMetrics,
   upsertGscConnection as upsertDevGscConnection
 } from "./dev-store";
@@ -312,6 +313,8 @@ type UpsertGscConnectionInput = {
   encryptedRefreshToken: string;
 };
 
+type SelectGscConnectionPropertyInput = UpsertGscConnectionInput;
+
 type UpsertGscDailyMetricsInput = {
   user: AppUser;
   organizationId: string;
@@ -366,6 +369,9 @@ type AppRepository = {
     siteId: string
   ): Promise<GscConnectionSecret | null>;
   upsertGscConnection(input: UpsertGscConnectionInput): Promise<GscConnectionSummary>;
+  selectGscConnectionProperty(
+    input: SelectGscConnectionPropertyInput
+  ): Promise<GscConnectionSummary>;
   listGscDailyMetrics(
     userId: string,
     organizationId: string,
@@ -511,6 +517,9 @@ const devStoreRepository: AppRepository = {
   },
   async upsertGscConnection(input) {
     return upsertDevGscConnection(input);
+  },
+  async selectGscConnectionProperty(input) {
+    return selectDevGscConnectionProperty(input);
   },
   async listGscDailyMetrics(userId, organizationId, siteId, propertyUrl) {
     return listDevGscDailyMetrics(userId, organizationId, siteId, propertyUrl);
@@ -1526,6 +1535,61 @@ const prismaRepository: AppRepository = {
         organizationId: input.organizationId,
         userId: input.user.id,
         action: "gsc.connected",
+        entityType: "GscConnection",
+        entityId: connection.id,
+        metadata: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl
+        }
+      }
+    });
+
+    return mapGscConnectionSummary(connection);
+  },
+
+  async selectGscConnectionProperty(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "integration:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: input.siteId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const connection = await prisma.gscConnection.upsert({
+      where: {
+        siteId_propertyUrl: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl
+        }
+      },
+      update: {
+        googleAccountEmail: input.googleAccountEmail,
+        encryptedRefreshToken: input.encryptedRefreshToken,
+        disconnectedAt: null
+      },
+      create: {
+        siteId: input.siteId,
+        googleAccountEmail: input.googleAccountEmail,
+        propertyUrl: input.propertyUrl,
+        encryptedRefreshToken: input.encryptedRefreshToken
+      }
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: input.user.id,
+        action: "gsc.property_selected",
         entityType: "GscConnection",
         entityId: connection.id,
         metadata: {

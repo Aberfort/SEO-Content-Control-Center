@@ -54,7 +54,7 @@
 ## Phase 4 - Google Search Console
 
 - OAuth. Status: OAuth start/callback, signed state, token exchange, and connected Google account email lookup implemented.
-- Property selection. Status: OAuth callback discovers Search Console properties and auto-selects an exact URL-prefix or matching `sc-domain:` property; manual picker UX is pending.
+- Property selection. Status: OAuth callback auto-selects an exact URL-prefix or matching `sc-domain:` property, and the dashboard can load available Google properties on demand and switch the active property after server-side verification.
 - Encrypted refresh token storage. Status: refresh tokens are encrypted before storage and are never returned by read APIs.
 - Historical metric sync. Status: persisted daily property-level Search Analytics sync implemented for clicks, impressions, CTR, and average position.
 - Page/query insights.

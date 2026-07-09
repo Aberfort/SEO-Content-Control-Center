@@ -687,6 +687,81 @@ export function upsertGscConnection(input: {
   return mapGscConnectionSummary(connection);
 }
 
+export function selectGscConnectionProperty(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  encryptedRefreshToken: string;
+}): GscConnectionSummary {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "integration:manage"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) =>
+      candidate.id === input.siteId && candidate.organizationId === input.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const now = new Date().toISOString();
+  const existing = store.gscConnections.find(
+    (connection) =>
+      connection.siteId === input.siteId && connection.propertyUrl === input.propertyUrl
+  );
+
+  if (existing) {
+    existing.googleAccountEmail = input.googleAccountEmail;
+    existing.encryptedRefreshToken = input.encryptedRefreshToken;
+    existing.disconnectedAt = null;
+    existing.updatedAt = now;
+    writeActivityLog({
+      organizationId: input.organizationId,
+      userId: input.user.id,
+      action: "gsc.property_selected",
+      entityType: "GscConnection",
+      entityId: existing.id,
+      metadata: {
+        siteId: input.siteId,
+        propertyUrl: input.propertyUrl
+      }
+    });
+
+    return mapGscConnectionSummary(existing);
+  }
+
+  const connection: StoreGscConnection = {
+    id: randomUUID(),
+    siteId: input.siteId,
+    googleAccountEmail: input.googleAccountEmail,
+    propertyUrl: input.propertyUrl,
+    encryptedRefreshToken: input.encryptedRefreshToken,
+    connectedAt: now,
+    updatedAt: now,
+    disconnectedAt: null
+  };
+  store.gscConnections.push(connection);
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "gsc.property_selected",
+    entityType: "GscConnection",
+    entityId: connection.id,
+    metadata: {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl
+    }
+  });
+
+  return mapGscConnectionSummary(connection);
+}
+
 export function listGscDailyMetrics(
   userId: string,
   organizationId: string,

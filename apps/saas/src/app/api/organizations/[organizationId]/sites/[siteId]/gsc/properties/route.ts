@@ -1,6 +1,8 @@
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, unauthorizedError } from "@/lib/http";
+import { assertRequestSameOrigin } from "@/lib/csrf";
+import { selectGscPropertyForSite } from "@/lib/gsc-properties";
+import { jsonError, securityError, unauthorizedError } from "@/lib/http";
 import { listGscProperties, refreshGscAccessToken } from "@/lib/gsc-oauth";
 import { decryptSecret } from "@/lib/token-encryption";
 
@@ -61,6 +63,54 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
+export async function POST(request: Request, context: RouteContext) {
+  try {
+    assertRequestSameOrigin(request);
+  } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
+    throw error;
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return unauthorizedError();
+  }
+
+  const { organizationId, siteId } = await context.params;
+
+  try {
+    const body = (await request.json()) as {
+      propertyUrl?: unknown;
+    };
+    const result = await selectGscPropertyForSite({
+      user,
+      organizationId,
+      siteId,
+      propertyUrl: typeof body.propertyUrl === "string" ? body.propertyUrl : ""
+    });
+
+    return Response.json({ data: result });
+  } catch (error) {
+    const response = gscPropertiesError(error);
+
+    if (response) {
+      return response;
+    }
+
+    return jsonError(
+      400,
+      "GSC_PROPERTY_SELECTION_FAILED",
+      "Could not select Search Console property."
+    );
+  }
+}
+
 function gscPropertiesError(error: unknown): Response | null {
   if (!(error instanceof Error)) {
     return null;
@@ -77,6 +127,24 @@ function gscPropertiesError(error: unknown): Response | null {
   switch (error.message) {
     case "SITE_NOT_FOUND":
       return jsonError(404, "SITE_NOT_FOUND", "Site was not found.");
+    case "GSC_CONNECTION_NOT_FOUND":
+      return jsonError(
+        409,
+        "GSC_CONNECTION_NOT_FOUND",
+        "Google Search Console is not connected for this site."
+      );
+    case "GSC_PROPERTY_SELECTION_INVALID":
+      return jsonError(
+        422,
+        "GSC_PROPERTY_SELECTION_INVALID",
+        "Search Console property selection is invalid."
+      );
+    case "GSC_PROPERTY_NOT_ACCESSIBLE":
+      return jsonError(
+        422,
+        "GSC_PROPERTY_NOT_ACCESSIBLE",
+        "Selected Search Console property is not available to the connected Google account."
+      );
     case "TOKEN_ENCRYPTION_KEY_NOT_CONFIGURED":
     case "TOKEN_ENCRYPTION_PAYLOAD_INVALID":
       return jsonError(

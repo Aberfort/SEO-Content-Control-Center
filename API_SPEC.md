@@ -239,6 +239,45 @@ Response:
 }
 ```
 
+`POST /api/organizations/:organizationId/sites/:siteId/gsc/properties`
+
+Selects the active Google Search Console property for a connected site when the current user can manage integrations and the request is same-origin. The endpoint resolves the active encrypted refresh token server-side, refreshes Google access, lists properties available to the connected Google account, verifies that `propertyUrl` exists in that list, then upserts the selected `GscConnection` by `siteId + propertyUrl`. The response returns connection and property metadata only; raw and encrypted refresh tokens are never returned.
+
+Request:
+
+```json
+{
+  "propertyUrl": "https://www.example.com/"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "connectedPropertyUrl": "https://www.example.com/",
+    "connection": {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "googleAccountEmail": "search@example.com",
+      "propertyUrl": "https://www.example.com/",
+      "connectedAt": "2026-07-09T10:00:00.000Z",
+      "updatedAt": "2026-07-09T10:05:00.000Z",
+      "disconnectedAt": null
+    },
+    "properties": [
+      {
+        "siteUrl": "https://www.example.com/",
+        "permissionLevel": "siteFullUser",
+        "selected": true
+      }
+    ]
+  }
+}
+```
+
 `GET /api/organizations/:organizationId/sites/:siteId/gsc/metrics`
 
 Lists stored daily Google Search Console metrics for the scoped site. Optional `propertyUrl` filters rows to one connected property. The response is persisted SaaS data only and does not call Google.
