@@ -78,6 +78,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Google Search Console property discovery with automatic URL-prefix or domain-property matching;
 - Google Search Console manual property picker for connected accounts;
 - Google Search Console daily metric sync for property-level clicks, impressions, CTR, and average position;
+- Google Search Console page/query insight sync for top Search Analytics rows;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;

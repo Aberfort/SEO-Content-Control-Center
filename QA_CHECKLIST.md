@@ -154,6 +154,8 @@
 - Google Search Console property picker loads available properties on demand and does not fetch Google properties during every dashboard render.
 - Google Search Console metric sync upserts daily property-level clicks, impressions, CTR, and position without duplicating dates.
 - Google Search Console metric listing returns stored scoped rows without token data or live Google calls.
+- Google Search Console insight sync replaces top page/query rows for the synced date range without leaking token data.
+- Google Search Console insight listing returns the latest stored scoped range without live Google calls.
 - SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.
 - SaaS assistant recommendations show source evidence and do not mutate WordPress or SaaS records.
 - SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.

@@ -57,7 +57,7 @@
 - Property selection. Status: OAuth callback auto-selects an exact URL-prefix or matching `sc-domain:` property, and the dashboard can load available Google properties on demand and switch the active property after server-side verification.
 - Encrypted refresh token storage. Status: refresh tokens are encrypted before storage and are never returned by read APIs.
 - Historical metric sync. Status: persisted daily property-level Search Analytics sync implemented for clicks, impressions, CTR, and average position.
-- Page/query insights.
+- Page/query insights. Status: persisted top page/query Search Analytics sync implemented for the active property and shown on the dashboard.
 
 ## Phase 5 - SEO Backlog
 

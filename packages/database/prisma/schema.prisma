@@ -229,6 +229,7 @@ model Site {
   syncedContentItems   SyncedContentItem[]
   gscConnections       GscConnection[]
   gscDailyMetrics      GscDailyMetric[]
+  gscSearchInsights    GscSearchInsight[]
   audits               Audit[]
   backlogTasks         BacklogTask[]
   bulkOperations       BulkOperation[]
@@ -314,6 +315,28 @@ model GscDailyMetric {
 
   @@unique([siteId, propertyUrl, date])
   @@index([siteId, propertyUrl, date])
+}
+
+model GscSearchInsight {
+  id          String   @id @default(uuid())
+  siteId      String
+  propertyUrl String
+  startDate   DateTime
+  endDate     DateTime
+  page        String
+  query       String
+  clicks      Float
+  impressions Float
+  ctr         Float
+  position    Float
+  syncedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, propertyUrl, startDate, endDate, page, query], map: "GscSearchInsight_range_page_query_key")
+  @@index([siteId, propertyUrl, startDate, endDate], map: "GscSearchInsight_range_idx")
+  @@index([siteId, propertyUrl, syncedAt], map: "GscSearchInsight_syncedAt_idx")
 }
 
 model Audit {

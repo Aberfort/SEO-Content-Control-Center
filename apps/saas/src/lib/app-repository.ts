@@ -92,6 +92,7 @@ import {
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
   listGscDailyMetrics as listDevGscDailyMetrics,
+  listGscSearchInsights as listDevGscSearchInsights,
   resendInvite as resendDevInvite,
   createAuditForSite as createDevAuditForSite,
   createBulkOperationPreview as createDevBulkOperationPreview,
@@ -106,6 +107,7 @@ import {
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole,
   selectGscConnectionProperty as selectDevGscConnectionProperty,
+  replaceGscSearchInsights as replaceDevGscSearchInsights,
   upsertGscDailyMetrics as upsertDevGscDailyMetrics,
   upsertGscConnection as upsertDevGscConnection
 } from "./dev-store";
@@ -172,6 +174,9 @@ import type {
   GscDailyMetric,
   GscDailyMetricInput,
   GscMetricSyncResult,
+  GscSearchInsight,
+  GscSearchInsightInput,
+  GscSearchInsightSyncResult,
   InviteResult,
   NotificationBulkUpdateResult,
   Notification,
@@ -325,6 +330,23 @@ type UpsertGscDailyMetricsInput = {
   metrics: GscDailyMetricInput[];
 };
 
+type GscSearchInsightListOptions = {
+  propertyUrl?: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+};
+
+type ReplaceGscSearchInsightsInput = {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  insights: GscSearchInsightInput[];
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -379,6 +401,15 @@ type AppRepository = {
     propertyUrl?: string
   ): Promise<GscDailyMetric[]>;
   upsertGscDailyMetrics(input: UpsertGscDailyMetricsInput): Promise<GscMetricSyncResult>;
+  listGscSearchInsights(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: GscSearchInsightListOptions
+  ): Promise<GscSearchInsight[]>;
+  replaceGscSearchInsights(
+    input: ReplaceGscSearchInsightsInput
+  ): Promise<GscSearchInsightSyncResult>;
   listAssistantRecommendationsForSite(
     userId: string,
     organizationId: string,
@@ -526,6 +557,12 @@ const devStoreRepository: AppRepository = {
   },
   async upsertGscDailyMetrics(input) {
     return upsertDevGscDailyMetrics(input);
+  },
+  async listGscSearchInsights(userId, organizationId, siteId, options) {
+    return listDevGscSearchInsights(userId, organizationId, siteId, options);
+  },
+  async replaceGscSearchInsights(input) {
+    return replaceDevGscSearchInsights(input);
   },
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
     return listDevAssistantRecommendationsForSite(userId, organizationId, siteId, options);
@@ -1746,6 +1783,160 @@ const prismaRepository: AppRepository = {
       endDate: input.endDate,
       syncedRows: input.metrics.length,
       metrics: metrics.map(mapGscDailyMetric)
+    };
+  },
+
+  async listGscSearchInsights(userId, organizationId, siteId, options) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const requestedPropertyUrl = options?.propertyUrl;
+    const latestInsight =
+      options?.startDate && options.endDate
+        ? null
+        : await prisma.gscSearchInsight.findFirst({
+            where: {
+              siteId,
+              ...(requestedPropertyUrl ? { propertyUrl: requestedPropertyUrl } : {})
+            },
+            orderBy: {
+              syncedAt: "desc"
+            }
+          });
+    const startDate = options?.startDate ?? latestInsight?.startDate.toISOString().slice(0, 10);
+    const endDate = options?.endDate ?? latestInsight?.endDate.toISOString().slice(0, 10);
+    const propertyUrl = requestedPropertyUrl ?? latestInsight?.propertyUrl;
+
+    if (!startDate || !endDate || !propertyUrl) {
+      return [];
+    }
+
+    const insights = await prisma.gscSearchInsight.findMany({
+      where: {
+        siteId,
+        propertyUrl,
+        startDate: dateOnlyToDate(startDate),
+        endDate: dateOnlyToDate(endDate)
+      },
+      orderBy: [
+        {
+          clicks: "desc"
+        },
+        {
+          impressions: "desc"
+        }
+      ],
+      take: options?.limit
+    });
+
+    return insights.map(mapGscSearchInsight);
+  },
+
+  async replaceGscSearchInsights(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "integration:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: input.siteId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const startDate = dateOnlyToDate(input.startDate);
+    const endDate = dateOnlyToDate(input.endDate);
+    const syncedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.gscSearchInsight.deleteMany({
+        where: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl,
+          startDate,
+          endDate
+        }
+      }),
+      ...input.insights.map((insight) =>
+        prisma.gscSearchInsight.create({
+          data: {
+            siteId: input.siteId,
+            propertyUrl: input.propertyUrl,
+            startDate,
+            endDate,
+            page: insight.page,
+            query: insight.query,
+            clicks: insight.clicks,
+            impressions: insight.impressions,
+            ctr: insight.ctr,
+            position: insight.position,
+            syncedAt
+          }
+        })
+      )
+    ]);
+
+    await prisma.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: input.user.id,
+        action: "gsc.insights_synced",
+        entityType: "GscConnection",
+        entityId: input.siteId,
+        metadata: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          syncedRows: input.insights.length
+        }
+      }
+    });
+
+    const insights = await prisma.gscSearchInsight.findMany({
+      where: {
+        siteId: input.siteId,
+        propertyUrl: input.propertyUrl,
+        startDate,
+        endDate
+      },
+      orderBy: [
+        {
+          clicks: "desc"
+        },
+        {
+          impressions: "desc"
+        }
+      ]
+    });
+
+    return {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      syncedRows: input.insights.length,
+      insights: insights.map(mapGscSearchInsight)
     };
   },
 
@@ -4255,6 +4446,36 @@ function mapGscDailyMetric(metric: {
     ctr: metric.ctr,
     position: metric.position,
     syncedAt: metric.syncedAt.toISOString()
+  };
+}
+
+function mapGscSearchInsight(insight: {
+  id: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: Date;
+  endDate: Date;
+  page: string;
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  syncedAt: Date;
+}): GscSearchInsight {
+  return {
+    id: insight.id,
+    siteId: insight.siteId,
+    propertyUrl: insight.propertyUrl,
+    startDate: insight.startDate.toISOString().slice(0, 10),
+    endDate: insight.endDate.toISOString().slice(0, 10),
+    page: insight.page,
+    query: insight.query,
+    clicks: insight.clicks,
+    impressions: insight.impressions,
+    ctr: insight.ctr,
+    position: insight.position,
+    syncedAt: insight.syncedAt.toISOString()
   };
 }
 

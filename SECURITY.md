@@ -102,6 +102,7 @@
 - Google Search Console property discovery requires integration management permission, decrypts refresh tokens only server-side, refreshes short-lived Google access tokens on demand, and returns property metadata only.
 - Google Search Console property selection requires same-origin requests and integration management permission, verifies the selected property against Google's property list for the connected account, and never returns raw or encrypted refresh tokens.
 - Google Search Console metric sync requires same-origin requests and integration management permission, decrypts refresh tokens only server-side, stores aggregate daily metrics only, and never returns tokens.
+- Google Search Console insight sync requires same-origin requests and integration management permission, stores aggregate page/query Search Analytics rows only, and never returns tokens.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

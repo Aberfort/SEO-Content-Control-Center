@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 78
+
+- Added persisted Google Search Console page/query insight snapshots for synced date ranges.
+- Added Search Analytics querying grouped by `page` and `query` with bounded top-row sync.
+- Added tenant-scoped GSC insights API endpoints for listing stored insights and syncing the current connected property.
+- Added dashboard insight sync control and top page/query table for connected GSC properties.
+- Documented insight sync behavior, data model, security boundaries, and QA coverage.
+
 ### Iteration 77
 
 - Added manual Google Search Console property selection for connected sites.

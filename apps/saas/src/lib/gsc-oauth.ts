@@ -1,7 +1,12 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { isTokenEncryptionConfigured } from "./token-encryption";
-import type { GscConnectAction, GscDailyMetricInput, GscPropertySummary } from "./types";
+import type {
+  GscConnectAction,
+  GscDailyMetricInput,
+  GscPropertySummary,
+  GscSearchInsightInput
+} from "./types";
 
 type GscConnectActionInput = {
   canManageIntegrations: boolean;
@@ -419,6 +424,69 @@ export async function queryGscDailyMetrics(input: {
       ];
     })
     .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+export async function queryGscSearchInsights(input: {
+  accessToken: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  rowLimit: number;
+  fetcher?: Fetcher;
+}): Promise<GscSearchInsightInput[]> {
+  const response = await (input.fetcher ?? fetch)(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
+      input.propertyUrl
+    )}/searchAnalytics/query`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${input.accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dimensions: ["page", "query"],
+        type: "web",
+        rowLimit: input.rowLimit
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GSC_SEARCH_ANALYTICS_FAILED");
+  }
+
+  const payload = (await response.json()) as {
+    rows?: unknown;
+  };
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+
+  return rows.flatMap((row): GscSearchInsightInput[] => {
+    if (!row || typeof row !== "object") {
+      return [];
+    }
+
+    const keys = (row as { keys?: unknown }).keys;
+    const page = Array.isArray(keys) && typeof keys[0] === "string" ? keys[0].trim() : "";
+    const query = Array.isArray(keys) && typeof keys[1] === "string" ? keys[1].trim() : "";
+
+    if (!page || !query) {
+      return [];
+    }
+
+    return [
+      {
+        page,
+        query,
+        clicks: readMetricNumber(row, "clicks"),
+        impressions: readMetricNumber(row, "impressions"),
+        ctr: readMetricNumber(row, "ctr"),
+        position: readMetricNumber(row, "position")
+      }
+    ];
+  });
 }
 
 export function selectGscPropertyForSite(

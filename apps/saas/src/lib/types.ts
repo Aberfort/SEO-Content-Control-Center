@@ -229,6 +229,39 @@ export type GscMetricSyncResult = {
   metrics: GscDailyMetric[];
 };
 
+export type GscSearchInsight = {
+  id: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  page: string;
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  syncedAt: string;
+};
+
+export type GscSearchInsightInput = {
+  page: string;
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+export type GscSearchInsightSyncResult = {
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  syncedRows: number;
+  insights: GscSearchInsight[];
+};
+
 export type GscConnectAction = {
   type: "gsc_oauth";
   label: string;

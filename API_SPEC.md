@@ -310,6 +310,43 @@ Response:
 
 Syncs daily property-level Search Analytics metrics for a connected GSC property when the current user can manage integrations and the request is same-origin. The endpoint decrypts the refresh token server-side, refreshes a short-lived Google access token, queries Search Analytics grouped by `date`, and upserts rows by `siteId + propertyUrl + date`. Request body accepts optional `startDate` and `endDate` in `YYYY-MM-DD`; when omitted, the default range is the last finalized 30-to-3-day window. The response returns stored daily rows and never returns tokens.
 
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/insights`
+
+Lists stored top page/query Google Search Console insights for the scoped site. Optional `propertyUrl` filters rows to one connected property. Optional `startDate` and `endDate` must be provided together in `YYYY-MM-DD`; when omitted, the response uses the latest synced range for the selected property. Optional `limit` bounds the number of returned rows. This endpoint reads persisted SaaS data only and does not call Google.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "propertyUrl": "sc-domain:example.com",
+    "startDate": null,
+    "endDate": null,
+    "insights": [
+      {
+        "id": "66666666-6666-4666-8666-666666666666",
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "propertyUrl": "sc-domain:example.com",
+        "startDate": "2026-07-01",
+        "endDate": "2026-07-06",
+        "page": "https://www.example.com/post/",
+        "query": "content audit",
+        "clicks": 42,
+        "impressions": 420,
+        "ctr": 0.1,
+        "position": 2.4,
+        "syncedAt": "2026-07-09T10:30:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/gsc/insights`
+
+Syncs top Search Analytics page/query rows for a connected GSC property when the current user can manage integrations and the request is same-origin. The endpoint decrypts the refresh token server-side, refreshes a short-lived Google access token, queries Search Analytics grouped by `page` and `query`, and replaces the stored snapshot for `siteId + propertyUrl + startDate + endDate`. Request body accepts optional `startDate`, `endDate`, and numeric `rowLimit`; when dates are omitted, the default range is the last finalized 30-to-3-day window. The response returns stored insight rows and never returns tokens.
+
 ## Billing Overview
 
 `GET /api/organizations/:organizationId/billing`

@@ -77,6 +77,9 @@ import type {
   GscDailyMetric,
   GscDailyMetricInput,
   GscMetricSyncResult,
+  GscSearchInsight,
+  GscSearchInsightInput,
+  GscSearchInsightSyncResult,
   BillingOverview,
   BillingPortalContext,
   BillingSubscription,
@@ -130,6 +133,7 @@ type DevStoreState = {
   subscriptions: BillingSubscription[];
   gscConnections: StoreGscConnection[];
   gscDailyMetrics: GscDailyMetric[];
+  gscSearchInsights: GscSearchInsight[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -235,7 +239,8 @@ function initialState(): DevStoreState {
     notifications: [],
     subscriptions: [],
     gscConnections: [],
-    gscDailyMetrics: []
+    gscDailyMetrics: [],
+    gscSearchInsights: []
   };
 }
 
@@ -870,6 +875,140 @@ export function upsertGscDailyMetrics(input: {
       input.siteId,
       input.propertyUrl
     )
+  };
+}
+
+export function listGscSearchInsights(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options: {
+    propertyUrl?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  } = {}
+): GscSearchInsight[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const candidates = store.gscSearchInsights.filter(
+    (insight) =>
+      insight.siteId === siteId &&
+      (!options.propertyUrl || insight.propertyUrl === options.propertyUrl)
+  );
+  const latestInsight =
+    options.startDate && options.endDate
+      ? null
+      : [...candidates].sort((left, right) => right.syncedAt.localeCompare(left.syncedAt))[0];
+  const startDate = options.startDate ?? latestInsight?.startDate;
+  const endDate = options.endDate ?? latestInsight?.endDate;
+  const propertyUrl = options.propertyUrl ?? latestInsight?.propertyUrl;
+
+  if (!startDate || !endDate || !propertyUrl) {
+    return [];
+  }
+
+  return candidates
+    .filter(
+      (insight) =>
+        insight.propertyUrl === propertyUrl &&
+        insight.startDate === startDate &&
+        insight.endDate === endDate
+    )
+    .sort((left, right) => right.clicks - left.clicks || right.impressions - left.impressions)
+    .slice(0, options.limit);
+}
+
+export function replaceGscSearchInsights(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  insights: GscSearchInsightInput[];
+}): GscSearchInsightSyncResult {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "integration:manage"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) =>
+      candidate.id === input.siteId && candidate.organizationId === input.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const now = new Date().toISOString();
+  store.gscSearchInsights = store.gscSearchInsights.filter(
+    (insight) =>
+      !(
+        insight.siteId === input.siteId &&
+        insight.propertyUrl === input.propertyUrl &&
+        insight.startDate === input.startDate &&
+        insight.endDate === input.endDate
+      )
+  );
+
+  for (const insight of input.insights) {
+    store.gscSearchInsights.push({
+      id: randomUUID(),
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      page: insight.page,
+      query: insight.query,
+      clicks: insight.clicks,
+      impressions: insight.impressions,
+      ctr: insight.ctr,
+      position: insight.position,
+      syncedAt: now
+    });
+  }
+
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "gsc.insights_synced",
+    entityType: "GscConnection",
+    entityId: input.siteId,
+    metadata: {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      syncedRows: input.insights.length
+    }
+  });
+
+  return {
+    siteId: input.siteId,
+    propertyUrl: input.propertyUrl,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    syncedRows: input.insights.length,
+    insights: listGscSearchInsights(input.user.id, input.organizationId, input.siteId, {
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate
+    })
   };
 }
 
