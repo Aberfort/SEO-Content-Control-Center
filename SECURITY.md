@@ -100,6 +100,7 @@
 - Google Search Console OAuth start requires signed tenant/site/user state, integration management permission, read-only Search Console scope, and configured token encryption before the connect control is enabled.
 - Google Search Console OAuth callback must verify state, match the current signed-in user, encrypt refresh tokens before storage, and upsert only through organization/site-scoped repository methods.
 - Google Search Console property discovery requires integration management permission, decrypts refresh tokens only server-side, refreshes short-lived Google access tokens on demand, and returns property metadata only.
+- Google Search Console metric sync requires same-origin requests and integration management permission, decrypts refresh tokens only server-side, stores aggregate daily metrics only, and never returns tokens.
 - Background jobs validate connection state before execution.
 - Frontend requests are not blocked by heavy sync operations.
 

@@ -91,6 +91,7 @@ import {
   listOrganizationSummariesForUser as listDevOrganizationSummariesForUser,
   listSitesForOrganization as listDevSitesForOrganization,
   listSyncedContentForSite as listDevSyncedContentForSite,
+  listGscDailyMetrics as listDevGscDailyMetrics,
   resendInvite as resendDevInvite,
   createAuditForSite as createDevAuditForSite,
   createBulkOperationPreview as createDevBulkOperationPreview,
@@ -104,6 +105,7 @@ import {
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
   updateMemberRole as updateDevMemberRole,
+  upsertGscDailyMetrics as upsertDevGscDailyMetrics,
   upsertGscConnection as upsertDevGscConnection
 } from "./dev-store";
 import {
@@ -166,6 +168,9 @@ import type {
   GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
+  GscDailyMetric,
+  GscDailyMetricInput,
+  GscMetricSyncResult,
   InviteResult,
   NotificationBulkUpdateResult,
   Notification,
@@ -307,6 +312,16 @@ type UpsertGscConnectionInput = {
   encryptedRefreshToken: string;
 };
 
+type UpsertGscDailyMetricsInput = {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  metrics: GscDailyMetricInput[];
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -351,6 +366,13 @@ type AppRepository = {
     siteId: string
   ): Promise<GscConnectionSecret | null>;
   upsertGscConnection(input: UpsertGscConnectionInput): Promise<GscConnectionSummary>;
+  listGscDailyMetrics(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    propertyUrl?: string
+  ): Promise<GscDailyMetric[]>;
+  upsertGscDailyMetrics(input: UpsertGscDailyMetricsInput): Promise<GscMetricSyncResult>;
   listAssistantRecommendationsForSite(
     userId: string,
     organizationId: string,
@@ -489,6 +511,12 @@ const devStoreRepository: AppRepository = {
   },
   async upsertGscConnection(input) {
     return upsertDevGscConnection(input);
+  },
+  async listGscDailyMetrics(userId, organizationId, siteId, propertyUrl) {
+    return listDevGscDailyMetrics(userId, organizationId, siteId, propertyUrl);
+  },
+  async upsertGscDailyMetrics(input) {
+    return upsertDevGscDailyMetrics(input);
   },
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
     return listDevAssistantRecommendationsForSite(userId, organizationId, siteId, options);
@@ -1539,6 +1567,122 @@ const prismaRepository: AppRepository = {
     });
 
     return connection ? mapGscConnectionSecret(connection) : null;
+  },
+
+  async listGscDailyMetrics(userId, organizationId, siteId, propertyUrl) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const metrics = await prisma.gscDailyMetric.findMany({
+      where: {
+        siteId,
+        ...(propertyUrl ? { propertyUrl } : {})
+      },
+      orderBy: {
+        date: "asc"
+      }
+    });
+
+    return metrics.map(mapGscDailyMetric);
+  },
+
+  async upsertGscDailyMetrics(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "integration:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: input.siteId,
+        organizationId: input.organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    await prisma.$transaction(
+      input.metrics.map((metric) =>
+        prisma.gscDailyMetric.upsert({
+          where: {
+            siteId_propertyUrl_date: {
+              siteId: input.siteId,
+              propertyUrl: input.propertyUrl,
+              date: dateOnlyToDate(metric.date)
+            }
+          },
+          update: {
+            clicks: metric.clicks,
+            impressions: metric.impressions,
+            ctr: metric.ctr,
+            position: metric.position,
+            syncedAt: new Date()
+          },
+          create: {
+            siteId: input.siteId,
+            propertyUrl: input.propertyUrl,
+            date: dateOnlyToDate(metric.date),
+            clicks: metric.clicks,
+            impressions: metric.impressions,
+            ctr: metric.ctr,
+            position: metric.position
+          }
+        })
+      )
+    );
+
+    await prisma.activityLog.create({
+      data: {
+        organizationId: input.organizationId,
+        userId: input.user.id,
+        action: "gsc.metrics_synced",
+        entityType: "GscConnection",
+        entityId: input.siteId,
+        metadata: {
+          siteId: input.siteId,
+          propertyUrl: input.propertyUrl,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          syncedRows: input.metrics.length
+        }
+      }
+    });
+
+    const metrics = await prisma.gscDailyMetric.findMany({
+      where: {
+        siteId: input.siteId,
+        propertyUrl: input.propertyUrl
+      },
+      orderBy: {
+        date: "asc"
+      }
+    });
+
+    return {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      syncedRows: input.metrics.length,
+      metrics: metrics.map(mapGscDailyMetric)
+    };
   },
 
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
@@ -4024,6 +4168,34 @@ function mapGscConnectionSecret(connection: {
     ...mapGscConnectionSummary(connection),
     encryptedRefreshToken: connection.encryptedRefreshToken
   };
+}
+
+function mapGscDailyMetric(metric: {
+  id: string;
+  siteId: string;
+  propertyUrl: string;
+  date: Date;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  syncedAt: Date;
+}): GscDailyMetric {
+  return {
+    id: metric.id,
+    siteId: metric.siteId,
+    propertyUrl: metric.propertyUrl,
+    date: metric.date.toISOString().slice(0, 10),
+    clicks: metric.clicks,
+    impressions: metric.impressions,
+    ctr: metric.ctr,
+    position: metric.position,
+    syncedAt: metric.syncedAt.toISOString()
+  };
+}
+
+function dateOnlyToDate(value: string): Date {
+  return new Date(`${value}T00:00:00.000Z`);
 }
 
 function mapActivityLog(log: {

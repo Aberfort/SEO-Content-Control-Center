@@ -74,6 +74,9 @@ import type {
   GscConnectionOverview,
   GscConnectionSecret,
   GscConnectionSummary,
+  GscDailyMetric,
+  GscDailyMetricInput,
+  GscMetricSyncResult,
   BillingOverview,
   BillingPortalContext,
   BillingSubscription,
@@ -126,6 +129,7 @@ type DevStoreState = {
   notifications: Notification[];
   subscriptions: BillingSubscription[];
   gscConnections: StoreGscConnection[];
+  gscDailyMetrics: GscDailyMetric[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -230,7 +234,8 @@ function initialState(): DevStoreState {
     activityLogs: [],
     notifications: [],
     subscriptions: [],
-    gscConnections: []
+    gscConnections: [],
+    gscDailyMetrics: []
   };
 }
 
@@ -680,6 +685,117 @@ export function upsertGscConnection(input: {
   });
 
   return mapGscConnectionSummary(connection);
+}
+
+export function listGscDailyMetrics(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  propertyUrl?: string
+): GscDailyMetric[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "site:read"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  return store.gscDailyMetrics
+    .filter(
+      (metric) => metric.siteId === siteId && (!propertyUrl || metric.propertyUrl === propertyUrl)
+    )
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+export function upsertGscDailyMetrics(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  metrics: GscDailyMetricInput[];
+}): GscMetricSyncResult {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "integration:manage"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) =>
+      candidate.id === input.siteId && candidate.organizationId === input.organizationId
+  );
+  const now = new Date().toISOString();
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  for (const metric of input.metrics) {
+    const existing = store.gscDailyMetrics.find(
+      (candidate) =>
+        candidate.siteId === input.siteId &&
+        candidate.propertyUrl === input.propertyUrl &&
+        candidate.date === metric.date
+    );
+
+    if (existing) {
+      existing.clicks = metric.clicks;
+      existing.impressions = metric.impressions;
+      existing.ctr = metric.ctr;
+      existing.position = metric.position;
+      existing.syncedAt = now;
+    } else {
+      store.gscDailyMetrics.push({
+        id: randomUUID(),
+        siteId: input.siteId,
+        propertyUrl: input.propertyUrl,
+        date: metric.date,
+        clicks: metric.clicks,
+        impressions: metric.impressions,
+        ctr: metric.ctr,
+        position: metric.position,
+        syncedAt: now
+      });
+    }
+  }
+
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "gsc.metrics_synced",
+    entityType: "GscConnection",
+    entityId: input.siteId,
+    metadata: {
+      siteId: input.siteId,
+      propertyUrl: input.propertyUrl,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      syncedRows: input.metrics.length
+    }
+  });
+
+  return {
+    siteId: input.siteId,
+    propertyUrl: input.propertyUrl,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    syncedRows: input.metrics.length,
+    metrics: listGscDailyMetrics(
+      input.user.id,
+      input.organizationId,
+      input.siteId,
+      input.propertyUrl
+    )
+  };
 }
 
 export function listActivityLogsForOrganization(

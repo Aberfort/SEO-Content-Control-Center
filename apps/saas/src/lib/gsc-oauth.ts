@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { isTokenEncryptionConfigured } from "./token-encryption";
-import type { GscConnectAction, GscPropertySummary } from "./types";
+import type { GscConnectAction, GscDailyMetricInput, GscPropertySummary } from "./types";
 
 type GscConnectActionInput = {
   canManageIntegrations: boolean;
@@ -359,6 +359,68 @@ export async function listGscProperties(input: {
     .sort((left, right) => left.siteUrl.localeCompare(right.siteUrl));
 }
 
+export async function queryGscDailyMetrics(input: {
+  accessToken: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  fetcher?: Fetcher;
+}): Promise<GscDailyMetricInput[]> {
+  const response = await (input.fetcher ?? fetch)(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
+      input.propertyUrl
+    )}/searchAnalytics/query`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${input.accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dimensions: ["date"],
+        type: "web",
+        rowLimit: 25000
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GSC_SEARCH_ANALYTICS_FAILED");
+  }
+
+  const payload = (await response.json()) as {
+    rows?: unknown;
+  };
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+
+  return rows
+    .flatMap((row): GscDailyMetricInput[] => {
+      if (!row || typeof row !== "object") {
+        return [];
+      }
+
+      const keys = (row as { keys?: unknown }).keys;
+      const date = Array.isArray(keys) && typeof keys[0] === "string" ? keys[0] : null;
+
+      if (!date || !isIsoDateOnly(date)) {
+        return [];
+      }
+
+      return [
+        {
+          date,
+          clicks: readMetricNumber(row, "clicks"),
+          impressions: readMetricNumber(row, "impressions"),
+          ctr: readMetricNumber(row, "ctr"),
+          position: readMetricNumber(row, "position")
+        }
+      ];
+    })
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
 export function selectGscPropertyForSite(
   properties: GscPropertySummary[],
   requestedPropertyUrl: string
@@ -518,6 +580,16 @@ function hostMatchesDomain(host: string, domain: string): boolean {
   const normalizedDomain = domain.toLowerCase().replace(/^www\./, "");
 
   return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+}
+
+function readMetricNumber(row: object, key: "clicks" | "impressions" | "ctr" | "position"): number {
+  const value = (row as Record<string, unknown>)[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function isIsoDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function hasEnvValue(value: string | undefined): boolean {

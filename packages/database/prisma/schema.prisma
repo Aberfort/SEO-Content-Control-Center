@@ -228,6 +228,7 @@ model Site {
   connectionChallenges WordPressConnectionChallenge[]
   syncedContentItems   SyncedContentItem[]
   gscConnections       GscConnection[]
+  gscDailyMetrics      GscDailyMetric[]
   audits               Audit[]
   backlogTasks         BacklogTask[]
   bulkOperations       BulkOperation[]
@@ -295,6 +296,24 @@ model GscConnection {
   site                  Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@unique([siteId, propertyUrl])
+}
+
+model GscDailyMetric {
+  id          String   @id @default(uuid())
+  siteId      String
+  propertyUrl String
+  date        DateTime
+  clicks      Float
+  impressions Float
+  ctr         Float
+  position    Float
+  syncedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, propertyUrl, date])
+  @@index([siteId, propertyUrl, date])
 }
 
 model Audit {

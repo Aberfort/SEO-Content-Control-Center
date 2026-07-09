@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 76
+
+- Added persisted Google Search Console daily metrics storage for site/property/date snapshots.
+- Added Search Analytics daily query support grouped by `date` with clicks, impressions, CTR, and average position.
+- Added tenant-scoped GSC metrics API endpoints for listing stored rows and syncing the current connected property.
+- Added a dashboard sync control and recent daily metrics table for connected GSC properties.
+- Documented metric sync behavior, data model, security boundaries, and QA coverage.
+
 ### Iteration 75
 
 - Added Search Console property discovery through the Google Sites API.

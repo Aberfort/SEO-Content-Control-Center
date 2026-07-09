@@ -239,6 +239,38 @@ Response:
 }
 ```
 
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/metrics`
+
+Lists stored daily Google Search Console metrics for the scoped site. Optional `propertyUrl` filters rows to one connected property. The response is persisted SaaS data only and does not call Google.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "propertyUrl": "sc-domain:example.com",
+    "metrics": [
+      {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "siteId": "22222222-2222-4222-8222-222222222222",
+        "propertyUrl": "sc-domain:example.com",
+        "date": "2026-07-01",
+        "clicks": 12,
+        "impressions": 120,
+        "ctr": 0.1,
+        "position": 4.2,
+        "syncedAt": "2026-07-09T09:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/gsc/metrics`
+
+Syncs daily property-level Search Analytics metrics for a connected GSC property when the current user can manage integrations and the request is same-origin. The endpoint decrypts the refresh token server-side, refreshes a short-lived Google access token, queries Search Analytics grouped by `date`, and upserts rows by `siteId + propertyUrl + date`. Request body accepts optional `startDate` and `endDate` in `YYYY-MM-DD`; when omitted, the default range is the last finalized 30-to-3-day window. The response returns stored daily rows and never returns tokens.
+
 ## Billing Overview
 
 `GET /api/organizations/:organizationId/billing`

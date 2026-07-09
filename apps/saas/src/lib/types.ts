@@ -196,6 +196,35 @@ export type GscPropertyList = {
   properties: GscPropertyListItem[];
 };
 
+export type GscDailyMetric = {
+  id: string;
+  siteId: string;
+  propertyUrl: string;
+  date: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  syncedAt: string;
+};
+
+export type GscDailyMetricInput = {
+  date: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+export type GscMetricSyncResult = {
+  siteId: string;
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  syncedRows: number;
+  metrics: GscDailyMetric[];
+};
+
 export type GscConnectAction = {
   type: "gsc_oauth";
   label: string;

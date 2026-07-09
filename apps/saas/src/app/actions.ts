@@ -20,6 +20,7 @@ import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit"
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
 import { sendEmailVerificationEmail, sendInviteEmail, sendPasswordResetEmail } from "@/lib/email";
 import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
+import { syncGscDailyMetricsForSite } from "@/lib/gsc-metrics";
 import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
 import { disconnectPluginConnection } from "@/lib/plugin-connection";
 import {
@@ -146,6 +147,29 @@ export async function createBillingPortalSessionAction(formData: FormData): Prom
   }
 
   redirect(portalUrl);
+}
+
+export async function syncGscDailyMetricsAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const redirectTo = readRedirectTo(formData);
+
+  try {
+    await assertServerActionSameOrigin();
+    await syncGscDailyMetricsForSite({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      startDate: String(formData.get("startDate") ?? "") || undefined,
+      endDate: String(formData.get("endDate") ?? "") || undefined
+    });
+  } catch (error) {
+    const state = actionError(error, "Could not sync Search Console metrics.");
+    redirect(buildGscRedirect(redirectTo, "error", state.message));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  redirect(buildGscRedirect(redirectTo, "metrics_synced"));
 }
 
 export async function inviteMemberAction(
@@ -949,6 +973,24 @@ function readRedirectTo(formData: FormData): string {
   }
 
   return redirectTo;
+}
+
+function buildGscRedirect(
+  redirectTo: string,
+  status: "metrics_synced" | "error",
+  message?: string
+): string {
+  const url = new URL(redirectTo, "http://localhost");
+  url.searchParams.set("gsc", status);
+
+  if (message) {
+    url.searchParams.set("message", message);
+  } else {
+    url.searchParams.delete("message");
+  }
+
+  url.hash = "gsc-title";
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 async function assertServerActionRateLimit(

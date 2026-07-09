@@ -19,6 +19,7 @@ import {
   runBulkOperationDryRunAction,
   retryBulkOperationAction,
   startBulkOperationAction,
+  syncGscDailyMetricsAction,
   updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
   updateBacklogTaskStatusAction,
@@ -41,6 +42,7 @@ import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
 import type {
   BillingSubscription,
   GscConnectionOverview,
+  GscDailyMetric,
   Site,
   SyncedContentMetadata
 } from "@/lib/types";
@@ -72,7 +74,7 @@ const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", 
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
-const gscStatuses = ["connected", "error"] as const;
+const gscStatuses = ["connected", "metrics_synced", "error"] as const;
 
 export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const user = await getCurrentUser();
@@ -135,6 +137,16 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           activeSite.id
         )
       : null;
+  const activeGscConnection = gscOverview?.connections[0] ?? null;
+  const gscMetrics =
+    activeOrganization && activeSite && canReadSite && activeGscConnection
+      ? await repository.listGscDailyMetrics(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          activeGscConnection.propertyUrl
+        )
+      : [];
   const syncedContent =
     activeOrganization && activeSite
       ? await repository.listSyncedContentForSite(
@@ -422,7 +434,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           {gscStatus ? (
             <p
               className={`billing-feedback billing-feedback-${
-                gscStatus === "connected" ? "success" : "error"
+                gscStatus === "error" ? "error" : "success"
               }`}
             >
               {formatGscFeedback(gscStatus, gscMessage)}
@@ -460,6 +472,16 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                         ? "Requests read-only Search Console access from Google."
                         : gscOverview.action.disabledReason}
                     </span>
+                    {activeGscConnection ? (
+                      <form action={syncGscDailyMetricsAction}>
+                        <input name="organizationId" type="hidden" value={activeOrganization.id} />
+                        <input name="siteId" type="hidden" value={activeSite.id} />
+                        <input name="redirectTo" type="hidden" value={currentHref} />
+                        <button className="secondary-button" type="submit">
+                          Sync metrics
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
 
@@ -491,6 +513,39 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                     No Google Search Console property is connected for this site yet.
                   </p>
                 )}
+
+                {activeGscConnection ? (
+                  gscMetrics.length > 0 ? (
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Clicks</th>
+                            <th>Impressions</th>
+                            <th>CTR</th>
+                            <th>Position</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gscMetrics.slice(-7).map((metric) => (
+                            <tr key={metric.id}>
+                              <td>{metric.date}</td>
+                              <td>{metric.clicks.toLocaleString("en")}</td>
+                              <td>{metric.impressions.toLocaleString("en")}</td>
+                              <td>{formatGscCtr(metric)}</td>
+                              <td>{formatGscPosition(metric)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-copy">
+                      Daily Search Console metrics will appear after the first sync.
+                    </p>
+                  )
+                ) : null}
               </>
             ) : (
               <p className="empty-copy">
@@ -2296,7 +2351,25 @@ function formatGscFeedback(status: (typeof gscStatuses)[number], message: string
     return "Google Search Console connection completed.";
   }
 
+  if (status === "metrics_synced") {
+    return "Google Search Console metrics synced.";
+  }
+
   return message || "Google Search Console connection could not be completed.";
+}
+
+function formatGscCtr(metric: GscDailyMetric): string {
+  return `${(metric.ctr * 100).toLocaleString("en", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0
+  })}%`;
+}
+
+function formatGscPosition(metric: GscDailyMetric): string {
+  return metric.position.toLocaleString("en", {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 0
+  });
 }
 
 function formatSubscriptionStatus(subscription: BillingSubscription | null): string {
