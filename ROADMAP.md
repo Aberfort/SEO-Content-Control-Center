@@ -63,11 +63,13 @@
 - Traffic loss detection. Status: deterministic read-only site-level window comparison (14 vs previous 14 days) and page-level insight snapshot comparison (latest vs 7 days earlier) implemented with severity thresholds, a dashboard panel, and a scoped API endpoint.
 - Content matching. Status: traffic loss pages are matched to synced WordPress inventory items through normalized URLs (protocol, www, trailing slash, query, and fragment insensitive) in the API and dashboard.
 - Traffic loss audit issues. Status: matched dropping pages are materialized as deduplicated `gsc.traffic-loss` audit issues during audit runs, with detection-derived severity and comparison evidence, and convert to backlog tasks through the existing issue mechanisms.
+- Search opportunities. Status: deterministic CTR-opportunity (high impressions, CTR below half of a position benchmark in the top 10) and striking-distance (positions 5-15 with traffic) detection from the latest insight snapshot, with a scoped read-only endpoint and a dashboard panel.
 
 ## Phase 5 - SEO Backlog
 
 - Audit issue to task conversion. Status: single issue and bulk open-issue conversion implemented.
-- Deduplication. Status: candidate, single audit issue, and bulk audit conversions reuse existing tasks.
+- GSC opportunity to task conversion. Status: matched CTR-opportunity and striking-distance pages convert to persisted backlog tasks through the existing candidate mechanism with `gsc.<type>` issue types.
+- Deduplication. Status: candidate, GSC opportunity, single audit issue, and bulk audit conversions reuse existing tasks.
 - Filters and search. Status: backlog text search and status/severity filtering with summary counts implemented.
 - Assignment and status workflows. Status: task status transitions plus assignee/due date updates with same-organization assignee validation implemented.
 - Comments and change history. Status: task comments and change history for creation, status, assignment, due date, and comment events implemented.

@@ -200,6 +200,12 @@
 - Normalized URL collisions between synced items resolve deterministically by external id order.
 - Content URL lookups for matching stay inside organization/site scope.
 - Audit runs materialize traffic loss drops matched to synced content as `gsc.traffic-loss` issues; unmatched drops never become issues.
+- Search opportunities flag pages with at least 200 impressions in the top 10 whose CTR is below half of the deterministic position benchmark.
+- Striking distance opportunities cover weighted positions 5 through 15 inclusive with at least 100 impressions.
+- Opportunity rows aggregate insight rows per page across queries before thresholds apply, and each type is bounded and sorted by impressions.
+- The opportunities endpoint and dashboard panel read persisted insight data only and never call Google inline.
+- Only opportunity pages matched to synced content expose a `candidateId` and can convert to backlog tasks; conversion revalidates the candidate against the latest snapshot.
+- Converted GSC opportunity tasks dedupe by organization, site, URL, and `gsc.<type>` issue type on repeated requests.
 - Traffic loss issue severity is `HIGH` at a 50% click drop or more and `MEDIUM` otherwise, matching detection thresholds.
 - Traffic loss issue evidence records comparison ranges, current/baseline clicks, click delta, drop ratio, positions, and property URL.
 - Repeat audit runs update existing `gsc:traffic-loss:<externalId>` fingerprints instead of duplicating issues and preserve triaged issue status.

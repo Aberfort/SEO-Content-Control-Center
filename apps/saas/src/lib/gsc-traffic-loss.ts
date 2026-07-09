@@ -153,8 +153,8 @@ export function buildPageTrafficLoss(
     startDate: baselineInsights[0]!.startDate,
     endDate: baselineInsights[0]!.endDate
   };
-  const currentPages = aggregateByPage(currentInsights);
-  const baselinePages = aggregateByPage(baselineInsights);
+  const currentPages = aggregateInsightsByPage(currentInsights);
+  const baselinePages = aggregateInsightsByPage(baselineInsights);
   const drops: PageTrafficLossEntry[] = [];
 
   for (const [page, baseline] of baselinePages) {
@@ -237,13 +237,20 @@ function summarizeWindow(
   };
 }
 
-type PageAggregate = {
+export type PageInsightAggregate = {
   clicks: number;
   impressions: number;
   position: number | null;
 };
 
-function aggregateByPage(insights: GscSearchInsight[]): Map<string, PageAggregate> {
+/**
+ * Aggregates page/query insight rows per page: clicks and impressions sum up
+ * and position becomes an impression-weighted average. Shared by traffic loss
+ * detection and opportunity detection so both read pages the same way.
+ */
+export function aggregateInsightsByPage(
+  insights: GscSearchInsight[]
+): Map<string, PageInsightAggregate> {
   const pages = new Map<string, { clicks: number; impressions: number; weighted: number }>();
 
   for (const insight of insights) {
@@ -258,7 +265,7 @@ function aggregateByPage(insights: GscSearchInsight[]): Map<string, PageAggregat
     pages.set(insight.page, existing);
   }
 
-  const aggregated = new Map<string, PageAggregate>();
+  const aggregated = new Map<string, PageInsightAggregate>();
 
   for (const [page, value] of pages) {
     aggregated.set(page, {

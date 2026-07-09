@@ -31,6 +31,11 @@ import { CreateSiteForm } from "@/components/create-site-form";
 import { GscPropertyPicker } from "@/components/gsc-property-picker";
 import { matchTrafficLossPages } from "@/lib/gsc-content-matching";
 import {
+  buildGscOpportunities,
+  buildGscOpportunityCandidateId,
+  matchGscOpportunityEntries
+} from "@/lib/gsc-opportunities";
+import {
   buildPageTrafficLoss,
   buildSiteTrafficLoss,
   shiftDateOnly,
@@ -188,20 +193,24 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const gscPageTrafficLossBase = activeGscConnection
     ? buildPageTrafficLoss(gscFullInsights, gscBaselineInsights)
     : null;
-  const gscTrafficLossContentUrls =
-    activeOrganization && activeSite && gscPageTrafficLossBase
-      ? gscPageTrafficLossBase.drops.length > 0
-        ? await repository.listSyncedContentUrlsForSite(
-            user.id,
-            activeOrganization.id,
-            activeSite.id
-          )
-        : []
+  const gscOpportunitiesBase = activeGscConnection ? buildGscOpportunities(gscFullInsights) : null;
+  const gscContentUrls =
+    activeOrganization &&
+    activeSite &&
+    ((gscPageTrafficLossBase?.drops.length ?? 0) > 0 ||
+      (gscOpportunitiesBase?.entries.length ?? 0) > 0)
+      ? await repository.listSyncedContentUrlsForSite(user.id, activeOrganization.id, activeSite.id)
       : [];
   const gscPageTrafficLoss = gscPageTrafficLossBase
     ? {
         ...gscPageTrafficLossBase,
-        drops: matchTrafficLossPages(gscPageTrafficLossBase.drops, gscTrafficLossContentUrls)
+        drops: matchTrafficLossPages(gscPageTrafficLossBase.drops, gscContentUrls)
+      }
+    : null;
+  const gscOpportunities = gscOpportunitiesBase
+    ? {
+        ...gscOpportunitiesBase,
+        entries: matchGscOpportunityEntries(gscOpportunitiesBase.entries, gscContentUrls)
       }
     : null;
   const syncedContent =
@@ -725,6 +734,107 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       )
                     ) : (
                       <p className="empty-copy">{gscPageTrafficLoss.reason}</p>
+                    )}
+                  </div>
+                ) : null}
+
+                {activeGscConnection && gscOpportunities ? (
+                  <div className="stack-sm">
+                    <h3 id="gsc-opportunities-title">Search opportunities</h3>
+                    {gscOpportunities.available ? (
+                      gscOpportunities.entries.length > 0 ? (
+                        <div className="table-wrap">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Type</th>
+                                <th>Page</th>
+                                <th>Content</th>
+                                <th>Impressions</th>
+                                <th>CTR</th>
+                                <th>Expected CTR</th>
+                                <th>Position</th>
+                                <th>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gscOpportunities.entries.map((entry) => (
+                                <tr key={`${entry.type}:${entry.page}`}>
+                                  <td>
+                                    {entry.type === "ctr-opportunity"
+                                      ? "CTR opportunity"
+                                      : "Striking distance"}
+                                  </td>
+                                  <td>{entry.page}</td>
+                                  <td>
+                                    {entry.content
+                                      ? entry.content.title || entry.content.externalId
+                                      : "Not in synced inventory"}
+                                  </td>
+                                  <td>{entry.impressions.toLocaleString("en")}</td>
+                                  <td>{`${(entry.ctr * 100).toLocaleString("en", {
+                                    maximumFractionDigits: 1
+                                  })}%`}</td>
+                                  <td>
+                                    {entry.expectedCtr !== null
+                                      ? `${(entry.expectedCtr * 100).toLocaleString("en", {
+                                          maximumFractionDigits: 1
+                                        })}%`
+                                      : "-"}
+                                  </td>
+                                  <td>
+                                    {entry.position.toLocaleString("en", {
+                                      maximumFractionDigits: 1
+                                    })}
+                                  </td>
+                                  <td>
+                                    {entry.content && activeOrganization && activeSite ? (
+                                      <form action={createBacklogTaskFromCandidateAction}>
+                                        <input
+                                          name="organizationId"
+                                          type="hidden"
+                                          value={activeOrganization.id}
+                                        />
+                                        <input name="siteId" type="hidden" value={activeSite.id} />
+                                        <input
+                                          name="contentItemId"
+                                          type="hidden"
+                                          value={entry.content.contentItemId}
+                                        />
+                                        <input
+                                          name="candidateId"
+                                          type="hidden"
+                                          value={buildGscOpportunityCandidateId(
+                                            entry.content.contentItemId,
+                                            entry.type
+                                          )}
+                                        />
+                                        <input
+                                          name="redirectTo"
+                                          type="hidden"
+                                          value={currentHref}
+                                        />
+                                        <button className="text-button" type="submit">
+                                          Create task
+                                        </button>
+                                      </form>
+                                    ) : (
+                                      <span className="empty-copy">Sync content to convert</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="empty-copy">
+                          No pages meet the CTR opportunity or striking distance thresholds in the
+                          latest insight snapshot.
+                        </p>
+                      )
+                    ) : (
+                      <p className="empty-copy">{gscOpportunities.reason}</p>
                     )}
                   </div>
                 ) : null}

@@ -118,6 +118,12 @@ import {
 } from "./content-health";
 import { buildAuditIssueInputsFromSyncedContent } from "./audit-issue-generation";
 import { matchTrafficLossPages, type SyncedContentUrlEntry } from "./gsc-content-matching";
+import {
+  buildGscOpportunities,
+  buildGscOpportunityBacklogCandidates,
+  matchGscOpportunityEntries,
+  type GscOpportunityBacklogCandidate
+} from "./gsc-opportunities";
 import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
 import {
   buildAuditIssueInputsFromTrafficLoss,
@@ -2451,22 +2457,45 @@ const prismaRepository: AppRepository = {
 
     const syncedItem = mapSyncedContentItem(item);
     const healthSignals = buildSyncedContentHealthSignals(syncedItem);
-    const candidate = buildSyncedContentBacklogCandidates(syncedItem, healthSignals).find(
+    const healthCandidate = buildSyncedContentBacklogCandidates(syncedItem, healthSignals).find(
       (backlogCandidate) => backlogCandidate.id === parsed.candidateId
     );
+    const gscCandidate = healthCandidate
+      ? null
+      : await findDbGscOpportunityCandidate(parsed.siteId, syncedItem, parsed.candidateId);
 
-    if (!candidate) {
+    if (!healthCandidate && !gscCandidate) {
       throw new Error("BACKLOG_CANDIDATE_NOT_FOUND");
     }
 
-    const issueType = `synced_content.${candidate.sourceSignalId}`;
+    const persistable = healthCandidate
+      ? {
+          issueType: `synced_content.${healthCandidate.sourceSignalId}`,
+          title: healthCandidate.title,
+          priority: healthCandidate.priority,
+          rationale: healthCandidate.rationale,
+          tags: ["synced-content", healthCandidate.sourceSignalId],
+          logMetadata: {
+            sourceSignalId: healthCandidate.sourceSignalId
+          }
+        }
+      : {
+          issueType: `gsc.${gscCandidate!.type}`,
+          title: gscCandidate!.title,
+          priority: gscCandidate!.priority,
+          rationale: gscCandidate!.rationale,
+          tags: ["gsc", gscCandidate!.type],
+          logMetadata: {
+            sourceType: gscCandidate!.type
+          }
+        };
     const task = await prisma.$transaction(async (tx) => {
       const existing = await tx.backlogTask.findFirst({
         where: {
           organizationId: parsed.organizationId,
           siteId: parsed.siteId,
           url: syncedItem.url,
-          issueType
+          issueType: persistable.issueType
         }
       });
 
@@ -2478,13 +2507,13 @@ const prismaRepository: AppRepository = {
         data: {
           organizationId: parsed.organizationId,
           siteId: parsed.siteId,
-          title: candidate.title,
+          title: persistable.title,
           url: syncedItem.url,
-          issueType,
-          severity: mapCandidatePriorityToSeverity(candidate.priority),
-          potentialImpact: candidate.rationale,
-          effortEstimate: mapCandidatePriorityToEffort(candidate.priority),
-          tags: ["synced-content", candidate.sourceSignalId]
+          issueType: persistable.issueType,
+          severity: mapCandidatePriorityToSeverity(persistable.priority),
+          potentialImpact: persistable.rationale,
+          effortEstimate: mapCandidatePriorityToEffort(persistable.priority),
+          tags: persistable.tags
         }
       });
 
@@ -2499,7 +2528,7 @@ const prismaRepository: AppRepository = {
             siteId: parsed.siteId,
             contentItemId: parsed.contentItemId,
             candidateId: parsed.candidateId,
-            sourceSignalId: candidate.sourceSignalId
+            ...persistable.logMetadata
           }
         }
       });
@@ -4727,19 +4756,16 @@ function dateOnlyToDate(value: string): Date {
 }
 
 /**
- * Builds traffic-loss audit issue inputs from the latest persisted insight
- * snapshot compared against the snapshot from 7 days earlier, matching the
- * snapshot selection used by the traffic-loss API endpoint. Callers must have
- * already checked organization access for the site.
+ * Loads the latest persisted page/query insight snapshot for a site, matching
+ * the snapshot selection used by the traffic-loss and opportunities endpoints.
+ * Callers must have already checked organization access for the site.
  */
-async function buildDbTrafficLossIssueInputs(
-  siteId: string,
-  contentEntries: SyncedContentUrlEntry[]
-): Promise<GeneratedTrafficLossAuditIssueInput[]> {
-  if (contentEntries.length === 0) {
-    return [];
-  }
-
+async function loadLatestDbInsightSnapshot(siteId: string): Promise<{
+  propertyUrl: string;
+  startDate: string;
+  endDate: string;
+  insights: GscSearchInsight[];
+} | null> {
   const latestInsight = await prisma.gscSearchInsight.findFirst({
     where: {
       siteId
@@ -4750,12 +4776,10 @@ async function buildDbTrafficLossIssueInputs(
   });
 
   if (!latestInsight) {
-    return [];
+    return null;
   }
 
-  const currentStartDate = latestInsight.startDate.toISOString().slice(0, 10);
-  const currentEndDate = latestInsight.endDate.toISOString().slice(0, 10);
-  const currentInsights = await prisma.gscSearchInsight.findMany({
+  const rows = await prisma.gscSearchInsight.findMany({
     where: {
       siteId,
       propertyUrl: latestInsight.propertyUrl,
@@ -4763,18 +4787,42 @@ async function buildDbTrafficLossIssueInputs(
       endDate: latestInsight.endDate
     }
   });
+
+  return {
+    propertyUrl: latestInsight.propertyUrl,
+    startDate: latestInsight.startDate.toISOString().slice(0, 10),
+    endDate: latestInsight.endDate.toISOString().slice(0, 10),
+    insights: rows.map(mapGscSearchInsight)
+  };
+}
+
+/**
+ * Builds traffic-loss audit issue inputs from the latest persisted insight
+ * snapshot compared against the snapshot from 7 days earlier.
+ */
+async function buildDbTrafficLossIssueInputs(
+  siteId: string,
+  contentEntries: SyncedContentUrlEntry[]
+): Promise<GeneratedTrafficLossAuditIssueInput[]> {
+  if (contentEntries.length === 0) {
+    return [];
+  }
+
+  const snapshot = await loadLatestDbInsightSnapshot(siteId);
+
+  if (!snapshot) {
+    return [];
+  }
+
   const baselineInsights = await prisma.gscSearchInsight.findMany({
     where: {
       siteId,
-      propertyUrl: latestInsight.propertyUrl,
-      startDate: dateOnlyToDate(shiftDateOnly(currentStartDate, -7)),
-      endDate: dateOnlyToDate(shiftDateOnly(currentEndDate, -7))
+      propertyUrl: snapshot.propertyUrl,
+      startDate: dateOnlyToDate(shiftDateOnly(snapshot.startDate, -7)),
+      endDate: dateOnlyToDate(shiftDateOnly(snapshot.endDate, -7))
     }
   });
-  const pages = buildPageTrafficLoss(
-    currentInsights.map(mapGscSearchInsight),
-    baselineInsights.map(mapGscSearchInsight)
-  );
+  const pages = buildPageTrafficLoss(snapshot.insights, baselineInsights.map(mapGscSearchInsight));
 
   if (!pages.available || pages.drops.length === 0) {
     return [];
@@ -4784,8 +4832,46 @@ async function buildDbTrafficLossIssueInputs(
     drops: matchTrafficLossPages(pages.drops, contentEntries),
     currentRange: pages.currentRange,
     baselineRange: pages.baselineRange,
-    propertyUrl: latestInsight.propertyUrl
+    propertyUrl: snapshot.propertyUrl
   });
+}
+
+/**
+ * Recomputes GSC opportunity backlog candidates for one synced content item
+ * from the latest persisted insight snapshot and returns the candidate with
+ * the requested id, or null when insights no longer support that candidate.
+ */
+async function findDbGscOpportunityCandidate(
+  siteId: string,
+  item: SyncedContentItem,
+  candidateId: string
+): Promise<GscOpportunityBacklogCandidate | null> {
+  const snapshot = await loadLatestDbInsightSnapshot(siteId);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const opportunities = buildGscOpportunities(snapshot.insights);
+
+  if (!opportunities.available || opportunities.entries.length === 0) {
+    return null;
+  }
+
+  const matched = matchGscOpportunityEntries(opportunities.entries, [
+    {
+      id: item.id,
+      externalId: item.externalId,
+      url: item.url,
+      title: item.title
+    }
+  ]);
+
+  return (
+    buildGscOpportunityBacklogCandidates(matched).find(
+      (candidate) => candidate.id === candidateId
+    ) ?? null
+  );
 }
 
 function mapActivityLog(log: {

@@ -410,6 +410,46 @@ Response:
 }
 ```
 
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/opportunities`
+
+Computes deterministic, read-only search opportunities from the latest already-persisted page/query insight snapshot; the endpoint never calls Google. Optional `propertyUrl` scopes the computation to one connected property. Rows are aggregated per page across queries before two detectors run:
+
+- `ctr-opportunity`: pages with at least 200 impressions ranking at weighted position 10 or better whose CTR falls below half of a deterministic position benchmark (`expectedCtr`), so the snippet is the likely bottleneck.
+- `striking-distance`: pages with at least 100 impressions at weighted positions 5 through 15 inclusive, close enough to reach top results with content and internal-link work.
+
+A page can surface both types. Each type is bounded to 10 entries and the combined list is sorted by impressions descending. Every entry carries the same `content` match summary as the traffic loss endpoint (`null` when the page is not in the synced inventory) plus a `candidateId` (`<contentItemId>:gsc-<type>`) that can be posted to the backlog task candidate endpoint; unmatched entries have `candidateId: null` and cannot become tasks. The response degrades to `available: false` with a human-readable `reason` while insight history is still accumulating.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "propertyUrl": "sc-domain:example.com",
+    "available": true,
+    "reason": null,
+    "range": { "startDate": "2026-06-22", "endDate": "2026-06-28" },
+    "entries": [
+      {
+        "type": "ctr-opportunity",
+        "page": "https://www.example.com/post/",
+        "clicks": 4,
+        "impressions": 1000,
+        "ctr": 0.004,
+        "position": 3,
+        "expectedCtr": 0.11,
+        "content": {
+          "contentItemId": "77777777-7777-4777-8777-777777777777",
+          "externalId": "post:123",
+          "title": "Post title"
+        },
+        "candidateId": "77777777-7777-4777-8777-777777777777:gsc-ctr-opportunity"
+      }
+    ]
+  }
+}
+```
+
 ## Billing Overview
 
 `GET /api/organizations/:organizationId/billing`
@@ -933,7 +973,7 @@ Response:
 
 `POST /api/organizations/:organizationId/sites/:siteId/backlog/tasks`
 
-Creates persisted backlog tasks from a synced content backlog candidate, a scoped audit issue, or all issues matching a scoped audit run/status. The server recomputes candidate details from the scoped content item and ignores user-supplied task titles or priority. Repeated candidate requests for the same organization, site, URL, and issue type return the existing task. Repeated audit issue requests for the same `auditIssueId` return the existing task. Repeated audit run requests create only missing tasks and return existing tasks for already converted issues.
+Creates persisted backlog tasks from a synced content backlog candidate, a GSC opportunity candidate, a scoped audit issue, or all issues matching a scoped audit run/status. The server recomputes candidate details from the scoped content item and ignores user-supplied task titles or priority. Repeated candidate requests for the same organization, site, URL, and issue type return the existing task. Repeated audit issue requests for the same `auditIssueId` return the existing task. Repeated audit run requests create only missing tasks and return existing tasks for already converted issues.
 
 Candidate request:
 
@@ -943,6 +983,8 @@ Candidate request:
   "candidateId": "33333333-3333-4333-8333-333333333333:refresh"
 }
 ```
+
+GSC opportunity candidate ids use the `<contentItemId>:gsc-<type>` namespace returned by the opportunities endpoint (`gsc-ctr-opportunity` or `gsc-striking-distance`). The server revalidates them against the latest persisted insight snapshot and the matched synced content item, then persists tasks with `issueType` `gsc.ctr-opportunity` or `gsc.striking-distance` and tags `["gsc", "<type>"]`; when newer insights no longer support the opportunity, the request returns `BACKLOG_CANDIDATE_NOT_FOUND`.
 
 Audit issue request:
 

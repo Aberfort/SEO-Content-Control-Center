@@ -2,6 +2,17 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 93
+
+- Added deterministic Search Console opportunity detection from the latest persisted page/query insight snapshot without inline Google calls.
+- Added the `ctr-opportunity` detector for pages with at least 200 impressions ranking at weighted position 10 or better whose CTR falls below half of a deterministic position CTR benchmark, and the `striking-distance` detector for pages with at least 100 impressions at weighted positions 5 through 15 inclusive.
+- Added per-page aggregation across queries before thresholds apply, per-type bounds of 10 entries, and impressions-descending ordering; a page can surface both opportunity types.
+- Added a read-only `GET /gsc/opportunities` endpoint scoped by organization/site with optional property filtering, returning matched synced content summaries and convertible `candidateId` values.
+- Extended the existing backlog candidate conversion so `<contentItemId>:gsc-<type>` candidate ids revalidate against the latest insight snapshot and persist tasks with `gsc.ctr-opportunity`/`gsc.striking-distance` issue types, `["gsc", "<type>"]` tags, and the established URL plus issue-type dedup.
+- Added a dashboard Search opportunities panel with per-entry metrics, benchmark CTR, matched content, and one-click Create task for matched pages.
+- Shared the page insight aggregation helper between traffic loss and opportunity detection, and reused one latest-snapshot loader for traffic-loss audit issues and opportunity candidate revalidation in the Prisma repository.
+- Added unit tests for the CTR benchmark table, both detector thresholds and boundaries, per-page aggregation, per-type bounds and ordering, content matching, candidate id format, and matched-only candidate generation.
+
 ### Iteration 92
 
 - Added materialization of matched Search Console traffic loss drops as `gsc.traffic-loss` audit issues during metadata audit runs.
