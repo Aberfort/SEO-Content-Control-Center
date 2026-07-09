@@ -54,6 +54,8 @@ REDIS_URL=redis://localhost:6379 npm run start -w @sccc/worker
 
 The worker requires `REDIS_URL`, processes the `sccc-maintenance` queue, writes a heartbeat to `sccc:worker:heartbeat:<hostname>:<pid>` with a 90-second TTL every 30 seconds, and shuts down gracefully on `SIGINT`/`SIGTERM`.
 
+Scheduled Google Search Console sync additionally requires `DATABASE_URL`, `SCCC_TOKEN_ENCRYPTION_KEY`, `SCCC_GSC_CLIENT_ID`, and `SCCC_GSC_CLIENT_SECRET`. When configured, the worker processes the `sccc-gsc-sync` queue and registers a repeatable `gsc.schedule-sync` job (daily at 06:00 UTC) that enqueues one metrics job and one insights job per active connection with date-scoped deterministic job ids. Without those variables the worker starts with GSC sync disabled and logs the missing configuration.
+
 ## Health Checks
 
 - SaaS: `GET /api/health`.

@@ -19,6 +19,7 @@ export type QueueName = (typeof queueNames)[keyof typeof queueNames];
 
 export const jobNames = {
   maintenancePing: "maintenance.ping",
+  gscScheduleSync: "gsc.schedule-sync",
   gscDailyMetricsSync: "gsc.daily-metrics.sync",
   gscSearchInsightsSync: "gsc.search-insights.sync",
   bulkOperationExecute: "bulk-operation.execute",
@@ -47,6 +48,23 @@ export const maintenancePingJobDataSchema = z
   .strict();
 
 export type MaintenancePingJobData = z.infer<typeof maintenancePingJobDataSchema>;
+
+export const gscSyncJobDataSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    siteId: z.string().uuid()
+  })
+  .strict();
+
+export type GscSyncJobData = z.infer<typeof gscSyncJobDataSchema>;
+
+/**
+ * Cron pattern for the repeatable GSC sync scheduler job. Search Analytics
+ * data lags days behind real time, so one daily run is enough.
+ */
+export const gscScheduleCronPattern = "0 6 * * *";
+
+export const gscScheduleJobId = "gsc-schedule-sync";
 
 /**
  * Default retry strategy for queued jobs. Failed jobs stay in the failed set

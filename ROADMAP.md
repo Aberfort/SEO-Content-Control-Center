@@ -58,6 +58,7 @@
 - Encrypted refresh token storage. Status: refresh tokens are encrypted before storage and are never returned by read APIs.
 - Historical metric sync. Status: persisted daily property-level Search Analytics sync implemented for clicks, impressions, CTR, and average position.
 - Page/query insights. Status: persisted top page/query Search Analytics sync implemented for the active property and shown on the dashboard.
+- Scheduled sync. Status: the worker process schedules daily metric and insight sync jobs for every active connection through a repeatable queue job, in addition to the manual dashboard sync.
 
 ## Phase 5 - SEO Backlog
 

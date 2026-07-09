@@ -9,6 +9,7 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 - `apps/worker` - background BullMQ worker process for queued jobs.
 - `packages/shared` - shared TypeScript domain types, RBAC, plans, and validation helpers.
 - `packages/queue` - queue names, job contracts, and BullMQ connection helpers.
+- `packages/gsc` - framework-agnostic Google Search Console client and token encryption helpers.
 - `packages/database` - Prisma schema, migrations, and seed entry points.
 - `wordpress-plugin` - production WordPress plugin skeleton.
 - `docs` - integration guides and product documentation.
@@ -131,6 +132,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - basic activity log writes;
 - BullMQ worker process foundation with maintenance queue processing, Redis heartbeat, job handler registry, tenant job payload validation, and graceful shutdown;
 - shared queue contract package with reserved queue/job names, deterministic job ids, and bounded retry defaults;
+- scheduled daily Google Search Console metric and insight sync through repeatable worker jobs for every active connection;
+- shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
 - CI workflow.

@@ -172,6 +172,10 @@
 - The worker stops the heartbeat, closes the queue consumer, and quits Redis on `SIGINT`/`SIGTERM`.
 - Duplicate job handler registrations and unknown job names fail fast.
 - Tenant-scoped job payloads without organization/site context are rejected before the handler runs.
+- The GSC schedule job enqueues exactly one metrics job and one insights job per active connection with date-scoped deterministic job ids.
+- Re-running the GSC schedule job on the same day deduplicates instead of duplicating sync work.
+- GSC sync jobs fail with `GSC_CONNECTION_NOT_FOUND` when the site has no active connection in the requested organization.
+- The worker starts with GSC sync disabled and logs a hint when GSC credentials, token encryption, or the database are not configured.
 
 ## SEO Safety
 

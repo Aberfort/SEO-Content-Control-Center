@@ -11,10 +11,10 @@
 
 The target architecture above is not fully built yet. As of Iteration 79 the codebase deviates as follows:
 
-- A worker foundation exists: `apps/worker` runs a BullMQ worker on the `sccc-maintenance` queue with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-gsc-sync`, `sccc-bulk-operations`, and `sccc-plugin-sync` queue names are reserved contracts in `packages/queue`; no business jobs are enqueued or processed yet.
+- A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance` and `sccc-gsc-sync` queues with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-bulk-operations` and `sccc-plugin-sync` queue names are reserved contracts in `packages/queue`; no business jobs are enqueued or processed on them yet.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
-- Google Search Console metric and insight syncs are triggered manually from the dashboard; no scheduled sync jobs exist.
+- Google Search Console metric and insight syncs run on a daily repeatable worker schedule for every active connection, and can still be triggered manually from the dashboard. The shared Google API client lives in `packages/gsc`.
 - Safe content operations capture state only (preview, dry run, confirm, start, results, retry, rollback). No code path writes to WordPress, and the plugin exposes no REST endpoint for applying operations.
 - S3-compatible storage is provisioned in Docker but unused by application code.
 
@@ -25,6 +25,7 @@ The target architecture above is not fully built yet. As of Iteration 79 the cod
 - `apps/worker` owns the background worker process.
 - `packages/shared` owns framework-agnostic types, RBAC, plan limits, event names, and validation contracts.
 - `packages/queue` owns queue names, job contracts, deterministic job ids, and BullMQ connection/producer helpers shared by the SaaS app and the worker.
+- `packages/gsc` owns the framework-agnostic Google Search Console client: OAuth token exchange/refresh, Search Analytics queries, property matching, token encryption, and date-range helpers.
 - `packages/database` owns Prisma schema and migrations.
 - `wordpress-plugin` owns all WordPress code.
 

@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@sccc/database": "0.1.0",
+    "@sccc/gsc": "0.1.0",
     "@sccc/queue": "0.1.0",
     "bullmq": "^5.34.5",
     "ioredis": "5.10.1"

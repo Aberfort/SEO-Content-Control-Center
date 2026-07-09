@@ -107,6 +107,8 @@
 - Google Search Console insight sync requires same-origin requests and integration management permission, stores aggregate page/query Search Analytics rows only, and never returns tokens.
 - Background jobs validate connection state before execution.
 - Worker job handlers for tenant-scoped work must validate organization/site payload scope before running; jobs without tenant context fail fast.
+- Scheduled GSC sync jobs load connections only through organization/site-scoped queries, decrypt refresh tokens in memory just before token refresh, and never place tokens in job payloads, job results, or logs.
+- Scheduled GSC sync writes activity logs as system entries without a user id and with bounded metadata only.
 - Worker logs are structured with primitive context values only and must never include tokens, signatures, or payload bodies.
 - Worker heartbeat keys contain only worker identity, timestamps, and job counters.
 - Frontend requests are not blocked by heavy sync operations.

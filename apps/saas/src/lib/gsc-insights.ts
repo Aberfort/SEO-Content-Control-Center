@@ -1,13 +1,13 @@
+import { normalizeDateRange, normalizeInsightRowLimit } from "@sccc/gsc";
+
 import { getAppRepository } from "./app-repository";
 import { queryGscSearchInsights, refreshGscAccessToken } from "./gsc-oauth";
-import { normalizeDateRange } from "./gsc-metrics";
 import { decryptSecret } from "./token-encryption";
 import type { AppUser, GscSearchInsightSyncResult } from "./types";
 
-type Fetcher = typeof fetch;
+export { normalizeInsightRowLimit } from "@sccc/gsc";
 
-const defaultInsightRowLimit = 100;
-const maxInsightRowLimit = 25000;
+type Fetcher = typeof fetch;
 
 export async function syncGscSearchInsightsForSite(input: {
   user: AppUser;
@@ -57,12 +57,4 @@ export async function syncGscSearchInsightsForSite(input: {
     endDate: range.endDate,
     insights: rows
   });
-}
-
-export function normalizeInsightRowLimit(rowLimit?: number | null): number {
-  if (!Number.isFinite(rowLimit)) {
-    return defaultInsightRowLimit;
-  }
-
-  return Math.max(1, Math.min(maxInsightRowLimit, Math.floor(rowLimit ?? defaultInsightRowLimit)));
 }

@@ -1,7 +1,11 @@
+import { normalizeDateRange } from "@sccc/gsc";
+
 import { getAppRepository } from "./app-repository";
 import { queryGscDailyMetrics, refreshGscAccessToken } from "./gsc-oauth";
 import { decryptSecret } from "./token-encryption";
 import type { AppUser, GscMetricSyncResult } from "./types";
+
+export { normalizeDateRange } from "@sccc/gsc";
 
 type Fetcher = typeof fetch;
 
@@ -50,36 +54,4 @@ export async function syncGscDailyMetricsForSite(input: {
     endDate: range.endDate,
     metrics: rows
   });
-}
-
-export function normalizeDateRange(input: {
-  startDate?: string | null;
-  endDate?: string | null;
-  now?: Date;
-}): { startDate: string; endDate: string } {
-  const now = input.now ?? new Date();
-  const defaultEnd = daysAgoDate(now, 3);
-  const defaultStart = daysAgoDate(now, 30);
-  const startDate = input.startDate?.trim() || defaultStart;
-  const endDate = input.endDate?.trim() || defaultEnd;
-
-  if (!isIsoDateOnly(startDate) || !isIsoDateOnly(endDate) || startDate > endDate) {
-    throw new Error("GSC_METRIC_DATE_RANGE_INVALID");
-  }
-
-  return {
-    startDate,
-    endDate
-  };
-}
-
-function daysAgoDate(now: Date, days: number): string {
-  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  date.setUTCDate(date.getUTCDate() - days);
-
-  return date.toISOString().slice(0, 10);
-}
-
-function isIsoDateOnly(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }

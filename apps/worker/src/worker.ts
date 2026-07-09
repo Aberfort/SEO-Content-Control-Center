@@ -1,8 +1,23 @@
 import os from "node:os";
 
-import { createQueueRedisConnection, jobNames, queueNames } from "@sccc/queue";
+import {
+  createQueueProducer,
+  createQueueRedisConnection,
+  defaultJobOptions,
+  gscScheduleCronPattern,
+  gscScheduleJobId,
+  jobNames,
+  queueNames,
+  type QueueName
+} from "@sccc/queue";
 import { Worker } from "bullmq";
 
+import {
+  createGscDailyMetricsSyncHandler,
+  createGscScheduleHandler,
+  createGscSearchInsightsSyncHandler
+} from "./gsc/handlers";
+import { buildLiveGscScheduleDeps, buildLiveGscSyncDeps, isGscWorkerConfigured } from "./gsc/live";
 import { createHeartbeatRecorder, type HeartbeatCounters } from "./heartbeat";
 import {
   createJobHandlerRegistry,
@@ -14,6 +29,7 @@ import { logWorkerEvent, serializeError } from "./logger";
 export type WorkerProcess = {
   workerId: string;
   registry: JobHandlerRegistry;
+  gscSyncEnabled: boolean;
   shutdown(): Promise<void>;
 };
 
@@ -22,6 +38,7 @@ type StartWorkerInput = {
   workerId?: string;
   heartbeatIntervalMs?: number;
   concurrency?: number;
+  env?: NodeJS.ProcessEnv;
 };
 
 export function buildWorkerId(hostname = os.hostname(), pid = process.pid): string {
@@ -30,13 +47,14 @@ export function buildWorkerId(hostname = os.hostname(), pid = process.pid): stri
 
 /**
  * Registers the handlers processed by the worker foundation. Future
- * iterations extend this registry with GSC sync and bulk operation handlers.
+ * iterations extend this registry with bulk operation handlers.
  */
 export function registerFoundationHandlers(registry: JobHandlerRegistry): void {
   registry.register(jobNames.maintenancePing, createMaintenancePingHandler());
 }
 
 export async function startWorker(input: StartWorkerInput): Promise<WorkerProcess> {
+  const env = input.env ?? process.env;
   const workerId = input.workerId ?? buildWorkerId();
   const startedAt = new Date();
   const counters: HeartbeatCounters = {
@@ -62,67 +80,128 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     }
   });
 
-  const worker = new Worker(
-    queueNames.maintenance,
-    async (job) => {
-      const handler = registry.resolve(job.name);
+  const workers: Worker[] = [];
+  const closers: Array<() => Promise<void>> = [];
 
-      return handler({
-        id: job.id,
-        name: job.name,
-        data: job.data as unknown
+  const createQueueWorker = (queueName: QueueName): Worker => {
+    const queueWorker = new Worker(
+      queueName,
+      async (job) => {
+        const handler = registry.resolve(job.name);
+
+        return handler({
+          id: job.id,
+          name: job.name,
+          data: job.data as unknown
+        });
+      },
+      {
+        connection,
+        concurrency: input.concurrency ?? 5
+      }
+    );
+
+    queueWorker.on("completed", (job) => {
+      counters.processedJobs += 1;
+      logWorkerEvent("info", "worker.job_completed", {
+        workerId,
+        queue: queueName,
+        jobId: job.id ?? null,
+        jobName: job.name
       });
-    },
-    {
-      connection,
-      concurrency: input.concurrency ?? 5
-    }
-  );
-
-  worker.on("completed", (job) => {
-    counters.processedJobs += 1;
-    logWorkerEvent("info", "worker.job_completed", {
-      workerId,
-      queue: queueNames.maintenance,
-      jobId: job.id ?? null,
-      jobName: job.name
     });
-  });
 
-  worker.on("failed", (job, error) => {
-    counters.failedJobs += 1;
-    logWorkerEvent("error", "worker.job_failed", {
-      workerId,
-      queue: queueNames.maintenance,
-      jobId: job?.id ?? null,
-      jobName: job?.name ?? null,
-      attemptsMade: job?.attemptsMade ?? null,
-      reason: serializeError(error)
+    queueWorker.on("failed", (job, error) => {
+      counters.failedJobs += 1;
+      logWorkerEvent("error", "worker.job_failed", {
+        workerId,
+        queue: queueName,
+        jobId: job?.id ?? null,
+        jobName: job?.name ?? null,
+        attemptsMade: job?.attemptsMade ?? null,
+        reason: serializeError(error)
+      });
     });
-  });
 
-  worker.on("error", (error) => {
-    logWorkerEvent("error", "worker.error", {
-      workerId,
-      reason: serializeError(error)
+    queueWorker.on("error", (error) => {
+      logWorkerEvent("error", "worker.error", {
+        workerId,
+        queue: queueName,
+        reason: serializeError(error)
+      });
     });
-  });
+
+    workers.push(queueWorker);
+    return queueWorker;
+  };
+
+  createQueueWorker(queueNames.maintenance);
+
+  const gscSyncEnabled = isGscWorkerConfigured(env);
+
+  if (gscSyncEnabled) {
+    const gscQueue = createQueueProducer(queueNames.gscSync, connection);
+    closers.push(() => gscQueue.close());
+
+    const syncDeps = buildLiveGscSyncDeps();
+    registry.register(jobNames.gscDailyMetricsSync, createGscDailyMetricsSyncHandler(syncDeps));
+    registry.register(jobNames.gscSearchInsightsSync, createGscSearchInsightsSyncHandler(syncDeps));
+    registry.register(
+      jobNames.gscScheduleSync,
+      createGscScheduleHandler(
+        buildLiveGscScheduleDeps(async (job) => {
+          await gscQueue.add(job.name, job.data, {
+            jobId: job.jobId
+          });
+        })
+      )
+    );
+
+    createQueueWorker(queueNames.gscSync);
+
+    await gscQueue.add(
+      jobNames.gscScheduleSync,
+      {},
+      {
+        jobId: gscScheduleJobId,
+        repeat: {
+          pattern: gscScheduleCronPattern
+        },
+        attempts: defaultJobOptions.attempts
+      }
+    );
+  } else {
+    logWorkerEvent("warn", "worker.gsc_sync_disabled", {
+      workerId,
+      hint: "Set DATABASE_URL, SCCC_TOKEN_ENCRYPTION_KEY, SCCC_GSC_CLIENT_ID, and SCCC_GSC_CLIENT_SECRET to enable scheduled GSC sync."
+    });
+  }
 
   await heartbeat.recordOnce();
   heartbeat.start();
 
   logWorkerEvent("info", "worker.started", {
     workerId,
-    queue: queueNames.maintenance,
+    queues: workers.length,
+    gscSyncEnabled,
     handlers: registry.registeredJobNames().join(",")
   });
 
   return {
     workerId,
     registry,
+    gscSyncEnabled,
     async shutdown() {
       heartbeat.stop();
-      await worker.close();
+
+      for (const queueWorker of workers) {
+        await queueWorker.close();
+      }
+
+      for (const close of closers) {
+        await close();
+      }
+
       await connection.quit();
       logWorkerEvent("info", "worker.stopped", {
         workerId,

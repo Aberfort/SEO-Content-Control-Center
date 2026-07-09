@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 82
+
+- Added scheduled Google Search Console sync: the worker registers a repeatable `gsc.schedule-sync` job (daily at 06:00 UTC) that enqueues one daily-metrics job and one search-insights job per active connection on the `sccc-gsc-sync` queue.
+- Added date-scoped deterministic job ids so re-running the scheduler on the same day deduplicates sync work across worker instances.
+- Added worker GSC sync handlers that validate tenant payload scope, load connections through organization/site-scoped queries, refresh Google access tokens from encrypted refresh tokens, and persist metrics/insights with the same upsert/replace semantics as the manual dashboard sync.
+- Added system activity log entries (`gsc.metrics_synced`, `gsc.insights_synced`) with a `scheduled_sync` trigger and no user id for worker-driven syncs.
+- Extracted the framework-agnostic Google Search Console client into `packages/gsc` (OAuth token exchange/refresh, Search Analytics queries, property matching, token encryption, date-range helpers); the SaaS app re-exports it so existing imports and tests keep working.
+- Gated worker GSC sync behind `DATABASE_URL`, `SCCC_TOKEN_ENCRYPTION_KEY`, and Google client credentials with a clear startup log when disabled.
+- Documented scheduled sync behavior, deployment requirements, security boundaries, and QA coverage.
+
 ### Iteration 81
 
 - Added the `apps/worker` background process: a BullMQ worker on the `sccc-maintenance` queue with configurable concurrency, structured JSON logging, and graceful `SIGINT`/`SIGTERM` shutdown.
