@@ -78,6 +78,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin recurring sync through Action Scheduler with hourly WP-Cron fallback;
 - WordPress plugin and SaaS dashboard disconnect flow with server-side token invalidation;
 - WordPress plugin posts/pages inventory payload for signed sync;
+- WordPress plugin paginated inventory sync in ID-ordered batches of 200 with offset cursors and a per-run batch safety bound;
 - WordPress plugin content metadata sync for author, publish date, featured image, taxonomies, word count, and internal/outbound link counts;
 - WordPress plugin SEO metadata sync for Yoast, Rank Math, and fallback title/canonical/robots signals;
 - WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;

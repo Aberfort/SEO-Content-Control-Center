@@ -185,10 +185,11 @@ Payload rules:
 The SaaS app upserts synced items by `siteId + externalId`, updates `lastSeenAt`, stores bounded
 metadata as JSON, and records `lastSyncAt` on the connection.
 
-Known plugin limitation as of Iteration 79: although this contract accepts a `cursor` and up to
-250 items per request, the WordPress plugin currently sends a single batch of at most 100 posts
-and pages with `cursor: null` and does not paginate. Sites with more than 100 published posts and
-pages sync only the most recent 100 items until sync pagination/chunking ships.
+The plugin paginates the full posts/pages inventory in batches of 200 items ordered by post ID
+ascending. Each batch request sets `cursor` to the batch offset as a string (`"0"`, `"200"`,
+`"400"`, ...), and the response echoes the received cursor. A single sync run sends at most 50
+batches (10,000 items) as a safety bound; larger inventories continue from the beginning on the
+next scheduled run, and upserts by `siteId + externalId` keep repeated batches idempotent.
 
 ## Metadata Contract
 

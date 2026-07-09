@@ -11,25 +11,44 @@ namespace SCCC\Plugin;
 
 final class ContentCollector
 {
-    private const DEFAULT_LIMIT = 100;
+    public const BATCH_SIZE = 200;
+    private const MAX_BATCH_SIZE = 250;
 
     /**
      * @return array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}>
      */
-    public function collect(int $limit = self::DEFAULT_LIMIT): array
+    public function collect(int $limit = self::BATCH_SIZE): array
+    {
+        return $this->collectBatch(0, $limit)['items'];
+    }
+
+    /**
+     * Collects one inventory batch at the given offset. Ordering is by post ID
+     * ascending so paginated batches stay stable while content is edited
+     * during a sync run. `hasMore` reflects the raw query row count, because
+     * mapped items can be fewer than queried rows when permalinks are missing.
+     *
+     * @return array{items:array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}>,hasMore:bool}
+     */
+    public function collectBatch(int $offset = 0, int $limit = self::BATCH_SIZE): array
     {
         if (! class_exists('\\WP_Query')) {
-            return [];
+            return [
+                'items' => [],
+                'hasMore' => false,
+            ];
         }
 
+        $boundedLimit = max(1, min($limit, self::MAX_BATCH_SIZE));
         $query = new \WP_Query(
             [
                 'post_type' => ['post', 'page'],
                 'post_status' => ['publish', 'draft', 'pending', 'future', 'private'],
-                'posts_per_page' => max(1, min($limit, self::DEFAULT_LIMIT)),
+                'posts_per_page' => $boundedLimit,
+                'offset' => max(0, $offset),
                 'no_found_rows' => true,
-                'orderby' => 'modified',
-                'order' => 'DESC',
+                'orderby' => 'ID',
+                'order' => 'ASC',
             ]
         );
         $items = [];
@@ -48,7 +67,10 @@ final class ContentCollector
             wp_reset_postdata();
         }
 
-        return $items;
+        return [
+            'items' => $items,
+            'hasMore' => count($query->posts) >= $boundedLimit,
+        ];
     }
 
     /**

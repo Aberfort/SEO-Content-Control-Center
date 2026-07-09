@@ -176,6 +176,10 @@
 - Re-running the GSC schedule job on the same day deduplicates instead of duplicating sync work.
 - GSC sync jobs fail with `GSC_CONNECTION_NOT_FOUND` when the site has no active connection in the requested organization.
 - The worker starts with GSC sync disabled and logs a hint when GSC credentials, token encryption, or the database are not configured.
+- Plugin sync paginates inventories larger than one batch and sends offset cursors with every batch.
+- Plugin sync batches are ordered by post ID ascending so pagination stays stable while content changes.
+- Posts without permalinks are skipped inside a batch without ending pagination early.
+- A single plugin sync run stops after the 50-batch safety bound and the sync log records the total synced item count.
 
 ## SEO Safety
 

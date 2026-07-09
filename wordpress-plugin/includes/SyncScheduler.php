@@ -15,12 +15,14 @@ final class SyncScheduler
     private const MANUAL_ACTION = 'sccc_run_manual_sync';
     private const GROUP = 'seo-content-control-center';
     private const INTERVAL_SECONDS = 3600;
+    private const MAX_SYNC_BATCHES = 50;
 
     public function __construct(
         private readonly ConnectionStore $connectionStore,
         private readonly ApiClient $apiClient,
         private readonly ContentCollector $contentCollector,
-        private readonly SyncLogStore $syncLogStore
+        private readonly SyncLogStore $syncLogStore,
+        private readonly int $syncBatchSize = ContentCollector::BATCH_SIZE
     ) {
     }
 
@@ -48,9 +50,23 @@ final class SyncScheduler
         }
 
         try {
-            $items = $this->contentCollector->collect();
-            $this->apiClient->sendSync($connection, $items);
-            $this->syncLogStore->recordSuccess(count($items));
+            $offset = 0;
+            $batches = 0;
+            $totalItems = 0;
+
+            do {
+                $batch = $this->contentCollector->collectBatch($offset, $this->syncBatchSize);
+
+                if ([] !== $batch['items']) {
+                    $this->apiClient->sendSync($connection, $batch['items'], (string) $offset);
+                    $totalItems += count($batch['items']);
+                }
+
+                $offset += $this->syncBatchSize;
+                $batches++;
+            } while ($batch['hasMore'] && $batches < self::MAX_SYNC_BATCHES);
+
+            $this->syncLogStore->recordSuccess($totalItems);
         } catch (\RuntimeException $error) {
             $this->syncLogStore->recordFailure($error->getMessage());
             return;

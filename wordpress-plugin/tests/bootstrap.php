@@ -93,6 +93,63 @@ if (! function_exists('wp_next_scheduled')) {
     }
 }
 
+if (! class_exists('WP_Query')) {
+    class WP_Query
+    {
+        /** @var array<int,object> */
+        public array $posts = [];
+
+        /**
+         * @param array<string,mixed> $args
+         */
+        public function __construct(array $args = [])
+        {
+            $all = $GLOBALS['sccc_test_posts'] ?? [];
+            $offset = (int) ($args['offset'] ?? 0);
+            $limit = (int) ($args['posts_per_page'] ?? count($all));
+            $this->posts = array_slice($all, $offset, $limit);
+        }
+    }
+}
+
+if (! function_exists('get_permalink')) {
+    function get_permalink(object $post): string
+    {
+        return (string) ($post->permalink ?? '');
+    }
+}
+
+if (! function_exists('wp_remote_post')) {
+    $GLOBALS['sccc_test_remote_posts'] = [];
+
+    /**
+     * @param array<string,mixed> $args
+     * @return array{response:array{code:int}}
+     */
+    function wp_remote_post(string $url, array $args = []): array
+    {
+        $GLOBALS['sccc_test_remote_posts'][] = [
+            'url' => $url,
+            'body' => (string) ($args['body'] ?? ''),
+        ];
+
+        return ['response' => ['code' => 200]];
+    }
+
+    function is_wp_error(mixed $thing): bool
+    {
+        return false;
+    }
+
+    /**
+     * @param array{response:array{code:int}} $response
+     */
+    function wp_remote_retrieve_response_code(array $response): int
+    {
+        return (int) $response['response']['code'];
+    }
+}
+
 if (! function_exists('get_post_meta')) {
     $GLOBALS['sccc_test_post_meta'] = [];
 
@@ -352,5 +409,96 @@ if (10 !== count($sync_log_store->all())) {
     fwrite(STDERR, "SyncLogStore did not bound recent entries.\n");
     exit(1);
 }
+
+$cursor_body = $api_client->buildSyncBody($connection, [], '200');
+
+if (! str_contains($cursor_body, '"cursor":"200"')) {
+    fwrite(STDERR, "ApiClient sync body cursor failed.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_posts'] = array_map(
+    static fn (int $id): object => (object) [
+        'ID' => $id,
+        'post_type' => 'post',
+        'post_title' => 'Post ' . $id,
+        'post_status' => 'publish',
+        'post_modified_gmt' => '2026-07-01 08:00:00',
+        'post_date_gmt' => '2026-06-30 07:00:00',
+        'post_author' => 1,
+        'post_content' => '<p>Body copy for post.</p>',
+        'permalink' => 'https://wp.example.com/post-' . $id . '/',
+    ],
+    [1, 2, 3, 4, 5]
+);
+
+$first_batch = $collector->collectBatch(0, 2);
+
+if (2 !== count($first_batch['items']) || true !== $first_batch['hasMore']) {
+    fwrite(STDERR, "ContentCollector first batch pagination failed.\n");
+    exit(1);
+}
+
+$last_batch = $collector->collectBatch(4, 2);
+
+if (1 !== count($last_batch['items']) || false !== $last_batch['hasMore']) {
+    fwrite(STDERR, "ContentCollector last batch pagination failed.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_posts'][2]->permalink = '';
+$skip_batch = $collector->collectBatch(0, 5);
+
+if (4 !== count($skip_batch['items']) || true !== $skip_batch['hasMore']) {
+    fwrite(STDERR, "ContentCollector permalink skip batch failed.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_posts'][2]->permalink = 'https://wp.example.com/post-3/';
+
+$connection_store->save(
+    $connection['organization_id'],
+    $connection['site_id'],
+    $connection['token'],
+    $connection['endpoint']
+);
+$GLOBALS['sccc_test_remote_posts'] = [];
+$paginated_scheduler = new SCCC\Plugin\SyncScheduler(
+    $connection_store,
+    $api_client,
+    $collector,
+    $sync_log_store,
+    2
+);
+$paginated_scheduler->runSync();
+
+if (3 !== count($GLOBALS['sccc_test_remote_posts'])) {
+    fwrite(STDERR, "SyncScheduler did not send three paginated batches.\n");
+    exit(1);
+}
+
+$cursors = array_map(
+    static function (array $request): ?string {
+        $decoded = json_decode($request['body'], true);
+
+        return is_array($decoded) ? ($decoded['cursor'] ?? null) : null;
+    },
+    $GLOBALS['sccc_test_remote_posts']
+);
+
+if (['0', '2', '4'] !== $cursors) {
+    fwrite(STDERR, "SyncScheduler paginated cursors failed.\n");
+    exit(1);
+}
+
+$latest_log = $sync_log_store->all()[0];
+
+if ('success' !== $latest_log['status'] || 5 !== $latest_log['item_count']) {
+    fwrite(STDERR, "SyncScheduler paginated sync log failed.\n");
+    exit(1);
+}
+
+$connection_store->disconnect();
+unset($GLOBALS['sccc_test_posts']);
 
 echo "WordPress plugin smoke tests passed.\n";

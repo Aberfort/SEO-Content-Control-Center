@@ -38,6 +38,7 @@
 - Manual sync. Status: admin manual sync queues signed sync work and reports queued status through an admin notice.
 - Action Scheduler sync. Status: connected plugins schedule recurring sync through Action Scheduler with hourly WP-Cron fallback.
 - Incremental content metadata sync. Status: author, publish date, featured image, taxonomy, word count, link counts, and SEO metadata sync implemented for current posts/pages inventory.
+- Sync pagination. Status: the plugin paginates the full posts/pages inventory in ID-ordered batches of 200 with offset cursors and a 50-batch per-run safety bound.
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
 - Disconnect flow. Status: SaaS dashboard and signed WordPress admin disconnect invalidate server-side plugin connections.
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.

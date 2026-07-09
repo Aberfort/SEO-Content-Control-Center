@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 83
+
+- Added paginated WordPress plugin sync: the full posts/pages inventory now syncs in batches of 200 items instead of a single capped batch of 100.
+- Switched inventory batch ordering to post ID ascending so pagination stays stable while content is edited during a sync run.
+- Added offset cursors to every sync batch request (`"0"`, `"200"`, ...) using the existing contract field; the SaaS response already echoes the cursor.
+- Added a 50-batch per-run safety bound (10,000 items) with idempotent continuation on the next run through `siteId + externalId` upserts.
+- Kept permalink-less posts skipped inside batches without terminating pagination early by deriving `hasMore` from raw query row counts.
+- Added plugin test stubs for `WP_Query`, `get_permalink`, and `wp_remote_post` plus smoke tests for batch collection, cursor bodies, paginated sync requests, and sync log totals.
+- Documented the pagination behavior in the plugin API contract, roadmap, README, and QA checklist, removing the Iteration 79 known limitation.
+
 ### Iteration 82
 
 - Added scheduled Google Search Console sync: the worker registers a repeatable `gsc.schedule-sync` job (daily at 06:00 UTC) that enqueues one daily-metrics job and one search-insights job per active connection on the `sccc-gsc-sync` queue.
