@@ -28,9 +28,10 @@ export type GeneratedAuditIssueInput = {
 };
 
 export function buildAuditIssueInputsFromSyncedContent(
-  item: SyncedContentItem
+  item: SyncedContentItem,
+  referenceDate = new Date()
 ): GeneratedAuditIssueInput[] {
-  const signals = buildSyncedContentHealthSignals(item);
+  const signals = buildSyncedContentHealthSignals(item, referenceDate);
   const signalsById = new Map(signals.map((signal) => [signal.id, signal]));
 
   return buildSyncedContentBacklogCandidates(item, signals).map((candidate) =>

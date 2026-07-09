@@ -6,7 +6,9 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 
 - `apps/saas` - authenticated SaaS application and API built with Next.js.
 - `apps/marketing` - public website for acquisition, demo, trial, and content.
+- `apps/worker` - background BullMQ worker process for queued jobs.
 - `packages/shared` - shared TypeScript domain types, RBAC, plans, and validation helpers.
+- `packages/queue` - queue names, job contracts, and BullMQ connection helpers.
 - `packages/database` - Prisma schema, migrations, and seed entry points.
 - `wordpress-plugin` - production WordPress plugin skeleton.
 - `docs` - integration guides and product documentation.
@@ -40,6 +42,12 @@ npm run dev
 
 The SaaS app runs on `http://localhost:3000`.
 The marketing app runs on `http://localhost:3001`.
+
+The background worker is started separately and requires Redis:
+
+```bash
+REDIS_URL=redis://localhost:6379 npm run start -w @sccc/worker
+```
 
 ## Current Iteration
 
@@ -121,6 +129,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - billing feature gates for site/user plan limits and expired local Trial access;
 - billing notifications when finite site or user limits are reached;
 - basic activity log writes;
+- BullMQ worker process foundation with maintenance queue processing, Redis heartbeat, job handler registry, tenant job payload validation, and graceful shutdown;
+- shared queue contract package with reserved queue/job names, deterministic job ids, and bounded retry defaults;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
 - CI workflow.

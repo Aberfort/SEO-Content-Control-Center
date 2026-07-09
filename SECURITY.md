@@ -106,6 +106,9 @@
 - Google Search Console metric sync requires same-origin requests and integration management permission, decrypts refresh tokens only server-side, stores aggregate daily metrics only, and never returns tokens.
 - Google Search Console insight sync requires same-origin requests and integration management permission, stores aggregate page/query Search Analytics rows only, and never returns tokens.
 - Background jobs validate connection state before execution.
+- Worker job handlers for tenant-scoped work must validate organization/site payload scope before running; jobs without tenant context fail fast.
+- Worker logs are structured with primitive context values only and must never include tokens, signatures, or payload bodies.
+- Worker heartbeat keys contain only worker identity, timestamps, and job counters.
 - Frontend requests are not blocked by heavy sync operations.
 
 ## SaaS Tenant Isolation Checks

@@ -44,11 +44,21 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Remove deprecated fields in later releases.
 - Use queue draining for worker changes.
 
+## Worker Process
+
+Run the background worker with:
+
+```bash
+REDIS_URL=redis://localhost:6379 npm run start -w @sccc/worker
+```
+
+The worker requires `REDIS_URL`, processes the `sccc-maintenance` queue, writes a heartbeat to `sccc:worker:heartbeat:<hostname>:<pid>` with a 90-second TTL every 30 seconds, and shuts down gracefully on `SIGINT`/`SIGTERM`.
+
 ## Health Checks
 
 - SaaS: `GET /api/health`.
 - Marketing: public page availability.
-- Workers: heartbeat and queue lag.
+- Workers: check that `sccc:worker:heartbeat:*` keys exist in Redis; an expired key means the worker is stalled or dead. Queue lag metrics land with the observability iteration.
 - Database: connection and migration status.
 - Redis: connection and queue health.
 

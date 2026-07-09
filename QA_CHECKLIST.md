@@ -167,6 +167,11 @@
 - Stripe webhook deliveries are rate limited per client IP without dropping legitimate event bursts.
 - Rate limits keep counting across SaaS instances when `REDIS_URL` is configured.
 - Rate limiting degrades to the process-local fallback instead of failing requests when Redis is unavailable.
+- The worker process refuses to start without `REDIS_URL` and logs a clear hint.
+- The worker writes an expiring Redis heartbeat on start and on every interval tick.
+- The worker stops the heartbeat, closes the queue consumer, and quits Redis on `SIGINT`/`SIGTERM`.
+- Duplicate job handler registrations and unknown job names fail fast.
+- Tenant-scoped job payloads without organization/site context are rejected before the handler runs.
 
 ## SEO Safety
 

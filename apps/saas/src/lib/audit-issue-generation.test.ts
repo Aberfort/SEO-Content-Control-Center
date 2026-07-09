@@ -24,9 +24,11 @@ const baseItem: SyncedContentItem = {
   lastSeenAt: "2026-07-01T10:00:00.000Z"
 };
 
+const referenceDate = new Date("2026-07-02T12:00:00.000Z");
+
 describe("buildAuditIssueInputsFromSyncedContent", () => {
   it("materializes actionable synced content health signals as audit issues", () => {
-    const issues = buildAuditIssueInputsFromSyncedContent(baseItem);
+    const issues = buildAuditIssueInputsFromSyncedContent(baseItem, referenceDate);
 
     expect(issues.map((issue) => [issue.issueType, issue.severity])).toEqual([
       ["synced_content.thin-content", "MEDIUM"],

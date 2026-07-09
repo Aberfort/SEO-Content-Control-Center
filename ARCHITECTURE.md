@@ -5,14 +5,14 @@
 - SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis (rate limits today, queues planned), BullMQ workers (planned), S3-compatible storage (planned), Stripe billing.
 - WordPress plugin: PHP 8.1+, PSR-4 autoloading, WP REST API, Action Scheduler for background work, nonce/capability checks, sanitized inputs, escaped outputs.
 - Marketing site: public Next.js app with SEO metadata, lead/demo/trial forms, product content, status and legal pages.
-- Workers (planned): background jobs for sync ingestion, audits, GSC pulls, exports, bulk operations, retries, dead-letter handling.
+- Workers: BullMQ worker process foundation with heartbeat, handler registry, and graceful shutdown; background jobs for sync ingestion, audits, GSC pulls, exports, and bulk operations plug into this foundation in later iterations.
 
 ## Current Implementation Status
 
 The target architecture above is not fully built yet. As of Iteration 79 the codebase deviates as follows:
 
-- No worker package or process exists. BullMQ queues are still documentation-only.
-- Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable). This is currently the only application code that connects to Redis.
+- A worker foundation exists: `apps/worker` runs a BullMQ worker on the `sccc-maintenance` queue with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-gsc-sync`, `sccc-bulk-operations`, and `sccc-plugin-sync` queue names are reserved contracts in `packages/queue`; no business jobs are enqueued or processed yet.
+- Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
 - Google Search Console metric and insight syncs are triggered manually from the dashboard; no scheduled sync jobs exist.
 - Safe content operations capture state only (preview, dry run, confirm, start, results, retry, rollback). No code path writes to WordPress, and the plugin exposes no REST endpoint for applying operations.
@@ -22,7 +22,9 @@ The target architecture above is not fully built yet. As of Iteration 79 the cod
 
 - `apps/saas` owns authenticated product surfaces and SaaS API endpoints.
 - `apps/marketing` owns public acquisition pages.
+- `apps/worker` owns the background worker process.
 - `packages/shared` owns framework-agnostic types, RBAC, plan limits, event names, and validation contracts.
+- `packages/queue` owns queue names, job contracts, deterministic job ids, and BullMQ connection/producer helpers shared by the SaaS app and the worker.
 - `packages/database` owns Prisma schema and migrations.
 - `wordpress-plugin` owns all WordPress code.
 
@@ -52,7 +54,7 @@ Tenant isolation requirements:
 
 ## Background Processing
 
-Heavy work must not run inside a single HTTP request. SaaS will use Redis-backed queues once the worker foundation lands; WordPress uses Action Scheduler today. Every job is idempotent, retryable, and carries organization/site context.
+Heavy work must not run inside a single HTTP request. SaaS uses Redis-backed BullMQ queues processed by the `apps/worker` process; WordPress uses Action Scheduler. Every job is idempotent (deterministic job ids), retryable (bounded exponential backoff), and tenant-scoped jobs must carry organization/site context validated before the handler runs. Failed jobs remain in the BullMQ failed set for inspection until a dedicated dead-letter flow ships.
 
 ## Safety Model
 

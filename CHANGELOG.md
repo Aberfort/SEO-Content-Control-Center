@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 81
+
+- Added the `apps/worker` background process: a BullMQ worker on the `sccc-maintenance` queue with configurable concurrency, structured JSON logging, and graceful `SIGINT`/`SIGTERM` shutdown.
+- Added a Redis worker heartbeat written every 30 seconds with a 90-second TTL under `sccc:worker:heartbeat:<hostname>:<pid>` so monitoring can detect stalled or dead workers.
+- Added a job handler registry with fail-fast behavior for duplicate registrations and unknown job names, plus a tenant-scope wrapper that validates organization/site payload context before handlers run.
+- Added the `packages/queue` contract package with namespaced queue names, reserved job names for upcoming GSC sync and bulk operation execution, deterministic job id building, bounded retry defaults, and BullMQ connection/producer helpers.
+- Added a validated `maintenance.ping` job handler as the end-to-end smoke path for the queue pipeline.
+- Documented the worker deployment unit, heartbeat-based health checks, worker security boundaries, and QA coverage.
+- Fixed a time-dependent audit issue generation test by threading an optional `referenceDate` through `buildAuditIssueInputsFromSyncedContent` instead of always reading the current clock.
+
 ### Iteration 80
 
 - Added a Redis-backed fixed-window rate limit store that activates when `REDIS_URL` is configured and keeps counting across multiple SaaS instances.
