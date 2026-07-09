@@ -67,6 +67,7 @@ import {
   createBacklogTaskFromCandidate as createDevBacklogTaskFromCandidate,
   createOrganization as createDevOrganization,
   createSite as createDevSite,
+  getGscConnectionSecretForSite as getDevGscConnectionSecretForSite,
   getSyncedContentItem as getDevSyncedContentItem,
   getGscConnectionOverviewForSite as getDevGscConnectionOverviewForSite,
   getOrganizationSummary as getDevOrganizationSummary,
@@ -162,6 +163,7 @@ import type {
   BillingSubscription,
   BulkOperation,
   BulkOperationListOptions,
+  GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
   InviteResult,
@@ -343,6 +345,11 @@ type AppRepository = {
     organizationId: string,
     siteId: string
   ): Promise<GscConnectionOverview>;
+  getGscConnectionSecretForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<GscConnectionSecret | null>;
   upsertGscConnection(input: UpsertGscConnectionInput): Promise<GscConnectionSummary>;
   listAssistantRecommendationsForSite(
     userId: string,
@@ -476,6 +483,9 @@ const devStoreRepository: AppRepository = {
   },
   async getGscConnectionOverviewForSite(userId, organizationId, siteId) {
     return getDevGscConnectionOverviewForSite(userId, organizationId, siteId);
+  },
+  async getGscConnectionSecretForSite(userId, organizationId, siteId) {
+    return getDevGscConnectionSecretForSite(userId, organizationId, siteId);
   },
   async upsertGscConnection(input) {
     return upsertDevGscConnection(input);
@@ -1498,6 +1508,37 @@ const prismaRepository: AppRepository = {
     });
 
     return mapGscConnectionSummary(connection);
+  },
+
+  async getGscConnectionSecretForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "integration:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        organizationId
+      }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const connection = await prisma.gscConnection.findFirst({
+      where: {
+        siteId,
+        disconnectedAt: null
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    });
+
+    return connection ? mapGscConnectionSecret(connection) : null;
   },
 
   async listAssistantRecommendationsForSite(userId, organizationId, siteId, options) {
@@ -3966,6 +4007,22 @@ function mapGscConnectionSummary(connection: {
     connectedAt: connection.createdAt.toISOString(),
     updatedAt: connection.updatedAt.toISOString(),
     disconnectedAt: connection.disconnectedAt?.toISOString() ?? null
+  };
+}
+
+function mapGscConnectionSecret(connection: {
+  id: string;
+  siteId: string;
+  googleAccountEmail: string;
+  propertyUrl: string;
+  encryptedRefreshToken: string;
+  disconnectedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): GscConnectionSecret {
+  return {
+    ...mapGscConnectionSummary(connection),
+    encryptedRefreshToken: connection.encryptedRefreshToken
   };
 }
 

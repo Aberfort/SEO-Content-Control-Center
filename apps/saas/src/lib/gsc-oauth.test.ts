@@ -7,7 +7,10 @@ import {
   exchangeGscAuthorizationCode,
   fetchGscGoogleAccountEmail,
   isGscOAuthConfigured,
-  parseGscOAuthState
+  listGscProperties,
+  parseGscOAuthState,
+  refreshGscAccessToken,
+  selectGscPropertyForSite
 } from "./gsc-oauth";
 
 describe("gsc oauth", () => {
@@ -200,5 +203,86 @@ describe("gsc oauth", () => {
     expect(requests[1]?.init?.headers).toMatchObject({
       authorization: "Bearer access-token"
     });
+  });
+
+  it("refreshes access tokens and lists Search Console properties", async () => {
+    const requests: { url: string; init?: RequestInit }[] = [];
+    const fetcher = async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+
+      if (String(url).includes("oauth2.googleapis.com/token")) {
+        return Response.json({
+          access_token: "fresh-access-token"
+        });
+      }
+
+      return Response.json({
+        siteEntry: [
+          {
+            siteUrl: "sc-domain:example.com",
+            permissionLevel: "siteOwner"
+          },
+          {
+            siteUrl: "https://www.example.com/",
+            permissionLevel: "siteFullUser"
+          },
+          {
+            permissionLevel: "ignored"
+          }
+        ]
+      });
+    };
+    const accessToken = await refreshGscAccessToken({
+      refreshToken: "refresh-token",
+      fetcher,
+      env: {
+        SCCC_GSC_CLIENT_ID: "client-id",
+        SCCC_GSC_CLIENT_SECRET: "client-secret",
+        SCCC_GSC_REDIRECT_URI: "https://app.example.com/api/integrations/gsc/callback"
+      }
+    });
+    const properties = await listGscProperties({
+      accessToken,
+      fetcher
+    });
+
+    expect(accessToken).toBe("fresh-access-token");
+    expect(properties).toEqual([
+      {
+        siteUrl: "https://www.example.com/",
+        permissionLevel: "siteFullUser"
+      },
+      {
+        siteUrl: "sc-domain:example.com",
+        permissionLevel: "siteOwner"
+      }
+    ]);
+    expect(requests[0]?.url).toBe("https://oauth2.googleapis.com/token");
+    expect(String(requests[0]?.init?.body)).toContain("grant_type=refresh_token");
+    expect(requests[1]?.url).toBe("https://www.googleapis.com/webmasters/v3/sites");
+    expect(requests[1]?.init?.headers).toMatchObject({
+      authorization: "Bearer fresh-access-token"
+    });
+  });
+
+  it("selects the best matching Search Console property for a site URL", () => {
+    const properties = [
+      {
+        siteUrl: "sc-domain:example.com",
+        permissionLevel: "siteOwner"
+      },
+      {
+        siteUrl: "https://www.example.com/",
+        permissionLevel: "siteFullUser"
+      }
+    ];
+
+    expect(selectGscPropertyForSite(properties, "https://www.example.com/")).toMatchObject({
+      siteUrl: "https://www.example.com/"
+    });
+    expect(selectGscPropertyForSite(properties, "https://blog.example.com/")).toMatchObject({
+      siteUrl: "sc-domain:example.com"
+    });
+    expect(selectGscPropertyForSite(properties, "https://other.example.net/")).toBeNull();
   });
 });

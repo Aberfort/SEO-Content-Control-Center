@@ -4,7 +4,9 @@ import {
   buildGscDashboardReturnUrl,
   exchangeGscAuthorizationCode,
   fetchGscGoogleAccountEmail,
-  parseGscOAuthState
+  listGscProperties,
+  parseGscOAuthState,
+  selectGscPropertyForSite
 } from "@/lib/gsc-oauth";
 import { encryptSecret } from "@/lib/token-encryption";
 
@@ -40,6 +42,15 @@ export async function GET(request: Request) {
     const googleAccountEmail = await fetchGscGoogleAccountEmail({
       accessToken: tokens.accessToken
     });
+    const properties = await listGscProperties({
+      accessToken: tokens.accessToken
+    });
+    const selectedProperty = selectGscPropertyForSite(properties, state.propertyUrl);
+
+    if (!selectedProperty) {
+      throw new Error("GSC_PROPERTY_NOT_FOUND");
+    }
+
     const encryptedRefreshToken = encryptSecret(tokens.refreshToken);
     const repository = getAppRepository();
 
@@ -48,7 +59,7 @@ export async function GET(request: Request) {
       organizationId: state.organizationId,
       siteId: state.siteId,
       googleAccountEmail,
-      propertyUrl: state.propertyUrl,
+      propertyUrl: selectedProperty.siteUrl,
       encryptedRefreshToken
     });
 
@@ -94,6 +105,10 @@ function formatGscOAuthCallbackError(error: unknown): string {
         return "Google did not return a refresh token. Please revoke access and reconnect.";
       case "GSC_USERINFO_FAILED":
         return "Could not read the connected Google account email.";
+      case "GSC_PROPERTIES_LIST_FAILED":
+        return "Could not list Google Search Console properties.";
+      case "GSC_PROPERTY_NOT_FOUND":
+        return "The selected site was not found in this Google Search Console account.";
       case "TOKEN_ENCRYPTION_KEY_NOT_CONFIGURED":
         return "Token encryption key is not configured.";
       case "SITE_NOT_FOUND":

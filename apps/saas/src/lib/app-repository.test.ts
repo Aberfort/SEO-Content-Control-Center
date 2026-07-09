@@ -80,6 +80,13 @@ describe("app repository", () => {
     expect(connection).not.toHaveProperty("encryptedRefreshToken");
     expect(getDevStore().gscConnections[0]?.encryptedRefreshToken).toBe("encrypted-refresh-token");
     await expect(
+      repository.getGscConnectionSecretForSite(user.id, organization.id, siteId)
+    ).resolves.toMatchObject({
+      siteId,
+      propertyUrl: "sc-domain:repository.example.com",
+      encryptedRefreshToken: "encrypted-refresh-token"
+    });
+    await expect(
       repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
     ).resolves.toMatchObject({
       connected: true,

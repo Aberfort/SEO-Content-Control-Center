@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { isTokenEncryptionConfigured } from "./token-encryption";
-import type { GscConnectAction } from "./types";
+import type { GscConnectAction, GscPropertySummary } from "./types";
 
 type GscConnectActionInput = {
   canManageIntegrations: boolean;
@@ -41,6 +41,12 @@ type Fetcher = typeof fetch;
 
 type GscTokenExchangeInput = {
   code: string;
+  env?: NodeJS.ProcessEnv;
+  fetcher?: Fetcher;
+};
+
+type GscRefreshTokenInput = {
+  refreshToken: string;
   env?: NodeJS.ProcessEnv;
   fetcher?: Fetcher;
 };
@@ -244,6 +250,39 @@ export async function exchangeGscAuthorizationCode(
   };
 }
 
+export async function refreshGscAccessToken(input: GscRefreshTokenInput): Promise<string> {
+  const env = input.env ?? process.env;
+
+  if (!isGscOAuthConfigured(env)) {
+    throw new Error("GSC_OAUTH_NOT_CONFIGURED");
+  }
+
+  const response = await (input.fetcher ?? fetch)("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      client_id: env.SCCC_GSC_CLIENT_ID?.trim() ?? "",
+      client_secret: env.SCCC_GSC_CLIENT_SECRET?.trim() ?? "",
+      grant_type: "refresh_token",
+      refresh_token: input.refreshToken
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("GSC_TOKEN_REFRESH_FAILED");
+  }
+
+  const payload = (await response.json()) as { access_token?: unknown };
+
+  if (typeof payload.access_token !== "string" || !payload.access_token.trim()) {
+    throw new Error("GSC_TOKEN_REFRESH_FAILED");
+  }
+
+  return payload.access_token;
+}
+
 export async function fetchGscGoogleAccountEmail(input: {
   accessToken: string;
   fetcher?: Fetcher;
@@ -265,6 +304,103 @@ export async function fetchGscGoogleAccountEmail(input: {
   }
 
   return payload.email.trim();
+}
+
+export async function listGscProperties(input: {
+  accessToken: string;
+  fetcher?: Fetcher;
+}): Promise<GscPropertySummary[]> {
+  const response = await (input.fetcher ?? fetch)(
+    "https://www.googleapis.com/webmasters/v3/sites",
+    {
+      headers: {
+        authorization: `Bearer ${input.accessToken}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GSC_PROPERTIES_LIST_FAILED");
+  }
+
+  const payload = (await response.json()) as {
+    siteEntry?: unknown;
+  };
+  const entries = Array.isArray(payload.siteEntry) ? payload.siteEntry : [];
+
+  return entries
+    .flatMap((entry): GscPropertySummary[] => {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        typeof (entry as { siteUrl?: unknown }).siteUrl !== "string"
+      ) {
+        return [];
+      }
+
+      const siteUrl = (entry as { siteUrl: string }).siteUrl.trim();
+
+      if (!siteUrl) {
+        return [];
+      }
+
+      const permissionLevel =
+        typeof (entry as { permissionLevel?: unknown }).permissionLevel === "string"
+          ? (entry as { permissionLevel: string }).permissionLevel
+          : "unknown";
+
+      return [
+        {
+          siteUrl,
+          permissionLevel
+        }
+      ];
+    })
+    .sort((left, right) => left.siteUrl.localeCompare(right.siteUrl));
+}
+
+export function selectGscPropertyForSite(
+  properties: GscPropertySummary[],
+  requestedPropertyUrl: string
+): GscPropertySummary | null {
+  const requested = requestedPropertyUrl.trim();
+  const normalizedRequested = normalizePropertyUrl(requested);
+  const exactMatch = properties.find(
+    (property) => normalizePropertyUrl(property.siteUrl) === normalizedRequested
+  );
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const requestedUrl = parseUrl(requested);
+  const requestedHost = requestedUrl?.host.toLowerCase() ?? null;
+
+  if (!requestedUrl || !requestedHost) {
+    return null;
+  }
+
+  const urlPrefixMatch = properties.find((property) => {
+    const propertyUrl = parseUrl(property.siteUrl);
+
+    return (
+      propertyUrl &&
+      propertyUrl.host.toLowerCase() === requestedHost &&
+      requestedUrl.pathname.startsWith(propertyUrl.pathname)
+    );
+  });
+
+  if (urlPrefixMatch) {
+    return urlPrefixMatch;
+  }
+
+  return (
+    properties.find((property) => {
+      const domain = parseScDomainProperty(property.siteUrl);
+
+      return domain ? hostMatchesDomain(requestedHost, domain) : false;
+    }) ?? null
+  );
 }
 
 function buildDisabledAction(disabledReason: string): GscConnectAction {
@@ -333,6 +469,55 @@ function safeEqual(left: string, right: string): boolean {
   const rightBuffer = Buffer.from(right);
 
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function normalizePropertyUrl(value: string): string {
+  const trimmed = value.trim();
+  const domain = parseScDomainProperty(trimmed);
+
+  if (domain) {
+    return `sc-domain:${domain}`;
+  }
+
+  const parsed = parseUrl(trimmed);
+
+  if (!parsed) {
+    return trimmed;
+  }
+
+  parsed.hash = "";
+  parsed.search = "";
+  parsed.hostname = parsed.hostname.toLowerCase();
+  parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+
+  return parsed.toString();
+}
+
+function parseScDomainProperty(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+
+  if (!trimmed.startsWith("sc-domain:")) {
+    return null;
+  }
+
+  const domain = trimmed.slice("sc-domain:".length).replace(/^www\./, "");
+
+  return domain || null;
+}
+
+function parseUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function hostMatchesDomain(host: string, domain: string): boolean {
+  const normalizedHost = host.toLowerCase().replace(/^www\./, "");
+  const normalizedDomain = domain.toLowerCase().replace(/^www\./, "");
+
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
 }
 
 function hasEnvValue(value: string | undefined): boolean {

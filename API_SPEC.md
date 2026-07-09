@@ -215,7 +215,29 @@ Starts the browser OAuth flow for an authenticated user who can manage integrati
 
 `GET /api/integrations/gsc/callback`
 
-Completes the Google OAuth redirect. The route verifies the signed state, checks that the current signed-in user matches the state, exchanges the authorization code for Google tokens, fetches the connected Google account email, encrypts the refresh token, and upserts a `GscConnection` for the scoped site/property. The callback redirects back to the dashboard with `gsc=connected` or a safe `gsc=error` message. Raw and encrypted refresh tokens are never returned in API responses.
+Completes the Google OAuth redirect. The route verifies the signed state, checks that the current signed-in user matches the state, exchanges the authorization code for Google tokens, fetches the connected Google account email, lists the Google account's Search Console properties, selects an exact URL-prefix property or matching `sc-domain:` property for the requested site, encrypts the refresh token, and upserts a `GscConnection` for the scoped site/property. The callback redirects back to the dashboard with `gsc=connected` or a safe `gsc=error` message. Raw and encrypted refresh tokens are never returned in API responses.
+
+`GET /api/organizations/:organizationId/sites/:siteId/gsc/properties`
+
+Lists available Google Search Console properties for a connected site when the current user can manage integrations. The endpoint resolves the active GSC connection through organization/site scope, decrypts the stored refresh token server-side, refreshes a short-lived Google access token, and calls the Search Console Sites API. The response includes property URLs, permission levels, and which property is currently selected; it never returns raw or encrypted tokens.
+
+Response:
+
+```json
+{
+  "data": {
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "connectedPropertyUrl": "sc-domain:example.com",
+    "properties": [
+      {
+        "siteUrl": "sc-domain:example.com",
+        "permissionLevel": "siteOwner",
+        "selected": true
+      }
+    ]
+  }
+}
+```
 
 ## Billing Overview
 

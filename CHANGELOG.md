@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 75
+
+- Added Search Console property discovery through the Google Sites API.
+- Automatically match the OAuth-connected account to an exact URL-prefix or `sc-domain:` property before storing the GSC connection.
+- Added a tenant-scoped GSC properties API endpoint that refreshes access server-side and returns property metadata without tokens.
+- Added internal repository access for encrypted GSC refresh tokens without exposing them in overview responses.
+- Extended GSC OAuth tests for refresh token exchange, property listing, and property matching.
+
 ### Iteration 74
 
 - Added Google Search Console OAuth start and callback routes with signed tenant/site state.

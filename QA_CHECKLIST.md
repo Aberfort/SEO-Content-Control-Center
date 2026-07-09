@@ -148,6 +148,8 @@
 - Google Search Console connect action stays disabled when OAuth, state signing, or token encryption is unconfigured.
 - Google Search Console OAuth start signs tenant/site/user state and redirects to Google with read-only Search Console scope.
 - Google Search Console OAuth callback verifies state, stores only encrypted refresh tokens, and returns only scoped connection metadata.
+- Google Search Console OAuth callback auto-selects an exact URL-prefix or matching `sc-domain:` property from the connected Google account.
+- Google Search Console property listing refreshes Google access server-side and returns property metadata without token data.
 - SaaS users with backlog read permission can list read-only assistant recommendations for a scoped site.
 - SaaS assistant recommendations show source evidence and do not mutate WordPress or SaaS records.
 - SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.

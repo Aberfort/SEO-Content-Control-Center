@@ -177,6 +177,25 @@ export type GscConnectionSummary = {
   disconnectedAt: string | null;
 };
 
+export type GscConnectionSecret = GscConnectionSummary & {
+  encryptedRefreshToken: string;
+};
+
+export type GscPropertySummary = {
+  siteUrl: string;
+  permissionLevel: string;
+};
+
+export type GscPropertyListItem = GscPropertySummary & {
+  selected: boolean;
+};
+
+export type GscPropertyList = {
+  siteId: string;
+  connectedPropertyUrl: string;
+  properties: GscPropertyListItem[];
+};
+
 export type GscConnectAction = {
   type: "gsc_oauth";
   label: string;

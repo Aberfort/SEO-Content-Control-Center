@@ -72,6 +72,7 @@ import type {
   BacklogTasksFromAuditResult,
   BillingCheckoutContext,
   GscConnectionOverview,
+  GscConnectionSecret,
   GscConnectionSummary,
   BillingOverview,
   BillingPortalContext,
@@ -572,6 +573,38 @@ export function getGscConnectionOverviewForSite(
       propertyUrl: site.url
     })
   };
+}
+
+export function getGscConnectionSecretForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): GscConnectionSecret | null {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "integration:manage"
+  });
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const connection =
+    store.gscConnections
+      .filter((candidate) => candidate.siteId === siteId && candidate.disconnectedAt === null)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null;
+
+  return connection
+    ? {
+        ...mapGscConnectionSummary(connection),
+        encryptedRefreshToken: connection.encryptedRefreshToken
+      }
+    : null;
 }
 
 export function upsertGscConnection(input: {
