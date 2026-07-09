@@ -2,10 +2,21 @@
 
 ## System Components
 
-- SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis, BullMQ workers, S3-compatible storage, Stripe/Paddle billing.
+- SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis (rate limits today, queues planned), BullMQ workers (planned), S3-compatible storage (planned), Stripe billing.
 - WordPress plugin: PHP 8.1+, PSR-4 autoloading, WP REST API, Action Scheduler for background work, nonce/capability checks, sanitized inputs, escaped outputs.
 - Marketing site: public Next.js app with SEO metadata, lead/demo/trial forms, product content, status and legal pages.
-- Workers: background jobs for sync ingestion, audits, GSC pulls, exports, bulk operations, retries, dead-letter handling.
+- Workers (planned): background jobs for sync ingestion, audits, GSC pulls, exports, bulk operations, retries, dead-letter handling.
+
+## Current Implementation Status
+
+The target architecture above is not fully built yet. As of Iteration 79 the codebase deviates as follows:
+
+- No worker package or process exists. BullMQ queues are still documentation-only.
+- Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable). This is currently the only application code that connects to Redis.
+- Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
+- Google Search Console metric and insight syncs are triggered manually from the dashboard; no scheduled sync jobs exist.
+- Safe content operations capture state only (preview, dry run, confirm, start, results, retry, rollback). No code path writes to WordPress, and the plugin exposes no REST endpoint for applying operations.
+- S3-compatible storage is provisioned in Docker but unused by application code.
 
 ## Monorepo Boundaries
 
@@ -41,7 +52,7 @@ Tenant isolation requirements:
 
 ## Background Processing
 
-Heavy work must not run inside a single HTTP request. SaaS uses Redis-backed queues; WordPress uses Action Scheduler. Every job is idempotent, retryable, and carries organization/site context.
+Heavy work must not run inside a single HTTP request. SaaS will use Redis-backed queues once the worker foundation lands; WordPress uses Action Scheduler today. Every job is idempotent, retryable, and carries organization/site context.
 
 ## Safety Model
 

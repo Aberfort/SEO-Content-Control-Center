@@ -2,6 +2,26 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 80
+
+- Added a Redis-backed fixed-window rate limit store that activates when `REDIS_URL` is configured and keeps counting across multiple SaaS instances.
+- Kept the process-local in-memory store as an explicit fallback for missing Redis configuration, `SCCC_RATE_LIMIT_STORE=memory`, and Redis runtime failures so rate limiting degrades instead of blocking traffic.
+- Added dedicated per-IP rate limit policies for WordPress plugin challenge creation, challenge exchange, sync, and disconnect endpoints, applied before signature verification.
+- Added a per-IP rate limit policy for the Stripe billing webhook endpoint.
+- Converted rate limit checks to async across auth, invite, member, safe content operation, and server action call sites.
+- Added `ioredis` to the SaaS application and documented the new `SCCC_RATE_LIMIT_STORE` environment variable.
+- Documented Redis-backed rate limiting and the new plugin/webhook limits across the API specification, security, deployment, plugin API, and QA documents.
+
+### Iteration 79
+
+- Reconciled roadmap and documentation with the implemented codebase after a full technical audit.
+- Added missing Phase 5 backlog statuses to the roadmap for filters/search, assignment/status workflows, comments/change history, and CSV export.
+- Marked the Phase 6 audit log item as not implemented for bulk operations and documented that safe content operation execution still performs no real WordPress writes pending a worker process and a plugin apply endpoint.
+- Added the missing `EmailVerificationToken`, `PasswordResetToken`, `BillingWebhookEvent`, `GscDailyMetric`, and `GscSearchInsight` entities to the data model document.
+- Marked Redis, BullMQ workers, and S3 storage as planned in the architecture document and added a current implementation status section covering process-local rate limits, synchronous audits, manual GSC sync, and the absence of a worker package.
+- Documented launch-blocking security gaps: missing plugin API and webhook rate limits, process-local rate limit windows, and missing bulk operation activity log writes.
+- Documented the WordPress plugin sync limitation of a single unpaginated batch of at most 100 posts/pages against the 250-item cursor-based contract.
+
 ### Iteration 78
 
 - Added persisted Google Search Console page/query insight snapshots for synced date ranges.

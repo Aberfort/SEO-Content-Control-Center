@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as unknown;
     const email = readString(body, "email");
 
-    assertRateLimit("auth-password-reset", rateLimitKeyFromHeaders(request.headers, email));
+    await assertRateLimit("auth-password-reset", rateLimitKeyFromHeaders(request.headers, email));
     const reset = await createPasswordResetRequest({
       email
     });

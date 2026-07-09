@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { assertRequestSameOrigin } from "@/lib/csrf";
 import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
 import { createPluginConnectionChallenge } from "@/lib/plugin-connection";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as unknown;
+    await assertRateLimit("plugin-challenge", rateLimitKeyFromHeaders(request.headers, user.id));
     const challenge = await createPluginConnectionChallenge({
       user,
       organizationId: readString(body, "organizationId"),

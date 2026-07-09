@@ -63,10 +63,10 @@
 
 - Audit issue to task conversion. Status: single issue and bulk open-issue conversion implemented.
 - Deduplication. Status: candidate, single audit issue, and bulk audit conversions reuse existing tasks.
-- Filters and search.
-- Assignment and status workflows.
-- Comments and change history.
-- CSV export.
+- Filters and search. Status: backlog text search and status/severity filtering with summary counts implemented.
+- Assignment and status workflows. Status: task status transitions plus assignee/due date updates with same-organization assignee validation implemented.
+- Comments and change history. Status: task comments and change history for creation, status, assignment, due date, and comment events implemented.
+- CSV export. Status: filtered site backlog task CSV export implemented.
 
 ## Phase 6 - Safe Content Operations
 
@@ -74,8 +74,10 @@
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
 - Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
 - Retry failed items. Status: failed item retry state capture implemented without inline WordPress writes.
-- Audit logs.
+- Audit logs. Status: not implemented for bulk operations - lifecycle transitions emit notifications but do not write activity log entries yet.
 - Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
+
+Phase 6 execution status: the SaaS state machine (preview, dry run, confirm, start, result capture, retry, rollback state) is implemented, but no real WordPress writes happen yet. Execution requires a background worker process and a signed WordPress plugin apply endpoint, neither of which exists in the codebase today.
 
 ## Phase 7 - AI Assistant
 

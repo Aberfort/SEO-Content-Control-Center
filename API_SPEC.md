@@ -9,7 +9,8 @@
 - Errors: structured JSON with `code`, `message`, and optional `details`.
 - Tenant scope: every organization/site resource is checked against the authenticated principal.
 - Browser mutations require a same-origin `Origin` header that matches `Host`, `X-Forwarded-Host`, or `NEXT_PUBLIC_APP_URL`.
-- Login, registration, password reset, invite creation/resend, invite acceptance, and safe content operation mutations are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
+- Login, registration, password reset, invite creation/resend, invite acceptance, safe content operation mutations, WordPress plugin endpoints (`/api/plugin/*`), and the Stripe billing webhook are rate limited. Rate limited responses return `429 RATE_LIMITED` with `Retry-After`.
+- Rate limit counters are stored in Redis when `REDIS_URL` is configured, so limits hold across multiple SaaS instances. Without `REDIS_URL` (or with `SCCC_RATE_LIMIT_STORE=memory`) counters fall back to a process-local in-memory store suitable only for a single instance. If Redis becomes unavailable at runtime, limits degrade to the per-process fallback instead of failing requests.
 - Persistence: organization, site, and activity APIs use the repository abstraction. Set `SCCC_DATA_STORE=prisma` with `DATABASE_URL` to use PostgreSQL.
 - WordPress plugin integration details are documented in [docs/PLUGIN_API.md](docs/PLUGIN_API.md).
 

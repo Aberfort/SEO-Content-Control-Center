@@ -9,8 +9,10 @@ type BulkOperationRateLimitInput = {
   operationId?: string;
 };
 
-export function assertBulkOperationRateLimit(input: BulkOperationRateLimitInput): void {
-  assertRateLimit(
+export async function assertBulkOperationRateLimit(
+  input: BulkOperationRateLimitInput
+): Promise<void> {
+  await assertRateLimit(
     "bulk-operation",
     rateLimitKeyFromHeaders(
       input.request.headers,

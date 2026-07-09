@@ -38,7 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    assertBulkOperationRateLimit({
+    await assertBulkOperationRateLimit({
       request,
       userId: user.id,
       organizationId,

@@ -3,12 +3,14 @@ import {
   buildStripeBillingWebhookUpdate,
   constructStripeWebhookEvent
 } from "@/lib/billing-webhook";
-import { jsonError } from "@/lib/http";
+import { jsonError, securityError } from "@/lib/http";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const payload = await request.text();
 
   try {
+    await assertRateLimit("billing-webhook", rateLimitKeyFromHeaders(request.headers));
     const event = constructStripeWebhookEvent({
       payload,
       signatureHeader: request.headers.get("stripe-signature"),
@@ -33,6 +35,12 @@ export async function POST(request: Request) {
       data: await repository.applyBillingWebhookUpdate(update)
     });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof Error && error.message === "BILLING_WEBHOOK_NOT_CONFIGURED") {
       return jsonError(
         503,

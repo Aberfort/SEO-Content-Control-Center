@@ -55,7 +55,8 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 ## Security Controls
 
 - Mutating browser/API requests require same-origin `Origin` headers.
-- Current rate limits are process-local fixed windows for the MVP. Move them to Redis before running more than one SaaS instance.
+- Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured; configure `REDIS_URL` before running more than one SaaS instance. Without it (or with `SCCC_RATE_LIMIT_STORE=memory`) limits fall back to process-local windows, and a Redis outage degrades to the same per-process fallback instead of blocking traffic.
+- WordPress plugin endpoints and the Stripe webhook are rate limited by client IP.
 
 ## Scaling Plan
 

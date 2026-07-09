@@ -1,12 +1,14 @@
 import { ZodError } from "zod";
 
-import { jsonError, validationError } from "@/lib/http";
+import { jsonError, securityError, validationError } from "@/lib/http";
 import { acceptPluginSyncBatch, authenticatePluginSyncRequest } from "@/lib/plugin-connection";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const bodyText = await request.text();
 
   try {
+    await assertRateLimit("plugin-sync", rateLimitKeyFromHeaders(request.headers));
     const authentication = await authenticatePluginSyncRequest({
       request,
       bodyText
@@ -18,6 +20,12 @@ export async function POST(request: Request) {
 
     return Response.json({ data });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof SyntaxError) {
       return jsonError(400, "INVALID_JSON", "Request body must be valid JSON.");
     }

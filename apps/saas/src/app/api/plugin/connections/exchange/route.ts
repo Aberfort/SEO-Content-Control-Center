@@ -1,13 +1,21 @@
 import { ZodError } from "zod";
 
-import { jsonError, validationError } from "@/lib/http";
+import { jsonError, securityError, validationError } from "@/lib/http";
 import { exchangePluginConnectionChallenge } from "@/lib/plugin-connection";
+import { assertRateLimit, rateLimitKeyFromHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    await assertRateLimit("plugin-exchange", rateLimitKeyFromHeaders(request.headers));
     const connection = await exchangePluginConnectionChallenge((await request.json()) as unknown);
     return Response.json({ data: connection });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof ZodError) {
       return validationError(error);
     }

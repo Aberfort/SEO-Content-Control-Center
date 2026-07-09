@@ -185,6 +185,11 @@ Payload rules:
 The SaaS app upserts synced items by `siteId + externalId`, updates `lastSeenAt`, stores bounded
 metadata as JSON, and records `lastSyncAt` on the connection.
 
+Known plugin limitation as of Iteration 79: although this contract accepts a `cursor` and up to
+250 items per request, the WordPress plugin currently sends a single batch of at most 100 posts
+and pages with `cursor: null` and does not paginate. Sites with more than 100 published posts and
+pages sync only the most recent 100 items until sync pagination/chunking ships.
+
 ## Metadata Contract
 
 Supported metadata keys:
@@ -288,10 +293,12 @@ Signed disconnect:
 - `404 SITE_NOT_FOUND`
 - `400 PLUGIN_DISCONNECT_FAILED`
 - `422 VALIDATION_ERROR`
+- `429 RATE_LIMITED`
 
 ## Operational Notes
 
 - Keep plugin servers time-synchronized. Signed requests outside the 300-second tolerance fail.
+- All plugin endpoints are rate limited by client IP before signature verification. A `429 RATE_LIMITED` response includes a `Retry-After` header in seconds; retry after that delay instead of immediately.
 - Treat the raw plugin token as a secret. Never log it and never send it inside synced metadata.
 - Retry sync batches safely. The SaaS app upserts by site and external ID.
 - Clear local credentials only after a successful plugin-initiated disconnect response.

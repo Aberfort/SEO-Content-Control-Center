@@ -1022,7 +1022,7 @@ async function assertServerActionRateLimit(
   discriminator: string
 ): Promise<void> {
   const headerStore = await headers();
-  assertRateLimit(policy, rateLimitKeyFromHeaders(headerStore, discriminator));
+  await assertRateLimit(policy, rateLimitKeyFromHeaders(headerStore, discriminator));
 }
 
 async function assertBulkOperationServerActionRateLimit(

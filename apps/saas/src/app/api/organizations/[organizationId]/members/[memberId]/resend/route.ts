@@ -35,7 +35,7 @@ export async function POST(request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
-    assertRateLimit(
+    await assertRateLimit(
       "invite-send",
       rateLimitKeyFromHeaders(request.headers, `${user.id}:${organizationId}:${memberId}`)
     );

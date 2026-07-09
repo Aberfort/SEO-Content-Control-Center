@@ -16,7 +16,9 @@
 - Pending invite resend must rotate the token; cancel must clear the stored token hash.
 - Invite email bodies must not log raw tokens; raw invite URLs may appear only in the intended email/API response.
 - WordPress connection challenges and plugin tokens must be stored as hashes; sync requests must be timestamped and HMAC-signed.
-- Rate limiting for auth, invite flows, and safe content operation mutations; plugin API and webhooks need dedicated limits before launch.
+- Rate limiting for auth, invite flows, safe content operation mutations, WordPress plugin endpoints (challenge creation, challenge exchange, sync, disconnect), and the Stripe billing webhook.
+- Rate limit counters use Redis when `REDIS_URL` is configured so limits survive multiple SaaS instances; the in-memory fallback (no `REDIS_URL`, `SCCC_RATE_LIMIT_STORE=memory`, or a Redis outage) is process-local and acceptable only for a single instance.
+- Plugin endpoint rate limits run before signature verification so unauthenticated brute force against plugin tokens and challenges is throttled by client IP.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.
 - Token hashing where secrets do not need to be recoverable.
@@ -129,6 +131,8 @@ Every risky bulk operation must have:
 - rollback or previous-value restore;
 - retry strategy;
 - rate limits.
+
+Known gaps as of Iteration 79: bulk operation lifecycle transitions do not write activity log entries yet (notifications only), background processing and real WordPress writes are not implemented, and rollback captures state without restoring previous values on the WordPress site.
 
 ## Roadmap Security Items
 

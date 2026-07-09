@@ -61,7 +61,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - site creation UI/API;
 - member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
 - SMTP invite email delivery with local Mailpit support;
-- same-origin CSRF guard and MVP rate limits for auth, invite, and safe content operation mutations;
+- same-origin CSRF guard and rate limits for auth, invite, safe content operation, WordPress plugin, and billing webhook endpoints, backed by Redis when `REDIS_URL` is configured with a process-local in-memory fallback;
 - WordPress plugin challenge/exchange and signed sync API foundation;
 - dedicated WordPress plugin API documentation for connection, signing, sync, disconnect, and metadata contracts;
 - WordPress plugin admin challenge exchange and signed manual sync request;

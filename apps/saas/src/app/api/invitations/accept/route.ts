@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as unknown;
     const token = readString(body, "token");
-    assertRateLimit(
+    await assertRateLimit(
       "invite-accept",
       rateLimitKeyFromHeaders(request.headers, hashInviteToken(token))
     );

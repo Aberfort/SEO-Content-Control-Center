@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as unknown;
     const token = readString(body, "token");
 
-    assertRateLimit("auth-password-reset", rateLimitKeyFromHeaders(request.headers, token));
+    await assertRateLimit("auth-password-reset", rateLimitKeyFromHeaders(request.headers, token));
     const result = await resetPasswordWithToken({
       token,
       password: readString(body, "password")

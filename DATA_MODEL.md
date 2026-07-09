@@ -7,16 +7,21 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 
 - User
 - Session
+- EmailVerificationToken
+- PasswordResetToken
 - Organization
 - OrganizationMember
 - Role
 - Subscription
 - Plan
+- BillingWebhookEvent
 - Site
 - WordPressConnection
 - WordPressConnectionChallenge
 - SyncedContentItem
 - GscConnection
+- GscDailyMetric
+- GscSearchInsight
 - Audit
 - AuditIssue
 - BacklogTask

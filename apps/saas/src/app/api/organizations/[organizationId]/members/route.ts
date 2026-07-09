@@ -56,7 +56,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as unknown;
-    assertRateLimit(
+    await assertRateLimit(
       "invite-send",
       rateLimitKeyFromHeaders(
         request.headers,

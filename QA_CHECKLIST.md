@@ -162,6 +162,11 @@
 - SaaS assistant recommendations expose enabled safe-preview controls only for backlog-sourced recommendations.
 - SaaS assistant recommendations disable unsupported controls for synced-content evidence until a backlog task exists.
 - Manual sync does not run a large sync inline.
+- Plugin challenge, exchange, sync, and disconnect endpoints return `429 RATE_LIMITED` with `Retry-After` once their per-IP limits are exceeded.
+- Plugin endpoint rate limits apply before signature verification.
+- Stripe webhook deliveries are rate limited per client IP without dropping legitimate event bursts.
+- Rate limits keep counting across SaaS instances when `REDIS_URL` is configured.
+- Rate limiting degrades to the process-local fallback instead of failing requests when Redis is unavailable.
 
 ## SEO Safety
 
@@ -175,7 +180,7 @@
 - Running bulk operation result capture records per-item outcomes and still does not write to WordPress inline.
 - Rollback state capture records restored operation state and still does not write to WordPress inline.
 - Retry state capture records failed item retry state and still does not write to WordPress inline.
-- Every risky mutation writes an audit log.
+- Every risky mutation writes an audit log. Known gap as of Iteration 79: bulk operation lifecycle transitions emit notifications but do not write activity log entries yet.
 - Safe operation lifecycle outcomes create tenant-scoped notifications.
 - Notification read state updates stay scoped to the authenticated member's organization.
 - Bulk notification read updates stay scoped to the authenticated member's organization and are idempotent.

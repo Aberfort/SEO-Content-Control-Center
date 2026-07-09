@@ -37,7 +37,7 @@ export async function POST(request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
-    assertBulkOperationRateLimit({
+    await assertBulkOperationRateLimit({
       request,
       userId: user.id,
       organizationId,

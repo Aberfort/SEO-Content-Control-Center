@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     assertRequestSameOrigin(request);
     const body = (await request.json()) as unknown;
-    assertRateLimit(
+    await assertRateLimit(
       "auth-login",
       rateLimitKeyFromHeaders(request.headers, readString(body, "email"))
     );
