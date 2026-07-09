@@ -92,6 +92,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Google Search Console page/query insight sync for top Search Analytics rows;
 - deterministic Search Console traffic loss detection with site-level window comparison, page-level baseline snapshot comparison, severity thresholds, a dashboard panel, and a scoped read-only API endpoint;
 - normalized URL matching between Search Console traffic loss pages and synced WordPress content items in the traffic loss API and dashboard;
+- audit runs materialize matched Search Console traffic loss drops as deduplicated `gsc.traffic-loss` audit issues with detection-derived severity and comparison evidence;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;

@@ -117,7 +117,12 @@ import {
   buildSyncedContentHealthSignals
 } from "./content-health";
 import { buildAuditIssueInputsFromSyncedContent } from "./audit-issue-generation";
-import type { SyncedContentUrlEntry } from "./gsc-content-matching";
+import { matchTrafficLossPages, type SyncedContentUrlEntry } from "./gsc-content-matching";
+import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
+import {
+  buildAuditIssueInputsFromTrafficLoss,
+  type GeneratedTrafficLossAuditIssueInput
+} from "./gsc-traffic-loss-issues";
 import {
   buildAssistantRecommendationFromBacklogTask,
   buildAssistantRecommendationsFromSyncedContent,
@@ -2170,9 +2175,19 @@ const prismaRepository: AppRepository = {
       ],
       take: 500
     });
-    const generatedIssues = syncedContentItems.flatMap((item) =>
+    const syncedContentIssues = syncedContentItems.flatMap((item) =>
       buildAuditIssueInputsFromSyncedContent(mapSyncedContentItem(item))
     );
+    const trafficLossIssues = await buildDbTrafficLossIssueInputs(
+      input.siteId,
+      syncedContentItems.map((item) => ({
+        id: item.id,
+        externalId: item.externalId,
+        url: item.url,
+        title: item.title
+      }))
+    );
+    const generatedIssues = [...syncedContentIssues, ...trafficLossIssues];
 
     const auditResult = await prisma.$transaction(async (tx) => {
       const auditStartedAt = new Date();
@@ -4709,6 +4724,68 @@ function mapGscSearchInsight(insight: {
 
 function dateOnlyToDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+/**
+ * Builds traffic-loss audit issue inputs from the latest persisted insight
+ * snapshot compared against the snapshot from 7 days earlier, matching the
+ * snapshot selection used by the traffic-loss API endpoint. Callers must have
+ * already checked organization access for the site.
+ */
+async function buildDbTrafficLossIssueInputs(
+  siteId: string,
+  contentEntries: SyncedContentUrlEntry[]
+): Promise<GeneratedTrafficLossAuditIssueInput[]> {
+  if (contentEntries.length === 0) {
+    return [];
+  }
+
+  const latestInsight = await prisma.gscSearchInsight.findFirst({
+    where: {
+      siteId
+    },
+    orderBy: {
+      syncedAt: "desc"
+    }
+  });
+
+  if (!latestInsight) {
+    return [];
+  }
+
+  const currentStartDate = latestInsight.startDate.toISOString().slice(0, 10);
+  const currentEndDate = latestInsight.endDate.toISOString().slice(0, 10);
+  const currentInsights = await prisma.gscSearchInsight.findMany({
+    where: {
+      siteId,
+      propertyUrl: latestInsight.propertyUrl,
+      startDate: latestInsight.startDate,
+      endDate: latestInsight.endDate
+    }
+  });
+  const baselineInsights = await prisma.gscSearchInsight.findMany({
+    where: {
+      siteId,
+      propertyUrl: latestInsight.propertyUrl,
+      startDate: dateOnlyToDate(shiftDateOnly(currentStartDate, -7)),
+      endDate: dateOnlyToDate(shiftDateOnly(currentEndDate, -7))
+    }
+  });
+  const pages = buildPageTrafficLoss(
+    currentInsights.map(mapGscSearchInsight),
+    baselineInsights.map(mapGscSearchInsight)
+  );
+
+  if (!pages.available || pages.drops.length === 0) {
+    return [];
+  }
+
+  return buildAuditIssueInputsFromTrafficLoss({
+    drops: matchTrafficLossPages(pages.drops, contentEntries),
+    currentRange: pages.currentRange,
+    baselineRange: pages.baselineRange,
+    propertyUrl: latestInsight.propertyUrl
+  });
 }
 
 function mapActivityLog(log: {

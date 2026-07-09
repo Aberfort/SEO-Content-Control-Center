@@ -1527,6 +1527,8 @@ Response:
 
 Creates a metadata audit when the member has `audit:run`. The MVP creates a tenant-scoped audit record, materializes issues from already-synced WordPress metadata health signals such as thin content, missing SEO title/meta description, noindex, canonical mismatch, and missing internal links, and marks that metadata audit pass as `COMPLETED` with start/completion timestamps. It does not crawl external URLs or mutate WordPress content inline.
 
+The audit run also materializes `gsc.traffic-loss` issues from persisted Search Console page insights: the latest insight snapshot is compared against the snapshot from 7 days earlier, and dropping pages that match synced WordPress content through normalized URLs become audit issues. Severity follows the detection drop ratio (`HIGH` at a 50% click drop or more, otherwise `MEDIUM`), evidence carries the comparison ranges, current/baseline clicks, click delta, drop ratio, positions, and property URL, and the `gsc:traffic-loss:<externalId>` fingerprint deduplicates repeat audit runs into updates of the existing issue. Unmatched dropping pages never become issues.
+
 Response:
 
 ```json

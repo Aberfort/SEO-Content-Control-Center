@@ -49,7 +49,7 @@
 - Content freshness and thin content checks. Status: synced content freshness/thin content signals are materialized into completed metadata audit runs.
 - Indexability checks. Status: synced noindex and canonical mismatch signals are materialized into completed metadata audit runs.
 - Link checks. Status: synced internal/outbound link counts are materialized into content health signals and missing-internal-link audit issues.
-- Issue deduplication. Status: synced-content issue fingerprints are deduplicated by organization/site/fingerprint.
+- Issue deduplication. Status: synced-content and GSC traffic-loss issue fingerprints are deduplicated by organization/site/fingerprint.
 - Issue lifecycle: open, ignored, resolved, snoozed. Status: audit run listings expose scoped issue summary counts.
 
 ## Phase 4 - Google Search Console
@@ -62,6 +62,7 @@
 - Scheduled sync. Status: the worker process schedules daily metric and insight sync jobs for every active connection through a repeatable queue job, in addition to the manual dashboard sync.
 - Traffic loss detection. Status: deterministic read-only site-level window comparison (14 vs previous 14 days) and page-level insight snapshot comparison (latest vs 7 days earlier) implemented with severity thresholds, a dashboard panel, and a scoped API endpoint.
 - Content matching. Status: traffic loss pages are matched to synced WordPress inventory items through normalized URLs (protocol, www, trailing slash, query, and fragment insensitive) in the API and dashboard.
+- Traffic loss audit issues. Status: matched dropping pages are materialized as deduplicated `gsc.traffic-loss` audit issues during audit runs, with detection-derived severity and comparison evidence, and convert to backlog tasks through the existing issue mechanisms.
 
 ## Phase 5 - SEO Backlog
 

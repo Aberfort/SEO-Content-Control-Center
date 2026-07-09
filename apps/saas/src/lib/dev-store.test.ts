@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   addMemberForTest,
   canAccessOrganization,
+  createAuditForSite,
   createOrganization,
   createSite,
   getBillingOverviewForOrganization,
@@ -11,10 +12,14 @@ import {
   getDevStore,
   getOrganizationSummary,
   inviteMember,
+  listAuditIssuesForAudit,
   listOrganizationSummariesForUser,
-  resetDevStore
+  resetDevStore,
+  updateAuditIssueStatus,
+  upsertAuditIssuesByFingerprint
 } from "./dev-store";
-import type { AppUser } from "./types";
+import { buildAuditIssueInputsFromTrafficLoss } from "./gsc-traffic-loss-issues";
+import type { AppUser, GscSearchInsight } from "./types";
 
 const owner: AppUser = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -221,5 +226,132 @@ describe("dev store tenant access", () => {
         url: "https://example.com"
       })
     ).toThrow("SITE_ALREADY_EXISTS");
+  });
+});
+
+describe("dev store audit traffic loss issues", () => {
+  beforeEach(() => {
+    resetDevStore();
+  });
+
+  function insight(overrides: Partial<GscSearchInsight> & { siteId: string }): GscSearchInsight {
+    return {
+      id: crypto.randomUUID(),
+      propertyUrl: "sc-domain:example.com",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      page: "https://example.com/hello",
+      query: "hello",
+      clicks: 100,
+      impressions: 1000,
+      ctr: 0.1,
+      position: 4,
+      syncedAt: "2026-06-29T00:00:00.000Z",
+      ...overrides
+    };
+  }
+
+  it("creates audits without traffic loss issues while synced content is not persisted", () => {
+    const organization = createOrganization({ user: owner, name: "Acme SEO" });
+    const site = createSite({
+      user: owner,
+      organizationId: organization.id,
+      name: "Main Blog",
+      url: "https://example.com"
+    });
+
+    getDevStore().gscSearchInsights.push(
+      insight({ siteId: site.id, clicks: 20 }),
+      insight({
+        siteId: site.id,
+        startDate: "2026-06-15",
+        endDate: "2026-06-21",
+        clicks: 100,
+        syncedAt: "2026-06-22T00:00:00.000Z"
+      })
+    );
+
+    const audit = createAuditForSite({
+      user: owner,
+      organizationId: organization.id,
+      siteId: site.id
+    });
+
+    expect(audit.issueSummary.total).toBe(0);
+    const queuedLog = getDevStore().activityLogs.find(
+      (log) => log.action === "audit.queued" && log.entityId === audit.id
+    );
+    expect(queuedLog?.metadata).toMatchObject({ generatedIssueCount: 0 });
+  });
+
+  it("upserts traffic loss issues by fingerprint across repeated audit runs", () => {
+    const organization = createOrganization({ user: owner, name: "Acme SEO" });
+    const site = createSite({
+      user: owner,
+      organizationId: organization.id,
+      name: "Main Blog",
+      url: "https://example.com"
+    });
+    const issues = buildAuditIssueInputsFromTrafficLoss({
+      drops: [
+        {
+          page: "https://example.com/hello",
+          currentClicks: 20,
+          baselineClicks: 100,
+          clicksDelta: -80,
+          dropRatio: 0.8,
+          currentPosition: 6,
+          baselinePosition: 4,
+          content: { contentItemId: "content-1", externalId: "post:1", title: "Hello" }
+        }
+      ],
+      currentRange: { startDate: "2026-06-22", endDate: "2026-06-28" },
+      baselineRange: { startDate: "2026-06-15", endDate: "2026-06-21" },
+      propertyUrl: "sc-domain:example.com"
+    });
+
+    const firstAudit = createAuditForSite({
+      user: owner,
+      organizationId: organization.id,
+      siteId: site.id
+    });
+    upsertAuditIssuesByFingerprint(getDevStore(), firstAudit, issues);
+
+    const persisted = listAuditIssuesForAudit(owner.id, organization.id, site.id, firstAudit.id);
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).toMatchObject({
+      issueType: "gsc.traffic-loss",
+      status: "OPEN",
+      severity: "HIGH",
+      affectedUrl: "https://example.com/hello",
+      fingerprint: "gsc:traffic-loss:post:1"
+    });
+
+    updateAuditIssueStatus({
+      user: owner,
+      organizationId: organization.id,
+      siteId: site.id,
+      auditId: firstAudit.id,
+      issueId: persisted[0]!.id,
+      status: "RESOLVED"
+    });
+
+    const secondAudit = createAuditForSite({
+      user: owner,
+      organizationId: organization.id,
+      siteId: site.id
+    });
+    upsertAuditIssuesByFingerprint(getDevStore(), secondAudit, issues);
+
+    const allMatching = getDevStore().auditIssues.filter(
+      (issue) => issue.fingerprint === "gsc:traffic-loss:post:1"
+    );
+    expect(allMatching).toHaveLength(1);
+
+    const updated = listAuditIssuesForAudit(owner.id, organization.id, site.id, secondAudit.id, {
+      status: "RESOLVED"
+    });
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({ id: persisted[0]!.id, status: "RESOLVED" });
   });
 });

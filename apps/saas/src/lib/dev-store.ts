@@ -121,7 +121,13 @@ import {
   buildSafeOperationPreview,
   countExecutableSafeOperationItems
 } from "./bulk-operation-preview";
+import { matchTrafficLossPages } from "./gsc-content-matching";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
+import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
+import {
+  buildAuditIssueInputsFromTrafficLoss,
+  type GeneratedTrafficLossAuditIssueInput
+} from "./gsc-traffic-loss-issues";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
 type DevStoreState = {
@@ -1363,6 +1369,11 @@ export function createAuditForSite(input: {
     throw new Error("SITE_NOT_FOUND");
   }
 
+  const generatedIssues = buildDevTrafficLossIssueInputs(
+    input.user.id,
+    input.organizationId,
+    input.siteId
+  );
   const timestamp = nowIso();
   const audit: Audit = {
     id: randomUUID(),
@@ -1376,6 +1387,7 @@ export function createAuditForSite(input: {
   };
 
   store.audits.push(audit);
+  upsertAuditIssuesByFingerprint(store, audit, generatedIssues);
   writeActivityLog({
     organizationId: input.organizationId,
     userId: input.user.id,
@@ -1384,12 +1396,103 @@ export function createAuditForSite(input: {
     entityId: audit.id,
     metadata: {
       siteId: input.siteId,
-      generatedIssueCount: 0,
+      generatedIssueCount: generatedIssues.length,
       status: audit.status
     }
   });
 
   return withAuditIssueSummary(audit, store.auditIssues);
+}
+
+/**
+ * Mirrors the Prisma repository traffic-loss issue generation: the latest
+ * insight snapshot is compared against the snapshot from 7 days earlier and
+ * matched drops become audit issue inputs. The dev store does not persist
+ * synced content, so matching yields no issues until that gap is closed.
+ */
+function buildDevTrafficLossIssueInputs(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): GeneratedTrafficLossAuditIssueInput[] {
+  const contentUrls = listSyncedContentUrlsForSite(userId, organizationId, siteId);
+
+  if (contentUrls.length === 0) {
+    return [];
+  }
+
+  const currentInsights = listGscSearchInsights(userId, organizationId, siteId, {});
+
+  if (currentInsights.length === 0) {
+    return [];
+  }
+
+  const propertyUrl = currentInsights[0]!.propertyUrl;
+  const baselineInsights = listGscSearchInsights(userId, organizationId, siteId, {
+    propertyUrl,
+    startDate: shiftDateOnly(currentInsights[0]!.startDate, -7),
+    endDate: shiftDateOnly(currentInsights[0]!.endDate, -7)
+  });
+  const pages = buildPageTrafficLoss(currentInsights, baselineInsights);
+
+  if (!pages.available || pages.drops.length === 0) {
+    return [];
+  }
+
+  return buildAuditIssueInputsFromTrafficLoss({
+    drops: matchTrafficLossPages(pages.drops, contentUrls),
+    currentRange: pages.currentRange,
+    baselineRange: pages.baselineRange,
+    propertyUrl
+  });
+}
+
+export function upsertAuditIssuesByFingerprint(
+  store: DevStoreState,
+  audit: Audit,
+  issues: GeneratedTrafficLossAuditIssueInput[]
+): void {
+  const timestamp = nowIso();
+
+  for (const issue of issues) {
+    const existing = store.auditIssues.find(
+      (candidate) =>
+        candidate.organizationId === audit.organizationId &&
+        candidate.siteId === audit.siteId &&
+        candidate.fingerprint === issue.fingerprint
+    );
+
+    if (existing) {
+      existing.auditId = audit.id;
+      existing.issueType = issue.issueType;
+      existing.severity = issue.severity;
+      existing.affectedUrl = issue.affectedUrl;
+      existing.evidence = issue.evidence;
+      existing.explanation = issue.explanation;
+      existing.recommendedAction = issue.recommendedAction;
+      existing.potentialImpact = issue.potentialImpact;
+      existing.updatedAt = timestamp;
+      continue;
+    }
+
+    store.auditIssues.push({
+      id: randomUUID(),
+      auditId: audit.id,
+      organizationId: audit.organizationId,
+      siteId: audit.siteId,
+      issueType: issue.issueType,
+      status: "OPEN",
+      severity: issue.severity,
+      affectedUrl: issue.affectedUrl,
+      evidence: issue.evidence,
+      explanation: issue.explanation,
+      recommendedAction: issue.recommendedAction,
+      potentialImpact: issue.potentialImpact,
+      fingerprint: issue.fingerprint,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+  }
 }
 
 export function listAuditIssuesForAudit(

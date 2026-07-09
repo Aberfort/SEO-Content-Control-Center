@@ -199,6 +199,11 @@
 - Traffic loss pages missing from the synced inventory return `content: null` and the dashboard labels them as not in inventory.
 - Normalized URL collisions between synced items resolve deterministically by external id order.
 - Content URL lookups for matching stay inside organization/site scope.
+- Audit runs materialize traffic loss drops matched to synced content as `gsc.traffic-loss` issues; unmatched drops never become issues.
+- Traffic loss issue severity is `HIGH` at a 50% click drop or more and `MEDIUM` otherwise, matching detection thresholds.
+- Traffic loss issue evidence records comparison ranges, current/baseline clicks, click delta, drop ratio, positions, and property URL.
+- Repeat audit runs update existing `gsc:traffic-loss:<externalId>` fingerprints instead of duplicating issues and preserve triaged issue status.
+- Multiple dropping page URLs matching the same synced content item collapse into one issue keeping the biggest click loss.
 - Plugin safe operation apply requests reject missing or invalid HMAC signatures.
 - Plugin safe operation apply requests can update bounded Yoast/Rank Math SEO metadata fields for a signed `post_type:id` target.
 - Plugin safe operation apply requests reject unsupported fields such as post body before writing any metadata for that item.

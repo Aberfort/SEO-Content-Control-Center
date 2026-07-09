@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 92
+
+- Added materialization of matched Search Console traffic loss drops as `gsc.traffic-loss` audit issues during metadata audit runs.
+- Added deterministic traffic-loss issue generation: only drops matched to synced WordPress content become issues, severity follows the detection drop ratio (`HIGH` at a 50% click drop or more, otherwise `MEDIUM`), and multiple page URLs matching the same content item collapse into one issue keeping the biggest click loss.
+- Added `gsc:traffic-loss:<externalId>` issue fingerprints so repeat audit runs update the existing issue through the established organization/site/fingerprint deduplication instead of duplicating it, preserving triaged status.
+- Added issue evidence with the comparison ranges, current/baseline clicks, click delta, drop ratio, current/baseline positions, and property URL.
+- Reused the traffic-loss endpoint snapshot selection in the Prisma audit path (latest insight snapshot vs the snapshot from 7 days earlier) without inline Google calls, and mirrored the pipeline plus a fingerprint upsert helper in the dev store.
+- Kept backlog conversion untouched: `gsc.traffic-loss` issues convert to backlog tasks through the existing single and bulk issue mechanisms.
+- Added unit tests for severity mapping, evidence and fingerprint shape, matched-only materialization, same-content dedup, missing-range guards, and dev-store fingerprint upsert semantics across repeated audit runs.
+
 ### Iteration 91
 
 - Added normalized URL matching between Search Console traffic loss pages and synced WordPress content items.
