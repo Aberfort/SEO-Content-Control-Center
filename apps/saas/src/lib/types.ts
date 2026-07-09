@@ -283,7 +283,7 @@ export type GscConnectionOverview = {
 export type AssistantRecommendationPriority = "low" | "medium" | "high";
 
 export type AssistantRecommendationSource = {
-  type: "backlog_task" | "synced_content";
+  type: "backlog_task" | "synced_content" | "gsc_traffic_loss" | "gsc_opportunity";
   id: string;
   label: string;
   url: string | null;

@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 94
+
+- Added read-only assistant recommendations sourced from persisted Google Search Console evidence without calling Google or an external AI provider.
+- Added `gsc_traffic_loss` recommendations from page-level click drops between the latest insight snapshot and the snapshot from 7 days earlier, with `high` priority at a 50% drop or more (matching detection severity) and click metrics in the source detail.
+- Added `gsc_opportunity` recommendations that reuse the CTR-opportunity and striking-distance candidate copy for content-matched entries and keep unmatched pages visible with sync-first next steps.
+- Kept safe-preview controls enabled only for backlog-sourced recommendations; GSC-sourced recommendations always return disabled controls with a backlog-conversion or plugin-sync reason.
+- Extended assistant sorting so equal-priority recommendations rank backlog tasks, synced content, traffic loss, and opportunities in that order.
+- Reused the latest-snapshot loader plus content URL matching in the Prisma repository and mirrored the pipeline in the dev store, which now serves unmatched GSC recommendations from seeded insights.
+- Added builder unit tests for priorities, source details, disabled controls, unmatched fallbacks, and source ordering, plus dev-store tests for seeded-insight recommendations and backlog-first sorting.
+
 ### Iteration 93
 
 - Added deterministic Search Console opportunity detection from the latest persisted page/query insight snapshot without inline Google calls.

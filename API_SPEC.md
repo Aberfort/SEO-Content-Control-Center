@@ -1510,7 +1510,9 @@ Response:
 
 `GET /api/organizations/:organizationId/sites/:siteId/assistant/recommendations`
 
-Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks and synced content health evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations. Backlog-sourced recommendations may include an enabled safe-preview action; unsupported sources return disabled controls with a reason.
+Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks, synced content health evidence, and persisted Google Search Console evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations. Backlog-sourced recommendations may include an enabled safe-preview action; all other sources return disabled controls with a reason.
+
+GSC-sourced recommendations reuse the deterministic detection lines: `gsc_traffic_loss` sources come from page-level click drops between the latest insight snapshot and the snapshot from 7 days earlier (priority `high` at a 50% drop or more, otherwise `medium`), and `gsc_opportunity` sources come from CTR-opportunity and striking-distance detection. Entries matched to synced WordPress content reuse the opportunity candidate copy and point at audit/backlog conversion next steps; unmatched entries stay visible with sync-first next steps. Source `detail` carries the click or position/CTR/impression metrics. Recommendations sort backlog tasks first, then synced content, traffic loss, and opportunities within the same priority.
 
 Optional query params:
 

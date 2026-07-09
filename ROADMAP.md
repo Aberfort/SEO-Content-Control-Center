@@ -92,8 +92,9 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 
 ## Phase 7 - AI Assistant
 
-- Recommendations only. Status: deterministic read-only recommendations implemented from backlog and synced content evidence.
-- Manual confirmation. Status: assistant controls prepare safe previews only and keep dry run, confirmation, and execution separate.
+- Recommendations only. Status: deterministic read-only recommendations implemented from backlog, synced content, and persisted GSC traffic-loss/opportunity evidence.
+- GSC evidence. Status: traffic loss drops and search opportunities from the latest insight snapshot surface as `gsc_traffic_loss`/`gsc_opportunity` recommendations with metric detail, matched-content labels, and audit/backlog conversion next steps.
+- Manual confirmation. Status: assistant controls prepare safe previews only and keep dry run, confirmation, and execution separate; GSC-sourced recommendations always return disabled preview controls.
 - Source display. Status: assistant recommendation sources are included in API and dashboard output.
 - Usage limits and AI credits. Status: recommendation responses include unmetered monthly AI-credit usage envelopes from plan limits and usage metrics.
 - Disable controls. Status: unsupported assistant actions return disabled controls with reasons.

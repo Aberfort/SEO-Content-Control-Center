@@ -12,6 +12,7 @@ import {
   getDevStore,
   getOrganizationSummary,
   inviteMember,
+  listAssistantRecommendationsForSite,
   listAuditIssuesForAudit,
   listOrganizationSummariesForUser,
   resetDevStore,
@@ -353,5 +354,135 @@ describe("dev store audit traffic loss issues", () => {
     });
     expect(updated).toHaveLength(1);
     expect(updated[0]).toMatchObject({ id: persisted[0]!.id, status: "RESOLVED" });
+  });
+});
+
+describe("dev store assistant gsc recommendations", () => {
+  beforeEach(() => {
+    resetDevStore();
+  });
+
+  it("surfaces read-only traffic loss and opportunity recommendations from seeded insights", () => {
+    const organization = createOrganization({ user: owner, name: "Acme SEO" });
+    const site = createSite({
+      user: owner,
+      organizationId: organization.id,
+      name: "Main Blog",
+      url: "https://example.com"
+    });
+
+    getDevStore().gscSearchInsights.push(
+      {
+        id: crypto.randomUUID(),
+        siteId: site.id,
+        propertyUrl: "sc-domain:example.com",
+        startDate: "2026-06-22",
+        endDate: "2026-06-28",
+        page: "https://example.com/hello",
+        query: "hello",
+        clicks: 2,
+        impressions: 1000,
+        ctr: 0.002,
+        position: 6,
+        syncedAt: "2026-06-29T00:00:00.000Z"
+      },
+      {
+        id: crypto.randomUUID(),
+        siteId: site.id,
+        propertyUrl: "sc-domain:example.com",
+        startDate: "2026-06-15",
+        endDate: "2026-06-21",
+        page: "https://example.com/hello",
+        query: "hello",
+        clicks: 100,
+        impressions: 1000,
+        ctr: 0.1,
+        position: 4,
+        syncedAt: "2026-06-22T00:00:00.000Z"
+      }
+    );
+
+    const list = listAssistantRecommendationsForSite(owner.id, organization.id, site.id, {
+      limit: 5
+    });
+    const sourceTypes = list.recommendations.map((recommendation) => recommendation.source.type);
+
+    expect(sourceTypes).toEqual(["gsc_traffic_loss", "gsc_opportunity", "gsc_opportunity"]);
+    expect(list.recommendations[0]).toMatchObject({
+      priority: "high",
+      noMutation: true,
+      source: {
+        url: "https://example.com/hello",
+        detail: "Clicks 100 to 2 (98% drop)"
+      }
+    });
+    expect(
+      list.recommendations.every(
+        (recommendation) =>
+          recommendation.action.enabled === false &&
+          recommendation.action.type === "safe_preview" &&
+          recommendation.noMutation === true
+      )
+    ).toBe(true);
+    expect(list.recommendations[1]?.nextStep).toContain("Sync this page");
+  });
+
+  it("keeps backlog-sourced recommendations first and preview-enabled", () => {
+    const organization = createOrganization({ user: owner, name: "Acme SEO" });
+    const site = createSite({
+      user: owner,
+      organizationId: organization.id,
+      name: "Main Blog",
+      url: "https://example.com"
+    });
+    const now = "2026-07-09T00:00:00.000Z";
+
+    getDevStore().backlogTasks.push({
+      id: "00000000-0000-4000-8000-000000000404",
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: null,
+      title: "Update SEO title",
+      url: "https://example.com/hello",
+      issueType: "missing_meta_title",
+      status: "TODO",
+      severity: "CRITICAL",
+      potentialImpact: null,
+      effortEstimate: 2,
+      assigneeId: null,
+      dueDate: null,
+      tags: [],
+      createdAt: now,
+      updatedAt: now,
+      comments: []
+    });
+    getDevStore().gscSearchInsights.push({
+      id: crypto.randomUUID(),
+      siteId: site.id,
+      propertyUrl: "sc-domain:example.com",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      page: "https://example.com/hello",
+      query: "hello",
+      clicks: 2,
+      impressions: 1000,
+      ctr: 0.002,
+      position: 6,
+      syncedAt: "2026-06-29T00:00:00.000Z"
+    });
+
+    const list = listAssistantRecommendationsForSite(owner.id, organization.id, site.id, {
+      limit: 5
+    });
+
+    expect(list.recommendations[0]).toMatchObject({
+      source: { type: "backlog_task" },
+      action: { enabled: true }
+    });
+    expect(
+      list.recommendations
+        .filter((recommendation) => recommendation.source.type !== "backlog_task")
+        .every((recommendation) => recommendation.action.enabled === false)
+    ).toBe(true);
   });
 });

@@ -57,6 +57,7 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  AssistantRecommendation,
   AssistantRecommendationList,
   AssistantRecommendationListOptions,
   Audit,
@@ -103,6 +104,8 @@ import type {
 } from "./types";
 import {
   buildAssistantRecommendationFromBacklogTask,
+  buildAssistantRecommendationsFromGscOpportunities,
+  buildAssistantRecommendationsFromTrafficLoss,
   sortAssistantRecommendations
 } from "./assistant-recommendations";
 import { buildAssistantUsage } from "./assistant-usage";
@@ -123,6 +126,7 @@ import {
 } from "./bulk-operation-preview";
 import { matchTrafficLossPages } from "./gsc-content-matching";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
+import { buildGscOpportunities, matchGscOpportunityEntries } from "./gsc-opportunities";
 import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
 import {
   buildAuditIssueInputsFromTrafficLoss,
@@ -1315,11 +1319,71 @@ export function listAssistantRecommendationsForSite(
         ["TODO", "IN_PROGRESS", "IN_REVIEW"].includes(task.status)
     )
     .map(buildAssistantRecommendationFromBacklogTask);
+  const gscRecommendations = buildDevGscAssistantRecommendations(userId, organizationId, siteId);
 
   return {
-    recommendations: sortAssistantRecommendations(recommendations).slice(0, parsed.limit ?? 5),
+    recommendations: sortAssistantRecommendations([
+      ...recommendations,
+      ...gscRecommendations
+    ]).slice(0, parsed.limit ?? 5),
     usage: buildAssistantUsage()
   };
+}
+
+/**
+ * Mirrors the Prisma repository GSC assistant recommendations: the latest
+ * insight snapshot yields traffic loss drops and search opportunities. The
+ * dev store does not persist synced content, so entries stay unmatched and
+ * keep sync-first next steps.
+ */
+function buildDevGscAssistantRecommendations(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): AssistantRecommendation[] {
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === siteId && candidate.organizationId === organizationId
+  );
+
+  if (!site) {
+    return [];
+  }
+
+  const currentInsights = listGscSearchInsights(userId, organizationId, siteId, {});
+
+  if (currentInsights.length === 0) {
+    return [];
+  }
+
+  const propertyUrl = currentInsights[0]!.propertyUrl;
+  const baselineInsights = listGscSearchInsights(userId, organizationId, siteId, {
+    propertyUrl,
+    startDate: shiftDateOnly(currentInsights[0]!.startDate, -7),
+    endDate: shiftDateOnly(currentInsights[0]!.endDate, -7)
+  });
+  const pages = buildPageTrafficLoss(currentInsights, baselineInsights);
+  const opportunities = buildGscOpportunities(currentInsights);
+  const contentUrls = listSyncedContentUrlsForSite(userId, organizationId, siteId);
+
+  return [
+    ...(pages.available
+      ? buildAssistantRecommendationsFromTrafficLoss({
+          organizationId,
+          siteId,
+          drops: matchTrafficLossPages(pages.drops, contentUrls),
+          currentRange: pages.currentRange,
+          baselineRange: pages.baselineRange
+        })
+      : []),
+    ...(opportunities.available
+      ? buildAssistantRecommendationsFromGscOpportunities({
+          organizationId,
+          siteId,
+          entries: matchGscOpportunityEntries(opportunities.entries, contentUrls)
+        })
+      : [])
+  ];
 }
 
 export function listAuditsForSite(

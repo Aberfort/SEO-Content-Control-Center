@@ -131,7 +131,9 @@ import {
 } from "./gsc-traffic-loss-issues";
 import {
   buildAssistantRecommendationFromBacklogTask,
+  buildAssistantRecommendationsFromGscOpportunities,
   buildAssistantRecommendationsFromSyncedContent,
+  buildAssistantRecommendationsFromTrafficLoss,
   sortAssistantRecommendations
 } from "./assistant-recommendations";
 import {
@@ -170,6 +172,7 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  AssistantRecommendation,
   AssistantRecommendationList,
   AssistantRecommendationListOptions,
   Audit,
@@ -2091,11 +2094,13 @@ const prismaRepository: AppRepository = {
       })
     ]);
 
+    const gscRecommendations = await buildDbGscAssistantRecommendations(organizationId, siteId);
     const recommendations = [
       ...tasks.map((task) => buildAssistantRecommendationFromBacklogTask(mapBacklogTask(task))),
       ...contentItems.flatMap((item) =>
         buildAssistantRecommendationsFromSyncedContent(mapSyncedContentItem(item))
-      )
+      ),
+      ...gscRecommendations
     ];
 
     return {
@@ -4834,6 +4839,72 @@ async function buildDbTrafficLossIssueInputs(
     baselineRange: pages.baselineRange,
     propertyUrl: snapshot.propertyUrl
   });
+}
+
+/**
+ * Builds read-only assistant recommendations from persisted GSC evidence: the
+ * latest insight snapshot yields traffic loss drops (against the snapshot from
+ * 7 days earlier) and search opportunities, both matched to synced content so
+ * the assistant can point at inventory items when they exist.
+ */
+async function buildDbGscAssistantRecommendations(
+  organizationId: string,
+  siteId: string
+): Promise<AssistantRecommendation[]> {
+  const snapshot = await loadLatestDbInsightSnapshot(siteId);
+
+  if (!snapshot) {
+    return [];
+  }
+
+  const baselineInsights = await prisma.gscSearchInsight.findMany({
+    where: {
+      siteId,
+      propertyUrl: snapshot.propertyUrl,
+      startDate: dateOnlyToDate(shiftDateOnly(snapshot.startDate, -7)),
+      endDate: dateOnlyToDate(shiftDateOnly(snapshot.endDate, -7))
+    }
+  });
+  const pages = buildPageTrafficLoss(snapshot.insights, baselineInsights.map(mapGscSearchInsight));
+  const opportunities = buildGscOpportunities(snapshot.insights);
+  const needsContentUrls =
+    (pages.available && pages.drops.length > 0) || opportunities.entries.length > 0;
+  const contentUrls = needsContentUrls
+    ? await prisma.syncedContentItem.findMany({
+        where: {
+          organizationId,
+          siteId
+        },
+        select: {
+          id: true,
+          externalId: true,
+          url: true,
+          title: true
+        },
+        orderBy: {
+          externalId: "asc"
+        }
+      })
+    : [];
+
+  return [
+    ...(pages.available
+      ? buildAssistantRecommendationsFromTrafficLoss({
+          organizationId,
+          siteId,
+          drops: matchTrafficLossPages(pages.drops, contentUrls),
+          currentRange: pages.currentRange,
+          baselineRange: pages.baselineRange
+        })
+      : []),
+    ...(opportunities.available
+      ? buildAssistantRecommendationsFromGscOpportunities({
+          organizationId,
+          siteId,
+          entries: matchGscOpportunityEntries(opportunities.entries, contentUrls)
+        })
+      : [])
+  ];
 }
 
 /**

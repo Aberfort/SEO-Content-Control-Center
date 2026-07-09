@@ -164,6 +164,11 @@
 - SaaS assistant recommendation responses include AI-credit usage envelopes without charging deterministic recommendations.
 - SaaS assistant recommendations expose enabled safe-preview controls only for backlog-sourced recommendations.
 - SaaS assistant recommendations disable unsupported controls for synced-content evidence until a backlog task exists.
+- SaaS assistant recommendations include traffic loss drops with detection-derived priority and click metrics in the source detail.
+- SaaS assistant recommendations include CTR-opportunity and striking-distance evidence, reusing the opportunity candidate copy for matched content.
+- SaaS assistant GSC-sourced recommendations always return disabled safe-preview controls with a conversion or sync-first reason.
+- SaaS assistant recommendations stay read-only and never call Google or WordPress while building GSC evidence.
+- SaaS assistant sorting keeps backlog sources before synced content, traffic loss, and opportunity sources at equal priority.
 - Manual sync does not run a large sync inline.
 - Plugin challenge, exchange, sync, and disconnect endpoints return `429 RATE_LIMITED` with `Retry-After` once their per-IP limits are exceeded.
 - Plugin endpoint rate limits apply before signature verification.
