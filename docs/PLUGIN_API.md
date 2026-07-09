@@ -415,7 +415,8 @@ Signed apply:
 - Treat the raw plugin token as a secret. Never log it and never send it inside synced metadata.
 - Retry sync batches safely. The SaaS app upserts by site and external ID.
 - Treat safe operation apply batches as worker-only traffic. They must be created from confirmed
-  operation items and recorded through the SaaS result endpoint after the plugin responds.
+  executable operation items with synced `post_type:id` targets and recorded through the SaaS result
+  endpoint after the plugin responds.
 - Reconnect WordPress sites created before encrypted plugin-token storage if worker apply returns
   `plugin_apply_secret_not_available`.
 - Clear local credentials only after a successful plugin-initiated disconnect response.

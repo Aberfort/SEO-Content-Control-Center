@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 86
+
+- Added executable safe-operation preview payload generation for synced-content backed missing SEO title and missing meta description backlog tasks.
+- Limited executable payloads to scoped synced content targets with valid `post_type:id` external IDs and Yoast or Rank Math SEO metadata evidence.
+- Kept unsupported issue types, missing synced content, fallback SEO metadata, invalid targets, and stale already-present metadata as explicit preview-only/no-mutation operations.
+- Updated dry-run metadata and dashboard copy so executable previews report deferred WordPress writes while still requiring confirmation and worker execution.
+- Added focused tests for executable Yoast title payloads, executable Rank Math meta description payloads, preview-only fallback reasons, and executable dry-run checks.
+- Documented that Phase 6 now has executable SEO title/meta description payload creation; true rollback restore on WordPress remains pending.
+
 ### Iteration 85
 
 - Added bulk operation execution jobs on the `sccc-bulk-operations` queue with a strict `organizationId`, `siteId`, and `operationId` payload contract.

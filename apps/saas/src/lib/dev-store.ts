@@ -114,6 +114,11 @@ import {
   normalizeLocalTrialStatus
 } from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import {
+  buildBulkOperationDryRunPreviewResult,
+  buildSafeOperationPreview,
+  countExecutableSafeOperationItems
+} from "./bulk-operation-preview";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 
@@ -2011,14 +2016,17 @@ export function createBulkOperationPreview(
   }
 
   const timestamp = nowIso();
-  const preview = buildDevBulkOperationPreview(task);
+  const previewResult = buildSafeOperationPreview({
+    task,
+    syncedContentItem: null
+  });
   const operation: BulkOperation = {
     id: randomUUID(),
     organizationId: parsed.organizationId,
     siteId: parsed.siteId,
     type: "BACKLOG_TASK_PREVIEW",
     status: "PREVIEWED",
-    preview,
+    preview: previewResult.preview,
     dryRunResult: null,
     confirmedAt: null,
     createdAt: timestamp,
@@ -2028,10 +2036,10 @@ export function createBulkOperationPreview(
   const item: BulkOperationItem = {
     id: randomUUID(),
     bulkOperationId: operation.id,
-    externalId: task.url,
+    externalId: previewResult.item.externalId,
     status: "PREVIEWED",
-    beforeValue: preview.beforeValue,
-    afterValue: preview.afterValue,
+    beforeValue: previewResult.item.beforeValue,
+    afterValue: previewResult.item.afterValue,
     error: null,
     createdAt: timestamp,
     updatedAt: timestamp
@@ -2050,7 +2058,9 @@ export function createBulkOperationPreview(
       siteId: parsed.siteId,
       taskId: task.id,
       type: operation.type,
-      itemCount: 1
+      itemCount: 1,
+      executable: previewResult.preview.executable,
+      noMutation: previewResult.preview.noMutation
     }
   });
 
@@ -2110,7 +2120,7 @@ export function runBulkOperationDryRun(
       siteId: parsed.siteId,
       type: operation.type,
       itemCount: items.length,
-      noMutation: true
+      noMutation: dryRunResult.noMutation === true
     }
   });
 
@@ -2519,70 +2529,17 @@ function getBacklogActivityForTask(
     .slice(0, limit);
 }
 
-function buildDevBulkOperationPreview(task: BacklogTask): {
-  noMutation: true;
-  summary: string;
-  taskId: string;
-  beforeValue: Record<string, string | number | boolean | null>;
-  afterValue: Record<string, string | boolean>;
-  safeguards: string[];
-} {
-  return {
-    noMutation: true,
-    summary: `Preview recommended SEO work for ${task.url}.`,
-    taskId: task.id,
-    beforeValue: {
-      url: task.url,
-      issueType: task.issueType,
-      status: task.status,
-      severity: task.severity,
-      potentialImpact: task.potentialImpact,
-      effortEstimate: task.effortEstimate,
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt
-    },
-    afterValue: {
-      recommendedAction: task.title,
-      expectedWorkflow: "manual_review_then_dry_run",
-      nextRequiredStep: "dry_run",
-      noMutation: true
-    },
-    safeguards: ["preview_only", "no_wordpress_write", "dry_run_required", "confirmation_required"]
-  };
-}
-
 function buildDevBulkOperationDryRunResult(
   operation: BulkOperation,
   items: BulkOperationItem[]
-): {
-  noMutation: true;
-  operationId: string;
-  type: string;
-  status: "passed";
-  checkedAt: string;
-  itemCount: number;
-  passedItems: number;
-  failedItems: 0;
-  checks: string[];
-  nextRequiredStep: "confirmation";
-} {
-  return {
-    noMutation: true,
+): Record<string, string | number | boolean | null | string[]> {
+  return buildBulkOperationDryRunPreviewResult({
     operationId: operation.id,
     type: operation.type,
-    status: "passed",
-    checkedAt: nowIso(),
     itemCount: items.length,
-    passedItems: items.length,
-    failedItems: 0,
-    checks: [
-      "tenant_scope_valid",
-      "preview_payload_present",
-      "wordpress_write_skipped",
-      "confirmation_still_required"
-    ],
-    nextRequiredStep: "confirmation"
-  };
+    executableItems: countExecutableSafeOperationItems(items),
+    checkedAt: nowIso()
+  });
 }
 
 function readMetadataString(

@@ -130,7 +130,9 @@
 - SaaS users with backlog update permission can comment on scoped backlog tasks and see recent comments in the dashboard.
 - SaaS users with backlog read permission can view scoped backlog task change history in the dashboard and API.
 - SaaS users with backlog read permission can export filtered site backlog tasks as CSV.
-- SaaS users with content operation preview permission can create preview-only bulk operations from scoped backlog tasks.
+- SaaS users with content operation preview permission can create bulk operation previews from scoped backlog tasks.
+- Missing SEO title and missing meta description backlog tasks backed by scoped synced content can produce executable Yoast/Rank Math `post_type:id` payloads.
+- Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, and stale already-present metadata remain preview-only/no-mutation.
 - SaaS dashboard users can see recent safe operation previews without triggering WordPress writes.
 - SaaS users with content operation preview permission can dry run previewed bulk operations without triggering WordPress writes.
 - SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.
@@ -193,6 +195,7 @@
 
 - No risky mutation happens without preview.
 - Preview-only bulk operations persist planned values and explicitly avoid WordPress writes.
+- Executable safe-operation previews persist only bounded SEO metadata fields and still require dry run, confirmation, start, and worker execution before WordPress writes.
 - No risky mutation happens without dry run.
 - Dry runs persist result metadata and keep confirmation as the next required step.
 - No risky mutation happens without explicit confirmation.

@@ -1110,8 +1110,8 @@ Optional query params:
 
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations`
 
-Creates a preview-only bulk operation from a scoped backlog task when the member has `content_operation:preview`.
-This endpoint persists `PREVIEWED` operation metadata and planned item values, but does not write to WordPress or execute a dry run.
+Creates a bulk operation preview from a scoped backlog task when the member has `content_operation:preview`.
+Missing SEO title and missing meta description tasks can produce executable Yoast/Rank Math apply payloads when they are backed by scoped synced content evidence with a valid `post_type:id` target. Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, and stale already-present metadata remain preview-only/no-mutation. This endpoint persists `PREVIEWED` operation metadata and planned item values, but does not write to WordPress or execute a dry run.
 
 Request:
 
@@ -1132,21 +1132,25 @@ Response:
     "type": "BACKLOG_TASK_PREVIEW",
     "status": "PREVIEWED",
     "preview": {
-      "noMutation": true,
-      "summary": "Preview recommended SEO work for https://example.com/post.",
+      "noMutation": false,
+      "executable": true,
+      "summary": "Prepare a signed WordPress SEO metadata update for https://example.com/post.",
       "taskId": "44444444-4444-4444-8444-444444444444",
+      "contentExternalId": "post:123",
       "safeguards": [
         "preview_only",
-        "no_wordpress_write",
         "dry_run_required",
-        "confirmation_required"
+        "confirmation_required",
+        "worker_execution_required",
+        "signed_wordpress_apply",
+        "bounded_seo_metadata"
       ]
     },
     "dryRunResult": null,
     "confirmedAt": null,
     "items": [
       {
-        "externalId": "https://example.com/post",
+        "externalId": "post:123",
         "status": "PREVIEWED",
         "error": null
       }
@@ -1158,7 +1162,7 @@ Response:
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations/:operationId/dry-run`
 
 Runs a dry run for a scoped `PREVIEWED` bulk operation when the member has `content_operation:preview`.
-The dry run updates SaaS operation records to `DRY_RUN_PASSED`, persists a `dryRunResult`, and keeps WordPress writes disabled. Confirmation remains required before any future execution endpoint can run.
+The dry run updates SaaS operation records to `DRY_RUN_PASSED`, persists a `dryRunResult`, and keeps WordPress writes disabled. For executable previews, writes remain deferred until explicit confirmation, start, and worker execution.
 
 Response:
 
@@ -1168,16 +1172,17 @@ Response:
     "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     "status": "DRY_RUN_PASSED",
     "dryRunResult": {
-      "noMutation": true,
+      "noMutation": false,
       "status": "passed",
       "itemCount": 1,
       "passedItems": 1,
       "failedItems": 0,
+      "executableItems": 1,
       "nextRequiredStep": "confirmation"
     },
     "items": [
       {
-        "externalId": "https://example.com/post",
+        "externalId": "post:123",
         "status": "DRY_RUN_PASSED",
         "error": null
       }
@@ -1236,7 +1241,7 @@ Response:
     "confirmedAt": "2026-07-04T10:00:00.000Z",
     "items": [
       {
-        "externalId": "https://example.com/post",
+        "externalId": "post:123",
         "status": "RUNNING",
         "error": null
       }
@@ -1279,7 +1284,7 @@ Response:
     "items": [
       {
         "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-        "externalId": "https://example.com/post",
+        "externalId": "post:123",
         "status": "FAILED",
         "error": "Meta title target is no longer valid."
       }

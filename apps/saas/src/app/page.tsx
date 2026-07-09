@@ -2294,9 +2294,10 @@ function formatBulkOperationDryRun(dryRunResult: unknown): string {
   const status = typeof result.status === "string" ? result.status : "passed";
   const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
   const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
-  const noMutation = result.noMutation === true ? "no WordPress writes" : "no writes";
+  const writeState =
+    result.noMutation === true ? "no WordPress writes" : "WordPress writes deferred";
 
-  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${noMutation}.`;
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
 }
 
 function formatMetadataValue(

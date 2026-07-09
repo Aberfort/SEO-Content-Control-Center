@@ -141,7 +141,9 @@ Every risky bulk operation must have:
 - retry strategy;
 - rate limits.
 
-Known gaps as of Iteration 85: executable SEO payload creation is still pending for backlog-derived safe operations, and rollback still captures SaaS state without restoring previous values on the WordPress site.
+Executable backlog-derived payloads are limited to missing SEO title and missing meta description tasks backed by scoped synced content evidence, valid `post_type:id` WordPress targets, and Yoast or Rank Math metadata. Unsupported issues, missing inventory evidence, fallback metadata, invalid targets, and stale already-present metadata remain preview-only.
+
+Known gap as of Iteration 86: rollback still captures SaaS state without restoring previous values on the WordPress site.
 
 ## Roadmap Security Items
 

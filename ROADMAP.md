@@ -76,12 +76,13 @@
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
 - Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
 - Retry failed items. Status: failed item retry state capture implemented without inline WordPress writes.
+- Executable SEO payloads. Status: missing SEO title and missing meta description backlog tasks can produce bounded Yoast/Rank Math apply payloads when backed by scoped synced content evidence.
 - Signed WordPress apply endpoint. Status: plugin-hosted endpoint implemented for bounded Yoast/Rank Math SEO metadata writes with signed request validation and per-item results.
 - Worker execution. Status: bulk operation execution jobs, worker handler, signed plugin apply calls, and per-item result persistence implemented for executable SEO metadata payloads.
 - Audit logs. Status: lifecycle activity logs implemented for preview, dry run, confirmation, start, result, rollback, and retry transitions.
 - Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
 
-Phase 6 execution status: the SaaS state machine, worker foundation, signed WordPress plugin apply endpoint, execution queue, and worker result persistence are implemented. The remaining gaps are executable SEO payload creation from backlog/synced content evidence and true rollback restore on WordPress; current backlog-task previews are still `noMutation` and will fail fast in the worker instead of writing.
+Phase 6 execution status: the SaaS state machine, executable SEO title/meta description payload creation, worker foundation, signed WordPress plugin apply endpoint, execution queue, and worker result persistence are implemented. Preview creation remains conservative: unsupported issue types, missing synced content, fallback SEO metadata, invalid WordPress targets, and stale already-present metadata stay `noMutation`. The remaining major gap is true rollback restore on WordPress.
 
 ## Phase 7 - AI Assistant
 

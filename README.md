@@ -113,7 +113,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - backlog task comments with audit logging;
 - backlog task change history for creation, status, assignment, due date, and comments;
 - backlog CSV export for filtered site tasks;
-- preview-only safe content operations created from scoped backlog tasks;
+- safe content operation previews created from scoped backlog tasks, with executable Yoast/Rank Math SEO title and meta description payloads when scoped synced content evidence exists;
 - dry run support for previewed safe content operations without WordPress writes;
 - explicit confirmation for dry-run-passed safe content operations;
 - controlled start state for confirmed safe content operations without inline WordPress writes;

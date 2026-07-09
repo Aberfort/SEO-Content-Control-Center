@@ -143,6 +143,11 @@ import {
 } from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import {
+  buildBulkOperationDryRunPreviewResult,
+  buildSafeOperationPreview,
+  countExecutableSafeOperationItems
+} from "./bulk-operation-preview";
 import { enqueueBulkOperationExecutionJob } from "./bulk-operation-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -263,11 +268,6 @@ type RollbackBulkOperationInput = BulkOperationRollbackInput & {
 
 type RetryBulkOperationInput = BulkOperationRetryInput & {
   user: AppUser;
-};
-
-type BulkOperationPreviewPayload = Prisma.InputJsonObject & {
-  beforeValue: Prisma.InputJsonObject;
-  afterValue: Prisma.InputJsonObject;
 };
 
 type InviteMemberInputWithUser = {
@@ -3084,7 +3084,20 @@ const prismaRepository: AppRepository = {
       throw new Error("BACKLOG_TASK_NOT_FOUND");
     }
 
-    const preview = buildBulkOperationPreview(task);
+    const syncedContentItem = await prisma.syncedContentItem.findFirst({
+      where: {
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId,
+        url: task.url
+      },
+      orderBy: {
+        lastSeenAt: "desc"
+      }
+    });
+    const previewResult = buildSafeOperationPreview({
+      task,
+      syncedContentItem: syncedContentItem ? mapSyncedContentItem(syncedContentItem) : null
+    });
     const operation = await prisma.$transaction(async (tx) => {
       const created = await tx.bulkOperation.create({
         data: {
@@ -3092,13 +3105,13 @@ const prismaRepository: AppRepository = {
           siteId: parsed.siteId,
           type: "BACKLOG_TASK_PREVIEW",
           status: "PREVIEWED",
-          preview,
+          preview: toPrismaJson(previewResult.preview),
           items: {
             create: {
-              externalId: task.url,
+              externalId: previewResult.item.externalId,
               status: "PREVIEWED",
-              beforeValue: preview.beforeValue,
-              afterValue: preview.afterValue
+              beforeValue: toPrismaJson(previewResult.item.beforeValue),
+              afterValue: toPrismaJson(previewResult.item.afterValue)
             }
           }
         },
@@ -3118,7 +3131,9 @@ const prismaRepository: AppRepository = {
             siteId: parsed.siteId,
             taskId: task.id,
             type: created.type,
-            itemCount: created.items.length
+            itemCount: created.items.length,
+            executable: previewResult.preview.executable,
+            noMutation: previewResult.preview.noMutation
           }
         }
       });
@@ -4954,42 +4969,6 @@ function mapBacklogTaskComment(comment: {
   };
 }
 
-function buildBulkOperationPreview(task: {
-  id: string;
-  title: string;
-  url: string;
-  issueType: string;
-  status: BacklogTask["status"];
-  severity: BacklogTask["severity"];
-  potentialImpact: string | null;
-  effortEstimate: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): BulkOperationPreviewPayload {
-  return {
-    noMutation: true,
-    summary: `Preview recommended SEO work for ${task.url}.`,
-    taskId: task.id,
-    beforeValue: {
-      url: task.url,
-      issueType: task.issueType,
-      status: task.status,
-      severity: task.severity,
-      potentialImpact: task.potentialImpact,
-      effortEstimate: task.effortEstimate,
-      createdAt: task.createdAt.toISOString(),
-      updatedAt: task.updatedAt.toISOString()
-    },
-    afterValue: {
-      recommendedAction: task.title,
-      expectedWorkflow: "manual_review_then_dry_run",
-      nextRequiredStep: "dry_run",
-      noMutation: true
-    },
-    safeguards: ["preview_only", "no_wordpress_write", "dry_run_required", "confirmation_required"]
-  };
-}
-
 function buildBulkOperationDryRunResult(operation: {
   id: string;
   type: string;
@@ -4997,25 +4976,16 @@ function buildBulkOperationDryRunResult(operation: {
     id: string;
     externalId: string;
     status: string;
+    afterValue: unknown;
   }>;
 }): Prisma.InputJsonObject {
-  return {
-    noMutation: true,
+  return buildBulkOperationDryRunPreviewResult({
     operationId: operation.id,
     type: operation.type,
-    status: "passed",
-    checkedAt: new Date().toISOString(),
     itemCount: operation.items.length,
-    passedItems: operation.items.length,
-    failedItems: 0,
-    checks: [
-      "tenant_scope_valid",
-      "preview_payload_present",
-      "wordpress_write_skipped",
-      "confirmation_still_required"
-    ],
-    nextRequiredStep: "confirmation"
-  };
+    executableItems: countExecutableSafeOperationItems(operation.items),
+    checkedAt: new Date().toISOString()
+  }) as Prisma.InputJsonObject;
 }
 
 async function markBulkOperationExecutionQueueFailure(input: {
