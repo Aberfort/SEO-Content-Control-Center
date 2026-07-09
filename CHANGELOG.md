@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 84
+
+- Added a WordPress-hosted signed safe operation apply endpoint at `/wp-json/sccc/v1/operations/apply`.
+- Reused the plugin HMAC signing scheme for SaaS-to-plugin apply requests with token, timestamp, signature, site header, and body scope validation.
+- Limited apply batches to bounded Yoast/Rank Math SEO metadata fields only: SEO title, meta description, canonical URL, and robots noindex/nofollow directives.
+- Added per-item apply results with before/after SEO values, partial batch failure handling, unsupported-field rejection, and strict `post_type:id` target validation.
+- Extended WordPress plugin smoke tests with REST request/response stubs, signed apply success coverage, unsupported-field rejection, and invalid-signature rejection.
+- Documented the apply endpoint contract and updated Phase 6 status to show that the plugin apply surface now exists while SaaS worker execution remains pending.
+- Corrected the safe operation audit-log documentation to reflect the existing lifecycle activity logs in the repository and dev store.
+
 ### Iteration 83
 
 - Added paginated WordPress plugin sync: the full posts/pages inventory now syncs in batches of 200 items instead of a single capped batch of 100.

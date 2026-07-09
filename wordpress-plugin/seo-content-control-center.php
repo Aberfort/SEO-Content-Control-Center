@@ -30,6 +30,7 @@ if (file_exists($autoload)) {
     require_once SCCC_PLUGIN_DIR . 'includes/AdminPage.php';
     require_once SCCC_PLUGIN_DIR . 'includes/RequestSigner.php';
     require_once SCCC_PLUGIN_DIR . 'includes/ApiClient.php';
+    require_once SCCC_PLUGIN_DIR . 'includes/SafeOperationEndpoint.php';
     require_once SCCC_PLUGIN_DIR . 'includes/ContentCollector.php';
     require_once SCCC_PLUGIN_DIR . 'includes/SyncLogStore.php';
     require_once SCCC_PLUGIN_DIR . 'includes/SyncScheduler.php';
@@ -50,7 +51,8 @@ add_action(
                 new SCCC\Plugin\ContentCollector(),
                 new SCCC\Plugin\SyncLogStore()
             ),
-            $apiClient
+            $apiClient,
+            new SCCC\Plugin\SafeOperationEndpoint($connectionStore, $requestSigner)
         );
         $plugin->register();
     }

@@ -76,10 +76,11 @@
 - Per-item processing results. Status: running operation result capture implemented without inline WordPress writes.
 - Rollback. Status: rollback state capture implemented for completed or failed operations without inline WordPress writes.
 - Retry failed items. Status: failed item retry state capture implemented without inline WordPress writes.
-- Audit logs. Status: not implemented for bulk operations - lifecycle transitions emit notifications but do not write activity log entries yet.
+- Signed WordPress apply endpoint. Status: plugin-hosted endpoint implemented for bounded Yoast/Rank Math SEO metadata writes with signed request validation and per-item results.
+- Audit logs. Status: lifecycle activity logs implemented for preview, dry run, confirmation, start, result, rollback, and retry transitions.
 - Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
 
-Phase 6 execution status: the SaaS state machine (preview, dry run, confirm, start, result capture, retry, rollback state) is implemented, but no real WordPress writes happen yet. Execution requires a background worker process and a signed WordPress plugin apply endpoint, neither of which exists in the codebase today.
+Phase 6 execution status: the SaaS state machine (preview, dry run, confirm, start, result capture, retry, rollback state), worker foundation, and signed WordPress plugin apply endpoint are implemented. The SaaS flow still does not trigger real WordPress writes end to end because bulk operation worker handlers that call the plugin apply endpoint and record results are still pending.
 
 ## Phase 7 - AI Assistant
 

@@ -44,6 +44,8 @@
 - Plugin sync inventory contains bounded metadata only; content bodies are not sent in the MVP sync payload, word count and link counts are computed locally in the plugin, and SEO plugin metadata is limited to title, description, canonical URL, robots directives, and source.
 - Plugin sync logs must be bounded and sanitize failure details so tokens, signatures, authorization values, and endpoint URLs are not stored.
 - Plugin recurring sync jobs must use the same signed sync path as manual sync, and scheduled sync jobs must be unscheduled when the site disconnects or the plugin deactivates.
+- Plugin safe operation apply requests must be HMAC-signed with the connected plugin token, match the locally stored organization/site scope, and target the WordPress REST apply path.
+- Plugin safe operation apply batches may write only bounded Yoast/Rank Math SEO metadata fields and must reject unsupported fields such as post body, slug, publish status, taxonomy, and arbitrary metadata.
 - Synced WordPress content listings must stay tenant-scoped through organization/site membership checks.
 - Synced content search, filters, and pagination must be applied only after organization/site scope is fixed.
 - Synced content detail endpoints must not fetch by item ID alone; organization and site scope are required.
@@ -137,7 +139,7 @@ Every risky bulk operation must have:
 - retry strategy;
 - rate limits.
 
-Known gaps as of Iteration 79: bulk operation lifecycle transitions do not write activity log entries yet (notifications only), background processing and real WordPress writes are not implemented, and rollback captures state without restoring previous values on the WordPress site.
+Known gaps as of Iteration 84: the signed WordPress apply endpoint exists, but SaaS bulk operation worker handlers do not call it yet; rollback still captures SaaS state without restoring previous values on the WordPress site.
 
 ## Roadmap Security Items
 

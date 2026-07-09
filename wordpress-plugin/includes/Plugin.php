@@ -15,7 +15,8 @@ final class Plugin
         private readonly ConnectionStore $connectionStore,
         private readonly AdminPage $adminPage,
         private readonly SyncScheduler $syncScheduler,
-        private readonly ApiClient $apiClient
+        private readonly ApiClient $apiClient,
+        private readonly SafeOperationEndpoint $safeOperationEndpoint
     ) {
     }
 
@@ -28,6 +29,7 @@ final class Plugin
         add_action('sccc_run_manual_sync', [$this->syncScheduler, 'runSync']);
         add_action('sccc_run_incremental_sync', [$this->syncScheduler, 'runSync']);
         add_action('init', [$this->syncScheduler, 'ensureRecurringSync']);
+        add_action('rest_api_init', [$this->safeOperationEndpoint, 'registerRoutes']);
     }
 
     public function exchangeConnection(): void

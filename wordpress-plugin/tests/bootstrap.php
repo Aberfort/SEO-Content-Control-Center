@@ -150,6 +150,87 @@ if (! function_exists('wp_remote_post')) {
     }
 }
 
+if (! class_exists('WP_Error')) {
+    class WP_Error
+    {
+        public function __construct(
+            private readonly string $code,
+            private readonly string $message,
+            private readonly array $data = []
+        ) {
+        }
+
+        public function get_error_code(): string
+        {
+            return $this->code;
+        }
+
+        public function get_error_message(): string
+        {
+            return $this->message;
+        }
+
+        public function get_error_data(): array
+        {
+            return $this->data;
+        }
+    }
+}
+
+if (! class_exists('WP_REST_Response')) {
+    class WP_REST_Response
+    {
+        public function __construct(private readonly mixed $data = null, private readonly int $status = 200)
+        {
+        }
+
+        public function get_data(): mixed
+        {
+            return $this->data;
+        }
+
+        public function get_status(): int
+        {
+            return $this->status;
+        }
+    }
+}
+
+if (! class_exists('WP_REST_Request')) {
+    class WP_REST_Request
+    {
+        private string $body = '';
+
+        /** @var array<string,string> */
+        private array $headers = [];
+
+        public function set_body(string $body): void
+        {
+            $this->body = $body;
+        }
+
+        public function get_body(): string
+        {
+            return $this->body;
+        }
+
+        /**
+         * @param array<string,string> $headers
+         */
+        public function set_headers(array $headers): void
+        {
+            foreach ($headers as $name => $value) {
+                $this->headers[strtolower($name)] = $value;
+            }
+        }
+
+        public function get_header(string $name): string
+        {
+            return $this->headers[strtolower($name)] ?? '';
+        }
+    }
+}
+
 if (! function_exists('get_post_meta')) {
     $GLOBALS['sccc_test_post_meta'] = [];
 
@@ -159,11 +240,35 @@ if (! function_exists('get_post_meta')) {
 
         return $single ? $value : [$value];
     }
+
+    function update_post_meta(int $post_id, string $key, mixed $value): bool
+    {
+        $GLOBALS['sccc_test_post_meta'][$post_id][$key] = $value;
+
+        return true;
+    }
+
+    function delete_post_meta(int $post_id, string $key): bool
+    {
+        unset($GLOBALS['sccc_test_post_meta'][$post_id][$key]);
+
+        return true;
+    }
+}
+
+if (! function_exists('get_post')) {
+    $GLOBALS['sccc_test_posts_by_id'] = [];
+
+    function get_post(int $post_id): ?object
+    {
+        return $GLOBALS['sccc_test_posts_by_id'][$post_id] ?? null;
+    }
 }
 
 require_once __DIR__ . '/../includes/RequestSigner.php';
 require_once __DIR__ . '/../includes/ApiClient.php';
 require_once __DIR__ . '/../includes/ConnectionStore.php';
+require_once __DIR__ . '/../includes/SafeOperationEndpoint.php';
 require_once __DIR__ . '/../includes/ContentCollector.php';
 require_once __DIR__ . '/../includes/SyncLogStore.php';
 require_once __DIR__ . '/../includes/SyncScheduler.php';
@@ -495,6 +600,134 @@ $latest_log = $sync_log_store->all()[0];
 
 if ('success' !== $latest_log['status'] || 5 !== $latest_log['item_count']) {
     fwrite(STDERR, "SyncScheduler paginated sync log failed.\n");
+    exit(1);
+}
+
+$safe_operation_endpoint = new SCCC\Plugin\SafeOperationEndpoint($connection_store, $signer);
+$GLOBALS['sccc_test_posts_by_id'][123] = (object) [
+    'ID' => 123,
+    'post_type' => 'post',
+];
+$GLOBALS['sccc_test_post_meta'][123] = [
+    '_yoast_wpseo_title' => 'Old title',
+    '_yoast_wpseo_metadesc' => 'Old description',
+    '_yoast_wpseo_canonical' => 'https://wp.example.com/old-canonical/',
+    '_yoast_wpseo_meta-robots-noindex' => '1',
+    '_yoast_wpseo_meta-robots-nofollow' => '0',
+];
+$apply_body = (string) json_encode(
+    [
+        'organizationId' => $connection['organization_id'],
+        'siteId' => $connection['site_id'],
+        'operationId' => 'operation-123',
+        'items' => [
+            [
+                'itemId' => 'item-123',
+                'externalId' => 'post:123',
+                'afterValue' => [
+                    'seoPlugin' => 'yoast',
+                    'seoTitle' => 'Updated SEO title',
+                    'metaDescription' => null,
+                    'canonicalUrl' => 'https://wp.example.com/updated-canonical/',
+                    'robotsNoindex' => false,
+                ],
+            ],
+        ],
+    ],
+    JSON_UNESCAPED_SLASHES
+);
+$apply_request = new \WP_REST_Request();
+$apply_request->set_body($apply_body);
+$apply_request->set_headers(
+    [
+        'X-SCCC-Site-Id' => $connection['site_id'],
+        'X-SCCC-Timestamp' => (string) $timestamp,
+        'X-SCCC-Signature' => $signer->sign('POST', $safe_operation_endpoint->signedPath(), $timestamp, $apply_body, $connection['token']),
+        'X-SCCC-Token' => $connection['token'],
+    ]
+);
+$apply_response = $safe_operation_endpoint->handleApply($apply_request);
+
+if (! $apply_response instanceof \WP_REST_Response || 200 !== $apply_response->get_status()) {
+    fwrite(STDERR, "SafeOperationEndpoint signed apply response failed.\n");
+    exit(1);
+}
+
+$apply_data = $apply_response->get_data();
+
+if (
+    ! is_array($apply_data)
+    || 1 !== ($apply_data['data']['appliedCount'] ?? null)
+    || 'COMPLETED' !== ($apply_data['data']['results'][0]['status'] ?? null)
+) {
+    fwrite(STDERR, "SafeOperationEndpoint signed apply result failed.\n");
+    exit(1);
+}
+
+if (
+    'Updated SEO title' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_title'] ?? null)
+    || isset($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_metadesc'])
+    || 'https://wp.example.com/updated-canonical/' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_canonical'] ?? null)
+    || '0' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_meta-robots-noindex'] ?? null)
+) {
+    fwrite(STDERR, "SafeOperationEndpoint did not write bounded Yoast fields.\n");
+    exit(1);
+}
+
+$blocked_body = (string) json_encode(
+    [
+        'organizationId' => $connection['organization_id'],
+        'siteId' => $connection['site_id'],
+        'operationId' => 'operation-unsupported',
+        'items' => [
+            [
+                'itemId' => 'item-unsupported',
+                'externalId' => 'post:123',
+                'afterValue' => [
+                    'seoPlugin' => 'yoast',
+                    'postContent' => 'This must never be accepted.',
+                ],
+            ],
+        ],
+    ],
+    JSON_UNESCAPED_SLASHES
+);
+$blocked_request = new \WP_REST_Request();
+$blocked_request->set_body($blocked_body);
+$blocked_request->set_headers(
+    [
+        'X-SCCC-Site-Id' => $connection['site_id'],
+        'X-SCCC-Timestamp' => (string) $timestamp,
+        'X-SCCC-Signature' => $signer->sign('POST', $safe_operation_endpoint->signedPath(), $timestamp, $blocked_body, $connection['token']),
+        'X-SCCC-Token' => $connection['token'],
+    ]
+);
+$blocked_response = $safe_operation_endpoint->handleApply($blocked_request);
+$blocked_data = $blocked_response instanceof \WP_REST_Response ? $blocked_response->get_data() : null;
+
+if (
+    ! is_array($blocked_data)
+    || 1 !== ($blocked_data['data']['failedCount'] ?? null)
+    || ! str_starts_with((string) ($blocked_data['data']['results'][0]['error'] ?? ''), 'unsupported_field:')
+) {
+    fwrite(STDERR, "SafeOperationEndpoint did not reject unsupported fields.\n");
+    exit(1);
+}
+
+$invalid_signature_request = new \WP_REST_Request();
+$invalid_signature_request->set_body($apply_body);
+$invalid_signature_request->set_headers(
+    [
+        'X-SCCC-Site-Id' => $connection['site_id'],
+        'X-SCCC-Timestamp' => (string) $timestamp,
+        'X-SCCC-Signature' => 'bad-signature',
+        'X-SCCC-Token' => $connection['token'],
+    ]
+);
+$invalid_signature_response = $safe_operation_endpoint->handleApply($invalid_signature_request);
+
+if (! $invalid_signature_response instanceof \WP_Error || 'PLUGIN_APPLY_SIGNATURE_INVALID' !== $invalid_signature_response->get_error_code()) {
+    fwrite(STDERR, "SafeOperationEndpoint accepted an invalid signature.\n");
     exit(1);
 }
 

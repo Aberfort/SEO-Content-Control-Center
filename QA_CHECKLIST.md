@@ -180,6 +180,9 @@
 - Plugin sync batches are ordered by post ID ascending so pagination stays stable while content changes.
 - Posts without permalinks are skipped inside a batch without ending pagination early.
 - A single plugin sync run stops after the 50-batch safety bound and the sync log records the total synced item count.
+- Plugin safe operation apply requests reject missing or invalid HMAC signatures.
+- Plugin safe operation apply requests can update bounded Yoast/Rank Math SEO metadata fields for a signed `post_type:id` target.
+- Plugin safe operation apply requests reject unsupported fields such as post body before writing any metadata for that item.
 
 ## SEO Safety
 
@@ -193,7 +196,7 @@
 - Running bulk operation result capture records per-item outcomes and still does not write to WordPress inline.
 - Rollback state capture records restored operation state and still does not write to WordPress inline.
 - Retry state capture records failed item retry state and still does not write to WordPress inline.
-- Every risky mutation writes an audit log. Known gap as of Iteration 79: bulk operation lifecycle transitions emit notifications but do not write activity log entries yet.
+- Every risky mutation writes an audit log, including safe content operation lifecycle transitions.
 - Safe operation lifecycle outcomes create tenant-scoped notifications.
 - Notification read state updates stay scoped to the authenticated member's organization.
 - Bulk notification read updates stay scoped to the authenticated member's organization and are idempotent.

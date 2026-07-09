@@ -82,6 +82,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin content metadata sync for author, publish date, featured image, taxonomies, word count, and internal/outbound link counts;
 - WordPress plugin SEO metadata sync for Yoast, Rank Math, and fallback title/canonical/robots signals;
 - WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;
+- WordPress plugin signed safe operation apply endpoint for bounded Yoast/Rank Math SEO metadata batches;
 - SaaS persistence and dashboard inventory for synced WordPress content;
 - Google Search Console connection overview scaffold with tenant-scoped property state and OAuth readiness guardrails;
 - Google Search Console OAuth start/callback with signed state and encrypted refresh token storage;
@@ -119,6 +120,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - execution result recording for running safe content operations with per-item outcomes;
 - rollback state capture for completed or failed safe content operations;
 - retry state capture for failed safe content operation items;
+- activity logs for safe content operation preview, dry run, confirmation, start, result, rollback, and retry transitions;
 - organization notifications for safe content operation lifecycle outcomes;
 - read and unread state management for organization notifications;
 - bulk mark-read support for organization notifications;
@@ -139,7 +141,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Docker local dependencies;
 - CI workflow.
 
-No destructive SEO automation is implemented in this iteration.
+No end-to-end destructive SEO automation is implemented in this iteration.
 
 ## Database
 

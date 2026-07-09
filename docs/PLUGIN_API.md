@@ -4,7 +4,9 @@ This document is the implementation contract for connecting a WordPress site to 
 syncing bounded content inventory metadata, and disconnecting a plugin connection.
 
 The current MVP intentionally syncs inventory metadata only. It does not send WordPress post bodies,
-does not crawl external URLs from the SaaS app, and does not mutate WordPress content inline.
+does not crawl external URLs from the SaaS app, and does not mutate WordPress content inline. The
+WordPress plugin also exposes a separate signed apply endpoint for future worker execution; that
+endpoint is limited to bounded Yoast/Rank Math SEO metadata fields.
 
 ## Base URL
 
@@ -88,7 +90,8 @@ the raw token in local options with autoload disabled.
 
 ## Signed Requests
 
-The sync and plugin-initiated disconnect endpoints require HMAC signatures.
+The sync and plugin-initiated disconnect endpoints require HMAC signatures. The WordPress-hosted
+safe operation apply endpoint uses the same signing scheme for SaaS-to-plugin requests.
 
 Required headers:
 
@@ -105,7 +108,7 @@ METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + SHA256(BODY)
 
 Then sign that payload with HMAC-SHA256 using the raw plugin token.
 
-Example:
+SaaS endpoint example:
 
 ```text
 POST
@@ -116,6 +119,13 @@ POST
 
 The timestamp tolerance is 300 seconds. The SaaS app rejects missing, expired, malformed, mismatched,
 disconnected, or invalid-token signatures with `401`.
+
+For SaaS-to-WordPress apply requests, sign the WordPress REST path used by the plugin. With the
+default WordPress REST prefix, the canonical path is:
+
+```text
+/wp-json/sccc/v1/operations/apply
+```
 
 ## Content Sync
 
@@ -190,6 +200,95 @@ ascending. Each batch request sets `cursor` to the batch offset as a string (`"0
 `"400"`, ...), and the response echoes the received cursor. A single sync run sends at most 50
 batches (10,000 items) as a safety bound; larger inventories continue from the beginning on the
 next scheduled run, and upserts by `siteId + externalId` keep repeated batches idempotent.
+
+## Safe Operation Apply Endpoint
+
+`POST /wp-json/sccc/v1/operations/apply`
+
+This is a WordPress-hosted endpoint exposed by the plugin for future background worker execution.
+It requires the same `X-SCCC-*` signed headers as plugin sync, but the signature path is the
+WordPress REST path above. The stored plugin token must match the header token, the signed site ID
+must match the connected site, and the JSON body organization/site scope must match the locally
+stored connection.
+
+Request:
+
+```json
+{
+  "organizationId": "11111111-1111-4111-8111-111111111111",
+  "siteId": "22222222-2222-4222-8222-222222222222",
+  "operationId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "items": [
+    {
+      "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "externalId": "post:123",
+      "afterValue": {
+        "seoPlugin": "yoast",
+        "seoTitle": "Updated SEO title",
+        "metaDescription": "Updated meta description.",
+        "canonicalUrl": "https://example.com/post",
+        "robotsNoindex": false,
+        "robotsNofollow": false
+      }
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "operationId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "siteId": "22222222-2222-4222-8222-222222222222",
+    "appliedCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "externalId": "post:123",
+        "status": "COMPLETED",
+        "beforeValue": {
+          "seoPlugin": "yoast",
+          "seoTitle": "Old SEO title",
+          "metaDescription": "Old meta description.",
+          "canonicalUrl": "https://example.com/old",
+          "robotsNoindex": true,
+          "robotsNofollow": false
+        },
+        "afterValue": {
+          "seoPlugin": "yoast",
+          "seoTitle": "Updated SEO title",
+          "metaDescription": "Updated meta description.",
+          "canonicalUrl": "https://example.com/post",
+          "robotsNoindex": false,
+          "robotsNofollow": false
+        },
+        "error": null
+      }
+    ]
+  }
+}
+```
+
+Apply payload rules:
+
+- `items` accepts up to 100 items per request.
+- `itemId` is required so the SaaS worker can record results back to the matching operation item.
+- `externalId` must point to an existing WordPress post object using the synced `post_type:id`
+  format, for example `post:123` or `page:456`.
+- `afterValue` accepts only `seoPlugin`, `seoTitle`, `metaDescription`, `canonicalUrl`,
+  `robotsNoindex`, and `robotsNofollow`.
+- `seoPlugin` may be `yoast` or `rank_math`. If omitted, the plugin infers the target from existing
+  stored metadata; fallback title metadata is read-only and cannot be applied.
+- `seoTitle` is limited to 512 characters; `metaDescription` is limited to 1024 characters;
+  `canonicalUrl` is limited to HTTP(S) URLs up to 2048 characters; robots values must be booleans or
+  `null`.
+- `null` clears the corresponding SEO meta field. Unsupported fields such as post body, slug,
+  publish status, taxonomy, and arbitrary metadata are rejected per item and are not written.
+- The endpoint returns per-item `COMPLETED` or `FAILED` results. A batch can partially succeed; the
+  SaaS worker is responsible for recording item results back into the SaaS operation state.
 
 ## Metadata Contract
 
@@ -296,11 +395,24 @@ Signed disconnect:
 - `422 VALIDATION_ERROR`
 - `429 RATE_LIMITED`
 
+Signed apply:
+
+- `400 INVALID_JSON`
+- `401 PLUGIN_APPLY_SIGNATURE_MISSING`
+- `401 PLUGIN_APPLY_SIGNATURE_INVALID`
+- `401 PLUGIN_APPLY_SIGNATURE_EXPIRED`
+- `401 PLUGIN_TOKEN_INVALID`
+- `401 PLUGIN_CONNECTION_NOT_FOUND`
+- `403 PLUGIN_APPLY_SCOPE_MISMATCH`
+- `422 VALIDATION_ERROR`
+
 ## Operational Notes
 
 - Keep plugin servers time-synchronized. Signed requests outside the 300-second tolerance fail.
 - All plugin endpoints are rate limited by client IP before signature verification. A `429 RATE_LIMITED` response includes a `Retry-After` header in seconds; retry after that delay instead of immediately.
 - Treat the raw plugin token as a secret. Never log it and never send it inside synced metadata.
 - Retry sync batches safely. The SaaS app upserts by site and external ID.
+- Treat safe operation apply batches as worker-only traffic. They must be created from confirmed
+  operation items and recorded through the SaaS result endpoint after the plugin responds.
 - Clear local credentials only after a successful plugin-initiated disconnect response.
 - Use the API specification for broader SaaS endpoint details: [API_SPEC.md](../API_SPEC.md).
