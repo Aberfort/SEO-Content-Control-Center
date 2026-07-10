@@ -44,6 +44,8 @@ npm run dev
 The SaaS app runs on `http://localhost:3000`.
 The marketing app runs on `http://localhost:3001`.
 
+The marketing site includes public home, features, pricing, security, demo, trial, privacy, terms, and cookie routes. Set `NEXT_PUBLIC_MARKETING_URL` to its public origin and `NEXT_PUBLIC_APP_URL` to the SaaS origin. Demo requests post JSON events to `SCCC_MARKETING_LEAD_WEBHOOK_URL`; optional `SCCC_MARKETING_LEAD_WEBHOOK_SECRET` is sent as a Bearer token. An unset webhook logs accepted leads only in development and returns a delivery error in production.
+
 The background worker is started separately and requires Redis:
 
 ```bash
@@ -150,6 +152,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
 - CI workflow with dependency audit and CodeQL SAST.
+- responsive public marketing, pricing, security, demo, trial, and legal routes with sitemap/robots discovery and a webhook-delivered demo lead flow.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 

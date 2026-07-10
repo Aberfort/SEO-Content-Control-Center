@@ -8,6 +8,7 @@ import { loginAction, registerAction, type ActionState } from "@/app/actions";
 type AuthFormProps = {
   mode: "login" | "register";
   redirectTo?: string;
+  defaultEmail?: string;
 };
 
 const initialState: ActionState = {
@@ -15,7 +16,7 @@ const initialState: ActionState = {
   message: ""
 };
 
-export function AuthForm({ mode, redirectTo }: AuthFormProps) {
+export function AuthForm({ mode, redirectTo, defaultEmail = "" }: AuthFormProps) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, isPending] = useActionState(action, initialState);
   const isLogin = mode === "login";
@@ -33,7 +34,13 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
       ) : null}
       <label>
         <span>Email</span>
-        <input name="email" type="email" autoComplete="email" required />
+        <input
+          name="email"
+          type="email"
+          autoComplete="email"
+          defaultValue={defaultEmail}
+          required
+        />
       </label>
       <label>
         <span>Password</span>

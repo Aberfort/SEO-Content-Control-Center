@@ -122,3 +122,11 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - SAST. Status: CodeQL JavaScript/TypeScript analysis runs in CI.
 - Restore testing. Status: disposable database restore smoke script implemented as `npm run verify:backup-restore`.
 - Enterprise security checklist. Status: planned.
+
+## Phase 11 - Public Marketing
+
+- Acquisition site. Status: responsive home page plus dedicated Features, Pricing, and Security routes implemented from the product requirements and landing-content guardrails.
+- Demo acquisition. Status: validated, honeypot-protected, per-client rate-limited demo form with env-configured webhook delivery and explicit unavailable states.
+- Trial acquisition. Status: 14-day trial page hands work email into the existing SaaS registration flow; SaaS validates the prefill before rendering it.
+- Legal and SEO discovery. Status: Privacy, Terms, and Cookie pages, canonical/Open Graph metadata, `robots.txt`, and `sitemap.xml` implemented.
+- Remaining public content. Status: integrations, audience landing pages, knowledge base, blog, changelog, contact, and status pages remain planned.

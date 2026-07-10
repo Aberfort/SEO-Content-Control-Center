@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 98
+
+- Rebuilt the public marketing home page around the implemented WordPress, Search Console, audit, backlog, assistant, billing, and review-first operation workflows, with a responsive product backlog preview and audience-specific use cases.
+- Added dedicated `/features`, `/pricing`, and `/security` pages with route-specific metadata; public pricing reads site, URL, user, AI-credit, and API limits from the shared billing contract.
+- Added `/demo` with server-side validation, honeypot filtering, a bounded per-client rate limit, explicit delivery failures, and optional Bearer-authenticated webhook delivery through `SCCC_MARKETING_LEAD_WEBHOOK_URL`.
+- Added `/trial` with a direct handoff to the SaaS registration route and safe email prefill on the account form.
+- Added Privacy, Terms, and Cookie pages plus `robots.txt`, `sitemap.xml`, canonical metadata, Open Graph metadata, responsive navigation, and a shared public footer.
+- Added focused demo-lead validation tests and documented production marketing URL, SaaS URL, and lead webhook configuration.
+
 ### Iteration 97
 
 - Added opt-in TOTP two-factor authentication for SaaS users, with encrypted pending and active secrets, replay protection through the last accepted TOTP counter, and no session cookie issuance until the second factor is verified.

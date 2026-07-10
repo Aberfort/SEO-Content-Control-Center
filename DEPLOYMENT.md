@@ -36,6 +36,14 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Worker process.
 - WordPress plugin release artifact.
 
+## Marketing Application
+
+- `NEXT_PUBLIC_MARKETING_URL` is the canonical public marketing origin used by metadata, `robots.txt`, and `sitemap.xml`.
+- `NEXT_PUBLIC_APP_URL` is the SaaS origin used by Log in and trial-registration handoffs.
+- `SCCC_MARKETING_LEAD_WEBHOOK_URL` must be configured in production for demo delivery. The endpoint receives a JSON `marketing.demo_requested` event and must return a 2xx response within eight seconds.
+- `SCCC_MARKETING_LEAD_WEBHOOK_SECRET` optionally adds an `Authorization: Bearer ...` header. Store it in the deployment secret manager.
+- Without a webhook, development logs the lead payload locally for testing; production shows an explicit delivery error and does not claim the request was received.
+
 ## Assistant AI Provider
 
 The assistant stays fully deterministic unless an AI provider is configured on the SaaS app:

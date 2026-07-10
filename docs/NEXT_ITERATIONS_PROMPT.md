@@ -35,20 +35,21 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 97)
+## Поточний стан (після Iteration 98)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
 - Phase 8 Billing реалізований на MVP-рівні: trial/subscription overview, Stripe checkout, portal, signed idempotent webhooks, feature gates, finite limit notifications.
 - Phase 9 Observability реалізований: env-gated Sentry envelope reporter, PostHog server events, worker job failure reporting, worker `GET /healthz` queue metrics/lag.
 - Iteration 97 Security hardening реалізована: opt-in TOTP 2FA з encrypted pending/active secrets і replay-protected login, CI `npm audit`, CodeQL SAST, disposable DB backup restore smoke script.
+- Iteration 98 Marketing site expansion реалізована: responsive home/features/pricing/security, demo webhook form із validation/honeypot/rate limit, trial handoff у SaaS registration, privacy/terms/cookies, route metadata, robots і sitemap.
 - Safe operation executable payloads усе ще покривають лише SEO title/meta description; ширше payload покриття лишається майбутньою роботою.
 
 ## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
 
-1. **Iteration 98 — Marketing site expansion.** Сторінки features/pricing/security/legal, форми demo/trial, SEO-метадані; контент з `LANDING_CONTENT.md` і `PRODUCT_REQUIREMENTS.md`.
-2. **Iteration 99 — WordPress plugin release packaging.** `readme.txt`, версіонування, збірка zip-артефакту (composer/скрипт), CI-крок; узгодити з `DEPLOYMENT.md` deployment units.
-3. **Iteration 100 — Safe-operation payload expansion.** Розширити executable payloads beyond SEO title/meta description: canonical URL, robots noindex/nofollow, можливо schema-safe fields; оновити preview/dry-run/worker/plugin tests.
+1. **Iteration 99 — WordPress plugin release packaging.** `readme.txt`, версіонування, збірка zip-артефакту (composer/скрипт), CI-крок; узгодити з `DEPLOYMENT.md` deployment units.
+2. **Iteration 100 — Safe-operation payload expansion.** Розширити executable payloads beyond SEO title/meta description: canonical URL, robots noindex/nofollow, можливо schema-safe fields; оновити preview/dry-run/worker/plugin tests.
+3. **Iteration 101 — Remaining public content.** Product/integrations та agency/content/publisher pages, changelog/knowledge base/blog/contact/status; використати вже створений marketing shell і не дублювати demo/trial contracts.
 
 Відомий tech debt поза чергою (бери, якщо блокує поточну ітерацію): `apps/saas/src/app/page.tsx` ~2700 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply.
 

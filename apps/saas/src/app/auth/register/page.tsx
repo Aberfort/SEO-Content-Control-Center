@@ -11,6 +11,7 @@ type AuthPageProps = {
 export default async function RegisterPage({ searchParams }: AuthPageProps) {
   const params = await searchParams;
   const redirectTo = readRedirectTo(params);
+  const defaultEmail = readDefaultEmail(params);
   const user = await getCurrentUser();
 
   if (user) {
@@ -25,10 +26,23 @@ export default async function RegisterPage({ searchParams }: AuthPageProps) {
         </Link>
         <h1>Create your account.</h1>
         <p>Start with a secure account, then create an organization and connect WordPress.</p>
-        <AuthForm mode="register" redirectTo={redirectTo} />
+        <AuthForm mode="register" redirectTo={redirectTo} defaultEmail={defaultEmail} />
       </section>
     </main>
   );
+}
+
+function readDefaultEmail(
+  params: Record<string, string | string[] | undefined> | undefined
+): string {
+  const email = params?.email;
+  const value = Array.isArray(email) ? email[0] : email;
+
+  if (!value || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return "";
+  }
+
+  return value;
 }
 
 function readRedirectTo(params: Record<string, string | string[] | undefined> | undefined): string {

@@ -34,6 +34,8 @@ SEO Content Control Center connects WordPress, Google Search Console, and your S
 - Cookie Policy
 - Status
 
+Iteration 98 implements Home, Features, Pricing, Security, Demo, Trial, Privacy Policy, Terms of Service, and Cookie Policy. Product/integrations, audience pages, changelog, knowledge base, blog, contact, and status remain future public-content work.
+
 ## Home Page Blocks
 
 - Hero.
