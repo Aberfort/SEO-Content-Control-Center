@@ -251,9 +251,13 @@
 - `wordpress-plugin/VERSION`, the plugin header/runtime constant, `readme.txt` stable tag, and Composer release metadata use the same semantic version.
 - `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create `dist/seo-content-control-center-<version>.zip`.
 - The archive opens without errors, has one `seo-content-control-center/` root, and includes the entrypoint, `readme.txt`, version file, Composer manifest, and required `includes` classes.
-- The archive excludes tests, development `vendor` files, `.git` files, Composer lockfiles, and `phpcs.xml.dist`.
+- The archive excludes tests, certification helpers, development `vendor` files, `.git` files, Composer lockfiles, and `phpcs.xml.dist`.
 - CI publishes the checked archive as the `seo-content-control-center-plugin` artifact after the normal build passes.
-- Before a public release, install the artifact in a staging WordPress 6.4+/PHP 8.1+ site and verify activation, challenge exchange, scheduled sync, manual paginated sync, signed operation handling, disconnect, and deactivation cleanup.
+- `npm run plugin:certify` installs the built zip into a real disposable WordPress container and passes activation, version, REST route, connection, cron, signed apply, tampered-signature, deactivation, and deletion checks.
+- `npm run plugin:certify:matrix` passes on latest WordPress with PHP 8.1, 8.2, and 8.3 plus the previous WordPress branch, and CI runs the same combinations.
+- Certification confirms the signed apply writes bounded SEO title, canonical, and robots noindex meta and that tampered signatures return `PLUGIN_APPLY_SIGNATURE_INVALID`.
+- Certification confirms recurring sync schedules through the WP-Cron fallback after connection and is removed by deactivation.
+- Before a public release, additionally complete one real challenge exchange against a staging SaaS, verify a paginated sync, and test once with Action Scheduler installed.
 
 ## SEO Safety
 

@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 101)
+## Поточний стан (після Iteration 102)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -46,12 +46,13 @@
 - Iteration 99 Plugin release packaging реалізована: `readme.txt`, синхронний version contract, runtime-only versioned zip, archive verifier, npm/Composer entrypoints, test coverage та CI artifact upload.
 - Iteration 100 Safe-operation payload expansion реалізована: preview формує bounded Yoast/Rank Math canonical repairs лише до URL synced item і точкове зняття `noindex`/`nofollow` з published content; worker/plugin contract і tests це покривають.
 - Iteration 101 Remaining public content реалізована: Product/Integrations, agency/content/publisher solution pages, Knowledge Base, SEO briefings, Changelog, Contact та transparent service-information routes; navigation, sitemap і marketing coverage test оновлені без дублювання demo/trial contracts.
+- Iteration 102 Plugin staging certification реалізована: `npm run plugin:certify` / `plugin:certify:matrix` (Docker) інсталюють зібраний zip у реальні WordPress-контейнери (latest WP на PHP 8.1/8.2/8.3 + гілка 6.8) і сертифікують activation, version contract, REST route, connection storage, WP-Cron scheduling, signed apply з tampered-signature rejection, deactivation cleanup і clean delete; той самий matrix — окремий CI job. Ручний pre-release залишок: один реальний challenge exchange проти staging SaaS, paginated sync і прогін з Action Scheduler.
 
 ## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
 
-1. **Iteration 102 — Plugin staging certification.** Реальна матриця WordPress/PHP для zip artifact, activation/deactivation, connection, Action Scheduler/WP-Cron і signed operation integration smoke.
+Черга порожня — узгоджені ітерації 92–102 виконані. Наступні кандидати формуй із tech debt нижче або з залишків ROADMAP (Phase 6: deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`).
 
-Відомий tech debt поза чергою (бери, якщо блокує поточну ітерацію): `apps/saas/src/app/page.tsx` ~2700 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply.
+Відомий tech debt поза чергою: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply.
 
 ## Формат роботи над ітерацією
 

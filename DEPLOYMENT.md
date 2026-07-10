@@ -52,7 +52,20 @@ The same build is available as:
 composer run package --working-dir=wordpress-plugin
 ```
 
-CI runs the archive smoke test during `npm test`, builds the release after the repository build, and uploads `seo-content-control-center-plugin` as a workflow artifact. Before a manual release, install the artifact in a staging WordPress 6.4+/PHP 8.1+ site, activate it, complete one connection exchange, verify a paginated sync, and confirm that deactivation clears scheduled local sync jobs.
+CI runs the archive smoke test during `npm test`, builds the release after the repository build, and uploads `seo-content-control-center-plugin` as a workflow artifact.
+
+### Plugin Certification Matrix
+
+Certify the packaged zip against real WordPress containers (requires Docker):
+
+```bash
+npm run plugin:certify          # one combination (SCCC_WP_IMAGE, default wordpress:php8.3-apache)
+npm run plugin:certify:matrix   # latest WordPress on PHP 8.1/8.2/8.3 plus the previous WordPress branch
+```
+
+Each run installs the built zip into a disposable WordPress instance and checks activation, the installed-version contract, REST route registration, connection storage, WP-Cron recurring sync scheduling, a signed safe-operation apply that writes bounded SEO title/canonical/robots fields, tampered-signature rejection, deactivation cron cleanup, and clean deletion. CI runs the same certification per matrix combination on every push and pull request.
+
+The certification harness seeds the plugin connection directly (the way a completed challenge exchange would) so it needs no live SaaS. Before a public release, still complete one real challenge exchange against a staging SaaS, verify a paginated sync end-to-end, and test once on a site with Action Scheduler installed (the certification containers exercise the WP-Cron fallback).
 
 ## Marketing Application
 

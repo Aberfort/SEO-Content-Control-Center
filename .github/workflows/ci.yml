@@ -54,3 +54,23 @@ jobs:
           languages: javascript-typescript
 
       - uses: github/codeql-action/analyze@v3
+
+  plugin-certification:
+    name: Plugin certification (${{ matrix.wordpress-image }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        wordpress-image:
+          - wordpress:php8.1-apache
+          - wordpress:php8.2-apache
+          - wordpress:php8.3-apache
+          - wordpress:6.8-php8.2-apache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: scripts/certify-wordpress-plugin.sh
+        env:
+          SCCC_WP_IMAGE: ${{ matrix.wordpress-image }}

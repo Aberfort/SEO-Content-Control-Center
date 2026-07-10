@@ -151,6 +151,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
 - versioned WordPress plugin release packaging with a checked `readme.txt`, runtime-only zip archive, Composer/npm entrypoints, CI artifact upload, and archive smoke verification;
+- Docker-based WordPress plugin certification (`npm run plugin:certify:matrix`) that installs the packaged zip into real WordPress containers across PHP 8.1/8.2/8.3 and the previous WordPress branch, certifying activation, connection storage, WP-Cron sync scheduling, signed apply writes, tampered-signature rejection, and deactivation cleanup, mirrored as a CI matrix;
 - Docker local dependencies;
 - CI workflow with dependency audit and CodeQL SAST.
 - responsive public marketing with product/integrations, audience, knowledge base, SEO briefings, changelog, contact, service-information, pricing, security, demo, trial, and legal routes; sitemap/robots discovery; and a webhook-delivered demo lead flow.

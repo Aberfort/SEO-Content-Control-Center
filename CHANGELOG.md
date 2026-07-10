@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 102
+
+- Added Docker-based staging certification for the packaged WordPress plugin zip: `npm run plugin:certify` boots a disposable MariaDB + WordPress container pair, installs the built archive with wp-cli, and runs the full lifecycle checks.
+- Certification covers activation, the installed-version contract against `VERSION`, REST route registration, connection storage seeded the way a completed challenge exchange writes it, recurring sync scheduling through the WP-Cron fallback, a signed safe-operation apply that writes bounded SEO title/canonical/robots meta, tampered-signature rejection, deactivation cron cleanup, and clean deletion.
+- Added `npm run plugin:certify:matrix`, which builds the zip once and certifies latest WordPress on PHP 8.1, 8.2, and 8.3 plus the previous WordPress branch (`wordpress:6.8-php8.2-apache`); the full matrix passed locally against WordPress 7.0.1 (PHP 8.2/8.3), WordPress 6.9 (PHP 8.1), and WordPress 6.8.3 (PHP 8.2).
+- Added a `plugin-certification` CI job running the same per-combination certification on every push and pull request.
+- Kept the certification helper (`wordpress-plugin/certification/`) out of the release archive and extended the package verifier to reject it.
+- Documented the certification workflow and the remaining manual pre-release steps: one real challenge exchange against a staging SaaS, a paginated sync, and one run with Action Scheduler installed.
+
 ### Iteration 101
 
 - Added public Product and Integrations routes explaining the bounded WordPress and Google Search Console workflow from evidence through review-first execution.

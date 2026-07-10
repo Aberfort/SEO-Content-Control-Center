@@ -41,7 +41,7 @@ while IFS= read -r entry; do
   fi
 
   case "${entry}" in
-    */tests/*|*/vendor/*|*/.git/*|*/phpcs.xml.dist|*/composer.lock)
+    */tests/*|*/certification/*|*/vendor/*|*/.git/*|*/phpcs.xml.dist|*/composer.lock)
       echo "Plugin archive contains a development-only entry: ${entry}" >&2
       exit 1
       ;;
