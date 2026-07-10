@@ -15,6 +15,7 @@ import {
   type PluginSyncBatch
 } from "@sccc/shared";
 
+import { trackAnalyticsEvent } from "./observability";
 import { encryptSecret, isTokenEncryptionConfigured } from "./token-encryption";
 import type { AppUser } from "./types";
 
@@ -182,6 +183,13 @@ export async function exchangePluginConnectionChallenge(
     });
 
     return updated;
+  });
+
+  trackAnalyticsEvent({
+    event: "plugin_connected",
+    distinctId: challenge.site.organizationId,
+    organizationId: challenge.site.organizationId,
+    siteId: challenge.siteId
   });
 
   return {

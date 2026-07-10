@@ -27,6 +27,13 @@ import {
   createGscSearchInsightsSyncHandler
 } from "./gsc/handlers";
 import { buildLiveGscScheduleDeps, buildLiveGscSyncDeps, isGscWorkerConfigured } from "./gsc/live";
+import {
+  buildWorkerHealthSnapshot,
+  collectQueueMetrics,
+  parseWorkerHealthPort,
+  startWorkerHealthServer,
+  type QueueMetricsSource
+} from "./health";
 import { createHeartbeatRecorder, type HeartbeatCounters } from "./heartbeat";
 import {
   createJobHandlerRegistry,
@@ -34,12 +41,16 @@ import {
   type JobHandlerRegistry
 } from "./job-handlers";
 import { logWorkerEvent, serializeError } from "./logger";
+import { buildWorkerObservability } from "./observability";
 
 export type WorkerProcess = {
   workerId: string;
   registry: JobHandlerRegistry;
   gscSyncEnabled: boolean;
   bulkOperationExecutionEnabled: boolean;
+  sentryEnabled: boolean;
+  analyticsEnabled: boolean;
+  healthPort: number | null;
   shutdown(): Promise<void>;
 };
 
@@ -71,6 +82,22 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
   const registry = createJobHandlerRegistry();
   registerFoundationHandlers(registry);
 
+  const observability = buildWorkerObservability(env);
+
+  if (!observability.sentry.enabled) {
+    logWorkerEvent("warn", "worker.sentry_disabled", {
+      workerId,
+      hint: "Set SENTRY_DSN to report worker job failures to Sentry."
+    });
+  }
+
+  if (!observability.analytics.enabled) {
+    logWorkerEvent("warn", "worker.analytics_disabled", {
+      workerId,
+      hint: "Set POSTHOG_KEY to capture server analytics events from the worker."
+    });
+  }
+
   const connection = createQueueRedisConnection(input.redisUrl);
   const heartbeat = createHeartbeatRecorder({
     redis: connection,
@@ -88,8 +115,10 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
 
   const workers: Worker[] = [];
   const closers: Array<() => Promise<void>> = [];
+  const startedQueueNames: QueueName[] = [];
 
   const createQueueWorker = (queueName: QueueName): Worker => {
+    startedQueueNames.push(queueName);
     const queueWorker = new Worker(
       queueName,
       async (job) => {
@@ -115,6 +144,26 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
         jobId: job.id ?? null,
         jobName: job.name
       });
+
+      if (job.name === jobNames.bulkOperationExecute) {
+        const data = job.data as {
+          organizationId?: string;
+          siteId?: string;
+          operationId?: string;
+        };
+
+        if (data.organizationId) {
+          void observability.analytics.capture({
+            event: "bulk_operation_completed",
+            distinctId: data.organizationId,
+            organizationId: data.organizationId,
+            siteId: data.siteId,
+            properties: {
+              operationId: data.operationId ?? null
+            }
+          });
+        }
+      }
     });
 
     queueWorker.on("failed", (job, error) => {
@@ -126,6 +175,13 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
         jobName: job?.name ?? null,
         attemptsMade: job?.attemptsMade ?? null,
         reason: serializeError(error)
+      });
+      void observability.sentry.captureException(error, {
+        workerId,
+        queue: queueName,
+        jobId: job?.id ?? null,
+        jobName: job?.name ?? null,
+        attemptsMade: job?.attemptsMade ?? null
       });
     });
 
@@ -202,6 +258,39 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     });
   }
 
+  const healthPort = parseWorkerHealthPort(env.SCCC_WORKER_HEALTH_PORT);
+  let healthServer: Awaited<ReturnType<typeof startWorkerHealthServer>> | null = null;
+
+  if (healthPort !== null) {
+    const metricsQueues = startedQueueNames.map((name) => {
+      const queue = createQueueProducer(name, connection);
+      closers.push(() => queue.close());
+      return queue as unknown as QueueMetricsSource;
+    });
+
+    healthServer = await startWorkerHealthServer({
+      port: healthPort,
+      collectSnapshot: async () =>
+        buildWorkerHealthSnapshot({
+          workerId,
+          startedAt,
+          now: new Date(),
+          counters,
+          queues: await collectQueueMetrics(metricsQueues)
+        })
+    });
+
+    logWorkerEvent("info", "worker.health_enabled", {
+      workerId,
+      port: healthServer.port
+    });
+  } else {
+    logWorkerEvent("warn", "worker.health_disabled", {
+      workerId,
+      hint: "Set SCCC_WORKER_HEALTH_PORT to expose the /healthz endpoint with queue metrics."
+    });
+  }
+
   await heartbeat.recordOnce();
   heartbeat.start();
 
@@ -210,6 +299,9 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     queues: workers.length,
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
+    sentryEnabled: observability.sentry.enabled,
+    analyticsEnabled: observability.analytics.enabled,
+    healthPort: healthServer?.port ?? null,
     handlers: registry.registeredJobNames().join(",")
   });
 
@@ -218,8 +310,15 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     registry,
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
+    sentryEnabled: observability.sentry.enabled,
+    analyticsEnabled: observability.analytics.enabled,
+    healthPort: healthServer?.port ?? null,
     async shutdown() {
       heartbeat.stop();
+
+      if (healthServer) {
+        await healthServer.close();
+      }
 
       for (const queueWorker of workers) {
         await queueWorker.close();

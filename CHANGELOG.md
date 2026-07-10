@@ -2,6 +2,16 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 96
+
+- Added env-gated, dependency-free observability shared by the SaaS app and the worker: a Sentry envelope reporter (`SENTRY_DSN`, optional `SENTRY_ENVIRONMENT`) and a PostHog server analytics client (`POSTHOG_KEY`, optional `POSTHOG_HOST`) in `@sccc/shared`, both failing open and validating against the shared event taxonomy.
+- Added SaaS `instrumentation.ts` that logs observability status at startup and reports unhandled request errors to Sentry with route metadata only (no bodies, headers, cookies, or query strings).
+- Added tenant-scoped server analytics captures: `organization_created`, `site_added`, `plugin_connected`, `GSC_connected`, `bulk_operation_started`, and `AI_feature_used` from the SaaS layer, plus `bulk_operation_completed` from the worker when a bulk execution job finishes.
+- Added Sentry reporting for worker job failures with queue/job context and startup warnings when Sentry or analytics are unconfigured.
+- Added a read-only worker health endpoint on `SCCC_WORKER_HEALTH_PORT`: `GET /healthz` returns worker uptime, processed/failed counters, and per-queue BullMQ job counts with oldest-waiting lag; snapshot failures return 503 and the server closes gracefully on shutdown.
+- Kept telemetry payloads secret-free by contract: explicit fields only, with prompts, tokens, and environment values never sent, and transport failures logged without secrets.
+- Added unit tests for DSN parsing, envelope building, reporter/analytics fail-open behavior, event validation, queue lag math, health snapshot building, port parsing, and the health server's 200/404/503 responses.
+
 ### Iteration 95
 
 - Added an optional real AI provider for the assistant behind environment configuration: `SCCC_AI_PROVIDER=anthropic`, `SCCC_AI_API_KEY`, and optional `SCCC_AI_MODEL` (default `claude-opus-4-8`) using the official Anthropic SDK.

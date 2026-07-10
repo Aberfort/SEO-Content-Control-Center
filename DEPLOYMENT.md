@@ -46,6 +46,16 @@ The assistant stays fully deterministic unless an AI provider is configured on t
 
 AI summaries require the Prisma-backed data store (`SCCC_DATA_STORE=prisma` with `DATABASE_URL`) because each successful AI response consumes one persisted `ai_credits` usage metric. Without provider configuration — or when the plan's monthly AI credits are exhausted — assistant responses stay deterministic and unmetered.
 
+## Observability
+
+Error tracking and server analytics are optional and stay disabled while unset:
+
+- `SENTRY_DSN` enables error reporting for SaaS unhandled request errors (via `instrumentation.ts`) and worker job failures; `SENTRY_ENVIRONMENT` overrides the reported environment (defaults to `NODE_ENV`).
+- `POSTHOG_KEY` enables tenant-scoped server analytics events from the shared taxonomy; `POSTHOG_HOST` overrides the ingestion host (defaults to the PostHog US cloud).
+- `SCCC_WORKER_HEALTH_PORT` starts a read-only worker health endpoint: `GET /healthz` returns worker uptime, processed/failed counters, and per-queue BullMQ job counts with oldest-waiting lag. Point load balancer or uptime checks at it; the endpoint requires no authentication and must not be exposed publicly.
+
+Telemetry transports fail open: reporting problems are logged without secrets and never affect requests or jobs. Prompts, request bodies, headers, tokens, and environment values are never sent.
+
 ## Zero-Downtime Strategy
 
 - Use backward-compatible database migrations.

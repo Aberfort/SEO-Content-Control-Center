@@ -93,6 +93,9 @@
 - The assistant AI provider key (`SCCC_AI_API_KEY`) must come from the environment or secret manager, must never be logged, and must never be persisted.
 - Assistant AI prompts are built from recommendation display fields only, must never contain credentials, tokens, or tenant secrets, and are never persisted or logged.
 - When the plan's monthly AI credits are exhausted, AI provider calls must be blocked before they happen and surfaced through a per-period deduplicated billing-limit notification.
+- Telemetry payloads (Sentry events and PostHog captures) must carry explicit fields only; prompts, request bodies, headers, cookies, tokens, and environment values must never be sent to error tracking or analytics.
+- Telemetry transports must fail open: reporting or capture failures are logged without secrets and never affect the request or job that triggered them.
+- The worker health endpoint is read-only, exposes aggregate queue counters only, and must not be exposed to the public internet since it carries no authentication.
 - Assistant recommendation controls may prepare existing safe previews only for backlog-sourced recommendations and must keep later dry run, confirmation, and execution as separate user actions.
 - Unsupported assistant controls must be disabled with a reason instead of silently attempting mutation or task creation.
 - Billing overview reads require `billing:read`, stay scoped to the authenticated member's organization, and must not create checkout sessions or mutate subscriptions.

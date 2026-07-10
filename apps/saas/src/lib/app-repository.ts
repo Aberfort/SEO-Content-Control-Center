@@ -174,6 +174,7 @@ import {
 } from "./bulk-operation-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
+import { trackAnalyticsEvent } from "./observability";
 import type {
   ActivityLog,
   AppUser,
@@ -816,6 +817,12 @@ const prismaRepository: AppRepository = {
       return created;
     });
 
+    trackAnalyticsEvent({
+      event: "organization_created",
+      distinctId: input.user.id,
+      organizationId: organization.id
+    });
+
     const summary = await this.getOrganizationSummary(input.user.id, organization.id);
 
     if (!summary) {
@@ -930,6 +937,13 @@ const prismaRepository: AppRepository = {
         }
 
         return created;
+      });
+
+      trackAnalyticsEvent({
+        event: "site_added",
+        distinctId: input.user.id,
+        organizationId: parsed.organizationId,
+        siteId: site.id
       });
 
       return mapSite(site);
@@ -1655,6 +1669,13 @@ const prismaRepository: AppRepository = {
       }
     });
 
+    trackAnalyticsEvent({
+      event: "GSC_connected",
+      distinctId: input.user.id,
+      organizationId: input.organizationId,
+      siteId: input.siteId
+    });
+
     return mapGscConnectionSummary(connection);
   },
 
@@ -2162,6 +2183,17 @@ const prismaRepository: AppRepository = {
             used: usedCredits + 1,
             referenceDate: usageReferenceDate,
             metered: true
+          });
+          trackAnalyticsEvent({
+            event: "AI_feature_used",
+            distinctId: userId,
+            organizationId,
+            siteId,
+            properties: {
+              feature: "assistant_summary",
+              provider: aiSummary.provider,
+              model: aiSummary.model
+            }
           });
         }
       }
@@ -3595,6 +3627,18 @@ const prismaRepository: AppRepository = {
       });
 
       return updated;
+    });
+
+    trackAnalyticsEvent({
+      event: "bulk_operation_started",
+      distinctId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      properties: {
+        operationId: operation.id,
+        type: operation.type,
+        itemCount: operation.items.length
+      }
     });
 
     try {

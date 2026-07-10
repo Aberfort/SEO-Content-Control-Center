@@ -175,6 +175,11 @@
 - SaaS assistant AI calls are blocked before the provider is reached once monthly plan credits are exhausted, and the AI-credit limit notification is created once per usage period.
 - SaaS assistant AI prompts contain recommendation display fields only and are never logged or persisted.
 - SaaS dashboard shows the AI summary with provider/model attribution while keeping the deterministic recommendation list unchanged.
+- Sentry reporting and PostHog analytics stay disabled no-ops while `SENTRY_DSN`/`POSTHOG_KEY` are unset, with startup warnings naming the missing variables.
+- Server analytics events use the shared event taxonomy, carry tenant context, and unknown event names are rejected before the transport is called.
+- Worker job failures are reported to Sentry with queue/job context and no payload secrets.
+- The worker `GET /healthz` endpoint returns per-queue job counts and oldest-waiting lag, 404s other paths, and 503s when metrics cannot be collected.
+- Telemetry transport failures are logged without secrets and never break requests or jobs.
 - Manual sync does not run a large sync inline.
 - Plugin challenge, exchange, sync, and disconnect endpoints return `429 RATE_LIMITED` with `Retry-After` once their per-IP limits are exceeded.
 - Plugin endpoint rate limits apply before signature verification.

@@ -107,3 +107,10 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - Billing portal. Status: Stripe billing portal session creation added for configured connected subscriptions.
 - Feature gating. Status: site/user plan limits and expired local Trial access are exposed in billing overview and enforced for site creation/member invites.
 - Usage tracking and notifications. Status: site/user usage is tracked in billing overview and finite limit-reached notifications are emitted.
+
+## Phase 9 - Observability
+
+- Error tracking. Status: env-gated Sentry error reporting (`SENTRY_DSN`) implemented for SaaS unhandled request errors (via `instrumentation.ts`) and worker job failures through a dependency-free envelope reporter that fails open.
+- Server analytics. Status: env-gated PostHog server events (`POSTHOG_KEY`, optional `POSTHOG_HOST`) implemented with tenant context using the shared event taxonomy: organization_created, site_added, plugin_connected, GSC_connected, bulk_operation_started, bulk_operation_completed, AI_feature_used.
+- Queue metrics and worker health. Status: the worker exposes `GET /healthz` on `SCCC_WORKER_HEALTH_PORT` with per-queue BullMQ job counts and oldest-waiting lag plus processed/failed counters and uptime.
+- Telemetry hygiene. Status: telemetry payloads carry explicit fields only; prompts, request bodies, headers, tokens, and environment values are never sent or logged.
