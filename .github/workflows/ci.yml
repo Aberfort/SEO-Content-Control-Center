@@ -35,6 +35,12 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run plugin:package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seo-content-control-center-plugin
+          path: dist/seo-content-control-center-*.zip
+          if-no-files-found: error
 
   codeql:
     name: CodeQL SAST

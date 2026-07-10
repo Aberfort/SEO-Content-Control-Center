@@ -244,6 +244,15 @@
 - Trial submissions navigate to the configured SaaS registration origin and prefill only syntactically valid email values.
 - Canonical, Open Graph, robots, and sitemap URLs use `NEXT_PUBLIC_MARKETING_URL`.
 
+## WordPress Plugin Release
+
+- `wordpress-plugin/VERSION`, the plugin header/runtime constant, `readme.txt` stable tag, and Composer release metadata use the same semantic version.
+- `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create `dist/seo-content-control-center-<version>.zip`.
+- The archive opens without errors, has one `seo-content-control-center/` root, and includes the entrypoint, `readme.txt`, version file, Composer manifest, and required `includes` classes.
+- The archive excludes tests, development `vendor` files, `.git` files, Composer lockfiles, and `phpcs.xml.dist`.
+- CI publishes the checked archive as the `seo-content-control-center-plugin` artifact after the normal build passes.
+- Before a public release, install the artifact in a staging WordPress 6.4+/PHP 8.1+ site and verify activation, challenge exchange, scheduled sync, manual paginated sync, signed operation handling, disconnect, and deactivation cleanup.
+
 ## SEO Safety
 
 - No risky mutation happens without preview.

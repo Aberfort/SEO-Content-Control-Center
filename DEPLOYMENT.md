@@ -36,6 +36,24 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Worker process.
 - WordPress plugin release artifact.
 
+## WordPress Plugin Release
+
+Create an installable plugin archive from the repository root:
+
+```bash
+npm run plugin:package
+```
+
+The build verifies that `wordpress-plugin/VERSION`, the plugin header and runtime version constant, `readme.txt`, and Composer release metadata use the same `MAJOR.MINOR.PATCH` value. It writes `dist/seo-content-control-center-<version>.zip` with a single `seo-content-control-center/` root directory and runtime PHP files only. Tests, development dependencies, Composer lockfiles, and PHP coding-standard configuration are excluded.
+
+The same build is available as:
+
+```bash
+composer run package --working-dir=wordpress-plugin
+```
+
+CI runs the archive smoke test during `npm test`, builds the release after the repository build, and uploads `seo-content-control-center-plugin` as a workflow artifact. Before a manual release, install the artifact in a staging WordPress 6.4+/PHP 8.1+ site, activate it, complete one connection exchange, verify a paginated sync, and confirm that deactivation clears scheduled local sync jobs.
+
 ## Marketing Application
 
 - `NEXT_PUBLIC_MARKETING_URL` is the canonical public marketing origin used by metadata, `robots.txt`, and `sitemap.xml`.

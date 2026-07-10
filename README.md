@@ -150,11 +150,28 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - bulk operation execution queue processing with signed WordPress plugin apply calls and per-item result persistence;
 - shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
+- versioned WordPress plugin release packaging with a checked `readme.txt`, runtime-only zip archive, Composer/npm entrypoints, CI artifact upload, and archive smoke verification;
 - Docker local dependencies;
 - CI workflow with dependency audit and CodeQL SAST.
 - responsive public marketing, pricing, security, demo, trial, and legal routes with sitemap/robots discovery and a webhook-delivered demo lead flow.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
+
+## WordPress Plugin Release
+
+Build the installable archive from the repository root:
+
+```bash
+npm run plugin:package
+```
+
+The command verifies version synchronization and writes `dist/seo-content-control-center-<version>.zip`. The archive contains one `seo-content-control-center/` directory with only runtime plugin files. It is also available through Composer:
+
+```bash
+composer run package --working-dir=wordpress-plugin
+```
+
+Use `npm run plugin:package:verify` to validate an existing default artifact, or pass a specific archive path directly to `scripts/verify-wordpress-plugin-package.sh`.
 
 ## Database
 

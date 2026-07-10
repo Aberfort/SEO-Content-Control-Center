@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 99
+
+- Added a synchronized WordPress plugin version contract across `wordpress-plugin/VERSION`, the plugin header, `readme.txt` stable tag, and Composer release metadata, with a fail-fast verifier.
+- Added a WordPress-compatible `readme.txt` covering installation, connection setup, sync boundaries, review-first operations, deactivation behavior, and the initial 0.1.0 changelog.
+- Added `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` to build `dist/seo-content-control-center-<version>.zip` with one plugin-root directory and runtime files only.
+- Added archive validation that checks integrity, required files, versioned filename, single top-level directory, and the exclusion of tests, development dependencies, Composer lockfiles, and coding-standard configuration.
+- Added package smoke coverage to `npm test`, CI packaging, and an uploaded `seo-content-control-center-plugin` workflow artifact.
+
 ### Iteration 98
 
 - Rebuilt the public marketing home page around the implemented WordPress, Search Console, audit, backlog, assistant, billing, and review-first operation workflows, with a responsive product backlog preview and audience-specific use cases.

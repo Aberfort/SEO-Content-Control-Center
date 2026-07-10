@@ -9,7 +9,7 @@
 
 ## Current Implementation Status
 
-The target architecture above is not fully built yet. As of Iteration 98 the codebase deviates as follows:
+The target architecture above is not fully built yet. As of Iteration 99 the codebase deviates as follows:
 
 - A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, and `sccc-bulk-operations` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-plugin-sync` queue name remains reserved.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
@@ -19,6 +19,7 @@ The target architecture above is not fully built yet. As of Iteration 98 the cod
 - Observability is env-gated and dependency-free: Sentry error reporting (`SENTRY_DSN`) covers SaaS unhandled request errors via `instrumentation.ts` and worker job failures, PostHog server analytics (`POSTHOG_KEY`) captures tenant-scoped events from the shared taxonomy, and the worker exposes `GET /healthz` with BullMQ queue counts and oldest-waiting lag when `SCCC_WORKER_HEALTH_PORT` is set. Telemetry payloads carry explicit fields only and never include secrets.
 - SaaS account security includes opt-in TOTP two-factor authentication with encrypted secrets, pending enrollment state, login enforcement before session issuance, and replay protection through the last accepted TOTP counter.
 - The marketing app now owns the public home, features, pricing, security, demo, trial, and legal routes, plus route metadata, sitemap/robots discovery, a webhook-delivered demo lead flow, and a trial handoff to SaaS registration. Public pricing imports plan limits from `@sccc/shared` so marketing and application gates share one contract.
+- The WordPress plugin now has a version-verified, runtime-only release archive build. CI runs its package smoke test and uploads the versioned zip as an installation-test artifact; live WordPress/PHP matrix certification remains pending.
 - S3-compatible storage is provisioned in Docker but unused by application code.
 
 ## Monorepo Boundaries

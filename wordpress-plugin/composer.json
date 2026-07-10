@@ -14,7 +14,12 @@
   "require-dev": {
     "wp-coding-standards/wpcs": "^3.1"
   },
+  "extra": {
+    "sccc-plugin-version": "0.1.0"
+  },
   "scripts": {
-    "lint": "find . -name '*.php' -print0 | xargs -0 -n1 php -l"
+    "lint": "find . -name '*.php' -print0 | xargs -0 -n1 php -l",
+    "package": "../scripts/build-wordpress-plugin.sh",
+    "package:verify": "../scripts/verify-wordpress-plugin-package.sh"
   }
 }

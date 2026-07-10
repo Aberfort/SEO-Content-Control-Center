@@ -19,6 +19,7 @@ if (! defined('ABSPATH')) {
 
 define('SCCC_PLUGIN_FILE', __FILE__);
 define('SCCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('SCCC_PLUGIN_VERSION', '0.1.0');
 
 $autoload = SCCC_PLUGIN_DIR . 'vendor/autoload.php';
 

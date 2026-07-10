@@ -130,3 +130,10 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - Trial acquisition. Status: 14-day trial page hands work email into the existing SaaS registration flow; SaaS validates the prefill before rendering it.
 - Legal and SEO discovery. Status: Privacy, Terms, and Cookie pages, canonical/Open Graph metadata, `robots.txt`, and `sitemap.xml` implemented.
 - Remaining public content. Status: integrations, audience landing pages, knowledge base, blog, changelog, contact, and status pages remain planned.
+
+## Phase 12 - Plugin Release Operations
+
+- Version contract. Status: `VERSION`, WordPress header, `readme.txt`, and Composer release metadata are checked for exact semantic-version parity.
+- Installable artifact. Status: `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create a single-root, runtime-only versioned zip under `dist/` and verify its contents.
+- CI release artifact. Status: CI packages the plugin after build and uploads `seo-content-control-center-plugin` for installation testing.
+- Staging certification. Status: planned for a real WordPress/PHP compatibility matrix before a public plugin release.

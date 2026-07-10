@@ -22,6 +22,7 @@
 - Rate limit counters use Redis when `REDIS_URL` is configured so limits survive multiple SaaS instances; the in-memory fallback (no `REDIS_URL`, `SCCC_RATE_LIMIT_STORE=memory`, or a Redis outage) is process-local and acceptable only for a single instance.
 - Plugin endpoint rate limits run before signature verification so unauthenticated brute force against plugin tokens and challenges is throttled by client IP.
 - Public demo requests validate and bound every field, include a hidden honeypot, and use a process-local client rate limit before optional Bearer-authenticated webhook delivery. Production must return an explicit error when delivery is unavailable.
+- Release packaging verifies a single plugin root and excludes tests, Composer lockfiles, development dependencies, and coding-standard configuration from installable WordPress zip artifacts.
 - Signed plugin API requests.
 - Token encryption at rest where secrets must be recoverable.
 - Token hashing where secrets do not need to be recoverable.
