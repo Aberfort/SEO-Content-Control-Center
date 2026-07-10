@@ -5,8 +5,10 @@ import { appUrl } from "../lib/site";
 
 const navigation = [
   { href: "/features", label: "Features" },
+  { href: "/product", label: "Product" },
+  { href: "/integrations", label: "Integrations" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/security", label: "Security" }
+  { href: "/knowledge-base", label: "Resources" }
 ];
 
 export function SiteHeader() {

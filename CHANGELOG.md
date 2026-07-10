@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 101
+
+- Added public Product and Integrations routes explaining the bounded WordPress and Google Search Console workflow from evidence through review-first execution.
+- Added dedicated public solution pages for SEO agencies, content/editorial teams, and publishers using a shared responsive component with the existing demo and trial CTAs.
+- Added Knowledge Base, SEO briefings, Changelog, Contact, and transparent service-information routes, with contact intentionally reusing the existing validated demo flow.
+- Expanded marketing navigation, footer, metadata sitemap, and responsive layout coverage; the sitemap now has a regression test for every new public route.
+- Kept the service-information page explicit that it is not a live public monitor or uptime commitment, and documented the public-content completion across the roadmap, deployment, QA, architecture, and landing plan.
+
 ### Iteration 100
 
 - Extended executable SaaS safe-operation previews from title/meta description to reviewed canonical mismatch and robots noindex/nofollow tasks.

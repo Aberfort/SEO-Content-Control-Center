@@ -21,11 +21,27 @@ export function SiteFooter() {
           <div>
             <strong>Product</strong>
             <Link href="/features">Features</Link>
+            <Link href="/product">Product overview</Link>
+            <Link href="/integrations">Integrations</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/security">Security</Link>
           </div>
           <div>
-            <strong>Get started</strong>
+            <strong>Solutions</strong>
+            <Link href="/solutions/agencies">Agencies</Link>
+            <Link href="/solutions/content-teams">Content teams</Link>
+            <Link href="/solutions/publishers">Publishers</Link>
+          </div>
+          <div>
+            <strong>Resources</strong>
+            <Link href="/knowledge-base">Knowledge base</Link>
+            <Link href="/blog">SEO briefings</Link>
+            <Link href="/changelog">Changelog</Link>
+          </div>
+          <div>
+            <strong>Company</strong>
+            <Link href="/contact">Contact</Link>
+            <Link href="/status">Service information</Link>
             <Link href="/demo">Request a demo</Link>
             <Link href="/trial">Start a trial</Link>
             <a href={appUrl("/auth/login")}>Log in</a>

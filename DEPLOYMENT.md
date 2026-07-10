@@ -61,6 +61,7 @@ CI runs the archive smoke test during `npm test`, builds the release after the r
 - `SCCC_MARKETING_LEAD_WEBHOOK_URL` must be configured in production for demo delivery. The endpoint receives a JSON `marketing.demo_requested` event and must return a 2xx response within eight seconds.
 - `SCCC_MARKETING_LEAD_WEBHOOK_SECRET` optionally adds an `Authorization: Bearer ...` header. Store it in the deployment secret manager.
 - Without a webhook, development logs the lead payload locally for testing; production shows an explicit delivery error and does not claim the request was received.
+- Product, integration, audience, resource, changelog, contact, and service-information pages are static routes and require no additional runtime configuration. The service-information page is not a public real-time monitor; do not make uptime claims there without adding a separate monitoring integration.
 
 ## Assistant AI Provider
 

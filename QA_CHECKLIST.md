@@ -236,14 +236,15 @@
 
 ## Public Marketing
 
-- Home, Features, Pricing, Security, Demo, Trial, Privacy, Terms, Cookies, `robots.txt`, and `sitemap.xml` return successfully in the production build.
+- Home, Features, Product, Integrations, agency/editorial/publisher solution pages, Knowledge Base, SEO briefings, Changelog, Contact, service information, Pricing, Security, Demo, Trial, Privacy, Terms, Cookies, `robots.txt`, and `sitemap.xml` return successfully in the production build.
 - Public pricing values and limits match the shared `@sccc/shared` plan contract.
-- Desktop and mobile layouts have no document-level horizontal overflow; navigation, pricing cards, comparison scrolling, forms, and product previews remain readable without overlap.
+- Desktop and mobile layouts have no document-level horizontal overflow; navigation, expanded footer, timeline/status rows, pricing cards, comparison scrolling, forms, and product previews remain readable without overlap.
 - Demo lead validation rejects missing fields, invalid email/website values, oversized notes, and missing consent.
 - Demo requests that fill the hidden honeypot return without webhook delivery, and repeated client submissions are bounded by the process-local rate limit.
 - Production demo requests fail visibly when `SCCC_MARKETING_LEAD_WEBHOOK_URL` is absent or returns a non-2xx response.
 - Trial submissions navigate to the configured SaaS registration origin and prefill only syntactically valid email values.
 - Canonical, Open Graph, robots, and sitemap URLs use `NEXT_PUBLIC_MARKETING_URL`.
+- Contact routes reuse the validated demo flow instead of creating an unconfigured duplicate form, and the service-information page does not claim live public monitoring or uptime.
 
 ## WordPress Plugin Release
 
