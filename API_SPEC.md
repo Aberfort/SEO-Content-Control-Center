@@ -1220,7 +1220,7 @@ through execution or rollback restore.
 `POST /api/organizations/:organizationId/sites/:siteId/bulk-operations`
 
 Creates a bulk operation preview from a scoped backlog task when the member has `content_operation:preview`.
-Missing SEO title and missing meta description tasks can produce executable Yoast/Rank Math apply payloads when they are backed by scoped synced content evidence with a valid `post_type:id` target. Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, and stale already-present metadata remain preview-only/no-mutation. This endpoint persists `PREVIEWED` operation metadata and planned item values, but does not write to WordPress or execute a dry run.
+Missing SEO title/meta description tasks, reviewed canonical mismatch tasks, and reviewed noindex/nofollow tasks can produce executable Yoast/Rank Math apply payloads when they are backed by scoped synced content evidence with a valid `post_type:id` target. A canonical repair uses only the synced item's own HTTP(S) URL; a robots repair clears only the enabled directive named by its task, and canonical/robots repairs require published content. Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, non-published content, and stale already-correct metadata remain preview-only/no-mutation. This endpoint persists `PREVIEWED` operation metadata and planned item values, but does not write to WordPress or execute a dry run.
 
 Request:
 

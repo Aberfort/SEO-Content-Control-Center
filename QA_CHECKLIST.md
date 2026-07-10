@@ -105,7 +105,7 @@
 - SaaS users can list only synced content for sites inside their organization.
 - SaaS synced content inventory supports search, type/status filters, and cursor pagination without leaking cross-tenant data.
 - SaaS synced content detail opens only for an item inside the requested organization and site.
-- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex, canonical mismatch, and link counts.
+- SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex/nofollow, canonical mismatch, and link counts.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - SaaS users with audit run permission can create a site metadata audit and generate an activity log entry.
 - Creating a site metadata audit materializes scoped audit issues from synced content health signals, including missing internal links, marks the audit completed, and does not crawl external URLs.
@@ -134,8 +134,9 @@
 - SaaS users with backlog read permission can view scoped backlog task change history in the dashboard and API.
 - SaaS users with backlog read permission can export filtered site backlog tasks as CSV.
 - SaaS users with content operation preview permission can create bulk operation previews from scoped backlog tasks.
-- Missing SEO title and missing meta description backlog tasks backed by scoped synced content can produce executable Yoast/Rank Math `post_type:id` payloads.
-- Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, and stale already-present metadata remain preview-only/no-mutation.
+- Missing SEO title/meta description, reviewed canonical mismatch, and reviewed noindex/nofollow backlog tasks backed by scoped synced content can produce executable Yoast/Rank Math `post_type:id` payloads.
+- Canonical execution targets only the item's own HTTP(S) URL; each robots execution clears only its reviewed true directive and canonical/robots execution requires published content.
+- Unsupported issues, missing synced content, fallback SEO metadata, invalid targets, non-published items, and stale already-correct metadata remain preview-only/no-mutation.
 - SaaS dashboard users can see recent safe operation previews without triggering WordPress writes.
 - SaaS users with content operation preview permission can dry run previewed bulk operations without triggering WordPress writes.
 - SaaS users with content operation confirm permission must type `CONFIRM` before confirming dry-run-passed bulk operations.

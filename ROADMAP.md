@@ -47,7 +47,7 @@
 
 - Metadata checks. Status: synced metadata issues are materialized into completed metadata audit runs.
 - Content freshness and thin content checks. Status: synced content freshness/thin content signals are materialized into completed metadata audit runs.
-- Indexability checks. Status: synced noindex and canonical mismatch signals are materialized into completed metadata audit runs.
+- Indexability checks. Status: synced noindex/nofollow and canonical mismatch signals are materialized into completed metadata audit runs.
 - Link checks. Status: synced internal/outbound link counts are materialized into content health signals and missing-internal-link audit issues.
 - Issue deduplication. Status: synced-content and GSC traffic-loss issue fingerprints are deduplicated by organization/site/fingerprint.
 - Issue lifecycle: open, ignored, resolved, snoozed. Status: audit run listings expose scoped issue summary counts.
@@ -82,13 +82,13 @@
 - Rollback. Status: worker-backed rollback restore implemented for completed operation items with captured previous WordPress SEO values.
 - Retry failed items. Status: queue-backed retry implemented for failed execution items and failed rollback restore items without inline WordPress writes.
 - Partial outcome visibility. Status: bulk operation responses and dashboard previews expose per-status item summaries and retry mode.
-- Executable SEO payloads. Status: missing SEO title and missing meta description backlog tasks can produce bounded Yoast/Rank Math apply payloads when backed by scoped synced content evidence.
+- Executable SEO payloads. Status: missing SEO title/meta description tasks, reviewed canonical mismatch tasks, and reviewed noindex/nofollow tasks can produce bounded Yoast/Rank Math apply payloads when backed by scoped synced content evidence. Canonical repairs use only the item's own URL, and robots repairs clear only the reviewed enabled directive on published content.
 - Signed WordPress apply endpoint. Status: plugin-hosted endpoint implemented for bounded Yoast/Rank Math SEO metadata writes with signed request validation and per-item results.
 - Worker execution. Status: bulk operation execution jobs, worker handler, signed plugin apply calls, and per-item result persistence implemented for executable SEO metadata payloads.
 - Audit logs. Status: lifecycle activity logs implemented for preview, dry run, confirmation, start, result, rollback, and retry transitions.
 - Rate limits and notifications. Status: safe content operation mutation rate limits, lifecycle notifications, notification read state, and bulk mark-read implemented.
 
-Phase 6 execution status: the SaaS state machine, executable SEO title/meta description payload creation, worker foundation, signed WordPress plugin apply endpoint, execution queue, worker result persistence, rollback restore for restorable completed items, retry queueing for failed execution/rollback items, and partial outcome visibility are implemented. Preview creation remains conservative: unsupported issue types, missing synced content, fallback SEO metadata, invalid WordPress targets, and stale already-present metadata stay `noMutation`. Remaining work is broader safe-operation payload coverage and deeper operator guidance for partial/non-restorable failures.
+Phase 6 execution status: the SaaS state machine, executable SEO title/meta description, self-canonical, and individual noindex/nofollow removal payload creation, worker foundation, signed WordPress plugin apply endpoint, execution queue, worker result persistence, rollback restore for restorable completed items, retry queueing for failed execution/rollback items, and partial outcome visibility are implemented. Preview creation remains conservative: unsupported issue types, missing synced content, fallback SEO metadata, invalid WordPress targets, non-published content for canonical/robots repairs, and stale already-correct metadata stay `noMutation`. Remaining work is deeper operator guidance for partial/non-restorable failures; any additional mutation field needs its own bounded safety model.
 
 ## Phase 7 - AI Assistant
 

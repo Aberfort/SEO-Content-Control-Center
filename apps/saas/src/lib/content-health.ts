@@ -92,7 +92,7 @@ export function buildSyncedContentHealthSignals(
         },
     buildSeoTitleSignal(item),
     buildMetaDescriptionSignal(item),
-    buildRobotsSignal(item),
+    ...buildRobotsSignals(item),
     buildCanonicalSignal(item),
     buildInternalLinkSignal(item),
     buildExternalLinkSignal(item)
@@ -189,7 +189,7 @@ function buildCandidateFromSignal(
         sourceSignalId: signal.id,
         rationale: signal.message,
         nextStep:
-          "Confirm whether this URL should stay noindex; if not, update the SEO plugin robots setting."
+          "Confirm whether this published URL should stay noindex; if not, review the safe operation preview before removing only that directive."
       };
     case "canonical-different":
       return {
@@ -199,7 +199,17 @@ function buildCandidateFromSignal(
         sourceSignalId: signal.id,
         rationale: signal.message,
         nextStep:
-          "Confirm the canonical URL points to the intended primary page before making changes."
+          "Confirm this URL should be self-canonical, then review the safe operation preview before changing the canonical target."
+      };
+    case "robots-nofollow":
+      return {
+        id: `${item.id}:robots-nofollow`,
+        title: `Review nofollow directive on ${contentLabel}`,
+        priority: "medium",
+        sourceSignalId: signal.id,
+        rationale: signal.message,
+        nextStep:
+          "Confirm this published URL should allow links to be followed, then review the safe operation preview before removing only that directive."
       };
     case "internal-links-missing":
       return {
@@ -252,31 +262,42 @@ function buildMetaDescriptionSignal(item: SyncedContentItem): SyncedContentHealt
       };
 }
 
-function buildRobotsSignal(item: SyncedContentItem): SyncedContentHealthSignal {
-  if (item.metadata.robotsNoindex === true) {
-    return {
-      id: "robots-noindex",
-      label: "Noindex detected",
-      severity: "critical",
-      message: "Robots metadata marks this item as noindex."
-    };
+function buildRobotsSignals(item: SyncedContentItem): SyncedContentHealthSignal[] {
+  const noindexSignal: SyncedContentHealthSignal =
+    item.metadata.robotsNoindex === true
+      ? {
+          id: "robots-noindex",
+          label: "Noindex detected",
+          severity: "critical",
+          message: "Robots metadata marks this item as noindex."
+        }
+      : item.metadata.robotsNoindex === false
+        ? {
+            id: "robots-indexable",
+            label: "Indexable",
+            severity: "success",
+            message: "Robots metadata does not mark this item as noindex."
+          }
+        : {
+            id: "robots-unknown",
+            label: "Robots unavailable",
+            severity: "info",
+            message: "Run the latest plugin sync to include robots metadata."
+          };
+
+  if (item.metadata.robotsNofollow !== true) {
+    return [noindexSignal];
   }
 
-  if (item.metadata.robotsNoindex === false) {
-    return {
-      id: "robots-indexable",
-      label: "Indexable",
-      severity: "success",
-      message: "Robots metadata does not mark this item as noindex."
-    };
-  }
-
-  return {
-    id: "robots-unknown",
-    label: "Robots unavailable",
-    severity: "info",
-    message: "Run the latest plugin sync to include robots metadata."
-  };
+  return [
+    noindexSignal,
+    {
+      id: "robots-nofollow",
+      label: "Nofollow detected",
+      severity: "warning",
+      message: "Robots metadata marks this item as nofollow."
+    }
+  ];
 }
 
 function buildCanonicalSignal(item: SyncedContentItem): SyncedContentHealthSignal {
@@ -362,7 +383,7 @@ function buildExternalLinkSignal(item: SyncedContentItem): SyncedContentHealthSi
   };
 }
 
-function canonicalMatchesItem(canonicalUrl: string, itemUrl: string): boolean {
+export function canonicalMatchesItem(canonicalUrl: string, itemUrl: string): boolean {
   try {
     return normalizeUrlForComparison(canonicalUrl) === normalizeUrlForComparison(itemUrl);
   } catch {

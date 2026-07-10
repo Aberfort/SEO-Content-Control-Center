@@ -630,6 +630,7 @@ $apply_body = (string) json_encode(
                     'metaDescription' => null,
                     'canonicalUrl' => 'https://wp.example.com/updated-canonical/',
                     'robotsNoindex' => false,
+                    'robotsNofollow' => true,
                 ],
             ],
         ],
@@ -669,6 +670,7 @@ if (
     || isset($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_metadesc'])
     || 'https://wp.example.com/updated-canonical/' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_canonical'] ?? null)
     || '0' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_meta-robots-noindex'] ?? null)
+    || '1' !== ($GLOBALS['sccc_test_post_meta'][123]['_yoast_wpseo_meta-robots-nofollow'] ?? null)
 ) {
     fwrite(STDERR, "SafeOperationEndpoint did not write bounded Yoast fields.\n");
     exit(1);

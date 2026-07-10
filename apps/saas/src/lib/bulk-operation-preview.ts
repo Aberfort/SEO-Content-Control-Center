@@ -1,3 +1,4 @@
+import { canonicalMatchesItem } from "./content-health";
 import type { BacklogTask, SyncedContentItem, SyncedContentMetadata } from "./types";
 
 type SafeOperationTask = Pick<
@@ -24,7 +25,8 @@ type ExecutableSeoPlugin = Extract<
   "yoast" | "rank_math"
 >;
 
-type SupportedSeoMutation = "seoTitle" | "metaDescription";
+type SupportedSeoMutation =
+  "seoTitle" | "metaDescription" | "canonicalUrl" | "robotsNoindex" | "robotsNofollow";
 
 export type SafeOperationPreviewPayload = {
   noMutation: boolean;
@@ -61,6 +63,27 @@ const metaDescriptionIssueTypes = new Set([
   "meta_description_missing",
   "synced_content.meta-description-missing",
   "audit.synced_content.meta-description-missing"
+]);
+
+const canonicalUrlIssueTypes = new Set([
+  "canonical_different",
+  "canonical_mismatch",
+  "synced_content.canonical-different",
+  "audit.synced_content.canonical-different"
+]);
+
+const robotsNoindexIssueTypes = new Set([
+  "robots_noindex",
+  "robots-noindex",
+  "synced_content.robots-noindex",
+  "audit.synced_content.robots-noindex"
+]);
+
+const robotsNofollowIssueTypes = new Set([
+  "robots_nofollow",
+  "robots-nofollow",
+  "synced_content.robots-nofollow",
+  "audit.synced_content.robots-nofollow"
 ]);
 
 const executableSafeguards = [
@@ -229,6 +252,38 @@ function getExecutionDisabledReason(
     return "synced_content_meta_description_already_present";
   }
 
+  if (mutation === "canonicalUrl") {
+    const canonicalUrl = syncedContentItem.metadata.canonicalUrl;
+    if (!hasTextValue(canonicalUrl)) {
+      return "synced_content_canonical_not_available";
+    }
+
+    if (canonicalMatchesItem(canonicalUrl, syncedContentItem.url)) {
+      return "synced_content_canonical_already_matches_item";
+    }
+
+    if (!isSafeCanonicalUrl(syncedContentItem.url)) {
+      return "synced_content_url_not_safe_for_canonical";
+    }
+  }
+
+  if (mutation === "robotsNoindex" && syncedContentItem.metadata.robotsNoindex !== true) {
+    return "synced_content_robots_noindex_not_enabled";
+  }
+
+  if (mutation === "robotsNofollow" && syncedContentItem.metadata.robotsNofollow !== true) {
+    return "synced_content_robots_nofollow_not_enabled";
+  }
+
+  if (
+    (mutation === "canonicalUrl" ||
+      mutation === "robotsNoindex" ||
+      mutation === "robotsNofollow") &&
+    syncedContentItem.status.trim().toLowerCase() !== "publish"
+  ) {
+    return "synced_content_not_published";
+  }
+
   return null;
 }
 
@@ -281,9 +336,23 @@ function buildExecutableAfterValue(
     };
   }
 
+  if (mutation === "metaDescription") {
+    return {
+      seoPlugin,
+      metaDescription: buildMetaDescriptionDraft(syncedContentItem, task)
+    };
+  }
+
+  if (mutation === "canonicalUrl") {
+    return {
+      seoPlugin,
+      canonicalUrl: syncedContentItem.url
+    };
+  }
+
   return {
     seoPlugin,
-    metaDescription: buildMetaDescriptionDraft(syncedContentItem, task)
+    [mutation]: false
   };
 }
 
@@ -294,6 +363,18 @@ function classifyIssueMutation(issueType: string): SupportedSeoMutation | null {
 
   if (metaDescriptionIssueTypes.has(issueType)) {
     return "metaDescription";
+  }
+
+  if (canonicalUrlIssueTypes.has(issueType)) {
+    return "canonicalUrl";
+  }
+
+  if (robotsNoindexIssueTypes.has(issueType)) {
+    return "robotsNoindex";
+  }
+
+  if (robotsNofollowIssueTypes.has(issueType)) {
+    return "robotsNofollow";
   }
 
   return null;
@@ -368,8 +449,21 @@ function toIsoString(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : value;
 }
 
-function hasTextValue(value: string | null | undefined): boolean {
+function hasTextValue(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isSafeCanonicalUrl(value: string): boolean {
+  if (value.length > 2048) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function isExecutableSeoPlugin(value: unknown): value is ExecutableSeoPlugin {

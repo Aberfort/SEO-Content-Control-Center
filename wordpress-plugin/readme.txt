@@ -19,7 +19,7 @@ The plugin can:
 * sync bounded content metadata for posts and pages in paginated batches;
 * schedule recurring sync through Action Scheduler, with an hourly WP-Cron fallback;
 * show sanitized sync history in the WordPress admin;
-* receive signed, review-first SEO title and meta-description operations from the SaaS worker.
+* receive signed, review-first SEO title/meta-description operations plus bounded self-canonical and individual noindex/nofollow repairs from the SaaS worker.
 
 The plugin does not send post bodies during content sync. Risky SEO changes are never made from the SaaS without a preview, dry run, explicit confirmation, signed request, and recorded result.
 
@@ -56,4 +56,4 @@ Recurring and queued local sync jobs are removed. Disconnect the site from the s
 
 = 0.1.0 =
 
-* First packaged release with secure SaaS connection exchange, paginated metadata sync, recurring scheduling, sync logs, and signed review-first SEO title/meta-description operations.
+* First packaged release with secure SaaS connection exchange, paginated metadata sync, recurring scheduling, sync logs, and signed review-first SEO metadata operations.

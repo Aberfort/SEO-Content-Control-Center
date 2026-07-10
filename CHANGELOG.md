@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 100
+
+- Extended executable SaaS safe-operation previews from title/meta description to reviewed canonical mismatch and robots noindex/nofollow tasks.
+- Constrained canonical repairs to the current synced item URL, and constrained robots repairs to clearing only the enabled directive named by the review task on published content.
+- Added nofollow synced-content health signals and backlog candidates, plus stale-state safeguards that keep already-correct, non-published, unsupported, or incomplete evidence preview-only.
+- Added SaaS preview, worker signed-payload, and WordPress plugin smoke coverage for the bounded canonical and robots fields.
+- Updated API, security, roadmap, QA, plugin, architecture, and continuation documentation for the expanded review-first payload contract.
+
 ### Iteration 99
 
 - Added a synchronized WordPress plugin version contract across `wordpress-plugin/VERSION`, the plugin header, `readme.txt` stable tag, and Composer release metadata, with a fail-fast verifier.

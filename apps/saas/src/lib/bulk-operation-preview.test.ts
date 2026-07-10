@@ -82,6 +82,165 @@ describe("safe bulk operation preview payloads", () => {
     });
   });
 
+  it("restores a mismatched canonical to the synced item URL after review", () => {
+    const result = buildSafeOperationPreview({
+      task: buildTask({
+        title: "Review canonical target",
+        issueType: "audit.synced_content.canonical-different",
+        url: "https://example.com/canonical-page"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:88",
+        url: "https://example.com/canonical-page",
+        metadata: {
+          seoPlugin: "yoast",
+          canonicalUrl: "https://example.com/legacy-canonical/"
+        }
+      })
+    });
+
+    expect(result.preview).toMatchObject({
+      noMutation: false,
+      executable: true,
+      beforeValue: {
+        canonicalUrl: "https://example.com/legacy-canonical/"
+      }
+    });
+    expect(result.item.afterValue).toEqual({
+      seoPlugin: "yoast",
+      canonicalUrl: "https://example.com/canonical-page"
+    });
+  });
+
+  it("removes only the reviewed robots directive that the synced metadata still enables", () => {
+    const syncedContentItem = buildSyncedContentItem({
+      externalId: "page:89",
+      url: "https://example.com/robots-page",
+      metadata: {
+        seoPlugin: "rank_math",
+        robotsNoindex: true,
+        robotsNofollow: true
+      }
+    });
+    const noindex = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.robots-noindex",
+        url: syncedContentItem.url
+      }),
+      syncedContentItem
+    });
+    const nofollow = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.robots-nofollow",
+        url: syncedContentItem.url
+      }),
+      syncedContentItem
+    });
+
+    expect(noindex.item.afterValue).toEqual({ seoPlugin: "rank_math", robotsNoindex: false });
+    expect(nofollow.item.afterValue).toEqual({ seoPlugin: "rank_math", robotsNofollow: false });
+    expect(countExecutableSafeOperationItems([noindex.item, nofollow.item])).toBe(2);
+  });
+
+  it("keeps stale canonical and robots tasks preview-only", () => {
+    const canonical = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.canonical-different",
+        url: "https://example.com/current"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:90",
+        url: "https://example.com/current",
+        metadata: {
+          seoPlugin: "yoast",
+          canonicalUrl: "https://example.com/current/"
+        }
+      })
+    });
+    const robots = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.robots-noindex",
+        url: "https://example.com/current"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:91",
+        url: "https://example.com/current",
+        metadata: {
+          seoPlugin: "yoast",
+          robotsNoindex: false
+        }
+      })
+    });
+
+    expect(canonical.preview.executionDisabledReason).toBe(
+      "synced_content_canonical_already_matches_item"
+    );
+    expect(robots.preview.executionDisabledReason).toBe(
+      "synced_content_robots_noindex_not_enabled"
+    );
+    expect(countExecutableSafeOperationItems([canonical.item, robots.item])).toBe(0);
+  });
+
+  it("keeps canonical and robots repairs preview-only for non-published or unsafe URLs", () => {
+    const draftCanonical = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.canonical-different",
+        url: "https://example.com/draft"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:92",
+        url: "https://example.com/draft",
+        status: "draft",
+        metadata: {
+          seoPlugin: "yoast",
+          canonicalUrl: "https://example.com/old-draft"
+        }
+      })
+    });
+    const unsafeCanonical = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.canonical-different",
+        url: "mailto:editor@example.com"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:93",
+        url: "mailto:editor@example.com",
+        metadata: {
+          seoPlugin: "yoast",
+          canonicalUrl: "https://example.com/legacy"
+        }
+      })
+    });
+    const draftRobots = buildSafeOperationPreview({
+      task: buildTask({
+        issueType: "synced_content.robots-nofollow",
+        url: "https://example.com/private"
+      }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "page:94",
+        url: "https://example.com/private",
+        status: "private",
+        metadata: {
+          seoPlugin: "rank_math",
+          robotsNofollow: true
+        }
+      })
+    });
+
+    expect(draftCanonical.preview.executionDisabledReason).toBe("synced_content_not_published");
+    expect(unsafeCanonical.preview.executionDisabledReason).toBe(
+      "synced_content_url_not_safe_for_canonical"
+    );
+    expect(draftRobots.preview.executionDisabledReason).toBe("synced_content_not_published");
+    expect(
+      countExecutableSafeOperationItems([
+        draftCanonical.item,
+        unsafeCanonical.item,
+        draftRobots.item
+      ])
+    ).toBe(0);
+  });
+
   it("keeps unsupported or missing synced content as preview-only", () => {
     const task = buildTask({
       issueType: "missing_meta_title",

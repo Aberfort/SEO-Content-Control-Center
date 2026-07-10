@@ -191,6 +191,48 @@ describe("bulk operation execution handler", () => {
     });
   });
 
+  it("forwards canonical and both robots directives to the signed apply endpoint", async () => {
+    const { deps, calls } = createDeps(
+      createOperation({
+        items: [
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            externalId: "post:123",
+            status: "RUNNING",
+            beforeValue: null,
+            afterValue: {
+              seoPlugin: "yoast",
+              canonicalUrl: "https://wp.example.com/current-page",
+              robotsNoindex: false,
+              robotsNofollow: false
+            }
+          }
+        ]
+      })
+    );
+    const handler = createBulkOperationExecuteHandler(deps);
+
+    await handler({
+      id: "job-1",
+      name: "bulk-operation.execute",
+      data: tenantData
+    });
+
+    expect(JSON.parse(calls.applyInputs[0]?.body ?? "{}")).toMatchObject({
+      items: [
+        {
+          externalId: "post:123",
+          afterValue: {
+            seoPlugin: "yoast",
+            canonicalUrl: "https://wp.example.com/current-page",
+            robotsNoindex: false,
+            robotsNofollow: false
+          }
+        }
+      ]
+    });
+  });
+
   it("fails non-executable preview-only items without calling WordPress", async () => {
     const { deps, calls } = createDeps(
       createOperation({

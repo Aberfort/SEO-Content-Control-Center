@@ -417,6 +417,9 @@ Signed apply:
 - Treat safe operation apply batches as worker-only traffic. They must be created from confirmed
   executable operation items with synced `post_type:id` targets and recorded through the SaaS result
   endpoint after the plugin responds.
+- For review-derived canonical repairs, SaaS sends only the current synced item URL. For reviewed
+  robots repairs, it clears only the single directive named by the task; the worker does not send
+  arbitrary canonical destinations or robots values from a user-supplied payload.
 - Treat rollback apply batches the same way: the worker sends captured previous SEO metadata values
   back through this signed endpoint and records the final rollback result in SaaS.
 - Reconnect WordPress sites created before encrypted plugin-token storage if worker apply returns

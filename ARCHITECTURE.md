@@ -9,13 +9,13 @@
 
 ## Current Implementation Status
 
-The target architecture above is not fully built yet. As of Iteration 99 the codebase deviates as follows:
+The target architecture above is not fully built yet. As of Iteration 100 the codebase deviates as follows:
 
 - A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, and `sccc-bulk-operations` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-plugin-sync` queue name remains reserved.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
 - Google Search Console metric and insight syncs run on a daily repeatable worker schedule for every active connection, and can still be triggered manually from the dashboard. The shared Google API client lives in `packages/gsc`.
-- Safe content operations now have state capture, executable SEO title/meta description payload generation from synced content evidence, queue execution, a signed WordPress apply endpoint, worker result persistence, worker-backed rollback restore for completed items with captured previous SEO values, and queue-backed retry for failed execution or rollback items.
+- Safe content operations now have state capture, executable SEO title/meta description payload generation plus self-canonical and individual noindex/nofollow removal repairs from synced content evidence, queue execution, a signed WordPress apply endpoint, worker result persistence, worker-backed rollback restore for completed items with captured previous SEO values, and queue-backed retry for failed execution or rollback items.
 - Observability is env-gated and dependency-free: Sentry error reporting (`SENTRY_DSN`) covers SaaS unhandled request errors via `instrumentation.ts` and worker job failures, PostHog server analytics (`POSTHOG_KEY`) captures tenant-scoped events from the shared taxonomy, and the worker exposes `GET /healthz` with BullMQ queue counts and oldest-waiting lag when `SCCC_WORKER_HEALTH_PORT` is set. Telemetry payloads carry explicit fields only and never include secrets.
 - SaaS account security includes opt-in TOTP two-factor authentication with encrypted secrets, pending enrollment state, login enforcement before session issuance, and replay protection through the last accepted TOTP counter.
 - The marketing app now owns the public home, features, pricing, security, demo, trial, and legal routes, plus route metadata, sitemap/robots discovery, a webhook-delivered demo lead flow, and a trial handoff to SaaS registration. Public pricing imports plan limits from `@sccc/shared` so marketing and application gates share one contract.

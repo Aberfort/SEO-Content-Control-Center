@@ -101,7 +101,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - env-gated observability: Sentry error reporting for SaaS request errors and worker job failures, PostHog server analytics with tenant context from the shared event taxonomy, and a worker `GET /healthz` endpoint with BullMQ queue counts and oldest-waiting lag;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
-- computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;
+- computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex/nofollow, canonical mismatch, and link-count signals;
 - computed backlog candidate tasks from synced content health signals;
 - tenant-scoped metadata audit run creation, completion, listing, and issue summaries with synced-content issue materialization from existing plugin metadata;
 - SaaS dashboard audit panel with queue action and recent run status;
@@ -122,7 +122,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - backlog task comments with audit logging;
 - backlog task change history for creation, status, assignment, due date, and comments;
 - backlog CSV export for filtered site tasks;
-- safe content operation previews created from scoped backlog tasks, with executable Yoast/Rank Math SEO title and meta description payloads when scoped synced content evidence exists;
+- safe content operation previews created from scoped backlog tasks, with executable Yoast/Rank Math SEO title/meta description payloads plus review-scoped self-canonical and individual noindex/nofollow removal payloads when synced content evidence exists;
 - dry run support for previewed safe content operations without WordPress writes;
 - explicit confirmation for dry-run-passed safe content operations;
 - controlled start state for confirmed safe content operations without inline WordPress writes;

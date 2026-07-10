@@ -118,4 +118,29 @@ describe("buildSyncedContentHealthSignals", () => {
     ]);
     expect(candidates[0]?.nextStep).toContain("run plugin sync again");
   });
+
+  it("creates a review task when the plugin reports a nofollow directive", () => {
+    const item = {
+      ...baseItem,
+      metadata: {
+        ...baseItem.metadata,
+        robotsNofollow: true
+      }
+    };
+    const signals = buildSyncedContentHealthSignals(item, new Date("2026-07-01T12:00:00.000Z"));
+    const candidates = buildSyncedContentBacklogCandidates(item, signals);
+
+    expect(signals).toContainEqual({
+      id: "robots-nofollow",
+      label: "Nofollow detected",
+      severity: "warning",
+      message: "Robots metadata marks this item as nofollow."
+    });
+    expect(candidates).toContainEqual(
+      expect.objectContaining({
+        sourceSignalId: "robots-nofollow",
+        priority: "medium"
+      })
+    );
+  });
 });

@@ -153,7 +153,7 @@ Every risky bulk operation must have:
 - retry strategy;
 - rate limits.
 
-Executable backlog-derived payloads are limited to missing SEO title and missing meta description tasks backed by scoped synced content evidence, valid `post_type:id` WordPress targets, and Yoast or Rank Math metadata. Unsupported issues, missing inventory evidence, fallback metadata, invalid targets, and stale already-present metadata remain preview-only.
+Executable backlog-derived payloads are limited to missing SEO title/meta description tasks, reviewed canonical mismatch tasks, and reviewed noindex/nofollow tasks backed by scoped synced content evidence, valid `post_type:id` WordPress targets, and Yoast or Rank Math metadata. Canonical repairs write only the current synced item URL, while robots repairs clear only the named directive when the synced flag is still true; canonical and robots repairs require published content. Unsupported issues, missing inventory evidence, fallback metadata, invalid targets, non-published items, and stale already-correct metadata remain preview-only.
 
 Rollback restore is worker-only for completed items with captured previous SEO metadata. The SaaS rollback endpoint queues restore work and does not mark the operation `ROLLED_BACK` until the worker records the signed plugin result.
 
