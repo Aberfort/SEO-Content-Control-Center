@@ -30,10 +30,20 @@ import {
   rateLimitKeyFromHeaders,
   type RateLimitPolicy
 } from "@/lib/rate-limit";
+import {
+  confirmTwoFactorEnrollment,
+  disableTwoFactorForUser,
+  startTwoFactorEnrollment
+} from "@/lib/two-factor";
 
 export type ActionState = {
   ok: boolean;
   message: string;
+  code?: string;
+  twoFactorSetup?: {
+    secret: string;
+    otpauthUrl: string;
+  };
 };
 
 export async function createOrganizationAction(
@@ -698,7 +708,8 @@ export async function loginAction(
     await assertServerActionRateLimit("auth-login", String(formData.get("email") ?? ""));
     await loginWithPassword({
       email: String(formData.get("email") ?? ""),
-      password: String(formData.get("password") ?? "")
+      password: String(formData.get("password") ?? ""),
+      twoFactorCode: String(formData.get("twoFactorCode") ?? "")
     });
   } catch (error) {
     return actionError(error, "Could not sign in.");
@@ -706,6 +717,80 @@ export async function loginAction(
 
   revalidatePath("/");
   redirect(readRedirectTo(formData));
+}
+
+export async function startTwoFactorSetupAction(
+  _previousState: ActionState,
+  _formData: FormData
+): Promise<ActionState> {
+  void _previousState;
+  void _formData;
+
+  const { user } = await requireCurrentUser();
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-2fa", user.id);
+    const setup = await startTwoFactorEnrollment(user.id);
+
+    return {
+      ok: true,
+      message: "Authenticator setup started.",
+      twoFactorSetup: setup
+    };
+  } catch (error) {
+    return actionError(error, "Could not start authenticator setup.");
+  }
+}
+
+export async function confirmTwoFactorSetupAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-2fa", user.id);
+    await confirmTwoFactorEnrollment({
+      userId: user.id,
+      code: String(formData.get("twoFactorCode") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not enable authenticator verification.");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  return {
+    ok: true,
+    message: "Authenticator verification is enabled."
+  };
+}
+
+export async function disableTwoFactorAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("auth-2fa", user.id);
+    await disableTwoFactorForUser({
+      userId: user.id,
+      code: String(formData.get("twoFactorCode") ?? "")
+    });
+  } catch (error) {
+    return actionError(error, "Could not disable authenticator verification.");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  return {
+    ok: true,
+    message: "Authenticator verification is disabled."
+  };
 }
 
 export async function requestPasswordResetAction(
@@ -930,7 +1015,60 @@ function actionError(error: unknown, fallback: string): ActionState {
   if (error instanceof Error && error.message === "INVALID_CREDENTIALS") {
     return {
       ok: false,
+      code: "INVALID_CREDENTIALS",
       message: "Email or password is incorrect."
+    };
+  }
+
+  if (error instanceof Error && error.message === "TWO_FACTOR_REQUIRED") {
+    return {
+      ok: false,
+      code: "TWO_FACTOR_REQUIRED",
+      message: "Enter the authenticator code for this account."
+    };
+  }
+
+  if (error instanceof Error && error.message === "INVALID_TWO_FACTOR_CODE") {
+    return {
+      ok: false,
+      code: "INVALID_TWO_FACTOR_CODE",
+      message: "Authenticator code is incorrect or already used."
+    };
+  }
+
+  if (error instanceof Error && error.message === "TWO_FACTOR_SETUP_NOT_STARTED") {
+    return {
+      ok: false,
+      code: "TWO_FACTOR_SETUP_NOT_STARTED",
+      message: "Start authenticator setup before confirming the code."
+    };
+  }
+
+  if (error instanceof Error && error.message === "TWO_FACTOR_ALREADY_ENABLED") {
+    return {
+      ok: false,
+      code: "TWO_FACTOR_ALREADY_ENABLED",
+      message: "Authenticator verification is already enabled."
+    };
+  }
+
+  if (
+    error instanceof Error &&
+    (error.message === "TOKEN_ENCRYPTION_KEY_NOT_CONFIGURED" ||
+      error.message === "TWO_FACTOR_CONFIGURATION_INVALID")
+  ) {
+    return {
+      ok: false,
+      code: error.message,
+      message: "Authenticator verification requires token encryption to be configured."
+    };
+  }
+
+  if (error instanceof Error && error.message === "TWO_FACTOR_NOT_ENABLED") {
+    return {
+      ok: false,
+      code: "TWO_FACTOR_NOT_ENABLED",
+      message: "Authenticator verification is not enabled."
     };
   }
 

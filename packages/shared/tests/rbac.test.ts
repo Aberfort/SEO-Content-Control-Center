@@ -71,9 +71,18 @@ describe("shared schemas", () => {
     expect(
       loginSchema.parse({
         email: "USER@EXAMPLE.COM",
-        password: "x"
+        password: "x",
+        twoFactorCode: "123456"
       }).email
     ).toBe("user@example.com");
+
+    expect(() =>
+      loginSchema.parse({
+        email: "user@example.com",
+        password: "x",
+        twoFactorCode: "12345"
+      })
+    ).toThrow();
   });
 
   it("validates member invite and role update inputs", () => {

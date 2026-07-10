@@ -2,6 +2,7 @@ export type RateLimitPolicy =
   | "auth-login"
   | "auth-register"
   | "auth-password-reset"
+  | "auth-2fa"
   | "invite-accept"
   | "invite-send"
   | "bulk-operation"
@@ -49,6 +50,10 @@ const rateLimitPolicies = {
   "auth-password-reset": {
     limit: 5,
     windowMs: 1000 * 60 * 60
+  },
+  "auth-2fa": {
+    limit: 10,
+    windowMs: 1000 * 60 * 15
   },
   "invite-accept": {
     limit: 20,

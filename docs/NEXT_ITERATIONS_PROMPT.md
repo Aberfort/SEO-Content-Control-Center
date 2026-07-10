@@ -35,25 +35,20 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 91)
+## Поточний стан (після Iteration 97)
 
-- Phases 0–5 повністю реалізовані: foundation, auth/org/site/members, plugin connect/sync/disconnect, audit MVP, GSC (OAuth, properties, daily metrics, insights, scheduled worker sync), backlog (конверсія/дедуп/фільтри/assignment/коментарі/історія/CSV).
-- Phase 6 (safe operations) закрита end-to-end: preview → dry run → confirm → start → queue-виконання worker'ом через signed plugin apply endpoint → per-item результати → rollback restore реальними записами → queue-aware retry (execute/rollback) → itemStatusSummary/retryMode у відповідях і на дашборді. Виняток: activity log для деяких bulk-переходів і executable payloads покривають лише SEO title/meta description.
-- GSC-лінія: traffic loss detection (site-вікна 14/14 зі severity; page-компарація снапшотів latest vs −7 днів) + matching падаючих сторінок до synced WordPress контенту через нормалізовані URL (`gsc-traffic-loss.ts`, `gsc-content-matching.ts`, endpoint `GET .../gsc/traffic-loss`, панель на дашборді).
-- Assistant — детермінований, read-only, без зовнішнього AI provider, metering `metered: false`.
-- Observability — лише плейсхолдери `SENTRY_DSN`/`POSTHOG_KEY`.
-- Верифікаційний базлайн у sandbox: saas 100/100, worker 26/26, queue 11/11, shared 12/12, gsc 5/5, PHP smoke tests passed; 5 saas-suites (app-repository, gsc-*, plugin-connection) не піднімаються в sandbox лише через незгенерований Prisma client — у CI проходять.
+- Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
+- Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
+- Phase 8 Billing реалізований на MVP-рівні: trial/subscription overview, Stripe checkout, portal, signed idempotent webhooks, feature gates, finite limit notifications.
+- Phase 9 Observability реалізований: env-gated Sentry envelope reporter, PostHog server events, worker job failure reporting, worker `GET /healthz` queue metrics/lag.
+- Iteration 97 Security hardening реалізована: opt-in TOTP 2FA з encrypted pending/active secrets і replay-protected login, CI `npm audit`, CodeQL SAST, disposable DB backup restore smoke script.
+- Safe operation executable payloads усе ще покривають лише SEO title/meta description; ширше payload покриття лишається майбутньою роботою.
 
 ## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
 
-1. **Iteration 92 — Traffic-loss audit issues.** Матчені падаючі сторінки (drops із `content != null`) матеріалізуються як `AuditIssue` з типом `gsc.traffic-loss`, severity з детекції, evidence: діапазони, кліки now/baseline, delta, dropRatio, propertyUrl. Fingerprint `gsc:traffic-loss:<externalId>` для дедупу з існуючою системою (повторні аудити оновлюють issue, а не дублюють). Інтегрувати в існуючий шлях створення metadata-аудиту або окремою дією; issues конвертуються в backlog існуючими механізмами. Оновити audit-issue-generation/репозиторій+dev-store, тести, docs.
-2. **Iteration 93 — Backlog from GSC opportunities.** Кандидати задач з GSC-можливостей: сторінки з високими impressions і низьким CTR відносно позиції (opportunity), позиції 5–15 із трафіком (striking distance). Детермінована pure-логіка з порогами, конверсія в persisted BacklogTask через існуючий candidate-механізм з дедупом.
-3. **Iteration 94 — Assistant uses GSC evidence.** `assistant-recommendations.ts` додає рекомендації з traffic-loss/opportunity evidence (sources з GSC-даними), зберігаючи read-only і source display; безпечні preview-контролі лише для backlog-сourced.
-4. **Iteration 95 — Real AI provider + AI credit metering.** Провайдер за env (наприклад `SCCC_AI_PROVIDER`, ключ), fallback на детермінований режим без ключа; реальний інкремент `UsageMetric` (`ai_credits`), `metered: true` для AI-відповідей, ліміти плану блокують виклики, notifications при вичерпанні. Без збереження промптів із секретами.
-5. **Iteration 96 — Observability.** Sentry (saas + worker), PostHog server events із tenant-контекстом (події вже перелічені в `packages/shared/src/events.ts`), queue metrics (лічильники/lag з BullMQ) + health-ендпоінт воркера; логування без секретів.
-6. **Iteration 97 — Security hardening pack.** 2FA (TOTP), SAST/dependency scanning у CI, restore-тести бекапів, закриття залишку: activity log для всіх bulk-переходів; переглянь SECURITY.md Roadmap Security Items.
-7. **Iteration 98 — Marketing site expansion.** Сторінки features/pricing/security/legal, форми demo/trial, SEO-метадані; контент з `LANDING_CONTENT.md` і `PRODUCT_REQUIREMENTS.md`.
-8. **Iteration 99 — WordPress plugin release packaging.** `readme.txt`, версіонування, збірка zip-артефакту (composer/скрипт), CI-крок; узгодити з DEPLOYMENT.md deployment units.
+1. **Iteration 98 — Marketing site expansion.** Сторінки features/pricing/security/legal, форми demo/trial, SEO-метадані; контент з `LANDING_CONTENT.md` і `PRODUCT_REQUIREMENTS.md`.
+2. **Iteration 99 — WordPress plugin release packaging.** `readme.txt`, версіонування, збірка zip-артефакту (composer/скрипт), CI-крок; узгодити з `DEPLOYMENT.md` deployment units.
+3. **Iteration 100 — Safe-operation payload expansion.** Розширити executable payloads beyond SEO title/meta description: canonical URL, robots noindex/nofollow, можливо schema-safe fields; оновити preview/dry-run/worker/plugin tests.
 
 Відомий tech debt поза чергою (бери, якщо блокує поточну ітерацію): `apps/saas/src/app/page.tsx` ~2700 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply.
 

@@ -19,6 +19,8 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
   const action = mode === "login" ? loginAction : registerAction;
   const [state, formAction, isPending] = useActionState(action, initialState);
   const isLogin = mode === "login";
+  const showTwoFactorCode =
+    isLogin && (state.code === "TWO_FACTOR_REQUIRED" || state.code === "INVALID_TWO_FACTOR_CODE");
 
   return (
     <form className="auth-form" action={formAction}>
@@ -44,6 +46,21 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
           required
         />
       </label>
+      {showTwoFactorCode ? (
+        <label>
+          <span>Authenticator code</span>
+          <input
+            name="twoFactorCode"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            minLength={6}
+            maxLength={6}
+            required
+          />
+        </label>
+      ) : null}
       {!state.ok ? <p className="form-error">{state.message}</p> : null}
       <button className="button" type="submit" disabled={isPending}>
         {isPending ? "Working..." : isLogin ? "Sign in" : "Create account"}

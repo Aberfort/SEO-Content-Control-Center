@@ -10,6 +10,7 @@
 - Tests pass.
 - Build passes.
 - CI runs lint, tests, and build.
+- CI runs dependency audit and CodeQL SAST.
 
 ## Tenant Isolation
 
@@ -23,6 +24,8 @@
 
 - User can register with email/password.
 - User can log in with email/password.
+- User with 2FA enabled cannot log in until a valid authenticator code is supplied.
+- TOTP setup stores pending and active secrets encrypted and rejects replayed authenticator counters.
 - Logout clears the active session.
 - Protected SaaS APIs return 401 without a session.
 - Mutating SaaS APIs reject missing or cross-origin `Origin` headers.
@@ -266,5 +269,5 @@
 - Database migrations reviewed.
 - Dependency audit reviewed.
 - Monitoring and Sentry configured.
-- Backup and restore plan checked.
+- Backup and restore plan checked with the disposable restore smoke script.
 - Rollback plan documented.

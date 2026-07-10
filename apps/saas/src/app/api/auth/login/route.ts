@@ -30,6 +30,26 @@ export async function POST(request: Request) {
       return jsonError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
     }
 
+    if (error instanceof Error && error.message === "TWO_FACTOR_REQUIRED") {
+      return jsonError(401, "TWO_FACTOR_REQUIRED", "Authenticator code is required.");
+    }
+
+    if (error instanceof Error && error.message === "INVALID_TWO_FACTOR_CODE") {
+      return jsonError(401, "INVALID_TWO_FACTOR_CODE", "Authenticator code is incorrect.");
+    }
+
+    if (
+      error instanceof Error &&
+      (error.message === "TOKEN_ENCRYPTION_KEY_NOT_CONFIGURED" ||
+        error.message === "TWO_FACTOR_CONFIGURATION_INVALID")
+    ) {
+      return jsonError(
+        503,
+        "TWO_FACTOR_CONFIGURATION_INVALID",
+        "Authenticator verification is not configured."
+      );
+    }
+
     return jsonError(400, "LOGIN_FAILED", "Could not sign in.");
   }
 }

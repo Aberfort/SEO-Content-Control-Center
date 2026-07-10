@@ -6,7 +6,7 @@
 - README and local setup.
 - Environment examples.
 - Docker local dependencies.
-- CI.
+- CI. Status: lint/test/build workflow includes dependency audit and CodeQL SAST.
 - Linting, formatting, tests, build scripts.
 - Database schema draft.
 - Health checks.
@@ -16,7 +16,7 @@
 
 ## Phase 1 - SaaS MVP Foundation
 
-- Register, login, logout. Status: DB-backed credentials/session foundation implemented.
+- Register, login, logout. Status: DB-backed credentials/session foundation implemented with opt-in TOTP 2FA before session issuance.
 - Password reset and email verification. Status: hashed token flows implemented for email verification and password reset.
 - Organization creation. Status: Prisma-backed foundation implemented.
 - PostgreSQL persistence. Status: initial Prisma migration, seed, and repository implemented.
@@ -114,3 +114,11 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - Server analytics. Status: env-gated PostHog server events (`POSTHOG_KEY`, optional `POSTHOG_HOST`) implemented with tenant context using the shared event taxonomy: organization_created, site_added, plugin_connected, GSC_connected, bulk_operation_started, bulk_operation_completed, AI_feature_used.
 - Queue metrics and worker health. Status: the worker exposes `GET /healthz` on `SCCC_WORKER_HEALTH_PORT` with per-queue BullMQ job counts and oldest-waiting lag plus processed/failed counters and uptime.
 - Telemetry hygiene. Status: telemetry payloads carry explicit fields only; prompts, request bodies, headers, tokens, and environment values are never sent or logged.
+
+## Phase 10 - Security Hardening
+
+- TOTP 2FA. Status: opt-in authenticator setup implemented with encrypted pending/active secrets and replay-protected login verification.
+- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification.
+- SAST. Status: CodeQL JavaScript/TypeScript analysis runs in CI.
+- Restore testing. Status: disposable database restore smoke script implemented as `npm run verify:backup-restore`.
+- Enterprise security checklist. Status: planned.

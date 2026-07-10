@@ -386,6 +386,56 @@ h1 {
   font-weight: 650;
 }
 
+.two-factor-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.two-factor-settings > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.two-factor-settings > div:first-child span {
+  color: var(--muted);
+}
+
+.two-factor-settings .inline-form {
+  grid-template-columns: minmax(140px, 220px) auto;
+  margin-top: 0;
+}
+
+.two-factor-secret {
+  display: grid;
+  gap: 10px;
+}
+
+.two-factor-secret label {
+  display: grid;
+  gap: 7px;
+}
+
+.two-factor-secret label span {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.two-factor-secret input,
+.two-factor-secret textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.two-factor-secret textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
 .empty-state {
   margin-top: 16px;
   min-height: 260px;

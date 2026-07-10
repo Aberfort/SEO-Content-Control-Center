@@ -10,6 +10,8 @@
 - Password hashes use `scrypt`; plaintext passwords must never be stored.
 - Session cookies must be HTTP-only, same-site, and secure in production.
 - Session tokens must be stored as hashes in the database.
+- TOTP 2FA secrets must be encrypted at rest, confirmed before activation, and checked before a session cookie is issued.
+- TOTP verification must reject malformed, invalid, and already-used counters.
 - Password reset tokens must be stored as hashes, expire quickly, avoid account enumeration, and invalidate active sessions after use.
 - Email verification tokens must be stored as hashes, expire quickly, and never appear in logs or API responses.
 - Invite tokens must be stored as hashes, expire, and be accepted only by the invited email.
@@ -157,9 +159,9 @@ Retry is also worker-only: failed execution retries enqueue execution jobs, whil
 
 ## Roadmap Security Items
 
-- 2FA.
+- 2FA. Status: opt-in TOTP implemented for SaaS users.
 - SSO for Enterprise.
-- Dependency scanning.
-- SAST.
-- Restore testing.
+- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification.
+- SAST. Status: CodeQL JavaScript/TypeScript analysis runs in CI.
+- Restore testing. Status: disposable database restore smoke script added as `npm run verify:backup-restore`.
 - Security review checklist for Enterprise customers.

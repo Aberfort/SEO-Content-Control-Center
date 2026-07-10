@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 97
+
+- Added opt-in TOTP two-factor authentication for SaaS users, with encrypted pending and active secrets, replay protection through the last accepted TOTP counter, and no session cookie issuance until the second factor is verified.
+- Added dashboard security controls for starting authenticator enrollment, confirming setup, and disabling 2FA with a current authenticator code.
+- Extended login server actions and the JSON login API to return explicit `TWO_FACTOR_REQUIRED` and `INVALID_TWO_FACTOR_CODE` errors.
+- Added dependency scanning (`npm audit --audit-level=low`) and CodeQL JavaScript/TypeScript SAST to CI.
+- Added a disposable database backup/restore smoke script (`npm run verify:backup-restore`) for quarterly restore testing.
+- Updated security, API, deployment, QA, data model, roadmap, and README documentation for the hardening pack.
+
 ### Iteration 96
 
 - Added env-gated, dependency-free observability shared by the SaaS app and the worker: a Sentry envelope reporter (`SENTRY_DSN`, optional `SENTRY_ENVIRONMENT`) and a PostHog server analytics client (`POSTHOG_KEY`, optional `POSTHOG_HOST`) in `@sccc/shared`, both failing open and validating against the shared event taxonomy.

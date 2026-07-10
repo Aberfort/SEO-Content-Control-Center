@@ -5,6 +5,8 @@ import { loginSchema, registerSchema } from "@sccc/shared";
 import { cookies } from "next/headers";
 
 import { hashPassword, verifyPassword } from "./password";
+import { decryptSecret } from "./token-encryption";
+import { verifyTotpCode } from "./totp";
 import type { AppUser } from "./types";
 
 export type AuthContext = {
@@ -61,6 +63,15 @@ export async function loginWithPassword(input: unknown): Promise<AppUser> {
   const user = await prisma.user.findUnique({
     where: {
       email: parsed.email
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      passwordHash: true,
+      twoFactorSecret: true,
+      twoFactorEnabledAt: true,
+      twoFactorLastCounter: true
     }
   });
 
@@ -68,8 +79,53 @@ export async function loginWithPassword(input: unknown): Promise<AppUser> {
     throw new Error("INVALID_CREDENTIALS");
   }
 
-  await createSessionCookie(mapUser(user));
-  return mapUser(user);
+  if (user.twoFactorEnabledAt) {
+    if (!user.twoFactorSecret) {
+      throw new Error("TWO_FACTOR_CONFIGURATION_INVALID");
+    }
+
+    if (!parsed.twoFactorCode) {
+      throw new Error("TWO_FACTOR_REQUIRED");
+    }
+
+    const secret = decryptSecret(user.twoFactorSecret);
+    const verification = verifyTotpCode({
+      secret,
+      code: parsed.twoFactorCode,
+      lastCounter: user.twoFactorLastCounter
+    });
+
+    if (!verification.valid || verification.counter === null) {
+      throw new Error("INVALID_TWO_FACTOR_CODE");
+    }
+
+    const update = await prisma.user.updateMany({
+      where: {
+        id: user.id,
+        OR: [
+          {
+            twoFactorLastCounter: null
+          },
+          {
+            twoFactorLastCounter: {
+              lt: verification.counter
+            }
+          }
+        ]
+      },
+      data: {
+        twoFactorLastCounter: verification.counter
+      }
+    });
+
+    if (update.count !== 1) {
+      throw new Error("INVALID_TWO_FACTOR_CODE");
+    }
+  }
+
+  const appUser = mapUser(user);
+  await createSessionCookie(appUser);
+  return appUser;
 }
 
 export async function logoutCurrentSession(): Promise<void> {

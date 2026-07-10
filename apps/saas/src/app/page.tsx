@@ -46,6 +46,7 @@ import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -53,6 +54,7 @@ import {
   buildSyncedContentHealthSignals
 } from "@/lib/content-health";
 import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
+import { getTwoFactorStatusForUser } from "@/lib/two-factor";
 import type {
   BillingSubscription,
   GscConnectionOverview,
@@ -62,7 +64,7 @@ import type {
   SyncedContentMetadata
 } from "@/lib/types";
 
-const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Billing"];
+const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Security", "Billing"];
 
 type AppHomePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -106,6 +108,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
 
   const params = (await searchParams) ?? {};
   const repository = getAppRepository();
+  const twoFactorStatus = await getTwoFactorStatusForUser(user.id);
   const organizations = await repository.listOrganizationSummariesForUser(user);
   const activeOrganization = organizations[0] ?? null;
   const selectedSiteId = readQueryParam(params, "site");
@@ -934,6 +937,17 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
               Notifications will appear after safe operation results, rollbacks, or retries.
             </p>
           )}
+        </section>
+
+        <section className="panel" aria-labelledby="security-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="security-title">Security</h2>
+              <p>Authenticator verification for your account sign-in.</p>
+            </div>
+            <span className="metric-pill">{twoFactorStatus.enabled ? "2FA on" : "2FA off"}</span>
+          </div>
+          <TwoFactorSettings status={twoFactorStatus} />
         </section>
 
         <section className="panel" aria-labelledby="assistant-title">

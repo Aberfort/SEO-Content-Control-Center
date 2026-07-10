@@ -40,8 +40,19 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: authEmailSchema,
-  password: z.string().min(1).max(128)
+  password: z.string().min(1).max(128),
+  twoFactorCode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/)
+    .optional()
+    .or(z.literal(""))
 });
+
+export const twoFactorCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/);
 
 export const passwordResetRequestSchema = z.object({
   email: authEmailSchema

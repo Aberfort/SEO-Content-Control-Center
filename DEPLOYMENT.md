@@ -78,6 +78,8 @@ Scheduled Google Search Console sync additionally requires `DATABASE_URL`, `SCCC
 
 Bulk operation execution and rollback additionally require `DATABASE_URL` and `SCCC_TOKEN_ENCRYPTION_KEY`. When configured, the worker processes the `sccc-bulk-operations` queue and executes `bulk-operation.execute` and `bulk-operation.rollback` jobs by signing requests to the connected WordPress plugin apply endpoint. WordPress connections created before encrypted plugin-token storage must be reconnected before worker apply or rollback can run for that site.
 
+TOTP 2FA enrollment in the SaaS app also requires `SCCC_TOKEN_ENCRYPTION_KEY` so pending and active authenticator secrets are encrypted at rest.
+
 ## Health Checks
 
 - SaaS: `GET /api/health`.
@@ -106,4 +108,4 @@ Bulk operation execution and rollback additionally require `DATABASE_URL` and `S
 - Daily encrypted database backups.
 - Point-in-time recovery for production.
 - Object storage lifecycle policies.
-- Quarterly restore tests.
+- Quarterly restore tests with `npm run verify:backup-restore` against a disposable `SCCC_RESTORE_TEST_DATABASE_URL`.

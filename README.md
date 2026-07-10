@@ -149,7 +149,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
 - Docker local dependencies;
-- CI workflow.
+- CI workflow with dependency audit and CodeQL SAST.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 
@@ -175,7 +175,19 @@ The SaaS app uses DB-backed credentials auth.
 - Accept invite: `http://localhost:3000/auth/accept-invite?token=...`
 - Logout: available from the SaaS sidebar after login.
 
-Passwords are hashed with `scrypt`. Session cookies are HTTP-only, same-site, and store only an opaque token while the database stores the token hash.
+Passwords are hashed with `scrypt`. Session cookies are HTTP-only, same-site, and store only an opaque token while the database stores the token hash. Users can enable authenticator-app 2FA from the SaaS Security panel when `SCCC_TOKEN_ENCRYPTION_KEY` is configured; TOTP secrets are encrypted at rest and login sessions are created only after password and authenticator verification pass.
+
+## Backup Restore Smoke
+
+`npm run verify:backup-restore` validates that a database backup can be restored into a disposable target database:
+
+```bash
+DATABASE_URL=postgresql://... \
+SCCC_RESTORE_TEST_DATABASE_URL=postgresql://... \
+npm run verify:backup-restore
+```
+
+The restore target must be disposable because the script runs `pg_restore --clean --if-exists`.
 
 ## Email Delivery
 

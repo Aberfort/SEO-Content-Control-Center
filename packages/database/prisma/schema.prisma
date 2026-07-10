@@ -82,14 +82,19 @@ enum BulkOperationStatus {
 }
 
 model User {
-  id             String               @id @default(uuid())
-  email          String               @unique
-  name           String?
-  passwordHash   String?
-  emailVerified  DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  sessions       Session[]
+  id                        String               @id @default(uuid())
+  email                     String               @unique
+  name                      String?
+  passwordHash              String?
+  twoFactorSecret           String?
+  twoFactorPendingSecret    String?
+  twoFactorPendingCreatedAt DateTime?
+  twoFactorEnabledAt        DateTime?
+  twoFactorLastCounter      Int?
+  emailVerified             DateTime?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  sessions                  Session[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
   memberships    OrganizationMember[]

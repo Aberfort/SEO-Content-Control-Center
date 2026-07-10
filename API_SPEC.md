@@ -47,14 +47,15 @@ Request:
 
 `POST /api/auth/login`
 
-Verifies credentials, creates a DB-backed session, and sets an HTTP-only session cookie.
+Verifies credentials, creates a DB-backed session, and sets an HTTP-only session cookie. When the user has TOTP 2FA enabled, the endpoint returns `401 TWO_FACTOR_REQUIRED` until a valid six-digit `twoFactorCode` is supplied. Invalid or replayed authenticator codes return `401 INVALID_TWO_FACTOR_CODE`, and no session cookie is created.
 
 Request:
 
 ```json
 {
   "email": "serhii@example.com",
-  "password": "very-secure-password"
+  "password": "very-secure-password",
+  "twoFactorCode": "123456"
 }
 ```
 

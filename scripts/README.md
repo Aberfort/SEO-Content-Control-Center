@@ -1,5 +1,5 @@
 # Scripts
 
-This directory is reserved for operational scripts used by CI, local development, and release automation.
+This directory contains operational scripts used by CI, local development, and release automation.
 
-Current root npm scripts cover validation, linting, tests, and builds.
+- `verify-db-backup-restore.sh` runs a `pg_dump`/`pg_restore` smoke test against a disposable restore database via `npm run verify:backup-restore`.
