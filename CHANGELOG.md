@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 103
+
+- Rebuilt the marketing homepage as a three-section product narrative: an immersive backlog hero, an evidence-to-work workflow, and a team plus review-first safety section.
+- Reused the real `ProductPreview`, existing solution routes, and current demo/trial contracts instead of introducing decorative shaders, stock media, or a parallel frontend stack.
+- Refined the shared marketing header into a compact bordered surface and reordered navigation around Product, Features, Integrations, Pricing, and Resources.
+- Added isolated responsive homepage styles and verified exact desktop/mobile viewports with zero document-level horizontal overflow and no hero trust-note/dashboard overlap.
+
 ### Iteration 102
 
 - Added Docker-based staging certification for the packaged WordPress plugin zip: `npm run plugin:certify` boots a disposable MariaDB + WordPress container pair, installs the built archive with wp-cli, and runs the full lifecycle checks.

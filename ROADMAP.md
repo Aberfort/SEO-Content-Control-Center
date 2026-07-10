@@ -125,7 +125,7 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 
 ## Phase 11 - Public Marketing
 
-- Acquisition site. Status: responsive home, Features, Product, Integrations, Pricing, Security, agency/editorial/publisher solution, Knowledge Base, SEO briefings, Changelog, Contact, and service-information routes implemented from the product requirements and landing-content guardrails.
+- Acquisition site. Status: responsive three-section product homepage plus Features, Product, Integrations, Pricing, Security, agency/editorial/publisher solution, Knowledge Base, SEO briefings, Changelog, Contact, and service-information routes implemented from the product requirements and landing-content guardrails.
 - Demo acquisition. Status: validated, honeypot-protected, per-client rate-limited demo form with env-configured webhook delivery and explicit unavailable states.
 - Trial acquisition. Status: 14-day trial page hands work email into the existing SaaS registration flow; SaaS validates the prefill before rendering it.
 - Legal and SEO discovery. Status: Privacy, Terms, and Cookie pages, canonical/Open Graph metadata, `robots.txt`, and `sitemap.xml` implemented.

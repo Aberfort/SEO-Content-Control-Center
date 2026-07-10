@@ -9,7 +9,7 @@
 
 ## Current Implementation Status
 
-The target architecture above is not fully built yet. As of Iteration 101 the codebase deviates as follows:
+The target architecture above is not fully built yet. As of Iteration 103 the codebase deviates as follows:
 
 - A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, and `sccc-bulk-operations` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-plugin-sync` queue name remains reserved.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { appUrl } from "../lib/site";
 
 const navigation = [
-  { href: "/features", label: "Features" },
   { href: "/product", label: "Product" },
+  { href: "/features", label: "Features" },
   { href: "/integrations", label: "Integrations" },
   { href: "/pricing", label: "Pricing" },
   { href: "/knowledge-base", label: "Resources" }

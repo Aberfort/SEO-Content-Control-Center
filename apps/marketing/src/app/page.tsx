@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import {
   ArrowRight,
+  BadgeCheck,
   Blocks,
-  Bot,
+  ChartNoAxesCombined,
   Check,
-  FileSearch,
-  Gauge,
+  ClipboardCheck,
+  Eye,
+  FileText,
+  FlaskConical,
   History,
+  KeyRound,
   ListChecks,
   PlugZap,
-  ShieldCheck,
-  UsersRound,
-  Workflow
+  RotateCcw
 } from "lucide-react";
 import Link from "next/link";
 
@@ -29,264 +31,224 @@ export const metadata: Metadata = pageMetadata({
 const workflow = [
   {
     number: "01",
+    icon: PlugZap,
     title: "Connect the evidence",
-    body: "Bring WordPress content metadata and Google Search Console performance into one tenant-isolated workspace."
+    body: "Bring bounded WordPress metadata and Google Search Console performance into one tenant-scoped workspace."
   },
   {
     number: "02",
+    icon: ListChecks,
     title: "Prioritize what matters",
-    body: "Turn traffic losses and technical findings into scored tasks with evidence, effort, owner, and status."
+    body: "Turn traffic losses, indexability findings, and content opportunities into tasks with impact, effort, owner, and status."
   },
   {
     number: "03",
+    icon: ClipboardCheck,
     title: "Review, apply, verify",
-    body: "Preview supported changes, run a dry check, confirm explicitly, and preserve the audit trail and rollback state."
-  }
-];
-
-const capabilities = [
-  {
-    icon: Gauge,
-    title: "Traffic-loss detection",
-    body: "Compare Search Console periods and surface pages where clicks, impressions, CTR, or position are moving the wrong way."
-  },
-  {
-    icon: FileSearch,
-    title: "Explainable site audits",
-    body: "See the affected URL, the rule that fired, supporting evidence, and a recommended next step."
-  },
-  {
-    icon: ListChecks,
-    title: "Prioritized SEO backlog",
-    body: "Move findings into an operational queue with impact, effort, assignment, due date, and before/after evidence."
-  },
-  {
-    icon: ShieldCheck,
-    title: "Review-first operations",
-    body: "Keep risky changes behind preview, validation, dry run, confirmation, logging, and restoration controls."
-  },
-  {
-    icon: History,
-    title: "Measurable follow-through",
-    body: "Track what changed, who approved it, and whether the page recovered after the work was completed."
-  },
-  {
-    icon: Bot,
-    title: "Evidence-grounded assistant",
-    body: "Get recommendations derived from your backlog, synced content, and GSC signals, with sources kept visible."
+    body: "Preview supported changes, run a dry check, confirm explicitly, and preserve the activity and restoration record."
   }
 ];
 
 const audiences = [
   {
     icon: Blocks,
-    title: "SEO agencies",
-    body: "Separate client organizations, standardize audits, and keep owners and approvals visible across many sites."
+    label: "SEO agencies",
+    body: "Separate client organizations, standardize delivery, and keep ownership and approvals visible across many WordPress sites.",
+    href: "/solutions/agencies"
   },
   {
-    icon: UsersRound,
-    title: "Content and editorial teams",
-    body: "Give writers and editors a clear queue of pages to improve without exposing every technical control."
+    icon: FileText,
+    label: "Content teams",
+    body: "Give writers and editors a focused queue of pages to improve without exposing unnecessary integration or execution controls.",
+    href: "/solutions/content-teams"
   },
   {
-    icon: Workflow,
-    title: "In-house SEO teams",
-    body: "Connect analysis to execution and show stakeholders which high-impact work actually reached done."
+    icon: ChartNoAxesCombined,
+    label: "Publishers",
+    body: "Connect a large WordPress inventory to Search Console evidence and prioritize the pages where attention can matter most.",
+    href: "/solutions/publishers"
   }
 ];
 
-const faqs = [
-  {
-    question: "Does the product change WordPress content automatically?",
-    answer:
-      "No. Supported write operations require a preview, validation, a dry run, and explicit confirmation. The system records the action and captures restoration state where rollback is supported."
-  },
-  {
-    question: "Do I need to replace my existing SEO plugin?",
-    answer:
-      "No. SEO Content Control Center is an operations layer. It connects performance evidence, audit findings, tasks, and controlled changes rather than trying to become another title-and-meta plugin."
-  },
-  {
-    question: "Can agencies keep client data separated?",
-    answer:
-      "Yes. Organizations, sites, memberships, jobs, and audit records are tenant-scoped, with role-based permissions around sensitive actions."
-  },
-  {
-    question: "What happens during the trial?",
-    answer:
-      "The 14-day trial supports one site, up to 500 URLs, and two users so your team can validate the workflow with a real WordPress property."
-  }
+const safeguards = [
+  { icon: Eye, label: "Preview before supported writes" },
+  { icon: FlaskConical, label: "Dry run before confirmation" },
+  { icon: BadgeCheck, label: "Explicit human approval" },
+  { icon: KeyRound, label: "Signed WordPress execution" },
+  { icon: RotateCcw, label: "Captured restoration values" },
+  { icon: History, label: "Per-item result and activity history" }
 ];
 
 export default function MarketingHomePage() {
   return (
-    <main>
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">WordPress SEO operations</span>
-          <h1>SEO Content Control Center</h1>
-          <p>
-            Find the WordPress pages costing you traffic, understand why, and turn the evidence into
-            a prioritized backlog your team can execute safely.
-          </p>
-          <div className="hero-actions">
-            <Link className="button" href="/trial">
-              Start free trial
-              <ArrowRight size={17} />
-            </Link>
-            <Link className="button button-secondary" href="/demo">
-              See the workflow
-            </Link>
+    <main className="home-redesign">
+      <section className="home-hero">
+        <div className="home-hero-inner">
+          <div className="home-hero-copy">
+            <span className="eyebrow">WordPress SEO operations</span>
+            <h1>SEO Content Control Center</h1>
+            <p>
+              Find the WordPress pages costing you traffic, understand why, and turn the evidence
+              into a prioritized backlog your team can execute safely.
+            </p>
+            <div className="hero-actions">
+              <Link className="button" href="/trial">
+                Start free trial
+                <ArrowRight size={17} />
+              </Link>
+              <Link className="button button-secondary" href="/demo">
+                See the workflow
+              </Link>
+            </div>
+            <p className="home-hero-note">
+              <Check size={16} />
+              <span>14 days</span>
+              <i aria-hidden="true" />
+              <span>One WordPress site</span>
+              <i aria-hidden="true" />
+              <span>No automatic publishing</span>
+            </p>
           </div>
-          <p className="hero-note">
-            <Check size={15} /> 14 days, one site, no automatic publishing
-          </p>
+
+          <div className="home-hero-scene">
+            <div className="home-scene-label">
+              <span>Live operating view</span>
+              <strong>Evidence → backlog → verified work</strong>
+            </div>
+            <ProductPreview />
+          </div>
         </div>
-        <ProductPreview />
+
+        <div className="home-proof-strip" aria-label="Product principles">
+          <span>WordPress-native</span>
+          <span>Search Console evidence</span>
+          <span>Human-approved changes</span>
+          <span>Tenant-isolated workspaces</span>
+        </div>
       </section>
 
-      <section className="proof-strip" aria-label="Product principles">
-        <span>WordPress-native</span>
-        <span>Search Console evidence</span>
-        <span>Human-approved changes</span>
-        <span>Tenant-isolated workspaces</span>
-      </section>
-
-      <section className="section problem-section">
-        <div className="section-heading split-heading">
+      <section className="home-workflow-section">
+        <div className="home-section-intro">
           <div>
             <span className="eyebrow">From signals to shipped work</span>
-            <h2>Your SEO tools find problems. Your team still has to operationalize them.</h2>
+            <h2>
+              Your SEO tools find problems. The control center turns them into accountable work.
+            </h2>
           </div>
           <p>
-            Search Console, spreadsheets, audit exports, tickets, and WordPress all hold one piece
-            of the story. The control center brings that story into a single workflow with evidence
-            and accountability attached.
+            Search Console, audit exports, spreadsheets, tickets, and WordPress normally hold
+            separate parts of the same story. This workflow keeps the page, evidence, decision, and
+            outcome together.
           </p>
         </div>
-        <div className="workflow-grid">
-          {workflow.map((step) => (
-            <article className="workflow-step" key={step.number}>
-              <span>{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
 
-      <section className="section section-tint">
-        <div className="section-heading">
-          <span className="eyebrow">A connected operations layer</span>
-          <h2>Every finding stays attached to the context needed to act.</h2>
-          <p>
-            Analysis is only useful when someone can decide, assign, execute, and verify the work
-            without reconstructing the evidence from scratch.
-          </p>
-        </div>
-        <div className="capability-grid">
-          {capabilities.map(({ icon: Icon, title, body }) => (
-            <article className="capability" key={title}>
-              <span className="icon-box">
-                <Icon size={20} />
-              </span>
+        <div className="home-workflow-grid">
+          {workflow.map(({ number, icon: Icon, title, body }) => (
+            <article key={number}>
+              <div className="home-step-heading">
+                <span>{number}</span>
+                <Icon size={21} />
+              </div>
               <h3>{title}</h3>
               <p>{body}</p>
             </article>
           ))}
         </div>
-        <Link className="inline-link" href="/features">
-          Explore all product capabilities <ArrowRight size={16} />
-        </Link>
+
+        <div className="home-integration-ledger" aria-label="Connected SEO workflow">
+          <div>
+            <span className="home-source-icon">
+              <PlugZap size={20} />
+            </span>
+            <div>
+              <strong>WordPress</strong>
+              <small>Content, metadata, links</small>
+            </div>
+          </div>
+          <span className="home-operator" aria-hidden="true">
+            +
+          </span>
+          <div>
+            <span className="home-source-icon home-source-icon-coral">
+              <ChartNoAxesCombined size={20} />
+            </span>
+            <div>
+              <strong>Google Search Console</strong>
+              <small>Clicks, impressions, CTR, queries</small>
+            </div>
+          </div>
+          <span className="home-operator" aria-hidden="true">
+            =
+          </span>
+          <div className="home-ledger-result">
+            <span className="home-source-icon">
+              <ListChecks size={20} />
+            </span>
+            <div>
+              <strong>Prioritized SEO backlog</strong>
+              <small>Evidence, owner, decision, outcome</small>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="section">
-        <div className="section-heading split-heading">
+      <section className="home-team-section">
+        <div className="home-section-intro">
           <div>
             <span className="eyebrow">Built around the team</span>
-            <h2>One backlog, with the right controls for every role.</h2>
+            <h2>One backlog, with the right context and controls for every role.</h2>
           </div>
           <p>
-            Owners and administrators control connections and operations. Members move work forward.
-            Viewers can follow progress without gaining write access.
+            Owners and administrators manage connections and sensitive operations. Delivery teams
+            move prioritized work forward. Stakeholders can follow progress without gaining write
+            access.
           </p>
         </div>
-        <div className="audience-grid">
-          {audiences.map(({ icon: Icon, title, body }) => (
-            <article className="audience" key={title}>
-              <Icon size={23} />
-              <h3>{title}</h3>
-              <p>{body}</p>
-            </article>
+
+        <div className="home-audience-list">
+          {audiences.map(({ icon: Icon, label, body, href }, index) => (
+            <Link href={href} key={label}>
+              <span className="home-audience-index">0{index + 1}</span>
+              <span className="home-audience-icon">
+                <Icon size={22} />
+              </span>
+              <span className="home-audience-copy">
+                <strong>{label}</strong>
+                <small>{body}</small>
+              </span>
+              <ArrowRight size={19} />
+            </Link>
           ))}
         </div>
-      </section>
 
-      <section className="integration-band">
-        <div>
-          <span className="eyebrow">Two sources, one operating view</span>
-          <h2>WordPress content context meets Search Console performance.</h2>
-          <p>
-            The plugin syncs content metadata in bounded batches. Google Search Console adds query,
-            page, and period evidence. The backlog connects both without hiding where a
-            recommendation came from.
-          </p>
-        </div>
-        <div className="integration-map" aria-label="WordPress and Search Console integration flow">
-          <div>
-            <PlugZap size={22} />
-            <strong>WordPress</strong>
-            <span>Content, metadata, links</span>
-          </div>
-          <span className="connector-line">+</span>
-          <div>
-            <Gauge size={22} />
-            <strong>Search Console</strong>
-            <span>Clicks, CTR, queries</span>
-          </div>
-          <span className="connector-line">=</span>
-          <div className="map-result">
-            <ListChecks size={22} />
-            <strong>Prioritized backlog</strong>
-            <span>Evidence, owner, outcome</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="section pricing-preview">
-        <div className="section-heading split-heading">
-          <div>
-            <span className="eyebrow">Start with one live site</span>
-            <h2>A 14-day trial that lets the workflow prove itself.</h2>
-          </div>
-          <div>
+        <div className="home-safety-band">
+          <div className="home-safety-copy">
+            <span className="eyebrow">Review-first by design</span>
+            <h2>Useful automation with a visible safety chain.</h2>
             <p>
-              Connect one WordPress property, sync up to 500 URLs, invite a teammate, and see
-              whether the backlog surfaces work worth doing.
+              Supported SEO metadata changes stay bounded from the first preview through the final
+              WordPress result.
             </p>
-            <Link className="inline-link" href="/pricing">
-              Compare plans <ArrowRight size={16} />
+            <Link className="inline-link" href="/security">
+              Review the safeguards <ArrowRight size={16} />
             </Link>
           </div>
+          <div className="home-safeguard-grid">
+            {safeguards.map(({ icon: Icon, label }) => (
+              <div key={label}>
+                <Icon size={18} />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
 
-      <section className="section faq-section">
-        <div className="section-heading">
-          <span className="eyebrow">Questions before you connect a site</span>
-          <h2>Clear answers for review-first teams.</h2>
-        </div>
-        <div className="faq-list">
-          {faqs.map((faq) => (
-            <details key={faq.question}>
-              <summary>{faq.question}</summary>
-              <p>{faq.answer}</p>
-            </details>
-          ))}
-        </div>
+        <CtaBand
+          eyebrow="See it with a real site"
+          title="Use one WordPress site to test the workflow end to end."
+          body="Start a scoped trial, or request a guided walkthrough for a larger site portfolio or agency process."
+        />
       </section>
-
-      <CtaBand />
     </main>
   );
 }
