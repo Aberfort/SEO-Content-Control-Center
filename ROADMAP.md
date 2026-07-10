@@ -96,7 +96,8 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - GSC evidence. Status: traffic loss drops and search opportunities from the latest insight snapshot surface as `gsc_traffic_loss`/`gsc_opportunity` recommendations with metric detail, matched-content labels, and audit/backlog conversion next steps.
 - Manual confirmation. Status: assistant controls prepare safe previews only and keep dry run, confirmation, and execution separate; GSC-sourced recommendations always return disabled preview controls.
 - Source display. Status: assistant recommendation sources are included in API and dashboard output.
-- Usage limits and AI credits. Status: recommendation responses include unmetered monthly AI-credit usage envelopes from plan limits and usage metrics.
+- AI provider. Status: optional env-configured Anthropic provider (`SCCC_AI_PROVIDER`, `SCCC_AI_API_KEY`, `SCCC_AI_MODEL`) adds an AI summary to Prisma-backed assistant responses, with a deterministic fallback whenever the provider is unconfigured or fails.
+- Usage limits and AI credits. Status: each successful AI summary records one `ai_credits` usage metric and marks the response `metered: true`; exhausted plan credits block provider calls before they happen and raise a per-period deduplicated billing-limit notification, while deterministic responses stay unmetered.
 - Disable controls. Status: unsupported assistant actions return disabled controls with reasons.
 
 ## Phase 8 - Billing

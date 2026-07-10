@@ -169,6 +169,12 @@
 - SaaS assistant GSC-sourced recommendations always return disabled safe-preview controls with a conversion or sync-first reason.
 - SaaS assistant recommendations stay read-only and never call Google or WordPress while building GSC evidence.
 - SaaS assistant sorting keeps backlog sources before synced content, traffic loss, and opportunity sources at equal priority.
+- SaaS assistant responses stay deterministic and unmetered while `SCCC_AI_PROVIDER`/`SCCC_AI_API_KEY` are not configured.
+- SaaS assistant AI summaries consume exactly one `ai_credits` usage metric per successful provider call and mark the usage envelope `metered: true`.
+- SaaS assistant AI provider failures fall back to the deterministic response without charging credits.
+- SaaS assistant AI calls are blocked before the provider is reached once monthly plan credits are exhausted, and the AI-credit limit notification is created once per usage period.
+- SaaS assistant AI prompts contain recommendation display fields only and are never logged or persisted.
+- SaaS dashboard shows the AI summary with provider/model attribution while keeping the deterministic recommendation list unchanged.
 - Manual sync does not run a large sync inline.
 - Plugin challenge, exchange, sync, and disconnect endpoints return `429 RATE_LIMITED` with `Retry-After` once their per-IP limits are exceeded.
 - Plugin endpoint rate limits apply before signature verification.

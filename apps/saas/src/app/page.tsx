@@ -338,6 +338,7 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
       : null;
   const assistantRecommendations = assistantRecommendationList?.recommendations ?? [];
   const assistantUsage = assistantRecommendationList?.usage;
+  const assistantAiSummary = assistantRecommendationList?.aiSummary ?? null;
   const currentHref = buildContentHref(params, {});
   const onboardingChecklist = buildOnboardingChecklist({
     organization: activeOrganization,
@@ -946,10 +947,20 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
               {assistantUsage ? (
                 <span className="metric-pill">
                   {assistantUsage.used}/{assistantUsage.limit} AI credits
+                  {assistantUsage.metered ? " (metered)" : ""}
                 </span>
               ) : null}
             </div>
           </div>
+          {assistantAiSummary ? (
+            <div className="assistant-ai-summary">
+              <p>{assistantAiSummary.text}</p>
+              <small>
+                AI summary from {assistantAiSummary.provider} ({assistantAiSummary.model}); the
+                recommendations below stay deterministic and read-only.
+              </small>
+            </div>
+          ) : null}
           {assistantRecommendations.length > 0 ? (
             <ul className="assistant-list">
               {assistantRecommendations.map((recommendation) => (

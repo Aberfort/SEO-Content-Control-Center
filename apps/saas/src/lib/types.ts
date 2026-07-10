@@ -321,12 +321,19 @@ export type AssistantUsage = {
   limit: number;
   remaining: number;
   limited: boolean;
-  metered: false;
+  metered: boolean;
+};
+
+export type AssistantAiSummary = {
+  text: string;
+  provider: string;
+  model: string;
 };
 
 export type AssistantRecommendationList = {
   recommendations: AssistantRecommendation[];
   usage: AssistantUsage;
+  aiSummary: AssistantAiSummary | null;
 };
 
 export type AssistantRecommendationListOptions = {

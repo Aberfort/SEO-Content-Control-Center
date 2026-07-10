@@ -8,6 +8,7 @@ type AssistantUsageInput = {
   planCode?: string | null;
   used?: number | null;
   referenceDate?: Date;
+  metered?: boolean;
 };
 
 export function buildAssistantUsage(input: AssistantUsageInput = {}): AssistantUsage {
@@ -24,7 +25,7 @@ export function buildAssistantUsage(input: AssistantUsageInput = {}): AssistantU
     limit,
     remaining: Math.max(limit - used, 0),
     limited: limit > 0 && used >= limit,
-    metered: false
+    metered: input.metered ?? false
   };
 }
 

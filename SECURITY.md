@@ -88,8 +88,11 @@
 - Bulk notification read updates require organization read permission, same-origin browser checks, and organization scoping.
 - Safe content operation lifecycle notifications must be created only after the scoped operation transition is accepted.
 - Assistant recommendations require backlog read permission and organization/site scoping before source evidence is loaded.
-- Assistant recommendations must remain read-only, display source evidence, and must not call external AI providers or mutate WordPress content in the MVP.
-- Assistant recommendation usage envelopes must read scoped plan and usage data without incrementing AI credits for deterministic recommendations.
+- Assistant recommendations must remain read-only, display source evidence, and must not mutate WordPress content; the optional AI provider call only adds a summary on top of the deterministic recommendations.
+- Assistant recommendation usage envelopes must read scoped plan and usage data without incrementing AI credits for deterministic recommendations; exactly one `ai_credits` usage metric is recorded per successful AI summary, and provider failures never charge credits.
+- The assistant AI provider key (`SCCC_AI_API_KEY`) must come from the environment or secret manager, must never be logged, and must never be persisted.
+- Assistant AI prompts are built from recommendation display fields only, must never contain credentials, tokens, or tenant secrets, and are never persisted or logged.
+- When the plan's monthly AI credits are exhausted, AI provider calls must be blocked before they happen and surfaced through a per-period deduplicated billing-limit notification.
 - Assistant recommendation controls may prepare existing safe previews only for backlog-sourced recommendations and must keep later dry run, confirmation, and execution as separate user actions.
 - Unsupported assistant controls must be disabled with a reason instead of silently attempting mutation or task creation.
 - Billing overview reads require `billing:read`, stay scoped to the authenticated member's organization, and must not create checkout sessions or mutate subscriptions.

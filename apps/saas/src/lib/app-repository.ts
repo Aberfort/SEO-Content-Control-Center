@@ -116,6 +116,7 @@ import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
 } from "./content-health";
+import { getAssistantAiConfig, generateAssistantAiSummary } from "./ai-provider";
 import { buildAuditIssueInputsFromSyncedContent } from "./audit-issue-generation";
 import { matchTrafficLossPages, type SyncedContentUrlEntry } from "./gsc-content-matching";
 import {
@@ -149,7 +150,11 @@ import {
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
-import { buildBillingLimitNotification } from "./billing-limit-notifications";
+import {
+  aiCreditLimitNotificationType,
+  buildAiCreditLimitNotification,
+  buildBillingLimitNotification
+} from "./billing-limit-notifications";
 import { isBillingPortalConfigured } from "./billing-portal";
 import {
   calculateTrialEndsAt,
@@ -172,9 +177,11 @@ import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-tok
 import type {
   ActivityLog,
   AppUser,
+  AssistantAiSummary,
   AssistantRecommendation,
   AssistantRecommendationList,
   AssistantRecommendationListOptions,
+  AssistantUsage,
   Audit,
   AuditIssue,
   AuditIssueSummary,
@@ -2102,14 +2109,68 @@ const prismaRepository: AppRepository = {
       ),
       ...gscRecommendations
     ];
+    const sortedRecommendations = sortAssistantRecommendations(recommendations).slice(
+      0,
+      parsed.limit ?? 5
+    );
+    const usedCredits = usage._sum.value ?? 0;
+    let assistantUsage = buildAssistantUsage({
+      planCode: subscription?.plan.code,
+      used: usedCredits,
+      referenceDate: usageReferenceDate
+    });
+    let aiSummary: AssistantAiSummary | null = null;
+    const aiConfig = getAssistantAiConfig();
+
+    if (aiConfig && sortedRecommendations.length > 0) {
+      if (assistantUsage.limited) {
+        await createAiCreditLimitNotificationOncePerPeriod({
+          organizationId,
+          usage: assistantUsage,
+          planName: subscription?.plan.name ?? "Trial",
+          periodStart: period.periodStart
+        });
+      } else {
+        try {
+          aiSummary = await generateAssistantAiSummary({
+            config: aiConfig,
+            recommendations: sortedRecommendations
+          });
+        } catch (error) {
+          // Provider failures fall back to the deterministic response and
+          // never consume a credit. Only the error message is logged; prompts
+          // and keys are never logged or persisted.
+          console.warn(
+            "Assistant AI provider call failed; serving deterministic recommendations.",
+            error instanceof Error ? error.message : String(error)
+          );
+          aiSummary = null;
+        }
+
+        if (aiSummary) {
+          await prisma.usageMetric.create({
+            data: {
+              organizationId,
+              metric: assistantUsageMetric,
+              value: 1,
+              periodStart: period.periodStart,
+              periodEnd: period.periodEnd
+            }
+          });
+          assistantUsage = buildAssistantUsage({
+            planCode: subscription?.plan.code,
+            used: usedCredits + 1,
+            referenceDate: usageReferenceDate,
+            metered: true
+          });
+        }
+      }
+    }
 
     return {
-      recommendations: sortAssistantRecommendations(recommendations).slice(0, parsed.limit ?? 5),
-      usage: buildAssistantUsage({
-        planCode: subscription?.plan.code,
-        used: usage._sum.value,
-        referenceDate: usageReferenceDate
-      })
+      recommendations: sortedRecommendations,
+      usage: assistantUsage,
+      aiSummary
     };
   },
 
@@ -4838,6 +4899,48 @@ async function buildDbTrafficLossIssueInputs(
     currentRange: pages.currentRange,
     baselineRange: pages.baselineRange,
     propertyUrl: snapshot.propertyUrl
+  });
+}
+
+/**
+ * Persists the AI-credit limit notification at most once per usage period so
+ * repeated assistant reads while the allowance is exhausted do not spam the
+ * notification list.
+ */
+async function createAiCreditLimitNotificationOncePerPeriod(input: {
+  organizationId: string;
+  usage: AssistantUsage;
+  planName: string;
+  periodStart: Date;
+}): Promise<void> {
+  const notification = buildAiCreditLimitNotification({
+    usage: input.usage,
+    planName: input.planName
+  });
+
+  if (!notification) {
+    return;
+  }
+
+  const existing = await prisma.notification.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      type: aiCreditLimitNotificationType,
+      createdAt: {
+        gte: input.periodStart
+      }
+    }
+  });
+
+  if (existing) {
+    return;
+  }
+
+  await prisma.notification.create({
+    data: {
+      organizationId: input.organizationId,
+      ...notification
+    }
   });
 }
 

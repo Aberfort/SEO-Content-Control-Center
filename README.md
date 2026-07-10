@@ -95,6 +95,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - audit runs materialize matched Search Console traffic loss drops as deduplicated `gsc.traffic-loss` audit issues with detection-derived severity and comparison evidence;
 - deterministic Search Console opportunity detection (CTR below a position benchmark, striking distance positions 5-15) with a read-only endpoint, a dashboard panel, and one-click conversion of matched pages into backlog tasks through the existing candidate mechanism;
 - assistant recommendations sourced from Search Console traffic loss and opportunity evidence with metric details, read-only safeguards, and safe-preview controls enabled only for backlog-sourced recommendations;
+- optional env-configured Anthropic AI provider (`SCCC_AI_PROVIDER`, `SCCC_AI_API_KEY`, `SCCC_AI_MODEL`) that adds an AI summary to assistant responses, meters one `ai_credits` usage metric per successful summary, blocks calls once plan credits are exhausted with a deduplicated notification, and falls back to deterministic responses without charging on provider failures;
 - SaaS synced content inventory with search, filters, and cursor pagination;
 - SaaS synced content detail panel and tenant-scoped detail API;
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex, canonical mismatch, and link-count signals;

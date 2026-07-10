@@ -1510,7 +1510,9 @@ Response:
 
 `GET /api/organizations/:organizationId/sites/:siteId/assistant/recommendations`
 
-Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. The MVP derives recommendations from existing backlog tasks, synced content health evidence, and persisted Google Search Console evidence. It does not call an external AI provider, does not mutate WordPress or SaaS records, and returns the current AI-credit usage envelope without charging credits for deterministic recommendations. Backlog-sourced recommendations may include an enabled safe-preview action; all other sources return disabled controls with a reason.
+Lists read-only assistant recommendations for a tenant-scoped site when the member has `backlog:read`. Recommendations are always derived deterministically from existing backlog tasks, synced content health evidence, and persisted Google Search Console evidence, never mutate WordPress or SaaS records, and never charge AI credits by themselves. Backlog-sourced recommendations may include an enabled safe-preview action; all other sources return disabled controls with a reason.
+
+When an AI provider is configured (`SCCC_AI_PROVIDER=anthropic` plus `SCCC_AI_API_KEY`, optional `SCCC_AI_MODEL`, Prisma-backed store only), the response additionally carries `aiSummary` (`text`, `provider`, `model`) generated from the recommendation display fields, and each successful summary consumes one `ai_credits` usage metric with `usage.metered: true`. Provider failures fall back to the deterministic response (`aiSummary: null`, unmetered, no charge). When the plan's monthly AI credits are exhausted the provider is not called, `usage.limited` is `true`, and a `billing.limit.ai_credits_reached` notification is created once per usage period. Prompts are built from recommendation display fields only and are never persisted.
 
 GSC-sourced recommendations reuse the deterministic detection lines: `gsc_traffic_loss` sources come from page-level click drops between the latest insight snapshot and the snapshot from 7 days earlier (priority `high` at a 50% drop or more, otherwise `medium`), and `gsc_opportunity` sources come from CTR-opportunity and striking-distance detection. Entries matched to synced WordPress content reuse the opportunity candidate copy and point at audit/backlog conversion next steps; unmatched entries stay visible with sync-first next steps. Source `detail` carries the click or position/CTR/impression metrics. Recommendations sort backlog tasks first, then synced content, traffic loss, and opportunities within the same priority.
 
@@ -1560,7 +1562,20 @@ Response:
       "remaining": 500,
       "limited": false,
       "metered": false
-    }
+    },
+    "aiSummary": null
+  }
+}
+```
+
+With a configured AI provider and remaining credits, `aiSummary` is populated and the usage envelope is metered:
+
+```json
+{
+  "aiSummary": {
+    "text": "Fix the missing SEO title on the pricing page first; it backs the highest-priority backlog task...",
+    "provider": "anthropic",
+    "model": "claude-opus-4-8"
   }
 }
 ```

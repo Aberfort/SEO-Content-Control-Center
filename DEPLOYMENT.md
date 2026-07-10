@@ -36,6 +36,16 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Worker process.
 - WordPress plugin release artifact.
 
+## Assistant AI Provider
+
+The assistant stays fully deterministic unless an AI provider is configured on the SaaS app:
+
+- `SCCC_AI_PROVIDER=anthropic` selects the provider (`anthropic` is the only supported value).
+- `SCCC_AI_API_KEY` supplies the provider API key from the secret manager; it is never logged or persisted.
+- `SCCC_AI_MODEL` optionally overrides the model (default `claude-opus-4-8`).
+
+AI summaries require the Prisma-backed data store (`SCCC_DATA_STORE=prisma` with `DATABASE_URL`) because each successful AI response consumes one persisted `ai_credits` usage metric. Without provider configuration — or when the plan's monthly AI credits are exhausted — assistant responses stay deterministic and unmetered.
+
 ## Zero-Downtime Strategy
 
 - Use backward-compatible database migrations.

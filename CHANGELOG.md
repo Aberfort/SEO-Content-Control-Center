@@ -2,6 +2,17 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 95
+
+- Added an optional real AI provider for the assistant behind environment configuration: `SCCC_AI_PROVIDER=anthropic`, `SCCC_AI_API_KEY`, and optional `SCCC_AI_MODEL` (default `claude-opus-4-8`) using the official Anthropic SDK.
+- Added an `aiSummary` field to assistant recommendation responses: a bounded plain-text summary of the top deterministic recommendations with provider/model attribution, shown on the dashboard assistant panel.
+- Added real AI-credit metering: each successful AI summary persists one `ai_credits` usage metric and returns `usage.metered: true`; deterministic responses stay unmetered and free.
+- Added plan-limit enforcement: exhausted monthly AI credits block the provider call before it happens, keep the response deterministic, and create a `billing.limit.ai_credits_reached` notification deduplicated per usage period.
+- Added a deterministic fallback for provider failures: the response degrades to `aiSummary: null` without consuming a credit, logging only the error message.
+- Built AI prompts from recommendation display fields only, with no credentials, tokens, or tenant secrets, and never persisted or logged prompts or the API key.
+- Kept the dev store deterministic-only (`aiSummary: null`) because AI credits cannot be metered without persistent usage storage; documented the Prisma-backed requirement.
+- Added unit tests for provider configuration parsing, prompt bounding and content, summary generation with an injected completer (trim/empty/oversize/failure paths), metered usage envelopes, and the AI-credit limit notification.
+
 ### Iteration 94
 
 - Added read-only assistant recommendations sourced from persisted Google Search Console evidence without calling Google or an external AI provider.

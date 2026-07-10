@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBillingLimitNotification } from "./billing-limit-notifications";
+import { buildAssistantUsage } from "./assistant-usage";
+import {
+  buildAiCreditLimitNotification,
+  buildBillingLimitNotification
+} from "./billing-limit-notifications";
 
 describe("billing limit notifications", () => {
   it("builds notifications only for reached finite gates", () => {
@@ -55,5 +59,31 @@ describe("billing limit notifications", () => {
         planName: "Trial"
       })
     ).toBeNull();
+  });
+});
+
+describe("buildAiCreditLimitNotification", () => {
+  it("returns null while credits remain", () => {
+    expect(
+      buildAiCreditLimitNotification({
+        usage: buildAssistantUsage({ planCode: "PRO", used: 1 }),
+        planName: "Pro"
+      })
+    ).toBeNull();
+  });
+
+  it("builds a notification when the monthly AI credits are exhausted", () => {
+    const usage = buildAssistantUsage({ planCode: "PRO", used: 500 });
+
+    expect(
+      buildAiCreditLimitNotification({
+        usage,
+        planName: "Pro"
+      })
+    ).toEqual({
+      type: "billing.limit.ai_credits_reached",
+      title: "AI credit limit reached",
+      body: "500 of 500 monthly AI credits are now used on the Pro plan. Assistant responses stay deterministic until the next period or an upgrade."
+    });
   });
 });

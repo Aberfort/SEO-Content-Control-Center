@@ -22,3 +22,16 @@ describe("assistant usage", () => {
     });
   });
 });
+
+describe("metered usage envelopes", () => {
+  it("keeps deterministic responses unmetered by default", () => {
+    expect(buildAssistantUsage({ planCode: "PRO", used: 3 }).metered).toBe(false);
+  });
+
+  it("marks AI-backed responses as metered", () => {
+    const usage = buildAssistantUsage({ planCode: "PRO", used: 4, metered: true });
+
+    expect(usage.metered).toBe(true);
+    expect(usage.used).toBe(4);
+  });
+});

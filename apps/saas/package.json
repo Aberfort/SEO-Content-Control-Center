@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@sccc/database": "0.1.0",
     "@sccc/gsc": "0.1.0",
     "@sccc/queue": "0.1.0",

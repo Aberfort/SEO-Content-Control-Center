@@ -1326,7 +1326,10 @@ export function listAssistantRecommendationsForSite(
       ...recommendations,
       ...gscRecommendations
     ]).slice(0, parsed.limit ?? 5),
-    usage: buildAssistantUsage()
+    usage: buildAssistantUsage(),
+    // The dev store never calls the AI provider: credits cannot be metered
+    // without persistent usage storage, so dev mode stays deterministic-only.
+    aiSummary: null
   };
 }
 
