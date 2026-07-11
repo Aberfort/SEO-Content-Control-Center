@@ -2,10 +2,17 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 106
+
+- Completed a launch-readiness audit pass on the public homepage across desktop, tablet, mobile, and 320px narrow mobile viewports.
+- Unified the homepage visual rhythm by lightening workflow and audience sections, tightening hero spacing, preserving the dark trust/CTA moments, and making the proof strip, footer, and product preview more compact on mobile.
+- Fixed homepage product-preview internal overflow, added an SVG app icon to stop the `/favicon.ico` launch smoke 404, and verified the page has no document-level or internal overflow at audited breakpoints.
+
 ### Iteration 105
 
 - Reworked the public marketing header into a compact command-style navigation with quick desktop links, a modern burger-triggered mega-menu, and grouped Platform, Solutions, and Resources paths.
 - Added responsive mobile menu grouping, bounded panel scrolling, burger state motion, hover reveals, and reduced-motion coverage while preserving the existing login, demo, trial, and public route contracts.
+- Lightened the closed header state by removing the boxed header shell, quick-nav pill, extra borders, and redundant icon chrome while keeping the mega-menu presentation intact.
 
 ### Iteration 104
 

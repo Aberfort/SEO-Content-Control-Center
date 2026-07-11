@@ -4,7 +4,6 @@ import {
   Building2,
   FileText,
   Layers3,
-  LogIn,
   Menu,
   PlugZap,
   ScanSearch,
@@ -172,7 +171,6 @@ export function SiteHeader() {
             </div>
           </details>
           <a className="text-action" href={loginUrl}>
-            <LogIn size={16} />
             Log in
           </a>
           <Link className="button button-small button-dark" href="/trial">
