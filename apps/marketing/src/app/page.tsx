@@ -4,7 +4,6 @@ import {
   BadgeCheck,
   Blocks,
   ChartNoAxesCombined,
-  Check,
   ClipboardCheck,
   Eye,
   FileText,
@@ -12,6 +11,7 @@ import {
   History,
   KeyRound,
   ListChecks,
+  LockKeyhole,
   PlugZap,
   RotateCcw
 } from "lucide-react";
@@ -79,21 +79,29 @@ const safeguards = [
   { icon: History, label: "Per-item result and activity history" }
 ];
 
+const platformFacts = [
+  "WordPress-native inventory",
+  "Search Console evidence",
+  "Human-approved execution",
+  "Tenant-isolated workspaces"
+];
+
 export default function MarketingHomePage() {
   return (
     <main className="home-redesign">
       <section className="home-hero">
         <div className="home-hero-inner">
           <div className="home-hero-copy">
-            <span className="eyebrow">WordPress SEO operations</span>
-            <h1>SEO Content Control Center</h1>
+            <span className="home-hero-kicker">WordPress SEO operations</span>
+            <h1>Find the pages costing you traffic. Approve every fix.</h1>
             <p>
-              Find the WordPress pages costing you traffic, understand why, and turn the evidence
-              into a prioritized backlog your team can execute safely.
+              SEO Content Control Center connects WordPress, Search Console, and your team review
+              process so high-impact SEO work moves from evidence to approval without spreadsheets
+              or hidden publishing.
             </p>
             <div className="hero-actions">
-              <Link className="button" href="/trial">
-                Start free trial
+              <Link className="button button-dark" href="/trial">
+                Start trial
                 <ArrowRight size={17} />
               </Link>
               <Link className="button button-secondary" href="/demo">
@@ -101,7 +109,7 @@ export default function MarketingHomePage() {
               </Link>
             </div>
             <p className="home-hero-note">
-              <Check size={16} />
+              <LockKeyhole size={15} />
               <span>14 days</span>
               <i aria-hidden="true" />
               <span>One WordPress site</span>
@@ -112,18 +120,17 @@ export default function MarketingHomePage() {
 
           <div className="home-hero-scene">
             <div className="home-scene-label">
-              <span>Live operating view</span>
-              <strong>Evidence → backlog → verified work</strong>
+              <span>Live workflow</span>
+              <strong>Evidence → backlog → review → execution</strong>
             </div>
             <ProductPreview />
           </div>
         </div>
 
         <div className="home-proof-strip" aria-label="Product principles">
-          <span>WordPress-native</span>
-          <span>Search Console evidence</span>
-          <span>Human-approved changes</span>
-          <span>Tenant-isolated workspaces</span>
+          {platformFacts.map((fact) => (
+            <span key={fact}>{fact}</span>
+          ))}
         </div>
       </section>
 
@@ -131,9 +138,7 @@ export default function MarketingHomePage() {
         <div className="home-section-intro">
           <div>
             <span className="eyebrow">From signals to shipped work</span>
-            <h2>
-              Your SEO tools find problems. The control center turns them into accountable work.
-            </h2>
+            <h2>Search data is only useful when the next action is obvious.</h2>
           </div>
           <p>
             Search Console, audit exports, spreadsheets, tickets, and WordPress normally hold
@@ -196,7 +201,7 @@ export default function MarketingHomePage() {
         <div className="home-section-intro">
           <div>
             <span className="eyebrow">Built around the team</span>
-            <h2>One backlog, with the right context and controls for every role.</h2>
+            <h2>A shared queue for agencies, editors, and publishers.</h2>
           </div>
           <p>
             Owners and administrators manage connections and sensitive operations. Delivery teams
@@ -224,7 +229,7 @@ export default function MarketingHomePage() {
         <div className="home-safety-band">
           <div className="home-safety-copy">
             <span className="eyebrow">Review-first by design</span>
-            <h2>Useful automation with a visible safety chain.</h2>
+            <h2>Automation that stops at the right moments.</h2>
             <p>
               Supported SEO metadata changes stay bounded from the first preview through the final
               WordPress result.
@@ -244,9 +249,9 @@ export default function MarketingHomePage() {
         </div>
 
         <CtaBand
-          eyebrow="See it with a real site"
-          title="Use one WordPress site to test the workflow end to end."
-          body="Start a scoped trial, or request a guided walkthrough for a larger site portfolio or agency process."
+          eyebrow="Start with one site"
+          title="Turn the next audit into work your team can approve."
+          body="Connect WordPress and Search Console, build a prioritized backlog, and keep every supported write review-first."
         />
       </section>
     </main>

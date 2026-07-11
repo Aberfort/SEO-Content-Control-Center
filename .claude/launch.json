@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "saas",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@sccc/saas"],
+      "port": 3000
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@sccc/marketing"],
+      "port": 3001
+    }
+  ]
+}

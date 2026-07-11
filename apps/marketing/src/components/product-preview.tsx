@@ -2,23 +2,23 @@ import { AlertTriangle, ArrowDownRight, CircleCheck, ListFilter, Search } from "
 
 const backlog = [
   {
-    page: "Best running shoes for flat feet",
+    page: "/wordpress-seo-guide",
     signal: "Clicks down 31%",
     issue: "CTR decline",
     impact: 18,
     tone: "high"
   },
   {
-    page: "Standing desk review",
-    signal: "8 competing queries",
-    issue: "Thin coverage",
+    page: "/enterprise-content-audit",
+    signal: "Missing metadata",
+    issue: "Title gap",
     impact: 13,
     tone: "medium"
   },
   {
-    page: "Managed WordPress comparison",
-    signal: "Title shared by 3 URLs",
-    issue: "Duplicate title",
+    page: "/publisher-archive",
+    signal: "Noindex detected",
+    issue: "Robots review",
     impact: 9,
     tone: "low"
   }
@@ -37,17 +37,17 @@ export function ProductPreview() {
       <div className="preview-main">
         <div className="preview-toolbar">
           <div>
-            <span className="preview-kicker">Acme Publishing</span>
-            <strong>SEO backlog</strong>
+            <span className="preview-kicker">Search Console connected</span>
+            <strong>Review queue</strong>
           </div>
           <div className="preview-search">
             <Search size={13} />
-            Search tasks
+            Filter evidence
           </div>
         </div>
         <div className="preview-metrics">
           <div>
-            <span>High-impact tasks</span>
+            <span>Ready for review</span>
             <strong>24</strong>
             <small className="negative">
               <AlertTriangle size={12} /> 7 need review
@@ -61,7 +61,7 @@ export function ProductPreview() {
             </small>
           </div>
           <div>
-            <span>Resolved this week</span>
+            <span>Approved this week</span>
             <strong>11</strong>
             <small className="positive">
               <CircleCheck size={12} /> 6 verified

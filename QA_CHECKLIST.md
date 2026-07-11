@@ -238,6 +238,7 @@
 
 - Home, Features, Product, Integrations, agency/editorial/publisher solution pages, Knowledge Base, SEO briefings, Changelog, Contact, service information, Pricing, Security, Demo, Trial, Privacy, Terms, Cookies, `robots.txt`, and `sitemap.xml` return successfully in the production build.
 - Public pricing values and limits match the shared `@sccc/shared` plan contract.
+- The Vercel-inspired monochrome marketing pass keeps header navigation, hero CTAs, product preview, workflow cards, audience rows, and the dark safety band readable without colored SaaS accents or fake proof.
 - Desktop and mobile layouts have no document-level horizontal overflow; navigation, expanded footer, timeline/status rows, pricing cards, comparison scrolling, forms, and product previews remain readable without overlap.
 - The homepage product hero keeps the trial note clear of the dashboard preview, leaves the product-principle strip visible, and preserves readable CTA and dashboard framing at 1440px and 390px viewports.
 - Demo lead validation rejects missing fields, invalid email/website values, oversized notes, and missing consent.

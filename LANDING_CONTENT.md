@@ -38,20 +38,12 @@ Iteration 101 completes the remaining public-content routes: Product, Integratio
 
 ## Home Page Blocks
 
-- Hero.
-- Social proof.
-- Problem: Ahrefs + GSC + Sheets + WordPress chaos.
-- How it works.
-- SaaS dashboard screenshots.
-- Backlog screenshots.
-- GSC insights.
-- WordPress sync.
-- Safe bulk operations.
-- Use cases.
-- Integrations.
-- Security.
-- Pricing preview.
-- FAQ.
+- Vercel-inspired hero: concise evidence-to-approval headline, trial/workflow CTAs, no-automatic-publishing note, and product console preview.
+- Platform proof strip: WordPress-native inventory, Search Console evidence, human approval, tenant isolation.
+- Workflow: connect evidence, prioritize work, review/apply/verify.
+- Integration ledger: WordPress + Search Console = prioritized SEO backlog.
+- Audience paths: agencies, content teams, publishers.
+- Review-first safety band: preview, dry run, approval, signed execution, restoration values, activity history.
 - Demo/trial CTA.
 
 ## Claims Guardrails

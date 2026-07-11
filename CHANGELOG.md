@@ -2,6 +2,18 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 105
+
+- Reworked the public marketing header into a compact command-style navigation with quick desktop links, a modern burger-triggered mega-menu, and grouped Platform, Solutions, and Resources paths.
+- Added responsive mobile menu grouping, bounded panel scrolling, burger state motion, hover reveals, and reduced-motion coverage while preserving the existing login, demo, trial, and public route contracts.
+
+### Iteration 104
+
+- Rebuilt the public marketing presentation layer in a Vercel-inspired monochrome direction: compact glassy header, pill navigation, restrained buttons, sharper product preview framing, technical grid hero, and high-contrast safety section.
+- Reworked the homepage copy and section hierarchy around a concise evidence-to-approval story while preserving the existing routes, demo/trial links, review-first claims, and real `ProductPreview` component.
+- Added subtle CSS entrance animations, grid backgrounds, border-based visual rhythm, reduced-motion safeguards, and responsive homepage overrides for desktop, tablet, and mobile.
+- Updated public marketing QA expectations for the new minimal design pass and added the Next.js smooth-scroll layout attribute.
+
 ### Iteration 103
 
 - Rebuilt the marketing homepage as a three-section product narrative: an immersive backlog hero, an evidence-to-work workflow, and a team plus review-first safety section.

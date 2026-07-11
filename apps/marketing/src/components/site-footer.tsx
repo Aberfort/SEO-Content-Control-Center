@@ -12,9 +12,12 @@ export function SiteFooter() {
             <span className="brand-mark" aria-hidden="true">
               <ScanSearch size={20} />
             </span>
-            <span>SEO Content Control Center</span>
+            <span className="brand-text">
+              <span>SEO Content</span>
+              <span>Control Center</span>
+            </span>
           </Link>
-          <p>One evidence-backed workflow for WordPress SEO operations.</p>
+          <p>Evidence, backlog, review, and safe WordPress execution in one calm workflow.</p>
         </div>
 
         <div className="footer-links">
