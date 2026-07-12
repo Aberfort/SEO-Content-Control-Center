@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-12T06:43:00Z",
+  "title": "Design System: SEO Content Control Center (Marketing)",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "#050505",
+        "tonalRamp": ["#000000", "#111111", "#222222", "#333333", "#555555", "#777777", "#999999", "#cccccc"]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Page Background",
+        "canonical": "#fafafa",
+        "tonalRamp": ["#f0f0f0", "#f3f3f3", "#f5f5f5", "#f7f7f7", "#f9f9f9", "#fafafa", "#fcfcfc", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headlines only."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Core reading passages and standard text."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Standard deceleration curve for state transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "375px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary call to action.",
+      "html": "<button class=\"ds-btn-primary\">Get Started</button>",
+      "css": ".ds-btn-primary { background: #050505; color: #ffffff; padding: 0 20px; height: 46px; border: 1px solid #050505; border-radius: 6px; font-size: 14px; font-weight: 560; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, transform 150ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-primary:hover { background: #333333; border-color: #333333; transform: translateY(-1px); } .ds-btn-primary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary or fallback action.",
+      "html": "<button class=\"ds-btn-secondary\">Learn More</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #050505; padding: 0 20px; height: 46px; border: 1px solid #d4d4d4; border-radius: 6px; font-size: 14px; font-weight: 560; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, transform 150ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-secondary:hover { background: #f5f5f5; border-color: #bdbdbd; transform: translateY(-1px); } .ds-btn-secondary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Card Container",
+      "kind": "card",
+      "refersTo": "surface",
+      "description": "Content block container.",
+      "html": "<div class=\"ds-card\"><h4 class=\"ds-card-title\">Card Header</h4><p class=\"ds-card-body\">This is a structured card displaying ledger content.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #eaeaea; border-radius: 6px; padding: 24px; } .ds-card-title { margin: 0 0 8px 0; font-size: 18px; font-weight: 560; color: #050505; } .ds-card-body { margin: 0; font-size: 16px; line-height: 1.5; color: #666666; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Swiss Grid Ledger",
+    "overview": "A stark, high-precision layout engine resembling a professional operating console or a financial ledger. It rejects decorative fluff, generic AI gradients, and round bubbles, focusing instead on strict layout grids, structured lists, typographic hierarchies, and explicit human-approval indicators.",
+    "keyCharacteristics": [
+      "Strict alignment to a clean typographic grid.",
+      "Boundaries defined by crisp 1px borders rather than shadows or depth effects.",
+      "Solid background fills using structured light grays and rich ink.",
+      "Functional typography emphasizing readability and content priority."
+    ],
+    "rules": [
+      {
+        "name": "The No-Gradients Rule",
+        "body": "Gradients are strictly forbidden. All panels, backgrounds, and display titles must use solid, clean colors.",
+        "section": "colors"
+      },
+      {
+        "name": "The Border-as-Structure Rule",
+        "body": "Depth is created solely through 1px border lines, not box shadows.",
+        "section": "colors"
+      },
+      {
+        "name": "The Balanced Line Rule",
+        "body": "Headings must use text-wrap: balance to prevent awkward line breaks and layout orphans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "Do not use drop shadows to represent card elevation. Separations are created via borders (#eaeaea) and container background fills (#ffffff).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do align columns, blocks, and forms strictly to the grid structure.",
+      "Do ensure all text hits a minimum of 4.5:1 contrast ratio against its background.",
+      "Do support prefers-reduced-motion to swap transitions for instant state changes."
+    ],
+    "donts": [
+      "Don't use purple/blue gradients or blurry neon glow spheres.",
+      "Don't use tiny uppercase kickers above every section.",
+      "Don't use sketchy hand-drawn SVGs or doodles.",
+      "Don't pair rounded borders of 32px or more. Maximum border radius is 6px."
+    ]
+  }
+}

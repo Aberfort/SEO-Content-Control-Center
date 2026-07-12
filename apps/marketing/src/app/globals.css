@@ -15,6 +15,9 @@
   --success: #111111;
   --shadow-soft: 0 24px 80px rgba(0, 0, 0, 0.08);
   --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -206,7 +209,7 @@ svg {
     background 150ms ease,
     border-color 150ms ease,
     box-shadow 150ms ease,
-    transform 150ms ease;
+    transform 150ms var(--ease-out);
 }
 
 .button:hover {
@@ -214,6 +217,11 @@ svg {
   border-color: #bdbdbd;
   box-shadow: var(--shadow-card);
   transform: translateY(-1px);
+}
+
+.button:active {
+  box-shadow: none;
+  transform: scale(0.97);
 }
 
 .button-dark {
@@ -750,6 +758,14 @@ svg {
   font-weight: 800;
   gap: 7px;
   margin-top: 32px;
+}
+
+.inline-link svg {
+  transition: transform 160ms var(--ease-out);
+}
+
+.inline-link:hover svg {
+  transform: translateX(3px);
 }
 
 .audience-grid {
@@ -3980,24 +3996,28 @@ body {
 }
 
 .home-hero-inner {
+  align-items: center;
   display: grid;
-  gap: 52px;
-  grid-template-columns: minmax(0, 0.88fr) minmax(480px, 1fr);
+  gap: clamp(42px, 4vw, 64px);
+  grid-template-columns: minmax(0, 1.06fr) minmax(520px, 0.94fr);
   height: auto;
   margin: 0 auto;
   max-height: none;
-  max-width: 1180px;
-  min-height: min(720px, calc(100svh - 62px));
+  max-width: 1240px;
+  min-height: 0;
   min-width: 0;
   overflow: visible;
-  padding: 72px 28px 42px;
+  padding: clamp(78px, 10vh, 124px) 28px 70px;
   position: relative;
+  text-align: left;
   z-index: 1;
 }
 
 .home-hero-copy {
-  align-self: center;
-  animation: riseIn 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  align-items: flex-start;
+  animation: riseIn 640ms var(--ease-emphasis) both;
+  display: flex;
+  flex-direction: column;
   max-width: 640px;
   min-width: 0;
   width: 100%;
@@ -4026,25 +4046,27 @@ body {
 
 .home-hero-copy h1 {
   color: #000000;
-  font-size: clamp(3rem, 5.6vw, 5.2rem);
+  font-size: clamp(3rem, 4.8vw, 4.65rem);
   font-weight: 650;
-  letter-spacing: -0.055em;
-  line-height: 0.94;
-  margin: 19px 0 0;
-  max-width: min(680px, 100%);
+  letter-spacing: -0.044em;
+  line-height: 0.95;
+  margin: 20px 0 0;
+  max-width: 640px;
   text-wrap: balance;
+  word-spacing: 0.025em;
 }
 
 .home-hero-copy > p:not(.home-hero-note) {
   color: #5f5f5f;
-  font-size: 18px;
-  line-height: 1.65;
-  margin: 27px 0 0;
-  max-width: min(590px, 100%);
+  font-size: clamp(16px, 1.4vw, 18px);
+  line-height: 1.6;
+  margin: 22px 0 0;
+  max-width: 54ch;
 }
 
 .hero-actions {
   gap: 10px;
+  justify-content: flex-start;
   margin-top: 30px;
 }
 
@@ -4055,7 +4077,8 @@ body {
   flex-wrap: wrap;
   font-size: 12px;
   gap: 10px;
-  margin: 18px 0 0;
+  justify-content: flex-start;
+  margin: 20px 0 0;
 }
 
 .home-hero-note i {
@@ -4067,21 +4090,22 @@ body {
 
 .home-hero-scene {
   align-self: center;
-  animation: riseIn 850ms 110ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: heroSceneRise 900ms 160ms var(--ease-emphasis) both;
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 16px;
   bottom: auto;
-  box-shadow: 0 60px 160px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 48px 110px -48px rgba(0, 0, 0, 0.28);
   left: auto;
   margin: 0;
-  max-width: 100%;
+  max-width: 1000px;
   min-width: 0;
   overflow: hidden;
   padding: 10px;
   position: relative;
   right: auto;
   top: auto;
+  width: 100%;
 }
 
 .home-hero-scene::before {
@@ -4350,6 +4374,7 @@ body {
 .home-team-section {
   background: #fafafa;
   padding-bottom: 0;
+  overflow: hidden;
 }
 
 .home-audience-list {
@@ -4366,16 +4391,13 @@ body {
   min-height: 104px;
   padding: 20px 4px;
   transition:
-    background 160ms ease,
-    padding 160ms ease,
-    transform 160ms ease;
+    background 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
 }
 
 .home-audience-list > a:hover {
   background: #f7f7f7;
-  padding-left: 16px;
-  padding-right: 16px;
-  transform: translateX(4px);
+  transform: translateX(8px);
 }
 
 .home-audience-index {
@@ -4415,13 +4437,16 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px), #050505;
   background-size: 40px 40px;
-  border-radius: 18px;
+  border-radius: 0;
   color: #ffffff;
   display: grid;
   gap: 70px;
   grid-template-columns: minmax(280px, 0.72fr) minmax(420px, 1.28fr);
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
   margin-top: 102px;
-  padding: 70px;
+  padding: 84px max(28px, calc((100vw - 1120px) / 2));
+  width: 100vw;
 }
 
 .home-safety-band .eyebrow,
@@ -4474,11 +4499,15 @@ body {
 
 .cta-band {
   background: #050505;
-  border: 1px solid #050505;
-  border-radius: 18px;
+  border: 0;
+  border-radius: 0;
   color: #ffffff;
-  margin-top: 96px;
-  padding: 56px;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  margin-top: 112px;
+  max-width: none;
+  padding: 72px max(28px, calc((100vw - 1120px) / 2));
+  width: 100vw;
 }
 
 .site-footer {
@@ -4503,6 +4532,20 @@ body {
   }
 }
 
+/* Hero mockup rises from further below so the text visibly leads and the
+   product follows it into place — motion that matches the new reading order. */
+@keyframes heroSceneRise {
+  from {
+    opacity: 0;
+    transform: translateY(44px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes megaMenuReveal {
   from {
     opacity: 0;
@@ -4515,18 +4558,91 @@ body {
   }
 }
 
+/* Home page motion.
+   Scroll-reveal is progressively enhanced: base styles keep every block
+   fully visible, so browsers without scroll-driven animations (and anyone
+   with reduced motion) see the finished page with no missing content. */
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes railPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.home-audience-list > a > svg {
+  transition: transform 200ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-hero-scene .rail-dot.active {
+    animation: railPulse 2.4s var(--ease-in-out) infinite;
+  }
+
+  @supports (animation-timeline: view()) {
+    .home-workflow-grid article,
+    .home-integration-ledger,
+    .home-audience-list > a {
+      animation: revealUp linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 24%;
+    }
+
+    /* Cascade the side-by-side workflow cards left to right. */
+    .home-workflow-grid article:nth-child(2) {
+      animation-range: entry 9% cover 27%;
+    }
+
+    .home-workflow-grid article:nth-child(3) {
+      animation-range: entry 14% cover 30%;
+    }
+  }
+}
+
 @media (max-width: 1080px) {
   .home-hero-inner {
-    grid-template-columns: minmax(0, 1fr);
-    padding-top: 58px;
+    display: flex;
+    flex-direction: column;
+    gap: 42px;
+    max-width: 860px;
+    padding-bottom: 56px;
+    padding-top: 64px;
+    text-align: left;
   }
 
   .home-hero-copy {
-    text-align: left;
+    align-items: flex-start;
+    max-width: 760px;
+  }
+
+  .home-hero-copy h1 {
+    font-size: clamp(3.2rem, 8vw, 5rem);
+    max-width: 13.5ch;
+  }
+
+  .hero-actions,
+  .home-hero-note {
+    justify-content: flex-start;
   }
 
   .home-hero-scene {
     max-width: 820px;
+    width: 100%;
   }
 
   .home-section-intro,
@@ -4603,7 +4719,6 @@ body {
     display: none;
   }
 
-  .home-proof-strip,
   .home-proof-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
