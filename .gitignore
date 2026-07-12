@@ -11,3 +11,5 @@ wordpress-plugin/vendor/
 *.log
 *.tsbuildinfo
 .DS_Store
+.agents/
+.claude/
