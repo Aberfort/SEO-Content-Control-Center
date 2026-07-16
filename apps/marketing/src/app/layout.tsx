@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { marketingOrigin, siteName } from "../lib/site";
 
 import "./globals.css";
+
+const geistSans = Geist({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-sans"
+});
+
+const geistMono = Geist_Mono({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-mono"
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(marketingOrigin),
@@ -50,7 +63,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html data-scroll-behavior="smooth" lang="en">
+    <html
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      data-scroll-behavior="smooth"
+      lang="en"
+    >
       <body>
         <SiteHeader />
         {children}
