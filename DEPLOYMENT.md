@@ -136,11 +136,14 @@ Certify the packaged zip against real WordPress containers (requires Docker):
 ```bash
 npm run plugin:certify          # one combination (SCCC_WP_IMAGE, default wordpress:php8.3-apache)
 npm run plugin:certify:matrix   # latest WordPress on PHP 8.1/8.2/8.3 plus the previous WordPress branch
+npm run plugin:release:certify  # final artifact gate with checksum metadata plus the full matrix
 ```
 
 Each run installs the built zip into a disposable WordPress instance and checks activation, the installed-version contract, REST route registration, connection storage, WP-Cron recurring sync scheduling, a signed safe-operation apply that writes bounded SEO title/canonical/robots fields, tampered-signature rejection, deactivation cron cleanup, and clean deletion. CI runs the same certification per matrix combination on every push and pull request.
 
-The certification harness seeds the plugin connection directly (the way a completed challenge exchange would) so it needs no live SaaS. Before a public release, still complete one real challenge exchange against a staging SaaS, verify a paginated sync end-to-end, and test once on a site with Action Scheduler installed (the certification containers exercise the WP-Cron fallback).
+Use `npm run plugin:release:certify` before publishing a public zip. It regenerates the archive, verifies the versioned artifact, prints SHA-256/size/entry metadata, then runs the full matrix against that exact zip by reusing it with `SCCC_SKIP_PACKAGE=1`.
+
+The certification harness seeds the plugin connection directly (the way a completed challenge exchange would) so it needs no live SaaS. Before a public release, still complete the real challenge exchange, paginated sync, and Action Scheduler checks in [docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md](docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md); the Docker containers exercise the WP-Cron fallback.
 
 ## Marketing Application
 

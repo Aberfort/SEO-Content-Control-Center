@@ -69,6 +69,8 @@ The required production/staging values are documented in [docs/PRODUCTION_ENV.md
 
 Before production cutover, use `npm run deploy:staging:rehearse` with [docs/STAGING_REHEARSAL.md](docs/STAGING_REHEARSAL.md) to capture the real staging evidence for plugin connection, paginated sync, GSC, demo leads, Stripe webhooks, and safe operations.
 
+Before publishing the WordPress plugin zip, use `npm run plugin:release:certify` with [docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md](docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md) to capture artifact metadata, run the WordPress/PHP certification matrix, and record the real staging Action Scheduler evidence.
+
 After production deployment, use `npm run deploy:server:smoke` with [docs/SERVER_SMOKE_ROLLBACK.md](docs/SERVER_SMOKE_ROLLBACK.md) for env, database migration status, Redis, plugin archive, HTTP smoke, optional restore drill, rollback commands, and post-deploy monitoring.
 
 The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets. Rebuild when `NEXT_PUBLIC_APP_URL` or `NEXT_PUBLIC_MARKETING_URL` changes because those values are used by Next.js public metadata and handoff URLs at build time.
@@ -173,6 +175,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin skeleton with secure defaults;
 - versioned WordPress plugin release packaging with a checked `readme.txt`, runtime-only zip archive, Composer/npm entrypoints, CI artifact upload, and archive smoke verification;
 - Docker-based WordPress plugin certification (`npm run plugin:certify:matrix`) that installs the packaged zip into real WordPress containers across PHP 8.1/8.2/8.3 and the previous WordPress branch, certifying activation, connection storage, WP-Cron sync scheduling, signed apply writes, tampered-signature rejection, and deactivation cleanup, mirrored as a CI matrix;
+- final WordPress plugin release certification (`npm run plugin:release:certify`) that verifies the exact versioned artifact, emits SHA-256/size metadata, runs the Docker WordPress/PHP matrix against that zip, and links the remaining live staging Action Scheduler evidence checklist;
 - Docker local dependencies;
 - CI workflow with dependency audit and CodeQL SAST;
 - responsive public marketing with product/integrations, audience, knowledge base, SEO briefings, changelog, contact, service-information, pricing, security, demo, trial, and legal routes; sitemap/robots discovery; and a webhook-delivered demo lead flow;

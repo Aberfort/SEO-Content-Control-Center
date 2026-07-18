@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 112
+
+- Added `npm run plugin:release:certify` / `scripts/certify-plugin-release.sh` as the final WordPress plugin artifact gate, covering version parity, fresh package generation, archive verification, SHA-256/size/entry metadata, and the Docker WordPress/PHP certification matrix against the exact release zip.
+- Updated the matrix certifier so final-release runs can reuse a prebuilt archive via `SCCC_SKIP_PACKAGE=1` instead of rebuilding between artifact metadata capture and container certification.
+- Added `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md` with the artifact evidence table, staging Action Scheduler checklist, pass criteria, and release blockers for the real SaaS challenge exchange and paginated sync evidence that require live staging credentials.
+
 ### Iteration 111
 
 - Added `npm run deploy:server:smoke` / `scripts/smoke-server-release.sh` to run the production server smoke gate across env validation, database migration status, Redis `PING`, WordPress plugin archive verification, HTTP SaaS/marketing/worker checks, and an explicitly enabled disposable backup restore drill.

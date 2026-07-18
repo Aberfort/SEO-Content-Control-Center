@@ -258,9 +258,10 @@
 - CI publishes the checked archive as the `seo-content-control-center-plugin` artifact after the normal build passes.
 - `npm run plugin:certify` installs the built zip into a real disposable WordPress container and passes activation, version, REST route, connection, cron, signed apply, tampered-signature, deactivation, and deletion checks.
 - `npm run plugin:certify:matrix` passes on latest WordPress with PHP 8.1, 8.2, and 8.3 plus the previous WordPress branch, and CI runs the same combinations.
+- `npm run plugin:release:certify` passes before publishing and records the final artifact version, SHA-256, byte size, zip entry count, and matrix result.
 - Certification confirms the signed apply writes bounded SEO title, canonical, and robots noindex meta and that tampered signatures return `PLUGIN_APPLY_SIGNATURE_INVALID`.
 - Certification confirms recurring sync schedules through the WP-Cron fallback after connection and is removed by deactivation.
-- Before a public release, additionally complete one real challenge exchange against a staging SaaS, verify a paginated sync, and test once with Action Scheduler installed.
+- Before a public release, additionally complete the staging evidence in `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`: one real challenge exchange against staging SaaS, a paginated sync beyond 200 items, and manual plus recurring sync on a WordPress site with Action Scheduler installed.
 
 ## SEO Safety
 
@@ -312,3 +313,4 @@
 - Monitoring and Sentry configured.
 - Backup and restore plan checked with the disposable restore smoke script.
 - Rollback plan documented in `docs/SERVER_SMOKE_ROLLBACK.md`, including app, worker, plugin, Redis, and database disaster-recovery paths.
+- Final plugin release certification documented in `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`, including artifact evidence, staging Action Scheduler evidence, and release blockers.
