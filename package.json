@@ -32,6 +32,7 @@
     "db:migrate:deploy": "npm run db:migrate:deploy -w @sccc/database",
     "db:seed": "npm run seed -w @sccc/database",
     "deploy:env:check": "scripts/verify-production-env.mjs",
+    "deploy:staging:rehearse": "scripts/rehearse-staging-release.sh",
     "deploy:smoke": "scripts/smoke-production.sh",
     "verify:db:migrate": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:migrate:deploy",
     "verify:backup-restore": "scripts/verify-db-backup-restore.sh",

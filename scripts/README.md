@@ -8,6 +8,7 @@ This directory contains operational scripts used by CI, local development, and r
 - `test-wordpress-plugin-package.sh` runs a disposable package build and archive verification for `npm test`.
 - `verify-db-backup-restore.sh` runs a `pg_dump`/`pg_restore` smoke test against a disposable restore database via `npm run verify:backup-restore`.
 - `verify-production-env.mjs` validates production/staging env files before deployment; run it through `npm run deploy:env:check`.
+- `rehearse-staging-release.sh` orchestrates the staging release preflight: env check, plugin package build, staging HTTP smoke, and the manual evidence checklist in `docs/STAGING_REHEARSAL.md`.
 - `smoke-production.sh` checks a deployed stack by requesting SaaS `/api/health`, key marketing routes, and worker `/healthz`; configure URLs with `SCCC_SMOKE_SAAS_URL`, `SCCC_SMOKE_MARKETING_URL`, and `SCCC_SMOKE_WORKER_HEALTH_URL`.
 
 Run from the repository root:
@@ -16,5 +17,6 @@ Run from the repository root:
 npm run plugin:package
 npm run plugin:package:verify
 npm run deploy:env:check -- --env-file .env.production.example --allow-placeholders
+npm run deploy:staging:rehearse
 npm run deploy:smoke
 ```

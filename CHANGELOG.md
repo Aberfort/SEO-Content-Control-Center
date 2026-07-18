@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 110
+
+- Added `npm run deploy:staging:rehearse` / `scripts/rehearse-staging-release.sh` to orchestrate the staging release preflight: real staging env validation, WordPress plugin package build, staging SaaS/marketing smoke checks, and optional private worker health smoke.
+- Added `docs/STAGING_REHEARSAL.md` as the evidence runbook for the real staging flow: plugin challenge exchange, paginated sync over multiple batches, GSC OAuth/sync, marketing demo webhook, Stripe webhook idempotency, and safe-operation dry-run/confirm/worker execution plus rollback/retry visibility.
+- Updated deployment, QA, README, and handoff documentation so staging rehearsal is the required launch gate before server smoke, final plugin certification, and production cutover.
+
 ### Iteration 109
 
 - Added `npm run deploy:env:check` with a dependency-free production/staging environment verifier for public origins, PostgreSQL/Redis URLs, Prisma persistence, launch-critical secrets, SMTP delivery, Stripe checkout/webhooks, Google Search Console OAuth, observability, worker health, optional AI, and backup-restore smoke readiness.

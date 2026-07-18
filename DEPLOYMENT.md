@@ -90,6 +90,16 @@ Use a different `--env-file` for staging while keeping the same compose definiti
 docker compose --env-file .env.staging.local -f docker-compose.production.example.yml up -d
 ```
 
+## Staging Release Rehearsal
+
+Before production cutover, run the end-to-end staging rehearsal in [docs/STAGING_REHEARSAL.md](docs/STAGING_REHEARSAL.md):
+
+```bash
+npm run deploy:staging:rehearse
+```
+
+The automated preflight validates the staging env file, builds the installable WordPress plugin zip, and runs HTTP smoke checks against staging SaaS and marketing. Set `SCCC_STAGING_WORKER_HEALTH_URL` when the private worker health endpoint is reachable from the current network. The manual part captures evidence for the real plugin challenge exchange, paginated sync, GSC OAuth and sync, demo webhook, Stripe webhook, and safe-operation worker flow.
+
 The base image installs CA certificates and OpenSSL because Prisma's generated client and migration engine need a detectable OpenSSL runtime inside slim Debian images.
 
 ## WordPress Plugin Release

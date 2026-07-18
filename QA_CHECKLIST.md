@@ -298,6 +298,8 @@
 - Repository format, lint, test, build, migration deploy, and dependency audit gates pass before deployment.
 - Production/staging env files pass `npm run deploy:env:check -- --env-file <file> --environment production` without `--allow-placeholders`.
 - The committed `.env.production.example` passes `npm run deploy:env:check -- --env-file .env.production.example --allow-placeholders`.
+- `npm run deploy:staging:rehearse` passes against the real staging env and captures the evidence checklist in `docs/STAGING_REHEARSAL.md`.
+- Staging rehearsal confirms real plugin challenge exchange, paginated sync over more than one batch, GSC OAuth/sync, demo webhook delivery, Stripe webhook idempotency, and safe-operation worker execution/rollback.
 - Production Docker build receives `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_MARKETING_URL` as build args matching the public origins.
 - Docker build context excludes local `node_modules`, nested `.next`, generated design-agent state, and release artifacts.
 - Docker runtime images include CA certificates and OpenSSL so Prisma engines run without libssl warnings.

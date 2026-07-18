@@ -12,7 +12,7 @@
 - Health checks.
 - Structured logging plan.
 - Development seed strategy.
-- Staging/production deployment plan. Status: portable Docker Compose packaging and production env/secrets verification are implemented; staging end-to-end release rehearsal remains next.
+- Staging/production deployment plan. Status: portable Docker Compose packaging, production env/secrets verification, and staging end-to-end release rehearsal tooling/evidence runbook are implemented; server smoke and rollback runbook remains next.
 
 ## Phase 1 - SaaS MVP Foundation
 
@@ -136,4 +136,4 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - Version contract. Status: `VERSION`, WordPress header, `readme.txt`, and Composer release metadata are checked for exact semantic-version parity.
 - Installable artifact. Status: `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create a single-root, runtime-only versioned zip under `dist/` and verify its contents.
 - CI release artifact. Status: CI packages the plugin after build and uploads `seo-content-control-center-plugin` for installation testing.
-- Staging certification. Status: `npm run plugin:certify:matrix` certifies the packaged zip against real WordPress containers across latest-WordPress PHP 8.1/8.2/8.3 plus the previous WordPress branch, covering activation, the version contract, REST route registration, connection storage, WP-Cron sync scheduling, signed apply writes with tampered-signature rejection, deactivation cron cleanup, and clean deletion; CI runs the same matrix per combination. Full SaaS challenge-exchange and Action Scheduler coverage still requires a staging site with the SaaS reachable and Action Scheduler installed.
+- Staging certification. Status: `npm run plugin:certify:matrix` certifies the packaged zip against real WordPress containers across latest-WordPress PHP 8.1/8.2/8.3 plus the previous WordPress branch, covering activation, the version contract, REST route registration, connection storage, WP-Cron sync scheduling, signed apply writes with tampered-signature rejection, deactivation cron cleanup, and clean deletion; CI runs the same matrix per combination. Real SaaS challenge exchange, paginated sync, GSC, webhooks, and safe-operation worker execution are now covered by `docs/STAGING_REHEARSAL.md` and `npm run deploy:staging:rehearse`.
