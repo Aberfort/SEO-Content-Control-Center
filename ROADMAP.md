@@ -4,7 +4,7 @@
 
 - Monorepo structure.
 - README and local setup.
-- Environment examples.
+- Environment examples. Status: local and production examples exist, with `docs/PRODUCTION_ENV.md` plus `npm run deploy:env:check` validating staging/production values before deployment.
 - Docker local dependencies.
 - CI. Status: lint/test/build workflow includes dependency audit and CodeQL SAST.
 - Linting, formatting, tests, build scripts.
@@ -12,7 +12,7 @@
 - Health checks.
 - Structured logging plan.
 - Development seed strategy.
-- Staging/production deployment plan.
+- Staging/production deployment plan. Status: portable Docker Compose packaging and production env/secrets verification are implemented; staging end-to-end release rehearsal remains next.
 
 ## Phase 1 - SaaS MVP Foundation
 

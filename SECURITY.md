@@ -33,6 +33,7 @@
 - SSRF protection for URL fetchers.
 - File upload validation.
 - No sensitive values in logs.
+- Production and staging env files must pass `npm run deploy:env:check` before deployment so required origins, stores, SMTP, Stripe, GSC OAuth, observability, worker health, and long-lived secrets are present and non-placeholder.
 
 ## WordPress Plugin Security
 

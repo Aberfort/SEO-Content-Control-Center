@@ -46,12 +46,29 @@ The repository includes a portable single-server Docker packaging path for stagi
 - `.dockerignore` excludes local dependencies, nested `.next` build output, generated design-agent state, and release artifacts so Docker builds send a small source context instead of local build caches.
 - `scripts/smoke-production.sh` checks the deployed HTTP surfaces after the stack is up.
 
+## Production Environment Gate
+
+Production and staging values are listed in [docs/PRODUCTION_ENV.md](docs/PRODUCTION_ENV.md). Before a Docker build, platform deployment, or staging rehearsal, validate the real environment file without placeholder mode:
+
+```bash
+npm run deploy:env:check -- --env-file .env.production.local --environment production
+```
+
+For documentation/template checks only, the committed template can be validated with:
+
+```bash
+npm run deploy:env:check -- --env-file .env.production.example --allow-placeholders
+```
+
+The gate checks HTTPS public origins, PostgreSQL/Redis URLs, Prisma persistence, SMTP delivery, Stripe checkout/webhook values, Google Search Console OAuth, Sentry/PostHog observability, worker health port, and launch-critical secrets. Real deployments must not pass `--allow-placeholders`.
+
 Recommended first-server flow:
 
 ```bash
 cp .env.production.example .env.production.local
 # edit .env.production.local with real origins, secrets, SMTP, Stripe, GSC, and observability values
 
+npm run deploy:env:check -- --env-file .env.production.local --environment production
 docker compose --env-file .env.production.local -f docker-compose.production.example.yml build
 docker compose --env-file .env.production.local -f docker-compose.production.example.yml up -d postgres redis
 docker compose --env-file .env.production.local -f docker-compose.production.example.yml run --rm migrate

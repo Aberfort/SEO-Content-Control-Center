@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 109
+
+- Added `npm run deploy:env:check` with a dependency-free production/staging environment verifier for public origins, PostgreSQL/Redis URLs, Prisma persistence, launch-critical secrets, SMTP delivery, Stripe checkout/webhooks, Google Search Console OAuth, observability, worker health, optional AI, and backup-restore smoke readiness.
+- Added `docs/PRODUCTION_ENV.md` as the release-ready environment and secrets matrix, including ownership, required values, rotation notes, and staging/production verification commands.
+- Updated `.env.production.example` and deployment documentation so the env gate runs before Docker builds or staging rehearsals, while the committed template stays checkable through `--allow-placeholders`.
+
 ### Iteration 108
 
 - Added portable production Docker packaging with multi-target images for the SaaS app, marketing app, worker process, and Prisma migration runner.
