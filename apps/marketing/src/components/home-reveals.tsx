@@ -11,10 +11,14 @@ export function HomeReveals() {
     }
 
     const items = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
+    const revealItems = () => {
+      items.forEach((item) => item.classList.add("is-visible"));
+    };
+
     root.classList.add("reveal-ready");
 
-    if (!("IntersectionObserver" in window)) {
-      items.forEach((item) => item.classList.add("is-visible"));
+    if (document.visibilityState === "hidden" || !("IntersectionObserver" in window)) {
+      revealItems();
 
       return () => {
         root.classList.remove("reveal-ready");

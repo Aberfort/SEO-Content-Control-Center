@@ -3,35 +3,36 @@ name: SEO Content Control Center (Marketing)
 description: The Swiss Grid Ledger visual identity for SEO operations
 colors:
   primary: "#050505"
-  neutral-bg: "#fafafa"
+  neutral-bg: "#fbfbfa"
   surface: "#ffffff"
-  surface-soft: "#f5f5f5"
-  surface-warm: "#f8f8f8"
-  ink: "#050505"
-  ink-soft: "#666666"
+  surface-soft: "#f7f6f3"
+  surface-warm: "#f9f9f8"
+  ink: "#111111"
+  ink-soft: "#6b6963"
   line: "#eaeaea"
-  line-strong: "#d4d4d4"
+  line-strong: "rgba(0, 0, 0, 0.1)"
   danger: "#111111"
   success: "#111111"
 typography:
   display:
-    fontFamily: "Inter, sans-serif"
-    fontSize: "clamp(2rem, 5vw, 3.5rem)"
-    fontWeight: 700
-    lineHeight: 1.15
-    letterSpacing: "-0.02em"
+    fontFamily: "Geist, sans-serif"
+    fontSize: "clamp(3.1rem, 5.4vw, 5rem)"
+    fontWeight: 680
+    lineHeight: 0.95
+    letterSpacing: "0"
   body:
-    fontFamily: "Inter, sans-serif"
+    fontFamily: "Geist, sans-serif"
     fontSize: "16px"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.65
   label:
-    fontFamily: "Inter, sans-serif"
+    fontFamily: "Geist, sans-serif"
     fontSize: "14px"
     fontWeight: 560
 rounded:
   sm: "4px"
   md: "6px"
+  lg: "8px"
 spacing:
   sm: "8px"
   md: "16px"
@@ -92,21 +93,22 @@ A high-contrast neutral-forward palette designed for long reading sessions and p
 
 ## 3. Typography
 
-**Display Font:** Inter (system-ui)
-**Body Font:** Inter (system-ui)
-**Label Font:** Inter (system-ui)
+**Display Font:** Geist (Next font)
+**Body Font:** Geist (Next font)
+**Label Font:** Geist (Next font)
 
 ### Hierarchy
 
-- **Display** (weight 700, size `clamp(2rem, 5vw, 3.5rem)`, line-height 1.15): Hero headlines.
-- **Headline** (weight 600, size 24px, line-height 1.25): Major section titles.
+- **Display** (weight 680, size `clamp(3.1rem, 5.4vw, 5rem)`, line-height 0.95): Hero and page headlines.
+- **Headline** (weight 680, fluid size, line-height 0.95-1.1): Major section titles.
 - **Title** (weight 560, size 18px, line-height 1.35): Panel headers, block kickers.
 - **Body** (weight 400, size 16px, line-height 1.5): Standard paragraphs (max line length 65–75ch).
-- **Label** (weight 560, size 14px, line-height 1): Button texts, form inputs, badge items.
+- **Label** (weight 560-650, size 11-14px, line-height 1.2-1.4): Button text, form inputs, badges, and section labels.
 
 ### Named Rules
 
 **The Balanced Line Rule.** Headings must use `text-wrap: balance` to prevent awkward line breaks and layout orphans.
+**The Quiet Label Rule.** Section labels use sentence case with zero letter spacing. Do not repeat tiny uppercase kickers as section grammar.
 
 ## 4. Elevation
 
@@ -126,7 +128,7 @@ The system is Flat-by-Default. Layers are indicated by clean 1px border outlines
 
 ### Cards / Containers
 
-- **Corner Style:** Slightly rounded corners (6px).
+- **Corner Style:** Slightly rounded corners (6px for controls, 8px for framed panels).
 - **Background:** Solid `#ffffff`.
 - **Border:** 1px solid `#eaeaea`.
 - **Shadow Strategy:** No shadow. Card boundary is purely border-based.
@@ -153,4 +155,4 @@ The system is Flat-by-Default. Layers are indicated by clean 1px border outlines
 - **Don't** use purple/blue gradients or blurry neon glow spheres.
 - **Don't** use tiny uppercase kickers above every section.
 - **Don't** use sketchy hand-drawn SVGs or doodles.
-- **Don't** pair rounded borders of 32px or more. Maximum border radius is 6px.
+- **Don't** pair rounded borders of 32px or more. Maximum framed-container radius is 8px; pill radius is reserved for badges and compact controls.
