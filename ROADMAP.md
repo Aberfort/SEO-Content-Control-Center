@@ -12,7 +12,7 @@
 - Health checks.
 - Structured logging plan.
 - Development seed strategy.
-- Staging/production deployment plan. Status: portable Docker Compose packaging, production env/secrets verification, and staging end-to-end release rehearsal tooling/evidence runbook are implemented; server smoke and rollback runbook remains next.
+- Staging/production deployment plan. Status: portable Docker Compose packaging, production env/secrets verification, staging end-to-end rehearsal tooling/evidence runbook, and production server smoke/rollback runbook are implemented.
 
 ## Phase 1 - SaaS MVP Foundation
 

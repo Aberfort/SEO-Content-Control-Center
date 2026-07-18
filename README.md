@@ -69,6 +69,8 @@ The required production/staging values are documented in [docs/PRODUCTION_ENV.md
 
 Before production cutover, use `npm run deploy:staging:rehearse` with [docs/STAGING_REHEARSAL.md](docs/STAGING_REHEARSAL.md) to capture the real staging evidence for plugin connection, paginated sync, GSC, demo leads, Stripe webhooks, and safe operations.
 
+After production deployment, use `npm run deploy:server:smoke` with [docs/SERVER_SMOKE_ROLLBACK.md](docs/SERVER_SMOKE_ROLLBACK.md) for env, database migration status, Redis, plugin archive, HTTP smoke, optional restore drill, rollback commands, and post-deploy monitoring.
+
 The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets. Rebuild when `NEXT_PUBLIC_APP_URL` or `NEXT_PUBLIC_MARKETING_URL` changes because those values are used by Next.js public metadata and handoff URLs at build time.
 
 ## Current Iteration
@@ -178,6 +180,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - portable Docker Compose production packaging for SaaS, marketing, worker, and Prisma migrations, plus a deployment smoke script.
 - production environment and secrets matrix with `npm run deploy:env:check` for required origins, data stores, secrets, SMTP, Stripe, GSC OAuth, observability, webhook, and worker-health settings.
 - staging release rehearsal tooling and evidence runbook for real plugin challenge exchange, paginated sync, GSC OAuth/sync, demo webhook, Stripe webhook, and safe-operation worker flow before launch cutover.
+- server smoke and rollback runbook with `npm run deploy:server:smoke` for production env, database migration status, Redis ping, plugin archive verification, HTTP checks, optional restore drill, rollback paths, and monitoring.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 

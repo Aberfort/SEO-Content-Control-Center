@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 111
+
+- Added `npm run deploy:server:smoke` / `scripts/smoke-server-release.sh` to run the production server smoke gate across env validation, database migration status, Redis `PING`, WordPress plugin archive verification, HTTP SaaS/marketing/worker checks, and an explicitly enabled disposable backup restore drill.
+- Added `scripts/check-redis-url.mjs` for dependency-free Redis/Redis TLS smoke checks without requiring `redis-cli` on the server.
+- Added `docs/SERVER_SMOKE_ROLLBACK.md` with the production smoke checklist, backup/restore drill procedure, app/worker/plugin/database/Redis rollback paths, and the post-deploy monitoring watch window.
+
 ### Iteration 110
 
 - Added `npm run deploy:staging:rehearse` / `scripts/rehearse-staging-release.sh` to orchestrate the staging release preflight: real staging env validation, WordPress plugin package build, staging SaaS/marketing smoke checks, and optional private worker health smoke.

@@ -80,6 +80,15 @@ SCCC_SMOKE_WORKER_HEALTH_URL=http://127.0.0.1:8080/healthz \
 npm run deploy:smoke
 ```
 
+For the full post-deploy server gate, including database migration status, Redis, plugin archive, optional restore drill, rollback commands, and monitoring, run:
+
+```bash
+SCCC_SERVER_WORKER_HEALTH_URL=http://127.0.0.1:8080/healthz \
+npm run deploy:server:smoke
+```
+
+See [docs/SERVER_SMOKE_ROLLBACK.md](docs/SERVER_SMOKE_ROLLBACK.md) for the full production checklist and rollback procedure.
+
 `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_MARKETING_URL` are Docker build args as well as runtime environment variables. Rebuild the images whenever these public origins change; otherwise Next.js metadata, sitemap, robots, and client-facing handoff URLs can retain old values.
 
 The example binds SaaS (`3000`), marketing (`3001`), and worker health (`8080`) to `127.0.0.1` so a reverse proxy or private load balancer can terminate TLS. Do not expose the worker health endpoint publicly. For managed PostgreSQL/Redis, remove or ignore the local `postgres`/`redis` services and point `DATABASE_URL`/`REDIS_URL` at the managed endpoints before running `migrate`.
@@ -190,7 +199,7 @@ TOTP 2FA enrollment in the SaaS app also requires `SCCC_TOKEN_ENCRYPTION_KEY` so
 
 - SaaS: `GET /api/health`.
 - Marketing: public page availability.
-- Workers: check that `sccc:worker:heartbeat:*` keys exist in Redis; an expired key means the worker is stalled or dead. Queue lag metrics land with the observability iteration.
+- Workers: `GET /healthz` on the private worker health endpoint and check that `sccc:worker:heartbeat:*` keys exist in Redis; an expired key means the worker is stalled or dead.
 - Database: connection and migration status.
 - Redis: connection and queue health.
 

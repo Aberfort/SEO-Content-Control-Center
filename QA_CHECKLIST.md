@@ -306,8 +306,9 @@
 - Prisma migrations run through the one-shot migration unit before SaaS/worker traffic is served.
 - SaaS, marketing, and worker services are bound behind a reverse proxy or private load balancer; worker health is not publicly exposed.
 - Deployment smoke checks pass for SaaS `/api/health`, key marketing routes, and worker `/healthz`.
+- `npm run deploy:server:smoke` passes from the production/private network, including env validation, database migration status, Redis ping, plugin archive verification, HTTP smoke, and any explicitly enabled restore drill.
 - Database migrations reviewed.
 - Dependency audit reviewed.
 - Monitoring and Sentry configured.
 - Backup and restore plan checked with the disposable restore smoke script.
-- Rollback plan documented.
+- Rollback plan documented in `docs/SERVER_SMOKE_ROLLBACK.md`, including app, worker, plugin, Redis, and database disaster-recovery paths.
