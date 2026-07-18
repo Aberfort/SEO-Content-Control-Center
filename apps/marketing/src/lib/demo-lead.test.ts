@@ -4,9 +4,9 @@ import { parseDemoLead } from "./demo-lead";
 
 const validLead = {
   name: "Jordan Lee",
-  workEmail: "JORDAN@example.com",
-  company: "Acme Publishing",
-  website: "https://example.com",
+  workEmail: "JORDAN@harborledger.media",
+  company: "Harbor Ledger Media",
+  website: "https://harborledger.media",
   role: "SEO lead",
   siteCount: "6-20",
   topic: "Product demo",
@@ -20,9 +20,9 @@ describe("demo lead validation", () => {
       success: true,
       data: {
         name: "Jordan Lee",
-        workEmail: "jordan@example.com",
-        company: "Acme Publishing",
-        website: "https://example.com",
+        workEmail: "jordan@harborledger.media",
+        company: "Harbor Ledger Media",
+        website: "https://harborledger.media",
         role: "SEO lead",
         siteCount: "6-20",
         topic: "Product demo",

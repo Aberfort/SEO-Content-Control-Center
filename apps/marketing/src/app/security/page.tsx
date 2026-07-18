@@ -82,22 +82,22 @@ export default function SecurityPage() {
 
       <section className="security-principles">
         <div>
-          <span className="principle-number">01</span>
+          <span className="principle-number">Access</span>
           <strong>Least privilege</strong>
           <p>Access is granted through organization membership and role checks.</p>
         </div>
         <div>
-          <span className="principle-number">02</span>
+          <span className="principle-number">Approval</span>
           <strong>Explicit approval</strong>
           <p>Risky SEO operations stay behind a visible human confirmation step.</p>
         </div>
         <div>
-          <span className="principle-number">03</span>
+          <span className="principle-number">Restore</span>
           <strong>Recoverable change</strong>
           <p>Supported write fields capture prior state for restoration workflows.</p>
         </div>
         <div>
-          <span className="principle-number">04</span>
+          <span className="principle-number">Audit</span>
           <strong>Evidence trail</strong>
           <p>Critical activity is recorded with tenant, actor, state, and outcome context.</p>
         </div>

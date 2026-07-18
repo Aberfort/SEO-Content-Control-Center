@@ -134,10 +134,9 @@ export default function FeaturesPage() {
       </section>
 
       <section className="section feature-story-list">
-        {featureGroups.map(({ icon: Icon, label, title, body, points }, index) => (
+        {featureGroups.map(({ icon: Icon, label, title, body, points }) => (
           <article className="feature-story" key={label}>
             <div className="story-index">
-              <span>0{index + 1}</span>
               <Icon size={22} />
             </div>
             <div>

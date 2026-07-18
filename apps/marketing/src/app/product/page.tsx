@@ -17,25 +17,25 @@ export const metadata: Metadata = pageMetadata({
 const stages = [
   {
     icon: PlugZap,
-    number: "01",
+    marker: "Context",
     title: "Connect the operating context",
     body: "Signed WordPress metadata sync and Google Search Console access bring the page, its SEO state, and its performance evidence into one tenant-scoped view."
   },
   {
     icon: FileSearch,
-    number: "02",
+    marker: "Evidence",
     title: "Find work worth doing",
     body: "Audits, traffic-loss checks, and opportunity detection expose affected URLs with the evidence needed to decide whether a task deserves attention."
   },
   {
     icon: ListChecks,
-    number: "03",
+    marker: "Backlog",
     title: "Run one accountable backlog",
     body: "Impact, effort, owner, due date, status, comments, and source records stay attached as work moves from triage to completion."
   },
   {
     icon: ShieldCheck,
-    number: "04",
+    marker: "Safety",
     title: "Apply supported changes carefully",
     body: "Bounded SEO operations use a visible preview, dry run, explicit confirmation, signed worker execution, and recorded result or restoration state."
   }
@@ -77,10 +77,10 @@ export default function ProductPage() {
           </p>
         </div>
         <div className="product-spine">
-          {stages.map(({ icon: Icon, number, title, body }) => (
-            <article key={number}>
+          {stages.map(({ icon: Icon, marker, title, body }) => (
+            <article key={marker}>
               <div>
-                <span>{number}</span>
+                <span>{marker}</span>
                 <Icon size={22} />
               </div>
               <h3>{title}</h3>

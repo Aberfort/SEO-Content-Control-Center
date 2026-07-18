@@ -260,28 +260,28 @@ function HomeIcon({ name, size = 18, className }: HomeIconProps) {
 
 const workflow = [
   {
-    number: "01",
+    step: "Connect",
     icon: "plug",
     tag: "Evidence",
     title: "Connect the source data",
     body: "Bring bounded WordPress metadata and Google Search Console performance into one tenant-scoped workspace."
   },
   {
-    number: "02",
+    step: "Prioritize",
     icon: "list",
     tag: "Backlog",
     title: "Rank the next pages",
     body: "Turn traffic losses, indexability findings, and content opportunities into work with impact, effort, owner, and status."
   },
   {
-    number: "03",
+    step: "Approve",
     icon: "check",
     tag: "Approval",
     title: "Review before anything ships",
     body: "Preview supported changes, run a dry check, confirm explicitly, and preserve the activity and restoration record."
   }
 ] satisfies Array<{
-  number: string;
+  step: string;
   icon: HomeIconName;
   tag: string;
   title: string;
@@ -291,24 +291,28 @@ const workflow = [
 const audiences = [
   {
     icon: "blocks",
+    segment: "Agency",
     label: "SEO agencies",
     body: "Separate client organizations, standardize delivery, and keep ownership and approvals visible across many WordPress sites.",
     href: "/solutions/agencies"
   },
   {
     icon: "file",
+    segment: "Editorial",
     label: "Content teams",
     body: "Give writers and editors a focused queue of pages to improve without exposing unnecessary integration or execution controls.",
     href: "/solutions/content-teams"
   },
   {
     icon: "chart",
+    segment: "Publisher",
     label: "Publishers",
     body: "Connect a large WordPress inventory to Search Console evidence and prioritize the pages where attention can matter most.",
     href: "/solutions/publishers"
   }
 ] satisfies Array<{
   icon: HomeIconName;
+  segment: string;
   label: string;
   body: string;
   href: string;
@@ -364,9 +368,8 @@ export default function MarketingHomePage() {
               <span className="home-hero-kicker">WordPress SEO operations</span>
               <h1>Find traffic leaks before they become backlog noise.</h1>
               <p>
-                SEO Content Control Center connects WordPress, Search Console, and review notes so
-                teams can decide what to fix, who owns it, and when a supported change is allowed to
-                publish.
+                Connect WordPress and Search Console evidence so teams know what to fix, who owns
+                it, and when publishing is allowed.
               </p>
               <div className="hero-actions">
                 <Link className="button button-dark" href="/trial">
@@ -377,14 +380,6 @@ export default function MarketingHomePage() {
                   See the workflow
                 </Link>
               </div>
-              <p className="home-hero-note">
-                <HomeIcon name="lock" size={15} />
-                <span>14 days</span>
-                <i aria-hidden="true" />
-                <span>One WordPress site</span>
-                <i aria-hidden="true" />
-                <span>No automatic publishing</span>
-              </p>
             </div>
 
             <div className="home-hero-scene" data-reveal>
@@ -401,9 +396,9 @@ export default function MarketingHomePage() {
 
                 <div className="home-window-body">
                   <aside className="home-window-rail" aria-label="Workflow steps">
-                    <span className="is-active">01</span>
-                    <span>02</span>
-                    <span>03</span>
+                    <span className="is-active">Sync</span>
+                    <span>Plan</span>
+                    <span>Ship</span>
                   </aside>
 
                   <div className="home-window-main">
@@ -486,13 +481,13 @@ export default function MarketingHomePage() {
           </div>
 
           <div className="home-workflow-grid">
-            {workflow.map(({ number, icon, tag, title, body }, index) => (
-              <article data-reveal key={number} style={{ "--index": index } as CSSProperties}>
+            {workflow.map(({ step, icon, tag, title, body }, index) => (
+              <article data-reveal key={step} style={{ "--index": index } as CSSProperties}>
                 <div className="home-step-heading">
-                  <span>{number}</span>
+                  <span>{step}</span>
                   <HomeIcon name={icon} size={22} />
                 </div>
-                {number === "01" ? (
+                {step === "Connect" ? (
                   <div className="home-evidence-stack" aria-hidden="true">
                     <span>
                       <b>WordPress</b>
@@ -566,14 +561,14 @@ export default function MarketingHomePage() {
           </div>
 
           <div className="home-audience-list">
-            {audiences.map(({ icon, label, body, href }, index) => (
+            {audiences.map(({ icon, segment, label, body, href }, index) => (
               <Link
                 data-reveal
                 href={href}
                 key={label}
                 style={{ "--index": index } as CSSProperties}
               >
-                <span className="home-audience-index">0{index + 1}</span>
+                <span className="home-audience-index">{segment}</span>
                 <span className="home-audience-icon">
                   <HomeIcon name={icon} size={21} />
                 </span>
