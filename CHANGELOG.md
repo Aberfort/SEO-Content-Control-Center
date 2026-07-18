@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 107
+
+- Added a root Prettier ignore policy for generated Impeccable skill bundles and live-session artifacts so the repository-wide format gate checks source files instead of vendored/generated design tooling output.
+- Synchronized continuation and architecture documentation from the stale Iteration 103 handoff state to the current Iteration 107 release-hygiene state.
+- Reframed the next work queue around production deployment packaging, environment/secrets readiness, staging end-to-end certification, server smoke checks, final plugin release certification, and launch cutover.
+
 ### Iteration 106
 
 - Completed a launch-readiness audit pass on the public homepage across desktop, tablet, mobile, and 320px narrow mobile viewports.

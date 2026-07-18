@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 103)
+## Поточний стан (після Iteration 107)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -48,12 +48,23 @@
 - Iteration 101 Remaining public content реалізована: Product/Integrations, agency/content/publisher solution pages, Knowledge Base, SEO briefings, Changelog, Contact та transparent service-information routes; navigation, sitemap і marketing coverage test оновлені без дублювання demo/trial contracts.
 - Iteration 102 Plugin staging certification реалізована: `npm run plugin:certify` / `plugin:certify:matrix` (Docker) інсталюють зібраний zip у реальні WordPress-контейнери (latest WP на PHP 8.1/8.2/8.3 + гілка 6.8) і сертифікують activation, version contract, REST route, connection storage, WP-Cron scheduling, signed apply з tampered-signature rejection, deactivation cleanup і clean delete; той самий matrix — окремий CI job. Ручний pre-release залишок: один реальний challenge exchange проти staging SaaS, paginated sync і прогін з Action Scheduler.
 - Iteration 103 Marketing homepage redesign реалізована: головна зведена до immersive product hero, evidence-to-work workflow та team/review-first section; збережено Next.js/CSS stack, реальний `ProductPreview`, існуючі demo/trial contracts і всі public routes; desktop/mobile viewport checks не мають horizontal overflow.
+- Iteration 104 Vercel-inspired marketing redesign реалізована: публічна презентація переведена в монохромний, лаконічний SaaS-стиль з компактним header, технічним hero, sharper product preview framing і restrained CSS motion.
+- Iteration 105 Marketing navigation redesign реалізована: header отримав сучасне burger-triggered mega-menu, grouped Platform/Solutions/Resources paths, responsive mobile grouping і полегшену closed-state навігацію без зайвих бордерів та фонів.
+- Iteration 106 Homepage launch-readiness pass реалізована: головна перевірена на desktop/tablet/mobile/320px, вирівняна візуальна ритміка, прибрані overflow нюанси product preview, додано SVG app icon для `/favicon.ico` smoke.
+- Iteration 107 Release hygiene реалізована: root `.prettierignore` виключає generated Impeccable skill/live-session artifacts із repository-wide format gate, а continuation/architecture/release docs синхронізовані з фактичним станом після Iteration 106.
 
 ## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
 
-Черга порожня — узгоджені ітерації 92–103 виконані. Наступні кандидати формуй із tech debt нижче або з залишків ROADMAP (Phase 6: deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`).
+Узгоджені продуктові та маркетингові ітерації 92–107 виконані. Наступна черга — release/deploy-oriented, щоб довести всі продукти до серверного запуску:
 
-Відомий tech debt поза чергою: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply.
+1. **Iteration 108 — Production deploy packaging.** Вибрати target deployment і додати production-ready запуск для `apps/saas`, `apps/marketing`, `apps/worker`, Prisma migrations і health checks (Dockerfile/compose override, process manager, або platform config — залежно від фактичного сервера).
+2. **Iteration 109 — Production env/secrets matrix.** Описати й перевірити production values для `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `SCCC_TOKEN_ENCRYPTION_KEY`, email, GSC OAuth, Stripe, marketing lead webhook, Sentry/PostHog і worker health.
+3. **Iteration 110 — Staging end-to-end release rehearsal.** Прогнати real plugin challenge exchange проти staging SaaS, paginated sync end-to-end, GSC OAuth/sync, demo webhook, billing webhook і safe-operation dry-run/confirm/worker flow.
+4. **Iteration 111 — Server smoke + rollback runbook.** Зафіксувати production smoke checklist для SaaS/marketing/worker/database/Redis/plugin, backup/restore drill, rollback commands і post-deploy monitoring.
+5. **Iteration 112 — Final plugin release certification.** Перегенерувати `npm run plugin:package`, прогнати `npm run plugin:certify:matrix`, підтвердити artifact/version і staging WordPress з Action Scheduler.
+6. **Iteration 113 — Launch cutover.** DNS/SSL/CDN, production migrations, worker start, uptime monitors, public route smoke, first real plugin install, demo/trial checks і post-launch watch window.
+
+Відомий tech debt поза launch gate: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply; Phase 6 deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`.
 
 ## Формат роботи над ітерацією
 

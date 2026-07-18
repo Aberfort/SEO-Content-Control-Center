@@ -6,6 +6,7 @@
 - `.env.example` documents required environment variables.
 - Docker services start.
 - Health endpoint responds.
+- Repository formatting checks source files while excluding generated design-tool bundles and live-session artifacts.
 - Lint passes.
 - Tests pass.
 - Build passes.
@@ -294,6 +295,7 @@
 
 ## Release
 
+- Repository format, lint, test, build, migration deploy, and dependency audit gates pass before deployment.
 - Database migrations reviewed.
 - Dependency audit reviewed.
 - Monitoring and Sentry configured.
