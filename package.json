@@ -31,6 +31,7 @@
     "db:migrate:dev": "npm run db:migrate:dev -w @sccc/database",
     "db:migrate:deploy": "npm run db:migrate:deploy -w @sccc/database",
     "db:seed": "npm run seed -w @sccc/database",
+    "deploy:smoke": "scripts/smoke-production.sh",
     "verify:db:migrate": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public npm run db:migrate:deploy",
     "verify:backup-restore": "scripts/verify-db-backup-restore.sh",
     "verify:external": "npm run verify:db:migrate && npm audit --audit-level=low"

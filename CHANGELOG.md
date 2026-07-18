@@ -2,6 +2,14 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 108
+
+- Added portable production Docker packaging with multi-target images for the SaaS app, marketing app, worker process, and Prisma migration runner.
+- Added `docker-compose.production.example.yml` plus `.env.production.example` for a single-server deployment with private-loopback web/worker ports, local Postgres/Redis volumes, least-privilege service env mappings, health checks, and build-time public URL args.
+- Hardened the Docker build context and base image by excluding nested build/dependency artifacts and installing CA certificates/OpenSSL for Prisma engine compatibility.
+- Added `npm run deploy:smoke` / `scripts/smoke-production.sh` to verify SaaS health, key marketing routes, and worker `/healthz` after deployment.
+- Documented the Docker Compose deployment flow, production URL build-time requirement, server smoke checks, and the remaining release queue after deployment packaging.
+
 ### Iteration 107
 
 - Added a root Prettier ignore policy for generated Impeccable skill bundles and live-session artifacts so the repository-wide format gate checks source files instead of vendored/generated design tooling output.

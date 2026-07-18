@@ -36,6 +36,45 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Worker process.
 - WordPress plugin release artifact.
 
+## Portable Docker Compose Deployment
+
+The repository includes a portable single-server Docker packaging path for staging or an initial production host:
+
+- `Dockerfile` builds one shared workspace image and exposes four targets: `saas`, `marketing`, `worker`, and `migrate`.
+- `docker-compose.production.example.yml` runs local Postgres and Redis with persistent volumes, starts a one-shot Prisma migration runner, and then starts SaaS, marketing, and worker services.
+- `.env.production.example` documents the production/staging environment values. Copy it to `.env.production.local`, fill real values, and keep the local file out of git. Compose reads it through `--env-file` for variable interpolation while each service receives only the environment variables it needs.
+- `.dockerignore` excludes local dependencies, nested `.next` build output, generated design-agent state, and release artifacts so Docker builds send a small source context instead of local build caches.
+- `scripts/smoke-production.sh` checks the deployed HTTP surfaces after the stack is up.
+
+Recommended first-server flow:
+
+```bash
+cp .env.production.example .env.production.local
+# edit .env.production.local with real origins, secrets, SMTP, Stripe, GSC, and observability values
+
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml build
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml up -d postgres redis
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml run --rm migrate
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml up -d saas marketing worker
+
+SCCC_SMOKE_SAAS_URL=http://127.0.0.1:3000 \
+SCCC_SMOKE_MARKETING_URL=http://127.0.0.1:3001 \
+SCCC_SMOKE_WORKER_HEALTH_URL=http://127.0.0.1:8080/healthz \
+npm run deploy:smoke
+```
+
+`NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_MARKETING_URL` are Docker build args as well as runtime environment variables. Rebuild the images whenever these public origins change; otherwise Next.js metadata, sitemap, robots, and client-facing handoff URLs can retain old values.
+
+The example binds SaaS (`3000`), marketing (`3001`), and worker health (`8080`) to `127.0.0.1` so a reverse proxy or private load balancer can terminate TLS. Do not expose the worker health endpoint publicly. For managed PostgreSQL/Redis, remove or ignore the local `postgres`/`redis` services and point `DATABASE_URL`/`REDIS_URL` at the managed endpoints before running `migrate`.
+
+Use a different `--env-file` for staging while keeping the same compose definition, for example:
+
+```bash
+docker compose --env-file .env.staging.local -f docker-compose.production.example.yml up -d
+```
+
+The base image installs CA certificates and OpenSSL because Prisma's generated client and migration engine need a detectable OpenSSL runtime inside slim Debian images.
+
 ## WordPress Plugin Release
 
 Create an installable plugin archive from the repository root:

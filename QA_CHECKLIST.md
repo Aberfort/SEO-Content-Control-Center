@@ -296,6 +296,12 @@
 ## Release
 
 - Repository format, lint, test, build, migration deploy, and dependency audit gates pass before deployment.
+- Production Docker build receives `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_MARKETING_URL` as build args matching the public origins.
+- Docker build context excludes local `node_modules`, nested `.next`, generated design-agent state, and release artifacts.
+- Docker runtime images include CA certificates and OpenSSL so Prisma engines run without libssl warnings.
+- Prisma migrations run through the one-shot migration unit before SaaS/worker traffic is served.
+- SaaS, marketing, and worker services are bound behind a reverse proxy or private load balancer; worker health is not publicly exposed.
+- Deployment smoke checks pass for SaaS `/api/health`, key marketing routes, and worker `/healthz`.
 - Database migrations reviewed.
 - Dependency audit reviewed.
 - Monitoring and Sentry configured.

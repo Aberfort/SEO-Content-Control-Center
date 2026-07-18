@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 107)
+## Поточний стан (після Iteration 108)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -52,17 +52,17 @@
 - Iteration 105 Marketing navigation redesign реалізована: header отримав сучасне burger-triggered mega-menu, grouped Platform/Solutions/Resources paths, responsive mobile grouping і полегшену closed-state навігацію без зайвих бордерів та фонів.
 - Iteration 106 Homepage launch-readiness pass реалізована: головна перевірена на desktop/tablet/mobile/320px, вирівняна візуальна ритміка, прибрані overflow нюанси product preview, додано SVG app icon для `/favicon.ico` smoke.
 - Iteration 107 Release hygiene реалізована: root `.prettierignore` виключає generated Impeccable skill/live-session artifacts із repository-wide format gate, а continuation/architecture/release docs синхронізовані з фактичним станом після Iteration 106.
+- Iteration 108 Production deploy packaging реалізована: додано multi-target `Dockerfile` для `saas`/`marketing`/`worker`/`migrate`, `docker-compose.production.example.yml`, `.env.production.example`, `npm run deploy:smoke`, least-privilege service env mappings, production health checks, OpenSSL-ready Docker base і документацію для single-server Docker Compose deployment.
 
 ## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
 
-Узгоджені продуктові та маркетингові ітерації 92–107 виконані. Наступна черга — release/deploy-oriented, щоб довести всі продукти до серверного запуску:
+Узгоджені продуктові, маркетингові та deployment-packaging ітерації 92–108 виконані. Наступна черга — release/deploy-oriented, щоб довести всі продукти до серверного запуску:
 
-1. **Iteration 108 — Production deploy packaging.** Вибрати target deployment і додати production-ready запуск для `apps/saas`, `apps/marketing`, `apps/worker`, Prisma migrations і health checks (Dockerfile/compose override, process manager, або platform config — залежно від фактичного сервера).
-2. **Iteration 109 — Production env/secrets matrix.** Описати й перевірити production values для `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `SCCC_TOKEN_ENCRYPTION_KEY`, email, GSC OAuth, Stripe, marketing lead webhook, Sentry/PostHog і worker health.
-3. **Iteration 110 — Staging end-to-end release rehearsal.** Прогнати real plugin challenge exchange проти staging SaaS, paginated sync end-to-end, GSC OAuth/sync, demo webhook, billing webhook і safe-operation dry-run/confirm/worker flow.
-4. **Iteration 111 — Server smoke + rollback runbook.** Зафіксувати production smoke checklist для SaaS/marketing/worker/database/Redis/plugin, backup/restore drill, rollback commands і post-deploy monitoring.
-5. **Iteration 112 — Final plugin release certification.** Перегенерувати `npm run plugin:package`, прогнати `npm run plugin:certify:matrix`, підтвердити artifact/version і staging WordPress з Action Scheduler.
-6. **Iteration 113 — Launch cutover.** DNS/SSL/CDN, production migrations, worker start, uptime monitors, public route smoke, first real plugin install, demo/trial checks і post-launch watch window.
+1. **Iteration 109 — Production env/secrets matrix.** Описати й перевірити production values для `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `SCCC_TOKEN_ENCRYPTION_KEY`, email, GSC OAuth, Stripe, marketing lead webhook, Sentry/PostHog і worker health.
+2. **Iteration 110 — Staging end-to-end release rehearsal.** Прогнати real plugin challenge exchange проти staging SaaS, paginated sync end-to-end, GSC OAuth/sync, demo webhook, billing webhook і safe-operation dry-run/confirm/worker flow.
+3. **Iteration 111 — Server smoke + rollback runbook.** Зафіксувати production smoke checklist для SaaS/marketing/worker/database/Redis/plugin, backup/restore drill, rollback commands і post-deploy monitoring.
+4. **Iteration 112 — Final plugin release certification.** Перегенерувати `npm run plugin:package`, прогнати `npm run plugin:certify:matrix`, підтвердити artifact/version і staging WordPress з Action Scheduler.
+5. **Iteration 113 — Launch cutover.** DNS/SSL/CDN, production migrations, worker start, uptime monitors, public route smoke, first real plugin install, demo/trial checks і post-launch watch window.
 
 Відомий tech debt поза launch gate: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply; Phase 6 deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`.
 

@@ -52,6 +52,20 @@ The background worker is started separately and requires Redis:
 REDIS_URL=redis://localhost:6379 npm run start -w @sccc/worker
 ```
 
+## Production Packaging
+
+For a portable first-server deployment, copy `.env.production.example` to `.env.production.local`, fill real secrets/origins, then use:
+
+```bash
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml build
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml up -d postgres redis
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml run --rm migrate
+docker compose --env-file .env.production.local -f docker-compose.production.example.yml up -d saas marketing worker
+npm run deploy:smoke
+```
+
+The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets. Rebuild when `NEXT_PUBLIC_APP_URL` or `NEXT_PUBLIC_MARKETING_URL` changes because those values are used by Next.js public metadata and handoff URLs at build time.
+
 ## Current Iteration
 
 This repository currently contains the Phase 0 foundation and the first SaaS MVP slice:
@@ -155,7 +169,8 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Docker local dependencies;
 - CI workflow with dependency audit and CodeQL SAST;
 - responsive public marketing with product/integrations, audience, knowledge base, SEO briefings, changelog, contact, service-information, pricing, security, demo, trial, and legal routes; sitemap/robots discovery; and a webhook-delivered demo lead flow;
-- release-hygiene format coverage that keeps generated Impeccable skill bundles and live-session artifacts out of the source formatting gate.
+- release-hygiene format coverage that keeps generated Impeccable skill bundles and live-session artifacts out of the source formatting gate;
+- portable Docker Compose production packaging for SaaS, marketing, worker, and Prisma migrations, plus a deployment smoke script.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 
