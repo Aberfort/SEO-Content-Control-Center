@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "npm run db:generate -w @sccc/database",
     "build": "tsc --project tsconfig.json",
     "lint": "eslint .",
     "start": "tsx src/index.ts",
