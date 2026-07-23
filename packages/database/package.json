@@ -9,7 +9,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "postinstall": "DATABASE_URL=${DATABASE_URL:-postgresql://sccc:sccc@localhost:5432/sccc?schema=public} prisma generate --schema prisma/schema.prisma",
     "build": "npm run db:generate && DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public prisma validate --schema prisma/schema.prisma",
     "db:generate": "DATABASE_URL=postgresql://sccc:sccc@localhost:5432/sccc?schema=public prisma generate --schema prisma/schema.prisma",
     "db:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",

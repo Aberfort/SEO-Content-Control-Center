@@ -12,6 +12,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npm run db:generate",
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run db:generate && npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present && npm run lint:php",
