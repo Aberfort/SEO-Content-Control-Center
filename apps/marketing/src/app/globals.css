@@ -8,8 +8,8 @@
   --ink-soft-invert: #9a9a9a;
   --line: #eaeaea;
   --line-strong: rgba(0, 0, 0, 0.1);
-  --teal: #111111;
-  --teal-dark: #111111;
+  --teal: #0f766e;
+  --teal-dark: #115e59;
   --coral: #9f2f2d;
   --yellow: #fbf3db;
   --pastel-red: #fdebec;
@@ -93,12 +93,12 @@ svg {
 }
 
 :focus-visible {
-  outline: 2px solid #000000;
+  outline: 2px solid var(--teal);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: #000000;
+  background: var(--teal);
   color: #ffffff;
 }
 
@@ -150,7 +150,7 @@ svg {
 
 .brand-mark {
   align-items: center;
-  background: var(--ink);
+  background: var(--teal-dark);
   border-radius: 6px;
   color: #ffffff;
   display: inline-flex;
@@ -241,14 +241,14 @@ svg {
 }
 
 .button-dark {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--teal-dark);
+  border-color: var(--teal-dark);
   color: #ffffff;
 }
 
 .button-dark:hover {
-  background: #333333;
-  border-color: #333333;
+  background: var(--teal);
+  border-color: var(--teal);
 }
 
 .button:disabled {
@@ -1270,10 +1270,10 @@ svg {
 
 .form-page,
 .trial-page {
+  align-items: start;
   display: grid;
-  gap: 44px;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
+  gap: 60px;
+  grid-template-columns: minmax(360px, 0.85fr) minmax(420px, 1.05fr);
   padding-bottom: 96px;
   padding-top: 84px;
 }
@@ -1286,11 +1286,9 @@ svg {
 
 .form-page-copy h1,
 .trial-copy h1 {
-  font-size: 50px;
-  letter-spacing: 0;
-  line-height: 1.04;
-  margin: 16px auto 0;
-  max-width: 980px;
+  font-size: 46px;
+  line-height: 1.05;
+  margin: 16px 0 0;
 }
 
 .form-page-copy > p,
@@ -1298,8 +1296,7 @@ svg {
   color: var(--ink-soft);
   font-size: 17px;
   line-height: 1.65;
-  margin: 22px auto 0;
-  max-width: 720px;
+  margin: 22px 0 0;
 }
 
 .demo-meta {
@@ -1307,8 +1304,7 @@ svg {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 15px;
-  margin: 34px auto 0;
-  max-width: 720px;
+  margin: 34px 0 0;
   padding: 24px 0;
   text-align: left;
 }
@@ -1327,8 +1323,7 @@ svg {
 }
 
 .demo-agenda {
-  margin: 32px auto 0;
-  max-width: 720px;
+  margin: 32px 0 0;
   text-align: left;
 }
 
@@ -1520,16 +1515,10 @@ svg {
   }
 }
 
-.trial-page {
-  align-items: start;
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .trial-list {
   border-top: 1px solid var(--line);
   gap: 16px;
-  margin: 35px auto 0;
-  max-width: 720px;
+  margin: 35px 0 0;
   padding-top: 28px;
   text-align: left;
 }
@@ -2445,8 +2434,6 @@ h3 {
 .integration-guardrails h2,
 .knowledge-disclosure h2,
 .status-boundary h2,
-.form-page-copy h1,
-.trial-copy h1,
 .legal-intro h1 {
   font-family: var(--font-heading);
   font-size: clamp(2.65rem, 5.2vw, 5.15rem);
@@ -2479,8 +2466,6 @@ h3 {
 .integration-band p,
 .disclosure-section > p,
 .trial-note > p,
-.form-page-copy > p,
-.trial-copy > p,
 .legal-intro p {
   color: var(--ink-soft);
   line-height: 1.68;
@@ -2540,7 +2525,7 @@ h3 {
 }
 
 .preview-logo {
-  background: var(--ink);
+  background: var(--teal-dark);
   color: #ffffff;
 }
 
@@ -2549,7 +2534,7 @@ h3 {
 }
 
 .rail-dot.active {
-  background: var(--ink);
+  background: var(--teal);
 }
 
 .preview-toolbar strong,
@@ -2627,7 +2612,7 @@ h3 {
 
 .price-plan.recommended {
   background: #ffffff;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--teal);
   padding: 28px;
 }
 
@@ -2670,8 +2655,6 @@ h3 {
 .solution-outcomes,
 .knowledge-disclosure,
 .status-boundary,
-.form-page-copy,
-.trial-copy,
 .legal-intro {
   text-align: center;
 }
@@ -2700,8 +2683,6 @@ h3 {
 .solution-outcomes > div:first-child,
 .knowledge-disclosure > div,
 .status-boundary > div,
-.form-page-copy,
-.trial-copy,
 .legal-intro {
   margin-left: auto;
   margin-right: auto;
@@ -2769,7 +2750,7 @@ h3 {
 .editorial-cta > svg,
 .status-overview > div > svg,
 .status-boundary > svg {
-  color: var(--ink);
+  color: var(--teal);
 }
 
 .integration-flow span,
@@ -2907,8 +2888,8 @@ h3 {
 .field textarea:focus,
 .trial-form input:focus {
   background: #ffffff;
-  border-color: var(--ink);
-  outline: 3px solid rgba(17, 17, 17, 0.1);
+  border-color: var(--teal);
+  outline: 3px solid rgba(15, 118, 110, 0.15);
 }
 
 .form-message.error {
@@ -3958,14 +3939,14 @@ body {
 }
 
 .home-redesign .button-dark {
-  background: #111111;
-  border-color: #111111;
+  background: var(--teal-dark);
+  border-color: var(--teal-dark);
   color: #ffffff;
 }
 
 .home-redesign .button-dark:hover {
-  background: #333333;
-  border-color: #333333;
+  background: var(--teal);
+  border-color: var(--teal);
 }
 
 .home-redesign .button-secondary {
@@ -3982,7 +3963,7 @@ body {
 .home-redesign .button-light {
   background: #ffffff;
   border-color: #ffffff;
-  color: #111111;
+  color: var(--teal-dark);
 }
 
 .home-redesign .button-light:hover {
@@ -4004,7 +3985,7 @@ body {
 .home-redesign .eyebrow,
 .home-hero-kicker {
   align-items: center;
-  color: var(--ink-soft);
+  color: var(--teal-dark);
   display: inline-flex;
   font-family: var(--font-mono-stack);
   font-size: 11px;
@@ -4166,8 +4147,8 @@ body {
 }
 
 .home-window-rail .is-active {
-  background: #111111;
-  border-color: #111111;
+  background: var(--teal-dark);
+  border-color: var(--teal-dark);
   color: #ffffff;
 }
 
@@ -4801,12 +4782,12 @@ body {
 }
 
 .home-safeguard-grid svg {
-  color: #111111;
+  color: var(--teal);
 }
 
 .cta-band {
   align-items: center;
-  background: #111111;
+  background: var(--teal-dark);
   border: 0;
   border-radius: 0;
   color: #ffffff;
