@@ -2,6 +2,7 @@ import {
   ArrowRight,
   BookOpenText,
   Building2,
+  Download,
   FileText,
   Layers3,
   Menu,
@@ -48,6 +49,12 @@ const megaSections = [
         label: "Integrations",
         description: "WordPress and Search Console in one workflow.",
         icon: PlugZap
+      },
+      {
+        href: "/download",
+        label: "Download plugin",
+        description: "Install the WordPress plugin and connect a site.",
+        icon: Download
       }
     ]
   },

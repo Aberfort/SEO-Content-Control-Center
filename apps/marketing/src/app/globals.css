@@ -1740,6 +1740,76 @@ svg {
   margin: 0;
 }
 
+.plugin-download {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 0 var(--site-gutter) 8px;
+  width: 100%;
+}
+
+.plugin-download-card {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 28px;
+}
+
+.plugin-download-icon {
+  align-items: center;
+  background: rgba(15, 118, 110, 0.08);
+  border-radius: var(--radius-lg);
+  color: var(--teal-dark);
+  display: flex;
+  flex: 0 0 auto;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.plugin-download-info {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 8px;
+}
+
+.plugin-download-info > strong {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.plugin-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plugin-meta {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+  padding: 4px 10px;
+}
+
+.plugin-download-card .button {
+  flex: 0 0 auto;
+}
+
+.plugin-download-note {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 14px 0 0;
+  text-align: center;
+}
+
 .product-boundaries {
   background: var(--surface-warm);
   display: grid;

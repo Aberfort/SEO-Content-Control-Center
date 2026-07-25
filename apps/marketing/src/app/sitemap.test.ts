@@ -9,6 +9,7 @@ describe("marketing sitemap", () => {
     expect(urls).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/\/product$/),
+        expect.stringMatching(/\/download$/),
         expect.stringMatching(/\/integrations$/),
         expect.stringMatching(/\/solutions\/agencies$/),
         expect.stringMatching(/\/solutions\/content-teams$/),

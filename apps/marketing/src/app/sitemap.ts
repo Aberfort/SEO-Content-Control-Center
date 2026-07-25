@@ -6,6 +6,7 @@ const routes = [
   "",
   "/features",
   "/product",
+  "/download",
   "/integrations",
   "/solutions/agencies",
   "/solutions/content-teams",
@@ -29,6 +30,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${marketingOrigin}${path}`,
     lastModified: new Date("2026-07-10T00:00:00.000Z"),
     changeFrequency: path === "" ? "weekly" : "monthly",
-    priority: path === "" ? 1 : path === "/features" || path === "/pricing" ? 0.8 : 0.6
+    priority:
+      path === ""
+        ? 1
+        : path === "/features" || path === "/pricing" || path === "/download"
+          ? 0.8
+          : 0.6
   }));
 }
