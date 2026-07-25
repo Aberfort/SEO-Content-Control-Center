@@ -163,7 +163,7 @@ export function SiteHeader() {
               </div>
               <div className="mega-panel-footer">
                 <Link href="/demo">See workflow</Link>
-                <Link href="/trial">
+                <Link className="mega-cta" href="/trial">
                   Start trial
                   <ArrowRight size={15} />
                 </Link>
