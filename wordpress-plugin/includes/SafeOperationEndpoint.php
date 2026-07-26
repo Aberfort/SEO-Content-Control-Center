@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 final class SafeOperationEndpoint
 {
     public const DEFAULT_REST_PATH = '/wp-json/sccc/v1/operations/apply';

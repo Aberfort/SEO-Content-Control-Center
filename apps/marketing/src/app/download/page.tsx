@@ -73,7 +73,7 @@ export default function DownloadPage() {
               <span className="plugin-meta">Version 0.1.0</span>
               <span className="plugin-meta">WordPress 6.4+</span>
               <span className="plugin-meta">PHP 8.1+</span>
-              <span className="plugin-meta">21 KB</span>
+              <span className="plugin-meta">29 KB</span>
             </div>
           </div>
           <a

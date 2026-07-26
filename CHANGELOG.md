@@ -2,6 +2,18 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 113
+
+- Prepared the WordPress plugin for official directory submission: switched the license from Proprietary to GPLv2 or later across the plugin header, `readme.txt`, and `composer.json`, added a bundled `LICENSE.txt`, and included it in the release archive.
+- Added `Plugin URI`/`Author URI`/`License`/`License URI` headers to the plugin file per WordPress.org header standards.
+- Added `defined('ABSPATH') || exit` direct-access guards to every file under `wordpress-plugin/includes/`.
+- Added a `readme.txt` `== External services ==` section disclosing what the plugin sends to the connected SaaS endpoint and when, plus a `License URI` and a real WordPress.org-format `Contributors` username placeholder.
+- Swapped `json_encode()` for `wp_json_encode()` in `ApiClient::encodeJson()` to clear a WordPress Coding Standards discouraged-function flag.
+- Installed WPCS (`wp-coding-standards/wpcs`) as a plugin dev dependency and reviewed the full `phpcs` report; confirmed the two `NonceVerification`/`InputNotSanitized` warnings on `AdminPage::readQueryValue()` are a read-only, already-`sanitize_key()`-sanitized status-banner query flag that does not need a nonce.
+- Ran `npm run plugin:release:certify`; the full Docker matrix passed against real WordPress 6.8.3, 6.9, and 7.0.1, and bumped `readme.txt`'s `Tested up to` from a stale 6.4 to 7.0 on that evidence. Recorded the run's artifact metadata in `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`.
+- Refreshed the marketing site's self-hosted plugin copy (`apps/marketing/public/downloads/`) and its displayed file size with the license/security-hardened build.
+- Changed the plugin's `Author` header and `readme.txt` `Contributors` from the unregistered "SEO Content Control Center" product name to the actual maintainer, Serhii Vasyliev, since WordPress.org attribution must name a real registered account, not a product/company that has no separate legal or WordPress.org identity.
+
 ### Iteration 112
 
 - Added `npm run plugin:release:certify` / `scripts/certify-plugin-release.sh` as the final WordPress plugin artifact gate, covering version parity, fresh package generation, archive verification, SHA-256/size/entry metadata, and the Docker WordPress/PHP certification matrix against the exact release zip.

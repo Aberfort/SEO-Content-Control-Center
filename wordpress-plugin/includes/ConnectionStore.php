@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 final class ConnectionStore
 {
     private const OPTION = 'sccc_connection';

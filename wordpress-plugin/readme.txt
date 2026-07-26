@@ -1,11 +1,12 @@
 === SEO Content Control Center ===
-Contributors: seo-content-control-center
+Contributors: serhiivasyliev
 Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
-Tested up to: 6.4
+Tested up to: 7.0
 Requires PHP: 8.1
 Stable tag: 0.1.0
-License: Proprietary
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Connect WordPress to SEO Content Control Center for evidence-backed SEO audits, a prioritized backlog, and review-first SEO metadata operations.
 
@@ -51,6 +52,21 @@ It syncs bounded posts/pages inventory and metadata, including URL, title, statu
 = What happens when I deactivate the plugin? =
 
 Recurring and queued local sync jobs are removed. Disconnect the site from the settings page before deleting the plugin when you also need to invalidate its SaaS connection token.
+
+== External services ==
+
+This plugin connects your WordPress site to the SEO Content Control Center SaaS workspace, an account-based service you sign up for separately. No SaaS endpoint is contacted until an administrator enters one on the settings screen and completes the one-time connection exchange.
+
+Once connected, the plugin sends requests to the SaaS endpoint you configured in these cases:
+
+* **Connecting the site** &mdash; the one-time connection challenge you paste in is exchanged for a signed, site-scoped connection token.
+* **Scheduled and manual sync** &mdash; bounded post/page metadata (URL, title, status, modified time, author, publish date, featured-image presence, taxonomies, word count, link counts, and supported SEO metadata signals) is sent in paginated batches. Full post/page content bodies are never sent.
+* **Receiving SEO operations** &mdash; the SaaS worker sends signed, review-first title/meta-description/canonical/noindex-nofollow proposals for an administrator to preview and confirm before anything is written back to WordPress.
+* **Disconnecting the site** &mdash; a request invalidates the stored connection token on the SaaS side.
+
+Every outbound request is signed with a per-site secret and rejected by the SaaS if tampered with. No data is sent to any third party besides the SaaS endpoint you explicitly configure.
+
+See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
 

@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 final class ContentCollector
 {
     public const BATCH_SIZE = 200;

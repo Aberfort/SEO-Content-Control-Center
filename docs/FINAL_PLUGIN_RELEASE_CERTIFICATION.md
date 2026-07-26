@@ -36,17 +36,17 @@ must pass the default full matrix.
 
 Record the command output here before publishing:
 
-| Field              | Value |
-| ------------------ | ----- |
-| Certification date |       |
-| Git commit SHA     |       |
-| Plugin version     |       |
-| Archive path       |       |
-| SHA-256            |       |
-| Size bytes         |       |
-| Zip entries        |       |
-| Matrix result      |       |
-| Operator           |       |
+| Field              | Value                                                                                                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Certification date | 2026-07-26                                                                                                                                                                                           |
+| Git commit SHA     | _fill in after committing this run's changes_                                                                                                                                                        |
+| Plugin version     | 0.1.0                                                                                                                                                                                                |
+| Archive path       | dist/seo-content-control-center-0.1.0.zip                                                                                                                                                            |
+| SHA-256            | 1433ea95d0d05b130a7aa914695d9fdf6e7ce50074733e3e2127ec1da7e757cb                                                                                                                                     |
+| Size bytes         | 29463                                                                                                                                                                                                |
+| Zip entries        | 16                                                                                                                                                                                                   |
+| Matrix result      | PASS on wordpress:php8.1-apache (WP 6.9/PHP 8.1.34), wordpress:php8.2-apache (WP 7.0.1/PHP 8.2.32), wordpress:php8.3-apache (WP 7.0.1/PHP 8.3.32), wordpress:6.8-php8.2-apache (WP 6.8.3/PHP 8.2.29) |
+| Operator           | Claude Code (automated), reviewed by Serhii Vasyliev                                                                                                                                                 |
 
 ## Staging Action Scheduler Evidence
 

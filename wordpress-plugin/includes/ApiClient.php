@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 use RuntimeException;
 
 final class ApiClient
@@ -194,7 +198,7 @@ final class ApiClient
      */
     private function encodeJson(array $payload): string
     {
-        $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $json = wp_json_encode($payload, JSON_UNESCAPED_SLASHES);
 
         if (! is_string($json)) {
             throw new RuntimeException('json_encode_failed');

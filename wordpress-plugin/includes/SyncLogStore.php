@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 final class SyncLogStore
 {
     private const OPTION = 'sccc_sync_log';

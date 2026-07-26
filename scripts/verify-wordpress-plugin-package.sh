@@ -24,6 +24,7 @@ entries="$(unzip -Z1 "${archive}")"
 for required_entry in \
   "${archive_root}seo-content-control-center.php" \
   "${archive_root}readme.txt" \
+  "${archive_root}LICENSE.txt" \
   "${archive_root}VERSION" \
   "${archive_root}composer.json" \
   "${archive_root}includes/Plugin.php" \

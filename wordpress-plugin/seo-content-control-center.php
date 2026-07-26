@@ -1,12 +1,16 @@
 <?php
 /**
  * Plugin Name: SEO Content Control Center
+ * Plugin URI: https://seo-content-control-center-marketin.vercel.app/download
  * Description: Connects WordPress to SEO Content Control Center for safe SEO audits and backlog workflows.
  * Version: 0.1.0
  * Requires PHP: 8.1
  * Requires at least: 6.4
- * Author: SEO Content Control Center
+ * Author: Serhii Vasyliev
+ * Author URI: https://seo-content-control-center-marketin.vercel.app
  * Text Domain: seo-content-control-center
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
  * @package SCCC
  */

@@ -9,6 +9,10 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 final class SyncScheduler
 {
     private const RECURRING_ACTION = 'sccc_run_incremental_sync';
