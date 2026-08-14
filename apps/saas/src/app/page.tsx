@@ -67,13 +67,55 @@ import type {
 } from "@/lib/types";
 
 const navItems = [
-  { label: "Overview", href: "/" },
-  { label: "Sites", href: "#sites-title" },
-  { label: "Content", href: "#synced-content-title" },
-  { label: "Audits", href: "#audits-title" },
-  { label: "Backlog", href: "#backlog-title" },
-  { label: "Admin", href: "#admin-title" }
-];
+  { label: "Overview", href: "/", view: "overview" },
+  { label: "Sites", href: "/sites", view: "sites" },
+  { label: "Content", href: "/content", view: "content" },
+  { label: "Audits", href: "/audits", view: "audits" },
+  { label: "Backlog", href: "/backlog", view: "backlog" },
+  { label: "Settings", href: "/settings", view: "settings" }
+] as const;
+
+const pageDetails = {
+  sites: {
+    title: "Sites & connections",
+    description: "Manage WordPress sites, plugin connections, sync state, and Search Console."
+  },
+  content: {
+    title: "Content",
+    description: "Review synced WordPress inventory and evidence-backed recommendations."
+  },
+  audits: {
+    title: "Audits",
+    description: "Run metadata audits and work through site issues."
+  },
+  backlog: {
+    title: "Backlog",
+    description: "Triage, assign, preview, and complete SEO work."
+  },
+  settings: {
+    title: "Settings",
+    description: "Manage workspace access, account security, notifications, and billing."
+  }
+} as const;
+
+export type WorkspaceView = (typeof navItems)[number]["view"];
+
+const workspacePaths: Record<WorkspaceView, string> = {
+  overview: "/",
+  sites: "/sites",
+  content: "/content",
+  audits: "/audits",
+  backlog: "/backlog",
+  settings: "/settings"
+};
+
+type WorkspacePageProps = AppHomePageProps & {
+  view: WorkspaceView;
+};
+
+export default function AppHomePage(props: AppHomePageProps) {
+  return <WorkspacePage {...props} view="overview" />;
+}
 
 type AppHomePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -108,11 +150,13 @@ const gscStatuses = [
   "error"
 ] as const;
 
-export default async function AppHomePage({ searchParams }: AppHomePageProps) {
+export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) {
+  const routePath = workspacePaths[view];
+  const pageDetail = view === "overview" ? null : pageDetails[view];
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/auth/login");
+    redirect(`/auth/login?next=${encodeURIComponent(routePath)}`);
   }
 
   const params = (await searchParams) ?? {};
@@ -350,7 +394,9 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const assistantRecommendations = assistantRecommendationList?.recommendations ?? [];
   const assistantUsage = assistantRecommendationList?.usage;
   const assistantAiSummary = assistantRecommendationList?.aiSummary ?? null;
-  const currentHref = buildContentHref(params, {});
+  const buildViewHref = (overrides: Record<string, string | null>) =>
+    buildContentHref(params, overrides, routePath);
+  const currentHref = buildViewHref({});
   const onboardingChecklist = buildOnboardingChecklist({
     organization: activeOrganization,
     activeSite,
@@ -361,1528 +407,184 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <aside className="sidebar">
-        <div className="brand">SEO Content Control Center</div>
-        <p className="sidebar-note">{user.email}</p>
-        <LogoutButton />
+        <div className="sidebar-header">
+          <div className="brand">SEO Content Control Center</div>
+          <div className="sidebar-account">
+            <p className="sidebar-note">{user.email}</p>
+            <LogoutButton />
+          </div>
+        </div>
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => (
             <Link
               key={item.label}
-              href={item.href}
-              aria-current={item.label === "Overview" ? "page" : undefined}
+              href={buildNavigationHref(item.href, activeSite?.id)}
+              aria-current={item.view === view ? "page" : undefined}
             >
               {item.label}
             </Link>
           ))}
         </nav>
       </aside>
-      <main className="main">
-        <DashboardCommandCenter
-          organizationId={activeOrganization?.id ?? null}
-          organizationName={activeOrganization?.name ?? null}
-          sites={activeOrganization?.sites ?? []}
-          activeSite={activeSite}
-          canManageIntegrations={canManageIntegrations}
-          currentHref={currentHref}
-          syncedContentTotal={syncedContent.total}
-          latestAudit={auditRuns[0] ?? null}
-          backlogSummary={backlogTasks.summary}
-          gscOverview={gscOverview}
-          billingOverview={billingOverview}
-        />
-
-        <nav className="operation-nav" aria-label="Dashboard work areas">
-          <a href="#sites-title">Connection</a>
-          <a href="#synced-content-title">Content</a>
-          <a href="#assistant-title">Recommendations</a>
-          <a href="#audits-title">Audits</a>
-          <a href="#backlog-title">Backlog</a>
-          <a href="#admin-title">Admin</a>
-        </nav>
-
-        <details
-          id="workspace-setup"
-          className="setup-disclosure"
-          open={!activeOrganization || !activeSite}
-        >
-          <summary>
-            <span>Workspace setup</span>
-            <small>
-              {onboardingChecklist.completedCount}/{onboardingChecklist.totalCount} complete
-            </small>
-          </summary>
-          <OnboardingChecklist
-            checklist={onboardingChecklist}
-            hrefs={{
-              workspace: "#workspace-setup",
-              site: "#workspace-setup",
-              plugin: "#sites-title",
-              content: "#synced-content-title",
-              audit: "#audits-title",
-              backlog: "#backlog-title"
-            }}
+      <main className="main" id="main-content">
+        {view === "overview" ? (
+          <DashboardCommandCenter
+            organizationId={activeOrganization?.id ?? null}
+            sites={activeOrganization?.sites ?? []}
+            activeSite={activeSite}
+            currentHref={currentHref}
+            syncedContentTotal={syncedContent.total}
+            latestAudit={auditRuns[0] ?? null}
+            backlogSummary={backlogTasks.summary}
+            gscOverview={gscOverview}
+            activity={latestActivity}
           />
-          <section className="workspace-grid" aria-label="Workspace setup forms">
-            <article className="panel">
-              <h2>Create organization</h2>
-              <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>
-              <CreateOrganizationForm />
-            </article>
-
-            <article className="panel">
-              <h2>Add WordPress site</h2>
-              {activeOrganization ? (
-                <>
-                  <p>
-                    Add the first site to {activeOrganization.name}. Plugin connection comes next.
-                  </p>
-                  <CreateSiteForm organizationId={activeOrganization.id} />
-                </>
-              ) : (
-                <p className="empty-copy">Create an organization before adding a WordPress site.</p>
-              )}
-            </article>
-          </section>
-        </details>
-
-        <section className="panel empty-state" aria-labelledby="sites-title">
-          <div className="section-heading">
+        ) : (
+          <header className="workspace-page-header">
             <div>
-              <h2 id="sites-title">Sites</h2>
-              <p>Only sites in the selected tenant are listed here.</p>
+              <h1>{pageDetail?.title}</h1>
+              <p>{pageDetail?.description}</p>
             </div>
-          </div>
-
-          {activeOrganization && activeOrganization.sites.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>URL</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeOrganization.sites.map((site) => (
-                    <tr key={site.id}>
-                      <td>{site.name}</td>
-                      <td>{site.url}</td>
-                      <td>
-                        <span className="status-pill">{site.status.replaceAll("_", " ")}</span>
-                      </td>
-                      <td className="site-action-cell">
-                        {canCreatePluginChallengeStatus(site.status) && canManageIntegrations ? (
-                          <PluginChallengeForm
-                            organizationId={activeOrganization.id}
-                            siteId={site.id}
-                          />
-                        ) : canDisconnectSiteStatus(site.status) ? (
-                          <form action={disconnectPluginConnectionAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={activeOrganization.id}
-                            />
-                            <input name="siteId" type="hidden" value={site.id} />
-                            <input name="redirectTo" type="hidden" value={currentHref} />
-                            <button className="secondary-button" type="submit">
-                              Disconnect
-                            </button>
-                          </form>
-                        ) : (
-                          <span className="muted-text">No action</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="empty-copy">
-              No sites yet. Add a WordPress site to prepare plugin setup.
-            </p>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="gsc-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="gsc-title">Google Search Console</h2>
-              <p>Search performance property state for the selected site.</p>
-            </div>
-            {gscOverview ? (
-              <span className="metric-pill">{formatGscConnectionCount(gscOverview)}</span>
-            ) : null}
-          </div>
-
-          {gscStatus ? (
-            <p
-              className={`billing-feedback billing-feedback-${
-                gscStatus === "error" ? "error" : "success"
-              }`}
-            >
-              {formatGscFeedback(gscStatus, gscMessage)}
-            </p>
-          ) : null}
-
-          {activeOrganization && activeSite ? (
-            canReadSite && gscOverview ? (
-              <>
-                <div className="billing-current">
-                  <div>
-                    <small>Selected site</small>
-                    <strong>{activeSite.name}</strong>
-                    <span>{activeSite.url}</span>
-                  </div>
-                  <div>
-                    <small>Status</small>
-                    <strong>{gscOverview.connected ? "Connected" : "Not connected"}</strong>
-                    <span>
-                      {gscOverview.oauthConfigured ? "OAuth configured" : "OAuth not configured"}
-                    </span>
-                  </div>
-                  <div className="billing-action-cell">
-                    {gscOverview.action.enabled && gscOverview.action.href ? (
-                      <Link className="secondary-button" href={gscOverview.action.href}>
-                        {gscOverview.action.label}
-                      </Link>
-                    ) : (
-                      <button className="secondary-button" disabled type="button">
-                        {gscOverview.action.label}
-                      </button>
-                    )}
-                    <span>
-                      {gscOverview.action.enabled
-                        ? "Requests read-only Search Console access from Google."
-                        : gscOverview.action.disabledReason}
-                    </span>
-                    {activeGscConnection ? (
-                      <>
-                        <form action={syncGscDailyMetricsAction}>
-                          <input
-                            name="organizationId"
-                            type="hidden"
-                            value={activeOrganization.id}
-                          />
-                          <input name="siteId" type="hidden" value={activeSite.id} />
-                          <input name="redirectTo" type="hidden" value={currentHref} />
-                          <button className="secondary-button" type="submit">
-                            Sync metrics
-                          </button>
-                        </form>
-                        <form action={syncGscSearchInsightsAction}>
-                          <input
-                            name="organizationId"
-                            type="hidden"
-                            value={activeOrganization.id}
-                          />
-                          <input name="siteId" type="hidden" value={activeSite.id} />
-                          <input name="redirectTo" type="hidden" value={currentHref} />
-                          <button className="secondary-button" type="submit">
-                            Sync insights
-                          </button>
-                        </form>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-
-                {activeGscConnection && gscOverview.action.enabled ? (
-                  <GscPropertyPicker
-                    organizationId={activeOrganization.id}
-                    siteId={activeSite.id}
-                    currentPropertyUrl={activeGscConnection.propertyUrl}
-                    returnHref={currentHref}
-                  />
-                ) : null}
-
-                {gscOverview.connections.length > 0 ? (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Property</th>
-                          <th>Google account</th>
-                          <th>Connected</th>
-                          <th>Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {gscOverview.connections.map((connection) => (
-                          <tr key={connection.id}>
-                            <td>{connection.propertyUrl}</td>
-                            <td>{connection.googleAccountEmail}</td>
-                            <td>{formatDateTime(connection.connectedAt)}</td>
-                            <td>{formatDateTime(connection.updatedAt)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="empty-copy">
-                    No Google Search Console property is connected for this site yet.
-                  </p>
-                )}
-
-                {activeGscConnection ? (
-                  gscMetrics.length > 0 ? (
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Clicks</th>
-                            <th>Impressions</th>
-                            <th>CTR</th>
-                            <th>Position</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gscMetrics.slice(-7).map((metric) => (
-                            <tr key={metric.id}>
-                              <td>{metric.date}</td>
-                              <td>{metric.clicks.toLocaleString("en")}</td>
-                              <td>{metric.impressions.toLocaleString("en")}</td>
-                              <td>{formatGscCtr(metric)}</td>
-                              <td>{formatGscPosition(metric)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="empty-copy">
-                      Daily Search Console metrics will appear after the first sync.
-                    </p>
-                  )
-                ) : null}
-
-                {activeGscConnection ? (
-                  gscInsights.length > 0 ? (
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Query</th>
-                            <th>Page</th>
-                            <th>Clicks</th>
-                            <th>Impressions</th>
-                            <th>CTR</th>
-                            <th>Position</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gscInsights.map((insight) => (
-                            <tr key={insight.id}>
-                              <td>{insight.query}</td>
-                              <td>{insight.page}</td>
-                              <td>{insight.clicks.toLocaleString("en")}</td>
-                              <td>{insight.impressions.toLocaleString("en")}</td>
-                              <td>{formatGscCtr(insight)}</td>
-                              <td>{formatGscPosition(insight)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="empty-copy">
-                      Search Console page/query insights will appear after the first insight sync.
-                    </p>
-                  )
-                ) : null}
-
-                {activeGscConnection && gscSiteTrafficLoss && gscPageTrafficLoss ? (
-                  <div className="stack-sm">
-                    <h3 id="gsc-traffic-loss-title">Traffic loss</h3>
-                    {gscSiteTrafficLoss.available &&
-                    gscSiteTrafficLoss.current &&
-                    gscSiteTrafficLoss.previous ? (
-                      <p>
-                        Clicks {gscSiteTrafficLoss.current.startDate} to{" "}
-                        {gscSiteTrafficLoss.current.endDate}:{" "}
-                        <strong>{gscSiteTrafficLoss.current.clicks.toLocaleString("en")}</strong> vs
-                        previous window{" "}
-                        <strong>{gscSiteTrafficLoss.previous.clicks.toLocaleString("en")}</strong> (
-                        {formatTrafficLossDelta(gscSiteTrafficLoss)}) - severity:{" "}
-                        <strong>{gscSiteTrafficLoss.severity}</strong>
-                      </p>
-                    ) : (
-                      <p className="empty-copy">{gscSiteTrafficLoss.reason}</p>
-                    )}
-                    {gscPageTrafficLoss.available ? (
-                      gscPageTrafficLoss.drops.length > 0 ? (
-                        <div className="table-wrap">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Page</th>
-                                <th>Content</th>
-                                <th>Clicks now</th>
-                                <th>Clicks baseline</th>
-                                <th>Delta</th>
-                                <th>Drop</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {gscPageTrafficLoss.drops.map((drop) => (
-                                <tr key={drop.page}>
-                                  <td>{drop.page}</td>
-                                  <td>
-                                    {drop.content
-                                      ? drop.content.title || drop.content.externalId
-                                      : "Not in synced inventory"}
-                                  </td>
-                                  <td>{drop.currentClicks.toLocaleString("en")}</td>
-                                  <td>{drop.baselineClicks.toLocaleString("en")}</td>
-                                  <td>{drop.clicksDelta.toLocaleString("en")}</td>
-                                  <td>{`${(drop.dropRatio * 100).toLocaleString("en", {
-                                    maximumFractionDigits: 1
-                                  })}%`}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="empty-copy">
-                          No pages exceed the traffic loss thresholds against the baseline snapshot.
-                        </p>
-                      )
-                    ) : (
-                      <p className="empty-copy">{gscPageTrafficLoss.reason}</p>
-                    )}
-                  </div>
-                ) : null}
-
-                {activeGscConnection && gscOpportunities ? (
-                  <div className="stack-sm">
-                    <h3 id="gsc-opportunities-title">Search opportunities</h3>
-                    {gscOpportunities.available ? (
-                      gscOpportunities.entries.length > 0 ? (
-                        <div className="table-wrap">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Type</th>
-                                <th>Page</th>
-                                <th>Content</th>
-                                <th>Impressions</th>
-                                <th>CTR</th>
-                                <th>Expected CTR</th>
-                                <th>Position</th>
-                                <th>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {gscOpportunities.entries.map((entry) => (
-                                <tr key={`${entry.type}:${entry.page}`}>
-                                  <td>
-                                    {entry.type === "ctr-opportunity"
-                                      ? "CTR opportunity"
-                                      : "Striking distance"}
-                                  </td>
-                                  <td>{entry.page}</td>
-                                  <td>
-                                    {entry.content
-                                      ? entry.content.title || entry.content.externalId
-                                      : "Not in synced inventory"}
-                                  </td>
-                                  <td>{entry.impressions.toLocaleString("en")}</td>
-                                  <td>{`${(entry.ctr * 100).toLocaleString("en", {
-                                    maximumFractionDigits: 1
-                                  })}%`}</td>
-                                  <td>
-                                    {entry.expectedCtr !== null
-                                      ? `${(entry.expectedCtr * 100).toLocaleString("en", {
-                                          maximumFractionDigits: 1
-                                        })}%`
-                                      : "-"}
-                                  </td>
-                                  <td>
-                                    {entry.position.toLocaleString("en", {
-                                      maximumFractionDigits: 1
-                                    })}
-                                  </td>
-                                  <td>
-                                    {entry.content && activeOrganization && activeSite ? (
-                                      <form action={createBacklogTaskFromCandidateAction}>
-                                        <input
-                                          name="organizationId"
-                                          type="hidden"
-                                          value={activeOrganization.id}
-                                        />
-                                        <input name="siteId" type="hidden" value={activeSite.id} />
-                                        <input
-                                          name="contentItemId"
-                                          type="hidden"
-                                          value={entry.content.contentItemId}
-                                        />
-                                        <input
-                                          name="candidateId"
-                                          type="hidden"
-                                          value={buildGscOpportunityCandidateId(
-                                            entry.content.contentItemId,
-                                            entry.type
-                                          )}
-                                        />
-                                        <input
-                                          name="redirectTo"
-                                          type="hidden"
-                                          value={currentHref}
-                                        />
-                                        <button className="text-button" type="submit">
-                                          Create task
-                                        </button>
-                                      </form>
-                                    ) : (
-                                      <span className="empty-copy">Sync content to convert</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="empty-copy">
-                          No pages meet the CTR opportunity or striking distance thresholds in the
-                          latest insight snapshot.
-                        </p>
-                      )
-                    ) : (
-                      <p className="empty-copy">{gscOpportunities.reason}</p>
-                    )}
-                  </div>
-                ) : null}
-              </>
+            {view === "settings" ? (
+              <span className="workspace-context">
+                {activeOrganization?.name ?? "No workspace"}
+              </span>
             ) : (
-              <p className="empty-copy">
-                Your role can not view Google Search Console connections for this site.
-              </p>
-            )
-          ) : (
-            <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="assistant-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="assistant-title">Assistant recommendations</h2>
-              <p>Prioritized from backlog and synced content evidence for the selected site.</p>
-            </div>
-            <div className="assistant-heading-actions">
-              <span className="metric-pill">{assistantRecommendations.length} recommendations</span>
-              {assistantUsage ? (
-                <span className="metric-pill">
-                  {assistantUsage.used}/{assistantUsage.limit} AI credits
-                  {assistantUsage.metered ? " (metered)" : ""}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          {assistantAiSummary ? (
-            <div className="assistant-ai-summary">
-              <p>{assistantAiSummary.text}</p>
-              <small>
-                AI summary from {assistantAiSummary.provider} ({assistantAiSummary.model}); the
-                recommendations below stay deterministic and read-only.
-              </small>
-            </div>
-          ) : null}
-          {assistantRecommendations.length > 0 ? (
-            <ul className="assistant-list">
-              {assistantRecommendations.map((recommendation) => (
-                <li key={recommendation.id}>
-                  <div className="assistant-copy">
-                    <div className="assistant-title-row">
-                      <strong>{recommendation.title}</strong>
-                      <span className={`priority-pill priority-${recommendation.priority}`}>
-                        {recommendation.priority}
-                      </span>
-                    </div>
-                    <p>{recommendation.rationale}</p>
-                    <span>{recommendation.nextStep}</span>
-                  </div>
-                  <div className="assistant-source">
-                    <small>{recommendation.source.type.replaceAll("_", " ")}</small>
-                    {recommendation.source.url ? (
-                      <a href={recommendation.source.url}>{recommendation.source.label}</a>
+              <form className="site-switcher" action={routePath} method="get">
+                <label>
+                  <span>Active site</span>
+                  <select
+                    name="site"
+                    defaultValue={activeSite?.id ?? ""}
+                    disabled={!activeOrganization?.sites.length}
+                  >
+                    {activeOrganization?.sites.length ? (
+                      activeOrganization.sites.map((site) => (
+                        <option key={site.id} value={site.id}>
+                          {site.name}
+                        </option>
+                      ))
                     ) : (
-                      <strong>{recommendation.source.label}</strong>
+                      <option value="">No sites</option>
                     )}
-                    <span>{recommendation.source.detail}</span>
-                    <div className="assistant-action">
-                      {recommendation.action.enabled && recommendation.action.targetTaskId ? (
-                        <form action={createBulkOperationPreviewAction}>
-                          <input
-                            name="organizationId"
-                            type="hidden"
-                            value={recommendation.organizationId}
-                          />
-                          <input name="siteId" type="hidden" value={recommendation.siteId} />
-                          <input
-                            name="taskId"
-                            type="hidden"
-                            value={recommendation.action.targetTaskId}
-                          />
-                          <input
-                            name="redirectTo"
-                            type="hidden"
-                            value={buildContentHref(params, {
-                              site: recommendation.siteId
-                            })}
-                          />
-                          <button className="secondary-button" type="submit">
-                            {recommendation.action.label}
-                          </button>
-                        </form>
-                      ) : (
-                        <button className="secondary-button" disabled type="button">
-                          {recommendation.action.label}
-                        </button>
-                      )}
-                      <small>
-                        {recommendation.action.enabled
-                          ? "Manual confirmation required"
-                          : recommendation.action.disabledReason}
-                      </small>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-copy">
-              Recommendations will appear after backlog tasks or actionable sync evidence exists.
-            </p>
-          )}
-        </section>
-
-        <section className="panel empty-state" aria-labelledby="synced-content-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="synced-content-title">Synced content</h2>
-              <p>Search and review WordPress inventory received from plugin sync.</p>
-            </div>
-            <span className="metric-pill">{syncedContent.total} items</span>
-          </div>
-
-          {activeSite ? (
-            <>
-              <form className="inventory-filters" method="get">
-                <label>
-                  <span>Site</span>
-                  <select name="site" defaultValue={activeSite.id}>
-                    {activeOrganization?.sites.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.name}
-                      </option>
-                    ))}
                   </select>
                 </label>
-                <label>
-                  <span>Search</span>
-                  <input
-                    name="q"
-                    type="search"
-                    placeholder="Title, URL, external ID"
-                    defaultValue={contentFilters.query}
-                  />
-                </label>
-                <label>
-                  <span>Type</span>
-                  <select name="type" defaultValue={contentFilters.type}>
-                    {contentTypes.map((type) => (
-                      <option key={type.value || "all"} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Status</span>
-                  <select name="status" defaultValue={contentFilters.status}>
-                    {contentStatuses.map((status) => (
-                      <option key={status.value || "all"} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="button" type="submit">
-                  Apply
+                <button
+                  className="secondary-button"
+                  type="submit"
+                  disabled={!activeOrganization?.sites.length}
+                >
+                  Switch
                 </button>
-                <Link className="secondary-button inventory-reset" href="/">
-                  Reset
-                </Link>
               </form>
+            )}
+          </header>
+        )}
 
-              {syncedContent.items.length > 0 ? (
-                <>
-                  <div className="table-wrap">
-                    <table className="content-table">
-                      <thead>
-                        <tr>
-                          <th>Title</th>
-                          <th>Type</th>
-                          <th>Status</th>
-                          <th>Modified</th>
-                          <th>Seen</th>
-                          <th>Details</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {syncedContent.items.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <strong>{item.title ?? item.externalId}</strong>
-                              <span>{item.url}</span>
-                            </td>
-                            <td>{item.type.replaceAll("_", " ")}</td>
-                            <td>
-                              <span className="status-pill">{item.status}</span>
-                            </td>
-                            <td>
-                              <time dateTime={item.modifiedAt}>
-                                {formatDateTime(item.modifiedAt)}
-                              </time>
-                            </td>
-                            <td>
-                              <span className="stacked-meta">
-                                First {formatDateTime(item.firstSeenAt)}
-                              </span>
-                              <span className="stacked-meta">
-                                Last {formatDateTime(item.lastSeenAt)}
-                              </span>
-                            </td>
-                            <td>
-                              <Link
-                                className="text-button"
-                                href={buildContentHref(params, {
-                                  site: activeSite.id,
-                                  content: item.id
-                                })}
-                              >
-                                Open
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+        {view === "sites" ? (
+          <>
+            <details
+              id="workspace-setup"
+              className="setup-disclosure"
+              open={!activeOrganization || !activeSite}
+            >
+              <summary>
+                <span>Workspace setup</span>
+                <small>
+                  {onboardingChecklist.completedCount}/{onboardingChecklist.totalCount} complete
+                </small>
+              </summary>
+              <OnboardingChecklist
+                checklist={onboardingChecklist}
+                hrefs={{
+                  workspace: "/sites#workspace-setup",
+                  site: "/sites#workspace-setup",
+                  plugin: "/sites#sites-title",
+                  content: buildNavigationHref("/content", activeSite?.id),
+                  audit: buildNavigationHref("/audits", activeSite?.id),
+                  backlog: buildNavigationHref("/backlog", activeSite?.id)
+                }}
+              />
+              <section className="workspace-grid" aria-label="Workspace setup forms">
+                <article className="panel">
+                  <h2>Create organization</h2>
+                  <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>
+                  <CreateOrganizationForm />
+                </article>
 
-                  {syncedContent.nextCursor ? (
-                    <div className="pagination-row">
-                      <Link
-                        className="secondary-button"
-                        href={buildContentHref(params, {
-                          site: activeSite.id,
-                          cursor: syncedContent.nextCursor
-                        })}
-                      >
-                        Next page
-                      </Link>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <p className="empty-copy">No content matches the current inventory filters.</p>
-              )}
-
-              {selectedContentId ? (
-                <div className="content-detail-panel" aria-labelledby="content-detail-title">
-                  {selectedContentItem ? (
+                <article className="panel">
+                  <h2>Add WordPress site</h2>
+                  {activeOrganization ? (
                     <>
-                      <div className="section-heading">
-                        <div>
-                          <h3 id="content-detail-title">
-                            {selectedContentItem.title ?? selectedContentItem.externalId}
-                          </h3>
-                          <p>{selectedContentItem.url}</p>
-                        </div>
-                        <Link
-                          className="secondary-button inventory-reset"
-                          href={buildContentHref(params, {
-                            content: null
-                          })}
-                        >
-                          Close
-                        </Link>
-                      </div>
+                      <p>
+                        Add the first site to {activeOrganization.name}. Plugin connection comes
+                        next.
+                      </p>
+                      <CreateSiteForm organizationId={activeOrganization.id} />
+                    </>
+                  ) : (
+                    <p className="empty-copy">
+                      Create an organization before adding a WordPress site.
+                    </p>
+                  )}
+                </article>
+              </section>
+            </details>
 
-                      <dl className="detail-grid">
-                        <div>
-                          <dt>External ID</dt>
-                          <dd>{selectedContentItem.externalId}</dd>
-                        </div>
-                        <div>
-                          <dt>Type</dt>
-                          <dd>{selectedContentItem.type.replaceAll("_", " ")}</dd>
-                        </div>
-                        <div>
-                          <dt>Status</dt>
-                          <dd>
-                            <span className="status-pill">{selectedContentItem.status}</span>
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Modified</dt>
-                          <dd>{formatDateTime(selectedContentItem.modifiedAt)}</dd>
-                        </div>
-                        <div>
-                          <dt>Published</dt>
-                          <dd>
-                            {formatOptionalDateTime(selectedContentItem.metadata.publishedAt)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Author</dt>
-                          <dd>{formatSyncedContentAuthor(selectedContentItem.metadata)}</dd>
-                        </div>
-                        <div>
-                          <dt>Word count</dt>
-                          <dd>{formatOptionalNumber(selectedContentItem.metadata.wordCount)}</dd>
-                        </div>
-                        <div>
-                          <dt>Internal links</dt>
-                          <dd>
-                            {formatOptionalNumber(selectedContentItem.metadata.internalLinkCount)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Outbound links</dt>
-                          <dd>
-                            {formatOptionalNumber(selectedContentItem.metadata.externalLinkCount)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>SEO title</dt>
-                          <dd>{formatOptionalText(selectedContentItem.metadata.seoTitle)}</dd>
-                        </div>
-                        <div>
-                          <dt>Meta description</dt>
-                          <dd>
-                            {formatOptionalText(selectedContentItem.metadata.metaDescription)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Canonical</dt>
-                          <dd>{formatOptionalText(selectedContentItem.metadata.canonicalUrl)}</dd>
-                        </div>
-                        <div>
-                          <dt>Robots</dt>
-                          <dd>{formatRobots(selectedContentItem.metadata)}</dd>
-                        </div>
-                        <div>
-                          <dt>SEO source</dt>
-                          <dd>{formatSeoSource(selectedContentItem.metadata)}</dd>
-                        </div>
-                        <div>
-                          <dt>Featured image</dt>
-                          <dd>{formatFeaturedImage(selectedContentItem.metadata)}</dd>
-                        </div>
-                        <div>
-                          <dt>Taxonomies</dt>
-                          <dd>{formatTaxonomies(selectedContentItem.metadata)}</dd>
-                        </div>
-                        <div>
-                          <dt>First seen</dt>
-                          <dd>{formatDateTime(selectedContentItem.firstSeenAt)}</dd>
-                        </div>
-                        <div>
-                          <dt>Last seen</dt>
-                          <dd>{formatDateTime(selectedContentItem.lastSeenAt)}</dd>
-                        </div>
-                      </dl>
+            <section className="panel empty-state" aria-labelledby="sites-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="sites-title">Sites</h2>
+                  <p>Only sites in the selected tenant are listed here.</p>
+                </div>
+              </div>
 
-                      <div className="health-signal-list" aria-label="Content health signals">
-                        {selectedContentHealthSignals.map((signal) => (
-                          <article
-                            className={`health-signal health-signal-${signal.severity}`}
-                            key={signal.id}
-                          >
-                            <span>{signal.severity}</span>
-                            <strong>{signal.label}</strong>
-                            <p>{signal.message}</p>
-                          </article>
-                        ))}
-                      </div>
-
-                      <div className="candidate-task-list" aria-label="Backlog candidate tasks">
-                        <div className="candidate-task-heading">
-                          <h4>Candidate tasks</h4>
-                          <span>{selectedContentBacklogCandidates.length}</span>
-                        </div>
-                        {selectedContentBacklogCandidates.length > 0 ? (
-                          selectedContentBacklogCandidates.map((candidate) => (
-                            <article className="candidate-task" key={candidate.id}>
-                              <div>
-                                <span className={`priority-pill priority-${candidate.priority}`}>
-                                  {candidate.priority}
-                                </span>
-                                <strong>{candidate.title}</strong>
-                              </div>
-                              <p>{candidate.rationale}</p>
-                              <p>{candidate.nextStep}</p>
-                              <form action={createBacklogTaskFromCandidateAction}>
+              {activeOrganization && activeOrganization.sites.length > 0 ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>URL</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeOrganization.sites.map((site) => (
+                        <tr key={site.id}>
+                          <td>{site.name}</td>
+                          <td>{site.url}</td>
+                          <td>
+                            <span className="status-pill">{site.status.replaceAll("_", " ")}</span>
+                          </td>
+                          <td className="site-action-cell">
+                            {canCreatePluginChallengeStatus(site.status) &&
+                            canManageIntegrations ? (
+                              <PluginChallengeForm
+                                organizationId={activeOrganization.id}
+                                siteId={site.id}
+                              />
+                            ) : canDisconnectSiteStatus(site.status) ? (
+                              <form action={disconnectPluginConnectionAction}>
                                 <input
                                   name="organizationId"
                                   type="hidden"
-                                  value={selectedContentItem.organizationId}
+                                  value={activeOrganization.id}
                                 />
-                                <input
-                                  name="siteId"
-                                  type="hidden"
-                                  value={selectedContentItem.siteId}
-                                />
-                                <input
-                                  name="contentItemId"
-                                  type="hidden"
-                                  value={selectedContentItem.id}
-                                />
-                                <input name="candidateId" type="hidden" value={candidate.id} />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildContentHref(params, {
-                                    site: activeSite.id,
-                                    content: selectedContentItem.id
-                                  })}
-                                />
+                                <input name="siteId" type="hidden" value={site.id} />
+                                <input name="redirectTo" type="hidden" value={currentHref} />
                                 <button className="secondary-button" type="submit">
-                                  Create task
+                                  Disconnect
                                 </button>
                               </form>
-                            </article>
-                          ))
-                        ) : (
-                          <p className="empty-copy">
-                            No candidate tasks generated from the current metadata signals.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="detail-actions">
-                        <a
-                          className="secondary-button inventory-reset"
-                          href={selectedContentItem.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Visit URL
-                        </a>
-                        <span className="muted-text">
-                          Signals are computed from synced WordPress metadata.
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="section-heading">
-                      <div>
-                        <h3 id="content-detail-title">Content item not found</h3>
-                        <p>The selected item is not available for this site.</p>
-                      </div>
-                      <Link
-                        className="secondary-button inventory-reset"
-                        href={buildContentHref(params, {
-                          content: null
-                        })}
-                      >
-                        Clear
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <p className="empty-copy">Add a WordPress site before syncing content.</p>
-          )}
-        </section>
-
-        <section className="panel empty-state" aria-labelledby="audits-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="audits-title">Audits</h2>
-              <p>Recent audit runs for the selected WordPress site.</p>
-            </div>
-            <span className="metric-pill">{auditRuns.length} recent</span>
-          </div>
-
-          {activeOrganization && activeSite ? (
-            <>
-              <div className="audit-actions">
-                <form action={createAuditForSiteAction}>
-                  <input name="organizationId" type="hidden" value={activeOrganization.id} />
-                  <input name="siteId" type="hidden" value={activeSite.id} />
-                  <input
-                    name="redirectTo"
-                    type="hidden"
-                    value={buildContentHref(params, {
-                      site: activeSite.id
-                    })}
-                  />
-                  <button className="button" type="submit">
-                    Run metadata audit
-                  </button>
-                </form>
-                <span className="muted-text">
-                  The MVP completes a metadata audit from synced WordPress evidence.
-                </span>
-              </div>
-
-              {auditRuns.length > 0 ? (
-                <div className="table-wrap">
-                  <table className="audit-table">
-                    <thead>
-                      <tr>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Started</th>
-                        <th>Completed</th>
-                        <th>Issues</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditRuns.map((audit) => (
-                        <tr key={audit.id}>
-                          <td>
-                            <span
-                              className={`audit-status audit-status-${audit.status.toLowerCase()}`}
-                            >
-                              {audit.status.toLowerCase()}
-                            </span>
-                          </td>
-                          <td>
-                            <time dateTime={audit.createdAt}>
-                              {formatDateTime(audit.createdAt)}
-                            </time>
-                          </td>
-                          <td>
-                            {audit.startedAt ? (
-                              <time dateTime={audit.startedAt}>
-                                {formatDateTime(audit.startedAt)}
-                              </time>
                             ) : (
-                              <span className="muted-text">Not started</span>
+                              <span className="muted-text">No action</span>
                             )}
-                          </td>
-                          <td>
-                            {audit.completedAt ? (
-                              <time dateTime={audit.completedAt}>
-                                {formatDateTime(audit.completedAt)}
-                              </time>
-                            ) : (
-                              <span className="muted-text">Pending</span>
-                            )}
-                          </td>
-                          <td>
-                            <strong>{formatAuditIssueTotal(audit.issueSummary.total)}</strong>
-                            <span className="stacked-meta">
-                              {audit.issueSummary.open} open / {audit.issueSummary.high} high /{" "}
-                              {audit.issueSummary.critical} critical
-                            </span>
-                            <Link
-                              className="text-button"
-                              href={buildContentHref(params, {
-                                site: activeSite.id,
-                                audit: audit.id
-                              })}
-                            >
-                              Open issues
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="empty-copy">No audit runs yet for this site.</p>
-              )}
-
-              {activeAudit ? (
-                <div className="audit-issue-panel" aria-labelledby="audit-issues-title">
-                  <div className="section-heading">
-                    <div>
-                      <h3 id="audit-issues-title">Audit issues</h3>
-                      <p>
-                        {auditIssues.length} findings for audit queued{" "}
-                        {formatDateTime(activeAudit.createdAt)}.
-                      </p>
-                    </div>
-                    <div className="audit-issue-heading-actions">
-                      <span
-                        className={`audit-status audit-status-${activeAudit.status.toLowerCase()}`}
-                      >
-                        {activeAudit.status.toLowerCase()}
-                      </span>
-                      <form action={createBacklogTasksFromAuditAction}>
-                        <input name="organizationId" type="hidden" value={activeOrganization.id} />
-                        <input name="siteId" type="hidden" value={activeSite.id} />
-                        <input name="auditId" type="hidden" value={activeAudit.id} />
-                        <input name="status" type="hidden" value="OPEN" />
-                        <input
-                          name="redirectTo"
-                          type="hidden"
-                          value={buildContentHref(params, {
-                            site: activeSite.id,
-                            audit: activeAudit.id
-                          })}
-                        />
-                        <button
-                          className="secondary-button"
-                          disabled={auditIssueSummary.open === 0}
-                          type="submit"
-                        >
-                          Create tasks from open
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-
-                  <div className="audit-issue-summary" aria-label="Audit issue summary">
-                    <span>Total {auditIssueSummary.total}</span>
-                    <span>Open {auditIssueSummary.open}</span>
-                    <span>Resolved {auditIssueSummary.resolved}</span>
-                    <span>High {auditIssueSummary.high}</span>
-                    <span>Critical {auditIssueSummary.critical}</span>
-                  </div>
-
-                  <form className="audit-issue-filters" action="/" method="get">
-                    <input name="site" type="hidden" value={activeSite.id} />
-                    <input name="audit" type="hidden" value={activeAudit.id} />
-                    <label>
-                      <span>Search</span>
-                      <input
-                        defaultValue={auditIssueFilters.query}
-                        name="auditIssueQ"
-                        placeholder="Issue, URL, action"
-                        type="search"
-                      />
-                    </label>
-                    <label>
-                      <span>Status</span>
-                      <select name="auditIssueStatus" defaultValue={auditIssueFilters.status ?? ""}>
-                        <option value="">All statuses</option>
-                        {auditIssueStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status.toLowerCase()}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      <span>Severity</span>
-                      <select
-                        name="auditIssueSeverity"
-                        defaultValue={auditIssueFilters.severity ?? ""}
-                      >
-                        <option value="">All severities</option>
-                        {backlogSeverities.map((severity) => (
-                          <option key={severity} value={severity}>
-                            {severity}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button className="secondary-button" type="submit">
-                      Filter
-                    </button>
-                    <Link
-                      className="secondary-button inventory-reset"
-                      href={buildContentHref(params, {
-                        site: activeSite.id,
-                        audit: activeAudit.id,
-                        auditIssueQ: null,
-                        auditIssueStatus: null,
-                        auditIssueSeverity: null
-                      })}
-                    >
-                      Reset
-                    </Link>
-                    <Link
-                      className="secondary-button"
-                      href={buildAuditIssueExportHref({
-                        organizationId: activeOrganization.id,
-                        siteId: activeSite.id,
-                        auditId: activeAudit.id,
-                        query: auditIssueFilters.query,
-                        status: auditIssueFilters.status,
-                        severity: auditIssueFilters.severity
-                      })}
-                    >
-                      Export CSV
-                    </Link>
-                  </form>
-
-                  {auditIssues.length > 0 ? (
-                    <div className="table-wrap">
-                      <table className="audit-issue-table">
-                        <thead>
-                          <tr>
-                            <th>Issue</th>
-                            <th>Status</th>
-                            <th>Severity</th>
-                            <th>Backlog</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {auditIssues.map((issue) => (
-                            <tr key={issue.id}>
-                              <td>
-                                <strong>{issue.recommendedAction}</strong>
-                                <span>{issue.affectedUrl}</span>
-                                <span>{issue.issueType.replaceAll("_", " ")}</span>
-                              </td>
-                              <td>
-                                <form className="status-form" action={updateAuditIssueStatusAction}>
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={issue.organizationId}
-                                  />
-                                  <input name="siteId" type="hidden" value={issue.siteId} />
-                                  <input name="auditId" type="hidden" value={issue.auditId} />
-                                  <input name="issueId" type="hidden" value={issue.id} />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildContentHref(params, {
-                                      site: activeSite.id,
-                                      audit: activeAudit.id
-                                    })}
-                                  />
-                                  <select name="status" defaultValue={issue.status}>
-                                    {auditIssueStatuses.map((status) => (
-                                      <option key={status} value={status}>
-                                        {status.toLowerCase()}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button className="secondary-button" type="submit">
-                                    Apply
-                                  </button>
-                                </form>
-                              </td>
-                              <td>
-                                <span
-                                  className={`severity-pill severity-${issue.severity.toLowerCase()}`}
-                                >
-                                  {issue.severity}
-                                </span>
-                              </td>
-                              <td>
-                                <form action={createBacklogTaskFromAuditIssueAction}>
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={issue.organizationId}
-                                  />
-                                  <input name="siteId" type="hidden" value={issue.siteId} />
-                                  <input name="auditIssueId" type="hidden" value={issue.id} />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildContentHref(params, {
-                                      site: activeSite.id,
-                                      audit: activeAudit.id
-                                    })}
-                                  />
-                                  <button className="secondary-button" type="submit">
-                                    Create task
-                                  </button>
-                                </form>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="empty-copy">No issues have been attached to this audit yet.</p>
-                  )}
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <p className="empty-copy">Add a WordPress site before queueing audits.</p>
-          )}
-        </section>
-
-        <section className="panel empty-state" aria-labelledby="backlog-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="backlog-title">Backlog</h2>
-              <p>Persisted SEO tasks created from synced content candidates.</p>
-            </div>
-            <span className="metric-pill">{backlogTasks.summary.total} tasks</span>
-          </div>
-
-          {activeSite ? (
-            <>
-              <div className="backlog-summary" aria-label="Backlog summary">
-                <span>Open {backlogTasks.summary.open}</span>
-                <span>Done {backlogTasks.summary.done}</span>
-                <span>High {backlogTasks.summary.bySeverity.HIGH}</span>
-                <span>Critical {backlogTasks.summary.bySeverity.CRITICAL}</span>
-              </div>
-
-              <form className="backlog-filters" action="/" method="get">
-                <input name="site" type="hidden" value={activeSite.id} />
-                {contentFilters.query ? (
-                  <input name="q" type="hidden" value={contentFilters.query} />
-                ) : null}
-                {contentFilters.type ? (
-                  <input name="type" type="hidden" value={contentFilters.type} />
-                ) : null}
-                {contentFilters.status ? (
-                  <input name="status" type="hidden" value={contentFilters.status} />
-                ) : null}
-                {selectedContentId ? (
-                  <input name="content" type="hidden" value={selectedContentId} />
-                ) : null}
-                <label>
-                  <span>Search</span>
-                  <input
-                    defaultValue={backlogFilters.query}
-                    name="backlogQ"
-                    placeholder="Title, URL, issue"
-                    type="search"
-                  />
-                </label>
-                <label>
-                  <span>Status</span>
-                  <select name="backlogStatus" defaultValue={backlogFilters.status ?? ""}>
-                    <option value="">All statuses</option>
-                    {backlogStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status.replaceAll("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Severity</span>
-                  <select name="backlogSeverity" defaultValue={backlogFilters.severity ?? ""}>
-                    <option value="">All severities</option>
-                    {backlogSeverities.map((severity) => (
-                      <option key={severity} value={severity}>
-                        {severity}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="secondary-button" type="submit">
-                  Filter
-                </button>
-                <Link
-                  className="secondary-button"
-                  href={buildContentHref(params, {
-                    backlogQ: null,
-                    backlogStatus: null,
-                    backlogSeverity: null
-                  })}
-                >
-                  Reset
-                </Link>
-                {activeOrganization ? (
-                  <Link
-                    className="secondary-button"
-                    href={buildBacklogExportHref({
-                      organizationId: activeOrganization.id,
-                      siteId: activeSite.id,
-                      query: backlogFilters.query,
-                      status: backlogFilters.status,
-                      severity: backlogFilters.severity
-                    })}
-                  >
-                    Export CSV
-                  </Link>
-                ) : null}
-              </form>
-
-              {backlogTasks.items.length > 0 ? (
-                <div className="table-wrap">
-                  <table className="backlog-table">
-                    <thead>
-                      <tr>
-                        <th>Task</th>
-                        <th>Status</th>
-                        <th>Assignment</th>
-                        <th>Severity</th>
-                        <th>Effort</th>
-                        <th>Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {backlogTasks.items.map((task) => (
-                        <tr key={task.id}>
-                          <td>
-                            <strong>{task.title}</strong>
-                            <span>{task.url}</span>
-                            <span>{task.issueType.replaceAll("_", " ")}</span>
-                            {task.comments.length > 0 ? (
-                              <div className="backlog-comments" aria-label="Recent comments">
-                                {task.comments.map((comment) => (
-                                  <article key={comment.id}>
-                                    <strong>{comment.authorName ?? comment.authorEmail}</strong>
-                                    <p>{comment.body}</p>
-                                    <time dateTime={comment.createdAt}>
-                                      {formatDateTime(comment.createdAt)}
-                                    </time>
-                                  </article>
-                                ))}
-                              </div>
-                            ) : null}
-                            {task.activityLogs?.length ? (
-                              <div className="backlog-activity" aria-label="Change history">
-                                <strong>Change history</strong>
-                                <ul>
-                                  {task.activityLogs.map((log) => (
-                                    <li key={log.id}>
-                                      <span>{formatBacklogActivity(log)}</span>
-                                      <time dateTime={log.createdAt}>
-                                        {formatDateTime(log.createdAt)}
-                                      </time>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ) : null}
-                            <form
-                              className="preview-form"
-                              action={createBulkOperationPreviewAction}
-                            >
-                              <input
-                                name="organizationId"
-                                type="hidden"
-                                value={task.organizationId}
-                              />
-                              <input name="siteId" type="hidden" value={task.siteId} />
-                              <input name="taskId" type="hidden" value={task.id} />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
-                              <button className="secondary-button" type="submit">
-                                Preview
-                              </button>
-                            </form>
-                            <form className="comment-form" action={createBacklogTaskCommentAction}>
-                              <input
-                                name="organizationId"
-                                type="hidden"
-                                value={task.organizationId}
-                              />
-                              <input name="siteId" type="hidden" value={task.siteId} />
-                              <input name="taskId" type="hidden" value={task.id} />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
-                              <textarea
-                                aria-label="Comment"
-                                maxLength={2000}
-                                name="body"
-                                required
-                                rows={2}
-                              />
-                              <button className="secondary-button" type="submit">
-                                Comment
-                              </button>
-                            </form>
-                          </td>
-                          <td>
-                            <form className="status-form" action={updateBacklogTaskStatusAction}>
-                              <input
-                                name="organizationId"
-                                type="hidden"
-                                value={task.organizationId}
-                              />
-                              <input name="siteId" type="hidden" value={task.siteId} />
-                              <input name="taskId" type="hidden" value={task.id} />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
-                              <select name="status" defaultValue={task.status}>
-                                {backlogStatuses.map((status) => (
-                                  <option key={status} value={status}>
-                                    {status.replaceAll("_", " ")}
-                                  </option>
-                                ))}
-                              </select>
-                              <button className="secondary-button" type="submit">
-                                Apply
-                              </button>
-                            </form>
-                          </td>
-                          <td>
-                            <form
-                              className="assignment-form"
-                              action={updateBacklogTaskAssignmentAction}
-                            >
-                              <input
-                                name="organizationId"
-                                type="hidden"
-                                value={task.organizationId}
-                              />
-                              <input name="siteId" type="hidden" value={task.siteId} />
-                              <input name="taskId" type="hidden" value={task.id} />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
-                              <select name="assigneeId" defaultValue={task.assigneeId ?? ""}>
-                                <option value="">Unassigned</option>
-                                {assignableMembers.map((member) => (
-                                  <option key={member.userId} value={member.userId}>
-                                    {member.name ?? member.email}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                aria-label="Due date"
-                                defaultValue={formatDateInput(task.dueDate)}
-                                name="dueDate"
-                                type="date"
-                              />
-                              <button className="secondary-button" type="submit">
-                                Apply
-                              </button>
-                            </form>
-                          </td>
-                          <td>
-                            <span
-                              className={`severity-pill severity-${task.severity.toLowerCase()}`}
-                            >
-                              {task.severity}
-                            </span>
-                          </td>
-                          <td>{task.effortEstimate ?? "n/a"}</td>
-                          <td>
-                            <time dateTime={task.updatedAt}>{formatDateTime(task.updatedAt)}</time>
                           </td>
                         </tr>
                       ))}
@@ -1891,526 +593,1990 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                 </div>
               ) : (
                 <p className="empty-copy">
-                  {backlogTasks.summary.total > 0
-                    ? "No backlog tasks match the selected filters."
-                    : "No backlog tasks yet. Create one from a synced content candidate."}
+                  No sites yet. Add a WordPress site to prepare plugin setup.
                 </p>
               )}
+            </section>
 
-              {bulkOperations.length > 0 ? (
-                <div className="bulk-preview-panel" aria-label="Recent safe operation previews">
-                  <h3>Recent previews</h3>
-                  <div className="bulk-preview-list">
-                    {bulkOperations.map((operation) => (
-                      <article key={operation.id}>
-                        <div>
-                          <strong>{operation.type.replaceAll("_", " ")}</strong>
-                          <span>{formatBulkOperationPreview(operation.preview)}</span>
-                          {operation.dryRunResult ? (
-                            <span>{formatBulkOperationDryRun(operation.dryRunResult)}</span>
-                          ) : null}
-                          <span>
-                            {formatBulkOperationItemStatusSummary(
-                              operation.itemStatusSummary,
-                              operation.items
-                            )}
-                          </span>
-                          {operation.retryMode ? (
-                            <span>
-                              {formatBulkOperationRetryMode(operation.retryMode, operation.status)}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="status-pill">{operation.status.replaceAll("_", " ")}</span>
-                        <time dateTime={operation.createdAt}>
-                          {formatDateTime(operation.createdAt)}
-                        </time>
-                        {operation.status === "PREVIEWED" ? (
-                          <form action={runBulkOperationDryRunAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={operation.organizationId}
-                            />
-                            <input name="siteId" type="hidden" value={operation.siteId} />
-                            <input name="operationId" type="hidden" value={operation.id} />
-                            <input
-                              name="redirectTo"
-                              type="hidden"
-                              value={buildContentHref(params, {
-                                site: activeSite.id
-                              })}
-                            />
-                            <button className="secondary-button" type="submit">
-                              Dry run
-                            </button>
-                          </form>
-                        ) : null}
-                        {operation.status === "DRY_RUN_PASSED" ? (
-                          <form className="confirm-form" action={confirmBulkOperationAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={operation.organizationId}
-                            />
-                            <input name="siteId" type="hidden" value={operation.siteId} />
-                            <input name="operationId" type="hidden" value={operation.id} />
-                            <input
-                              name="redirectTo"
-                              type="hidden"
-                              value={buildContentHref(params, {
-                                site: activeSite.id
-                              })}
-                            />
-                            <input
-                              aria-label="Confirmation"
-                              autoComplete="off"
-                              name="confirmation"
-                              pattern="CONFIRM"
-                              placeholder="CONFIRM"
-                              required
-                              type="text"
-                            />
-                            <button className="secondary-button" type="submit">
-                              Confirm
-                            </button>
-                          </form>
-                        ) : null}
-                        {operation.status === "CONFIRMED" ? (
-                          <form action={startBulkOperationAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={operation.organizationId}
-                            />
-                            <input name="siteId" type="hidden" value={operation.siteId} />
-                            <input name="operationId" type="hidden" value={operation.id} />
-                            <input
-                              name="redirectTo"
-                              type="hidden"
-                              value={buildContentHref(params, {
-                                site: activeSite.id
-                              })}
-                            />
-                            <button className="secondary-button" type="submit">
-                              Start
-                            </button>
-                          </form>
-                        ) : null}
-                        {operation.status === "RUNNING" ? (
+            <section className="panel" aria-labelledby="gsc-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="gsc-title">Google Search Console</h2>
+                  <p>Search performance property state for the selected site.</p>
+                </div>
+                {gscOverview ? (
+                  <span className="metric-pill">{formatGscConnectionCount(gscOverview)}</span>
+                ) : null}
+              </div>
+
+              {gscStatus ? (
+                <p
+                  className={`billing-feedback billing-feedback-${
+                    gscStatus === "error" ? "error" : "success"
+                  }`}
+                >
+                  {formatGscFeedback(gscStatus, gscMessage)}
+                </p>
+              ) : null}
+
+              {activeOrganization && activeSite ? (
+                canReadSite && gscOverview ? (
+                  <>
+                    <div className="billing-current">
+                      <div>
+                        <small>Selected site</small>
+                        <strong>{activeSite.name}</strong>
+                        <span>{activeSite.url}</span>
+                      </div>
+                      <div>
+                        <small>Status</small>
+                        <strong>{gscOverview.connected ? "Connected" : "Not connected"}</strong>
+                        <span>
+                          {gscOverview.oauthConfigured
+                            ? "OAuth configured"
+                            : "OAuth not configured"}
+                        </span>
+                      </div>
+                      <div className="billing-action-cell">
+                        {gscOverview.action.enabled && gscOverview.action.href ? (
+                          <Link className="secondary-button" href={gscOverview.action.href}>
+                            {gscOverview.action.label}
+                          </Link>
+                        ) : (
+                          <button className="secondary-button" disabled type="button">
+                            {gscOverview.action.label}
+                          </button>
+                        )}
+                        <span>
+                          {gscOverview.action.enabled
+                            ? "Requests read-only Search Console access from Google."
+                            : gscOverview.action.disabledReason}
+                        </span>
+                        {activeGscConnection ? (
                           <>
-                            <form action={finishBulkOperationAction}>
+                            <form action={syncGscDailyMetricsAction}>
                               <input
                                 name="organizationId"
                                 type="hidden"
-                                value={operation.organizationId}
+                                value={activeOrganization.id}
                               />
-                              <input name="siteId" type="hidden" value={operation.siteId} />
-                              <input name="operationId" type="hidden" value={operation.id} />
-                              <input name="status" type="hidden" value="COMPLETED" />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
+                              <input name="siteId" type="hidden" value={activeSite.id} />
+                              <input name="redirectTo" type="hidden" value={currentHref} />
                               <button className="secondary-button" type="submit">
-                                Complete
+                                Sync metrics
                               </button>
                             </form>
-                            <form action={finishBulkOperationAction}>
+                            <form action={syncGscSearchInsightsAction}>
                               <input
                                 name="organizationId"
                                 type="hidden"
-                                value={operation.organizationId}
+                                value={activeOrganization.id}
                               />
-                              <input name="siteId" type="hidden" value={operation.siteId} />
-                              <input name="operationId" type="hidden" value={operation.id} />
-                              <input name="status" type="hidden" value="FAILED" />
-                              <input
-                                name="message"
-                                type="hidden"
-                                value="Marked failed from the SaaS dashboard."
-                              />
-                              <input
-                                name="redirectTo"
-                                type="hidden"
-                                value={buildContentHref(params, {
-                                  site: activeSite.id
-                                })}
-                              />
+                              <input name="siteId" type="hidden" value={activeSite.id} />
+                              <input name="redirectTo" type="hidden" value={currentHref} />
                               <button className="secondary-button" type="submit">
-                                Mark failed
+                                Sync insights
                               </button>
                             </form>
                           </>
                         ) : null}
-                        {operation.status === "COMPLETED" || operation.status === "FAILED" ? (
-                          <form action={rollbackBulkOperationAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={operation.organizationId}
-                            />
-                            <input name="siteId" type="hidden" value={operation.siteId} />
-                            <input name="operationId" type="hidden" value={operation.id} />
-                            <input
-                              name="reason"
-                              type="hidden"
-                              value="Rollback requested from the SaaS dashboard."
-                            />
-                            <input
-                              name="redirectTo"
-                              type="hidden"
-                              value={buildContentHref(params, {
-                                site: activeSite.id
-                              })}
-                            />
-                            <button className="secondary-button" type="submit">
-                              Roll back
-                            </button>
-                          </form>
-                        ) : null}
-                        {operation.status === "FAILED" ? (
-                          <form action={retryBulkOperationAction}>
-                            <input
-                              name="organizationId"
-                              type="hidden"
-                              value={operation.organizationId}
-                            />
-                            <input name="siteId" type="hidden" value={operation.siteId} />
-                            <input name="operationId" type="hidden" value={operation.id} />
-                            <input
-                              name="reason"
-                              type="hidden"
-                              value="Retry failed items from the SaaS dashboard."
-                            />
-                            <input
-                              name="redirectTo"
-                              type="hidden"
-                              value={buildContentHref(params, {
-                                site: activeSite.id
-                              })}
-                            />
-                            <button className="secondary-button" type="submit">
-                              Retry failed
-                            </button>
-                          </form>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <p className="empty-copy">Add a WordPress site before building a backlog.</p>
-          )}
-        </section>
-
-        <section id="admin-title" className="admin-intro" aria-labelledby="admin-heading">
-          <div>
-            <p className="eyebrow">Administration</p>
-            <h2 id="admin-heading">Workspace controls</h2>
-          </div>
-          <p>
-            Account, member, billing, security, notifications, and audit trail stay available here
-            without interrupting the site operations flow above.
-          </p>
-        </section>
-
-        <section className="admin-grid" aria-label="Workspace administration">
-          <section className="panel" aria-labelledby="activity-title">
-            <h2 id="activity-title">Audit log</h2>
-            {latestActivity.length > 0 ? (
-              <ul className="activity-list">
-                {latestActivity.map((activity) => (
-                  <li key={activity.id}>
-                    <span>{activity.action}</span>
-                    <time dateTime={activity.createdAt}>
-                      {new Intl.DateTimeFormat("en", {
-                        dateStyle: "medium",
-                        timeStyle: "short"
-                      }).format(new Date(activity.createdAt))}
-                    </time>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="empty-copy">
-                Activity will appear after organization and site actions.
-              </p>
-            )}
-          </section>
-
-          <section className="panel" aria-labelledby="notifications-title">
-            <div className="section-heading">
-              <div>
-                <h2 id="notifications-title">Notifications</h2>
-                <p>Recent safe operation lifecycle updates for this organization.</p>
-              </div>
-              <div className="notification-heading-actions">
-                <span className="metric-pill">
-                  {unreadNotifications.length} unread / {latestNotifications.length} recent
-                </span>
-                {unreadNotifications.length > 0 ? (
-                  <form action={markAllNotificationsReadAction}>
-                    <input
-                      name="organizationId"
-                      type="hidden"
-                      value={activeOrganization?.id ?? ""}
-                    />
-                    <input name="redirectTo" type="hidden" value={currentHref} />
-                    <button className="text-button" type="submit">
-                      Mark all read
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-            </div>
-            {latestNotifications.length > 0 ? (
-              <ul className="notification-list">
-                {latestNotifications.map((notification) => (
-                  <li
-                    key={notification.id}
-                    className={notification.readAt ? "notification-read" : "notification-unread"}
-                  >
-                    <div>
-                      <strong>{notification.title}</strong>
-                      <span>{notification.body}</span>
-                      <small>{notification.readAt ? "Read" : "Unread"}</small>
-                    </div>
-                    <div className="notification-actions">
-                      <time dateTime={notification.createdAt}>
-                        {formatDateTime(notification.createdAt)}
-                      </time>
-                      <form action={updateNotificationReadStateAction}>
-                        <input
-                          name="organizationId"
-                          type="hidden"
-                          value={notification.organizationId}
-                        />
-                        <input name="notificationId" type="hidden" value={notification.id} />
-                        <input
-                          name="read"
-                          type="hidden"
-                          value={notification.readAt ? "false" : "true"}
-                        />
-                        <input name="redirectTo" type="hidden" value={currentHref} />
-                        <button className="text-button" type="submit">
-                          {notification.readAt ? "Mark unread" : "Mark read"}
-                        </button>
-                      </form>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="empty-copy">
-                Notifications will appear after safe operation results, rollbacks, or retries.
-              </p>
-            )}
-          </section>
-
-          <section className="panel" aria-labelledby="security-title">
-            <div className="section-heading">
-              <div>
-                <h2 id="security-title">Security</h2>
-                <p>Authenticator verification for your account sign-in.</p>
-              </div>
-              <span className="metric-pill">{twoFactorStatus.enabled ? "2FA on" : "2FA off"}</span>
-            </div>
-            <TwoFactorSettings status={twoFactorStatus} />
-          </section>
-        </section>
-
-        <section className="panel" aria-labelledby="members-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="members-title">Members</h2>
-              <p>Invite teammates and manage non-owner roles inside the current organization.</p>
-            </div>
-          </div>
-
-          {activeOrganization ? (
-            <>
-              <InviteMemberForm organizationId={activeOrganization.id} />
-              <div className="table-wrap members-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Member</th>
-                      <th>Status</th>
-                      <th>Role</th>
-                      <th>Invite</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeMembers.map((member) => (
-                      <tr key={member.id}>
-                        <td>
-                          <strong>{member.name ?? member.email}</strong>
-                          <span>{member.email}</span>
-                        </td>
-                        <td>
-                          <span className="status-pill">{member.status.toLowerCase()}</span>
-                        </td>
-                        <td>
-                          <MemberRoleForm
-                            organizationId={activeOrganization.id}
-                            member={member}
-                            currentUserId={user.id}
-                          />
-                        </td>
-                        <td>
-                          <InviteActionsForm
-                            organizationId={activeOrganization.id}
-                            member={member}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          ) : (
-            <p className="empty-copy">Create an organization before inviting members.</p>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="billing-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="billing-title">Billing</h2>
-              <p>Plan limits and subscription state for the current organization.</p>
-            </div>
-            {billingOverview ? (
-              <span className="metric-pill">{billingOverview.currentPlan.name}</span>
-            ) : null}
-          </div>
-
-          {billingOverview ? (
-            <>
-              {billingStatus ? (
-                <p className={`billing-feedback billing-feedback-${billingStatus}`}>
-                  {formatBillingFeedback(billingStatus, billingMessage)}
-                </p>
-              ) : null}
-
-              <div className="billing-current">
-                <div>
-                  <small>Current plan</small>
-                  <strong>{billingOverview.currentPlan.name}</strong>
-                  <span>{formatPlanPrice(billingOverview.currentPlan)}</span>
-                </div>
-                <div>
-                  <small>Status</small>
-                  <strong>{formatSubscriptionStatus(billingOverview.subscription)}</strong>
-                  <span>{formatSubscriptionPeriod(billingOverview.subscription)}</span>
-                </div>
-                <div className="billing-action-cell">
-                  {billingOverview.actions.portal.enabled ? (
-                    <form action={createBillingPortalSessionAction}>
-                      <input
-                        type="hidden"
-                        name="organizationId"
-                        value={activeOrganization?.id ?? ""}
-                      />
-                      <button className="secondary-button" type="submit">
-                        {billingOverview.actions.portal.label}
-                      </button>
-                    </form>
-                  ) : (
-                    <>
-                      <button className="secondary-button" disabled type="button">
-                        {billingOverview.actions.portal.label}
-                      </button>
-                      <span>{billingOverview.actions.portal.disabledReason}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="billing-gate-grid">
-                {billingOverview.featureGates.map((gate) => (
-                  <div
-                    key={gate.key}
-                    className={gate.allowed ? "billing-gate" : "billing-gate billing-gate-blocked"}
-                  >
-                    <span>{gate.label}</span>
-                    <strong>
-                      {gate.used.toLocaleString("en")} / {formatLimitValue(gate.limit)}
-                    </strong>
-                    <small>
-                      {gate.allowed
-                        ? `${formatLimitValue(gate.remaining)} remaining`
-                        : gate.disabledReason}
-                    </small>
-                  </div>
-                ))}
-              </div>
-
-              <div className="billing-plan-grid">
-                {billingOverview.plans.map((plan) => {
-                  const checkoutAction = billingOverview.actions.checkout.find(
-                    (action) => action.targetPlanCode === plan.code
-                  );
-
-                  return (
-                    <article
-                      key={plan.id}
-                      className={
-                        plan.code === billingOverview.currentPlan.code
-                          ? "billing-plan billing-plan-current"
-                          : "billing-plan"
-                      }
-                    >
-                      <div>
-                        <h3>{plan.name}</h3>
-                        <strong>{formatPlanPrice(plan)}</strong>
                       </div>
-                      <ul>
-                        <li>{formatLimitValue(plan.limits.sites)} sites</li>
-                        <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
-                        <li>{formatLimitValue(plan.limits.users)} users</li>
-                        <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
-                        <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
-                      </ul>
-                      {checkoutAction ? (
-                        <div className="billing-plan-action">
-                          {checkoutAction.enabled ? (
-                            <form action={createBillingCheckoutSessionAction}>
+                    </div>
+
+                    {activeGscConnection && gscOverview.action.enabled ? (
+                      <GscPropertyPicker
+                        organizationId={activeOrganization.id}
+                        siteId={activeSite.id}
+                        currentPropertyUrl={activeGscConnection.propertyUrl}
+                        returnHref={currentHref}
+                      />
+                    ) : null}
+
+                    {gscOverview.connections.length > 0 ? (
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Property</th>
+                              <th>Google account</th>
+                              <th>Connected</th>
+                              <th>Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {gscOverview.connections.map((connection) => (
+                              <tr key={connection.id}>
+                                <td>{connection.propertyUrl}</td>
+                                <td>{connection.googleAccountEmail}</td>
+                                <td>{formatDateTime(connection.connectedAt)}</td>
+                                <td>{formatDateTime(connection.updatedAt)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="empty-copy">
+                        No Google Search Console property is connected for this site yet.
+                      </p>
+                    )}
+
+                    {activeGscConnection ? (
+                      gscMetrics.length > 0 ? (
+                        <div className="table-wrap">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Clicks</th>
+                                <th>Impressions</th>
+                                <th>CTR</th>
+                                <th>Position</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gscMetrics.slice(-7).map((metric) => (
+                                <tr key={metric.id}>
+                                  <td>{metric.date}</td>
+                                  <td>{metric.clicks.toLocaleString("en")}</td>
+                                  <td>{metric.impressions.toLocaleString("en")}</td>
+                                  <td>{formatGscCtr(metric)}</td>
+                                  <td>{formatGscPosition(metric)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="empty-copy">
+                          Daily Search Console metrics will appear after the first sync.
+                        </p>
+                      )
+                    ) : null}
+
+                    {activeGscConnection ? (
+                      gscInsights.length > 0 ? (
+                        <div className="table-wrap">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Query</th>
+                                <th>Page</th>
+                                <th>Clicks</th>
+                                <th>Impressions</th>
+                                <th>CTR</th>
+                                <th>Position</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gscInsights.map((insight) => (
+                                <tr key={insight.id}>
+                                  <td>{insight.query}</td>
+                                  <td>{insight.page}</td>
+                                  <td>{insight.clicks.toLocaleString("en")}</td>
+                                  <td>{insight.impressions.toLocaleString("en")}</td>
+                                  <td>{formatGscCtr(insight)}</td>
+                                  <td>{formatGscPosition(insight)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="empty-copy">
+                          Search Console page/query insights will appear after the first insight
+                          sync.
+                        </p>
+                      )
+                    ) : null}
+
+                    {activeGscConnection && gscSiteTrafficLoss && gscPageTrafficLoss ? (
+                      <div className="stack-sm">
+                        <h3 id="gsc-traffic-loss-title">Traffic loss</h3>
+                        {gscSiteTrafficLoss.available &&
+                        gscSiteTrafficLoss.current &&
+                        gscSiteTrafficLoss.previous ? (
+                          <p>
+                            Clicks {gscSiteTrafficLoss.current.startDate} to{" "}
+                            {gscSiteTrafficLoss.current.endDate}:{" "}
+                            <strong>
+                              {gscSiteTrafficLoss.current.clicks.toLocaleString("en")}
+                            </strong>{" "}
+                            vs previous window{" "}
+                            <strong>
+                              {gscSiteTrafficLoss.previous.clicks.toLocaleString("en")}
+                            </strong>{" "}
+                            ({formatTrafficLossDelta(gscSiteTrafficLoss)}) - severity:{" "}
+                            <strong>{gscSiteTrafficLoss.severity}</strong>
+                          </p>
+                        ) : (
+                          <p className="empty-copy">{gscSiteTrafficLoss.reason}</p>
+                        )}
+                        {gscPageTrafficLoss.available ? (
+                          gscPageTrafficLoss.drops.length > 0 ? (
+                            <div className="table-wrap">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Page</th>
+                                    <th>Content</th>
+                                    <th>Clicks now</th>
+                                    <th>Clicks baseline</th>
+                                    <th>Delta</th>
+                                    <th>Drop</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {gscPageTrafficLoss.drops.map((drop) => (
+                                    <tr key={drop.page}>
+                                      <td>{drop.page}</td>
+                                      <td>
+                                        {drop.content
+                                          ? drop.content.title || drop.content.externalId
+                                          : "Not in synced inventory"}
+                                      </td>
+                                      <td>{drop.currentClicks.toLocaleString("en")}</td>
+                                      <td>{drop.baselineClicks.toLocaleString("en")}</td>
+                                      <td>{drop.clicksDelta.toLocaleString("en")}</td>
+                                      <td>{`${(drop.dropRatio * 100).toLocaleString("en", {
+                                        maximumFractionDigits: 1
+                                      })}%`}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="empty-copy">
+                              No pages exceed the traffic loss thresholds against the baseline
+                              snapshot.
+                            </p>
+                          )
+                        ) : (
+                          <p className="empty-copy">{gscPageTrafficLoss.reason}</p>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {activeGscConnection && gscOpportunities ? (
+                      <div className="stack-sm">
+                        <h3 id="gsc-opportunities-title">Search opportunities</h3>
+                        {gscOpportunities.available ? (
+                          gscOpportunities.entries.length > 0 ? (
+                            <div className="table-wrap">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Type</th>
+                                    <th>Page</th>
+                                    <th>Content</th>
+                                    <th>Impressions</th>
+                                    <th>CTR</th>
+                                    <th>Expected CTR</th>
+                                    <th>Position</th>
+                                    <th>Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {gscOpportunities.entries.map((entry) => (
+                                    <tr key={`${entry.type}:${entry.page}`}>
+                                      <td>
+                                        {entry.type === "ctr-opportunity"
+                                          ? "CTR opportunity"
+                                          : "Striking distance"}
+                                      </td>
+                                      <td>{entry.page}</td>
+                                      <td>
+                                        {entry.content
+                                          ? entry.content.title || entry.content.externalId
+                                          : "Not in synced inventory"}
+                                      </td>
+                                      <td>{entry.impressions.toLocaleString("en")}</td>
+                                      <td>{`${(entry.ctr * 100).toLocaleString("en", {
+                                        maximumFractionDigits: 1
+                                      })}%`}</td>
+                                      <td>
+                                        {entry.expectedCtr !== null
+                                          ? `${(entry.expectedCtr * 100).toLocaleString("en", {
+                                              maximumFractionDigits: 1
+                                            })}%`
+                                          : "-"}
+                                      </td>
+                                      <td>
+                                        {entry.position.toLocaleString("en", {
+                                          maximumFractionDigits: 1
+                                        })}
+                                      </td>
+                                      <td>
+                                        {entry.content && activeOrganization && activeSite ? (
+                                          <form action={createBacklogTaskFromCandidateAction}>
+                                            <input
+                                              name="organizationId"
+                                              type="hidden"
+                                              value={activeOrganization.id}
+                                            />
+                                            <input
+                                              name="siteId"
+                                              type="hidden"
+                                              value={activeSite.id}
+                                            />
+                                            <input
+                                              name="contentItemId"
+                                              type="hidden"
+                                              value={entry.content.contentItemId}
+                                            />
+                                            <input
+                                              name="candidateId"
+                                              type="hidden"
+                                              value={buildGscOpportunityCandidateId(
+                                                entry.content.contentItemId,
+                                                entry.type
+                                              )}
+                                            />
+                                            <input
+                                              name="redirectTo"
+                                              type="hidden"
+                                              value={currentHref}
+                                            />
+                                            <button className="text-button" type="submit">
+                                              Create task
+                                            </button>
+                                          </form>
+                                        ) : (
+                                          <span className="empty-copy">
+                                            Sync content to convert
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="empty-copy">
+                              No pages meet the CTR opportunity or striking distance thresholds in
+                              the latest insight snapshot.
+                            </p>
+                          )
+                        ) : (
+                          <p className="empty-copy">{gscOpportunities.reason}</p>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="empty-copy">
+                    Your role can not view Google Search Console connections for this site.
+                  </p>
+                )
+              ) : (
+                <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
+              )}
+            </section>
+          </>
+        ) : null}
+
+        {view === "content" ? (
+          <>
+            <section className="panel" aria-labelledby="assistant-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="assistant-title">Assistant recommendations</h2>
+                  <p>Prioritized from backlog and synced content evidence for the selected site.</p>
+                </div>
+                <div className="assistant-heading-actions">
+                  <span className="metric-pill">
+                    {assistantRecommendations.length} recommendations
+                  </span>
+                  {assistantUsage ? (
+                    <span className="metric-pill">
+                      {assistantUsage.used}/{assistantUsage.limit} AI credits
+                      {assistantUsage.metered ? " (metered)" : ""}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {assistantAiSummary ? (
+                <div className="assistant-ai-summary">
+                  <p>{assistantAiSummary.text}</p>
+                  <small>
+                    AI summary from {assistantAiSummary.provider} ({assistantAiSummary.model}); the
+                    recommendations below stay deterministic and read-only.
+                  </small>
+                </div>
+              ) : null}
+              {assistantRecommendations.length > 0 ? (
+                <ul className="assistant-list">
+                  {assistantRecommendations.map((recommendation) => (
+                    <li key={recommendation.id}>
+                      <div className="assistant-copy">
+                        <div className="assistant-title-row">
+                          <strong>{recommendation.title}</strong>
+                          <span className={`priority-pill priority-${recommendation.priority}`}>
+                            {recommendation.priority}
+                          </span>
+                        </div>
+                        <p>{recommendation.rationale}</p>
+                        <span>{recommendation.nextStep}</span>
+                      </div>
+                      <div className="assistant-source">
+                        <small>{recommendation.source.type.replaceAll("_", " ")}</small>
+                        {recommendation.source.url ? (
+                          <a href={recommendation.source.url}>{recommendation.source.label}</a>
+                        ) : (
+                          <strong>{recommendation.source.label}</strong>
+                        )}
+                        <span>{recommendation.source.detail}</span>
+                        <div className="assistant-action">
+                          {recommendation.action.enabled && recommendation.action.targetTaskId ? (
+                            <form action={createBulkOperationPreviewAction}>
                               <input
-                                type="hidden"
                                 name="organizationId"
-                                value={activeOrganization?.id ?? ""}
+                                type="hidden"
+                                value={recommendation.organizationId}
                               />
-                              <input type="hidden" name="planCode" value={plan.code} />
+                              <input name="siteId" type="hidden" value={recommendation.siteId} />
+                              <input
+                                name="taskId"
+                                type="hidden"
+                                value={recommendation.action.targetTaskId}
+                              />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: recommendation.siteId
+                                })}
+                              />
                               <button className="secondary-button" type="submit">
-                                {checkoutAction.label}
+                                {recommendation.action.label}
                               </button>
                             </form>
                           ) : (
-                            <>
-                              <button className="secondary-button" disabled type="button">
-                                {checkoutAction.label}
-                              </button>
-                              <span>{checkoutAction.disabledReason}</span>
-                            </>
+                            <button className="secondary-button" disabled type="button">
+                              {recommendation.action.label}
+                            </button>
                           )}
+                          <small>
+                            {recommendation.action.enabled
+                              ? "Manual confirmation required"
+                              : recommendation.action.disabledReason}
+                          </small>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-copy">
+                  Recommendations will appear after backlog tasks or actionable sync evidence
+                  exists.
+                </p>
+              )}
+            </section>
+
+            <section className="panel empty-state" aria-labelledby="synced-content-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="synced-content-title">Synced content</h2>
+                  <p>Search and review WordPress inventory received from plugin sync.</p>
+                </div>
+                <span className="metric-pill">{syncedContent.total} items</span>
+              </div>
+
+              {activeSite ? (
+                <>
+                  <form className="inventory-filters" method="get">
+                    <label>
+                      <span>Site</span>
+                      <select name="site" defaultValue={activeSite.id}>
+                        {activeOrganization?.sites.map((site) => (
+                          <option key={site.id} value={site.id}>
+                            {site.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Search</span>
+                      <input
+                        name="q"
+                        type="search"
+                        placeholder="Title, URL, external ID"
+                        defaultValue={contentFilters.query}
+                      />
+                    </label>
+                    <label>
+                      <span>Type</span>
+                      <select name="type" defaultValue={contentFilters.type}>
+                        {contentTypes.map((type) => (
+                          <option key={type.value || "all"} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select name="status" defaultValue={contentFilters.status}>
+                        {contentStatuses.map((status) => (
+                          <option key={status.value || "all"} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="button" type="submit">
+                      Apply
+                    </button>
+                    <Link className="secondary-button inventory-reset" href={routePath}>
+                      Reset
+                    </Link>
+                  </form>
+
+                  {syncedContent.items.length > 0 ? (
+                    <>
+                      <div className="table-wrap">
+                        <table className="content-table">
+                          <thead>
+                            <tr>
+                              <th>Title</th>
+                              <th>Type</th>
+                              <th>Status</th>
+                              <th>Modified</th>
+                              <th>Seen</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {syncedContent.items.map((item) => (
+                              <tr key={item.id}>
+                                <td>
+                                  <strong>{item.title ?? item.externalId}</strong>
+                                  <span>{item.url}</span>
+                                </td>
+                                <td>{item.type.replaceAll("_", " ")}</td>
+                                <td>
+                                  <span className="status-pill">{item.status}</span>
+                                </td>
+                                <td>
+                                  <time dateTime={item.modifiedAt}>
+                                    {formatDateTime(item.modifiedAt)}
+                                  </time>
+                                </td>
+                                <td>
+                                  <span className="stacked-meta">
+                                    First {formatDateTime(item.firstSeenAt)}
+                                  </span>
+                                  <span className="stacked-meta">
+                                    Last {formatDateTime(item.lastSeenAt)}
+                                  </span>
+                                </td>
+                                <td>
+                                  <Link
+                                    className="text-button"
+                                    href={buildViewHref({
+                                      site: activeSite.id,
+                                      content: item.id
+                                    })}
+                                  >
+                                    Open
+                                  </Link>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {syncedContent.nextCursor ? (
+                        <div className="pagination-row">
+                          <Link
+                            className="secondary-button"
+                            href={buildViewHref({
+                              site: activeSite.id,
+                              cursor: syncedContent.nextCursor
+                            })}
+                          >
+                            Next page
+                          </Link>
                         </div>
                       ) : null}
-                    </article>
-                  );
-                })}
+                    </>
+                  ) : (
+                    <p className="empty-copy">No content matches the current inventory filters.</p>
+                  )}
+
+                  {selectedContentId ? (
+                    <div className="content-detail-panel" aria-labelledby="content-detail-title">
+                      {selectedContentItem ? (
+                        <>
+                          <div className="section-heading">
+                            <div>
+                              <h3 id="content-detail-title">
+                                {selectedContentItem.title ?? selectedContentItem.externalId}
+                              </h3>
+                              <p>{selectedContentItem.url}</p>
+                            </div>
+                            <Link
+                              className="secondary-button inventory-reset"
+                              href={buildViewHref({
+                                content: null
+                              })}
+                            >
+                              Close
+                            </Link>
+                          </div>
+
+                          <dl className="detail-grid">
+                            <div>
+                              <dt>External ID</dt>
+                              <dd>{selectedContentItem.externalId}</dd>
+                            </div>
+                            <div>
+                              <dt>Type</dt>
+                              <dd>{selectedContentItem.type.replaceAll("_", " ")}</dd>
+                            </div>
+                            <div>
+                              <dt>Status</dt>
+                              <dd>
+                                <span className="status-pill">{selectedContentItem.status}</span>
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Modified</dt>
+                              <dd>{formatDateTime(selectedContentItem.modifiedAt)}</dd>
+                            </div>
+                            <div>
+                              <dt>Published</dt>
+                              <dd>
+                                {formatOptionalDateTime(selectedContentItem.metadata.publishedAt)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Author</dt>
+                              <dd>{formatSyncedContentAuthor(selectedContentItem.metadata)}</dd>
+                            </div>
+                            <div>
+                              <dt>Word count</dt>
+                              <dd>
+                                {formatOptionalNumber(selectedContentItem.metadata.wordCount)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Internal links</dt>
+                              <dd>
+                                {formatOptionalNumber(
+                                  selectedContentItem.metadata.internalLinkCount
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Outbound links</dt>
+                              <dd>
+                                {formatOptionalNumber(
+                                  selectedContentItem.metadata.externalLinkCount
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>SEO title</dt>
+                              <dd>{formatOptionalText(selectedContentItem.metadata.seoTitle)}</dd>
+                            </div>
+                            <div>
+                              <dt>Meta description</dt>
+                              <dd>
+                                {formatOptionalText(selectedContentItem.metadata.metaDescription)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Canonical</dt>
+                              <dd>
+                                {formatOptionalText(selectedContentItem.metadata.canonicalUrl)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Robots</dt>
+                              <dd>{formatRobots(selectedContentItem.metadata)}</dd>
+                            </div>
+                            <div>
+                              <dt>SEO source</dt>
+                              <dd>{formatSeoSource(selectedContentItem.metadata)}</dd>
+                            </div>
+                            <div>
+                              <dt>Featured image</dt>
+                              <dd>{formatFeaturedImage(selectedContentItem.metadata)}</dd>
+                            </div>
+                            <div>
+                              <dt>Taxonomies</dt>
+                              <dd>{formatTaxonomies(selectedContentItem.metadata)}</dd>
+                            </div>
+                            <div>
+                              <dt>First seen</dt>
+                              <dd>{formatDateTime(selectedContentItem.firstSeenAt)}</dd>
+                            </div>
+                            <div>
+                              <dt>Last seen</dt>
+                              <dd>{formatDateTime(selectedContentItem.lastSeenAt)}</dd>
+                            </div>
+                          </dl>
+
+                          <div className="health-signal-list" aria-label="Content health signals">
+                            {selectedContentHealthSignals.map((signal) => (
+                              <article
+                                className={`health-signal health-signal-${signal.severity}`}
+                                key={signal.id}
+                              >
+                                <span>{signal.severity}</span>
+                                <strong>{signal.label}</strong>
+                                <p>{signal.message}</p>
+                              </article>
+                            ))}
+                          </div>
+
+                          <div className="candidate-task-list" aria-label="Backlog candidate tasks">
+                            <div className="candidate-task-heading">
+                              <h4>Candidate tasks</h4>
+                              <span>{selectedContentBacklogCandidates.length}</span>
+                            </div>
+                            {selectedContentBacklogCandidates.length > 0 ? (
+                              selectedContentBacklogCandidates.map((candidate) => (
+                                <article className="candidate-task" key={candidate.id}>
+                                  <div>
+                                    <span
+                                      className={`priority-pill priority-${candidate.priority}`}
+                                    >
+                                      {candidate.priority}
+                                    </span>
+                                    <strong>{candidate.title}</strong>
+                                  </div>
+                                  <p>{candidate.rationale}</p>
+                                  <p>{candidate.nextStep}</p>
+                                  <form action={createBacklogTaskFromCandidateAction}>
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={selectedContentItem.organizationId}
+                                    />
+                                    <input
+                                      name="siteId"
+                                      type="hidden"
+                                      value={selectedContentItem.siteId}
+                                    />
+                                    <input
+                                      name="contentItemId"
+                                      type="hidden"
+                                      value={selectedContentItem.id}
+                                    />
+                                    <input name="candidateId" type="hidden" value={candidate.id} />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({
+                                        site: activeSite.id,
+                                        content: selectedContentItem.id
+                                      })}
+                                    />
+                                    <button className="secondary-button" type="submit">
+                                      Create task
+                                    </button>
+                                  </form>
+                                </article>
+                              ))
+                            ) : (
+                              <p className="empty-copy">
+                                No candidate tasks generated from the current metadata signals.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="detail-actions">
+                            <a
+                              className="secondary-button inventory-reset"
+                              href={selectedContentItem.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Visit URL
+                            </a>
+                            <span className="muted-text">
+                              Signals are computed from synced WordPress metadata.
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="section-heading">
+                          <div>
+                            <h3 id="content-detail-title">Content item not found</h3>
+                            <p>The selected item is not available for this site.</p>
+                          </div>
+                          <Link
+                            className="secondary-button inventory-reset"
+                            href={buildViewHref({
+                              content: null
+                            })}
+                          >
+                            Clear
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="empty-copy">Add a WordPress site before syncing content.</p>
+              )}
+            </section>
+          </>
+        ) : null}
+
+        {view === "audits" ? (
+          <section className="panel empty-state" aria-labelledby="audits-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="audits-title">Audits</h2>
+                <p>Recent audit runs for the selected WordPress site.</p>
               </div>
-            </>
-          ) : (
-            <p className="empty-copy">Your role can not view billing for this organization.</p>
-          )}
-        </section>
+              <span className="metric-pill">{auditRuns.length} recent</span>
+            </div>
+
+            {activeOrganization && activeSite ? (
+              <>
+                <div className="audit-actions">
+                  <form action={createAuditForSiteAction}>
+                    <input name="organizationId" type="hidden" value={activeOrganization.id} />
+                    <input name="siteId" type="hidden" value={activeSite.id} />
+                    <input
+                      name="redirectTo"
+                      type="hidden"
+                      value={buildViewHref({
+                        site: activeSite.id
+                      })}
+                    />
+                    <button className="button" type="submit">
+                      Run metadata audit
+                    </button>
+                  </form>
+                  <span className="muted-text">
+                    The MVP completes a metadata audit from synced WordPress evidence.
+                  </span>
+                </div>
+
+                {auditRuns.length > 0 ? (
+                  <div className="table-wrap">
+                    <table className="audit-table">
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Created</th>
+                          <th>Started</th>
+                          <th>Completed</th>
+                          <th>Issues</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditRuns.map((audit) => (
+                          <tr key={audit.id}>
+                            <td>
+                              <span
+                                className={`audit-status audit-status-${audit.status.toLowerCase()}`}
+                              >
+                                {audit.status.toLowerCase()}
+                              </span>
+                            </td>
+                            <td>
+                              <time dateTime={audit.createdAt}>
+                                {formatDateTime(audit.createdAt)}
+                              </time>
+                            </td>
+                            <td>
+                              {audit.startedAt ? (
+                                <time dateTime={audit.startedAt}>
+                                  {formatDateTime(audit.startedAt)}
+                                </time>
+                              ) : (
+                                <span className="muted-text">Not started</span>
+                              )}
+                            </td>
+                            <td>
+                              {audit.completedAt ? (
+                                <time dateTime={audit.completedAt}>
+                                  {formatDateTime(audit.completedAt)}
+                                </time>
+                              ) : (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              <strong>{formatAuditIssueTotal(audit.issueSummary.total)}</strong>
+                              <span className="stacked-meta">
+                                {audit.issueSummary.open} open / {audit.issueSummary.high} high /{" "}
+                                {audit.issueSummary.critical} critical
+                              </span>
+                              <Link
+                                className="text-button"
+                                href={buildViewHref({
+                                  site: activeSite.id,
+                                  audit: audit.id
+                                })}
+                              >
+                                Open issues
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="empty-copy">No audit runs yet for this site.</p>
+                )}
+
+                {activeAudit ? (
+                  <div className="audit-issue-panel" aria-labelledby="audit-issues-title">
+                    <div className="section-heading">
+                      <div>
+                        <h3 id="audit-issues-title">Audit issues</h3>
+                        <p>
+                          {auditIssues.length} findings for audit queued{" "}
+                          {formatDateTime(activeAudit.createdAt)}.
+                        </p>
+                      </div>
+                      <div className="audit-issue-heading-actions">
+                        <span
+                          className={`audit-status audit-status-${activeAudit.status.toLowerCase()}`}
+                        >
+                          {activeAudit.status.toLowerCase()}
+                        </span>
+                        <form action={createBacklogTasksFromAuditAction}>
+                          <input
+                            name="organizationId"
+                            type="hidden"
+                            value={activeOrganization.id}
+                          />
+                          <input name="siteId" type="hidden" value={activeSite.id} />
+                          <input name="auditId" type="hidden" value={activeAudit.id} />
+                          <input name="status" type="hidden" value="OPEN" />
+                          <input
+                            name="redirectTo"
+                            type="hidden"
+                            value={buildViewHref({
+                              site: activeSite.id,
+                              audit: activeAudit.id
+                            })}
+                          />
+                          <button
+                            className="secondary-button"
+                            disabled={auditIssueSummary.open === 0}
+                            type="submit"
+                          >
+                            Create tasks from open
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div className="audit-issue-summary" aria-label="Audit issue summary">
+                      <span>Total {auditIssueSummary.total}</span>
+                      <span>Open {auditIssueSummary.open}</span>
+                      <span>Resolved {auditIssueSummary.resolved}</span>
+                      <span>High {auditIssueSummary.high}</span>
+                      <span>Critical {auditIssueSummary.critical}</span>
+                    </div>
+
+                    <form className="audit-issue-filters" action={routePath} method="get">
+                      <input name="site" type="hidden" value={activeSite.id} />
+                      <input name="audit" type="hidden" value={activeAudit.id} />
+                      <label>
+                        <span>Search</span>
+                        <input
+                          defaultValue={auditIssueFilters.query}
+                          name="auditIssueQ"
+                          placeholder="Issue, URL, action"
+                          type="search"
+                        />
+                      </label>
+                      <label>
+                        <span>Status</span>
+                        <select
+                          name="auditIssueStatus"
+                          defaultValue={auditIssueFilters.status ?? ""}
+                        >
+                          <option value="">All statuses</option>
+                          {auditIssueStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status.toLowerCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Severity</span>
+                        <select
+                          name="auditIssueSeverity"
+                          defaultValue={auditIssueFilters.severity ?? ""}
+                        >
+                          <option value="">All severities</option>
+                          {backlogSeverities.map((severity) => (
+                            <option key={severity} value={severity}>
+                              {severity}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="secondary-button" type="submit">
+                        Filter
+                      </button>
+                      <Link
+                        className="secondary-button inventory-reset"
+                        href={buildViewHref({
+                          site: activeSite.id,
+                          audit: activeAudit.id,
+                          auditIssueQ: null,
+                          auditIssueStatus: null,
+                          auditIssueSeverity: null
+                        })}
+                      >
+                        Reset
+                      </Link>
+                      <Link
+                        className="secondary-button"
+                        href={buildAuditIssueExportHref({
+                          organizationId: activeOrganization.id,
+                          siteId: activeSite.id,
+                          auditId: activeAudit.id,
+                          query: auditIssueFilters.query,
+                          status: auditIssueFilters.status,
+                          severity: auditIssueFilters.severity
+                        })}
+                      >
+                        Export CSV
+                      </Link>
+                    </form>
+
+                    {auditIssues.length > 0 ? (
+                      <div className="table-wrap">
+                        <table className="audit-issue-table">
+                          <thead>
+                            <tr>
+                              <th>Issue</th>
+                              <th>Status</th>
+                              <th>Severity</th>
+                              <th>Backlog</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {auditIssues.map((issue) => (
+                              <tr key={issue.id}>
+                                <td>
+                                  <strong>{issue.recommendedAction}</strong>
+                                  <span>{issue.affectedUrl}</span>
+                                  <span>{issue.issueType.replaceAll("_", " ")}</span>
+                                </td>
+                                <td>
+                                  <form
+                                    className="status-form"
+                                    action={updateAuditIssueStatusAction}
+                                  >
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={issue.organizationId}
+                                    />
+                                    <input name="siteId" type="hidden" value={issue.siteId} />
+                                    <input name="auditId" type="hidden" value={issue.auditId} />
+                                    <input name="issueId" type="hidden" value={issue.id} />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({
+                                        site: activeSite.id,
+                                        audit: activeAudit.id
+                                      })}
+                                    />
+                                    <select name="status" defaultValue={issue.status}>
+                                      {auditIssueStatuses.map((status) => (
+                                        <option key={status} value={status}>
+                                          {status.toLowerCase()}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button className="secondary-button" type="submit">
+                                      Apply
+                                    </button>
+                                  </form>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`severity-pill severity-${issue.severity.toLowerCase()}`}
+                                  >
+                                    {issue.severity}
+                                  </span>
+                                </td>
+                                <td>
+                                  <form action={createBacklogTaskFromAuditIssueAction}>
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={issue.organizationId}
+                                    />
+                                    <input name="siteId" type="hidden" value={issue.siteId} />
+                                    <input name="auditIssueId" type="hidden" value={issue.id} />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({
+                                        site: activeSite.id,
+                                        audit: activeAudit.id
+                                      })}
+                                    />
+                                    <button className="secondary-button" type="submit">
+                                      Create task
+                                    </button>
+                                  </form>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="empty-copy">No issues have been attached to this audit yet.</p>
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="empty-copy">Add a WordPress site before queueing audits.</p>
+            )}
+          </section>
+        ) : null}
+
+        {view === "backlog" ? (
+          <section className="panel empty-state" aria-labelledby="backlog-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="backlog-title">Backlog</h2>
+                <p>Persisted SEO tasks created from synced content candidates.</p>
+              </div>
+              <span className="metric-pill">{backlogTasks.summary.total} tasks</span>
+            </div>
+
+            {activeSite ? (
+              <>
+                <div className="backlog-summary" aria-label="Backlog summary">
+                  <span>Open {backlogTasks.summary.open}</span>
+                  <span>Done {backlogTasks.summary.done}</span>
+                  <span>High {backlogTasks.summary.bySeverity.HIGH}</span>
+                  <span>Critical {backlogTasks.summary.bySeverity.CRITICAL}</span>
+                </div>
+
+                <form className="backlog-filters" action={routePath} method="get">
+                  <input name="site" type="hidden" value={activeSite.id} />
+                  {contentFilters.query ? (
+                    <input name="q" type="hidden" value={contentFilters.query} />
+                  ) : null}
+                  {contentFilters.type ? (
+                    <input name="type" type="hidden" value={contentFilters.type} />
+                  ) : null}
+                  {contentFilters.status ? (
+                    <input name="status" type="hidden" value={contentFilters.status} />
+                  ) : null}
+                  {selectedContentId ? (
+                    <input name="content" type="hidden" value={selectedContentId} />
+                  ) : null}
+                  <label>
+                    <span>Search</span>
+                    <input
+                      defaultValue={backlogFilters.query}
+                      name="backlogQ"
+                      placeholder="Title, URL, issue"
+                      type="search"
+                    />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select name="backlogStatus" defaultValue={backlogFilters.status ?? ""}>
+                      <option value="">All statuses</option>
+                      {backlogStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status.replaceAll("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Severity</span>
+                    <select name="backlogSeverity" defaultValue={backlogFilters.severity ?? ""}>
+                      <option value="">All severities</option>
+                      {backlogSeverities.map((severity) => (
+                        <option key={severity} value={severity}>
+                          {severity}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="secondary-button" type="submit">
+                    Filter
+                  </button>
+                  <Link
+                    className="secondary-button"
+                    href={buildViewHref({
+                      backlogQ: null,
+                      backlogStatus: null,
+                      backlogSeverity: null
+                    })}
+                  >
+                    Reset
+                  </Link>
+                  {activeOrganization ? (
+                    <Link
+                      className="secondary-button"
+                      href={buildBacklogExportHref({
+                        organizationId: activeOrganization.id,
+                        siteId: activeSite.id,
+                        query: backlogFilters.query,
+                        status: backlogFilters.status,
+                        severity: backlogFilters.severity
+                      })}
+                    >
+                      Export CSV
+                    </Link>
+                  ) : null}
+                </form>
+
+                {backlogTasks.items.length > 0 ? (
+                  <div className="table-wrap">
+                    <table className="backlog-table">
+                      <thead>
+                        <tr>
+                          <th>Task</th>
+                          <th>Status</th>
+                          <th>Assignment</th>
+                          <th>Severity</th>
+                          <th>Effort</th>
+                          <th>Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {backlogTasks.items.map((task) => (
+                          <tr key={task.id}>
+                            <td>
+                              <strong>{task.title}</strong>
+                              <span>{task.url}</span>
+                              <span>{task.issueType.replaceAll("_", " ")}</span>
+                              {task.comments.length > 0 ? (
+                                <div className="backlog-comments" aria-label="Recent comments">
+                                  {task.comments.map((comment) => (
+                                    <article key={comment.id}>
+                                      <strong>{comment.authorName ?? comment.authorEmail}</strong>
+                                      <p>{comment.body}</p>
+                                      <time dateTime={comment.createdAt}>
+                                        {formatDateTime(comment.createdAt)}
+                                      </time>
+                                    </article>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {task.activityLogs?.length ? (
+                                <div className="backlog-activity" aria-label="Change history">
+                                  <strong>Change history</strong>
+                                  <ul>
+                                    {task.activityLogs.map((log) => (
+                                      <li key={log.id}>
+                                        <span>{formatBacklogActivity(log)}</span>
+                                        <time dateTime={log.createdAt}>
+                                          {formatDateTime(log.createdAt)}
+                                        </time>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              <form
+                                className="preview-form"
+                                action={createBulkOperationPreviewAction}
+                              >
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={task.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={task.siteId} />
+                                <input name="taskId" type="hidden" value={task.id} />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Preview
+                                </button>
+                              </form>
+                              <form
+                                className="comment-form"
+                                action={createBacklogTaskCommentAction}
+                              >
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={task.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={task.siteId} />
+                                <input name="taskId" type="hidden" value={task.id} />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <textarea
+                                  aria-label="Comment"
+                                  maxLength={2000}
+                                  name="body"
+                                  required
+                                  rows={2}
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Comment
+                                </button>
+                              </form>
+                            </td>
+                            <td>
+                              <form className="status-form" action={updateBacklogTaskStatusAction}>
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={task.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={task.siteId} />
+                                <input name="taskId" type="hidden" value={task.id} />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <select name="status" defaultValue={task.status}>
+                                  {backlogStatuses.map((status) => (
+                                    <option key={status} value={status}>
+                                      {status.replaceAll("_", " ")}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button className="secondary-button" type="submit">
+                                  Apply
+                                </button>
+                              </form>
+                            </td>
+                            <td>
+                              <form
+                                className="assignment-form"
+                                action={updateBacklogTaskAssignmentAction}
+                              >
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={task.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={task.siteId} />
+                                <input name="taskId" type="hidden" value={task.id} />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <select name="assigneeId" defaultValue={task.assigneeId ?? ""}>
+                                  <option value="">Unassigned</option>
+                                  {assignableMembers.map((member) => (
+                                    <option key={member.userId} value={member.userId}>
+                                      {member.name ?? member.email}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  aria-label="Due date"
+                                  defaultValue={formatDateInput(task.dueDate)}
+                                  name="dueDate"
+                                  type="date"
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Apply
+                                </button>
+                              </form>
+                            </td>
+                            <td>
+                              <span
+                                className={`severity-pill severity-${task.severity.toLowerCase()}`}
+                              >
+                                {task.severity}
+                              </span>
+                            </td>
+                            <td>{task.effortEstimate ?? "n/a"}</td>
+                            <td>
+                              <time dateTime={task.updatedAt}>
+                                {formatDateTime(task.updatedAt)}
+                              </time>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="empty-copy">
+                    {backlogTasks.summary.total > 0
+                      ? "No backlog tasks match the selected filters."
+                      : "No backlog tasks yet. Create one from a synced content candidate."}
+                  </p>
+                )}
+
+                {bulkOperations.length > 0 ? (
+                  <div className="bulk-preview-panel" aria-label="Recent safe operation previews">
+                    <h3>Recent previews</h3>
+                    <div className="bulk-preview-list">
+                      {bulkOperations.map((operation) => (
+                        <article key={operation.id}>
+                          <div>
+                            <strong>{operation.type.replaceAll("_", " ")}</strong>
+                            <span>{formatBulkOperationPreview(operation.preview)}</span>
+                            {operation.dryRunResult ? (
+                              <span>{formatBulkOperationDryRun(operation.dryRunResult)}</span>
+                            ) : null}
+                            <span>
+                              {formatBulkOperationItemStatusSummary(
+                                operation.itemStatusSummary,
+                                operation.items
+                              )}
+                            </span>
+                            {operation.retryMode ? (
+                              <span>
+                                {formatBulkOperationRetryMode(
+                                  operation.retryMode,
+                                  operation.status
+                                )}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="status-pill">
+                            {operation.status.replaceAll("_", " ")}
+                          </span>
+                          <time dateTime={operation.createdAt}>
+                            {formatDateTime(operation.createdAt)}
+                          </time>
+                          {operation.status === "PREVIEWED" ? (
+                            <form action={runBulkOperationDryRunAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Dry run
+                              </button>
+                            </form>
+                          ) : null}
+                          {operation.status === "DRY_RUN_PASSED" ? (
+                            <form className="confirm-form" action={confirmBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: activeSite.id
+                                })}
+                              />
+                              <input
+                                aria-label="Confirmation"
+                                autoComplete="off"
+                                name="confirmation"
+                                pattern="CONFIRM"
+                                placeholder="CONFIRM"
+                                required
+                                type="text"
+                              />
+                              <button className="secondary-button" type="submit">
+                                Confirm
+                              </button>
+                            </form>
+                          ) : null}
+                          {operation.status === "CONFIRMED" ? (
+                            <form action={startBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Start
+                              </button>
+                            </form>
+                          ) : null}
+                          {operation.status === "RUNNING" ? (
+                            <>
+                              <form action={finishBulkOperationAction}>
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={operation.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={operation.siteId} />
+                                <input name="operationId" type="hidden" value={operation.id} />
+                                <input name="status" type="hidden" value="COMPLETED" />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Complete
+                                </button>
+                              </form>
+                              <form action={finishBulkOperationAction}>
+                                <input
+                                  name="organizationId"
+                                  type="hidden"
+                                  value={operation.organizationId}
+                                />
+                                <input name="siteId" type="hidden" value={operation.siteId} />
+                                <input name="operationId" type="hidden" value={operation.id} />
+                                <input name="status" type="hidden" value="FAILED" />
+                                <input
+                                  name="message"
+                                  type="hidden"
+                                  value="Marked failed from the SaaS dashboard."
+                                />
+                                <input
+                                  name="redirectTo"
+                                  type="hidden"
+                                  value={buildViewHref({
+                                    site: activeSite.id
+                                  })}
+                                />
+                                <button className="secondary-button" type="submit">
+                                  Mark failed
+                                </button>
+                              </form>
+                            </>
+                          ) : null}
+                          {operation.status === "COMPLETED" || operation.status === "FAILED" ? (
+                            <form action={rollbackBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input
+                                name="reason"
+                                type="hidden"
+                                value="Rollback requested from the SaaS dashboard."
+                              />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Roll back
+                              </button>
+                            </form>
+                          ) : null}
+                          {operation.status === "FAILED" ? (
+                            <form action={retryBulkOperationAction}>
+                              <input
+                                name="organizationId"
+                                type="hidden"
+                                value={operation.organizationId}
+                              />
+                              <input name="siteId" type="hidden" value={operation.siteId} />
+                              <input name="operationId" type="hidden" value={operation.id} />
+                              <input
+                                name="reason"
+                                type="hidden"
+                                value="Retry failed items from the SaaS dashboard."
+                              />
+                              <input
+                                name="redirectTo"
+                                type="hidden"
+                                value={buildViewHref({
+                                  site: activeSite.id
+                                })}
+                              />
+                              <button className="secondary-button" type="submit">
+                                Retry failed
+                              </button>
+                            </form>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="empty-copy">Add a WordPress site before building a backlog.</p>
+            )}
+          </section>
+        ) : null}
+
+        {view === "settings" ? (
+          <>
+            <nav className="settings-nav" aria-label="Settings sections">
+              <a href="#activity-title">Activity</a>
+              <a href="#notifications-title">Notifications</a>
+              <a href="#security-title">Security</a>
+              <a href="#members-title">Members</a>
+              <a href="#billing-title">Billing</a>
+            </nav>
+            <section id="admin-title" className="admin-intro" aria-labelledby="admin-heading">
+              <div>
+                <p className="eyebrow">Administration</p>
+                <h2 id="admin-heading">Workspace controls</h2>
+              </div>
+              <p>
+                Account, member, billing, security, notifications, and audit trail stay available
+                here without interrupting the site operations flow above.
+              </p>
+            </section>
+
+            <section className="admin-grid" aria-label="Workspace administration">
+              <section className="panel" aria-labelledby="activity-title">
+                <h2 id="activity-title">Audit log</h2>
+                {latestActivity.length > 0 ? (
+                  <ul className="activity-list">
+                    {latestActivity.map((activity) => (
+                      <li key={activity.id}>
+                        <span>{activity.action}</span>
+                        <time dateTime={activity.createdAt}>
+                          {new Intl.DateTimeFormat("en", {
+                            dateStyle: "medium",
+                            timeStyle: "short"
+                          }).format(new Date(activity.createdAt))}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-copy">
+                    Activity will appear after organization and site actions.
+                  </p>
+                )}
+              </section>
+
+              <section className="panel" aria-labelledby="notifications-title">
+                <div className="section-heading">
+                  <div>
+                    <h2 id="notifications-title">Notifications</h2>
+                    <p>Recent safe operation lifecycle updates for this organization.</p>
+                  </div>
+                  <div className="notification-heading-actions">
+                    <span className="metric-pill">
+                      {unreadNotifications.length} unread / {latestNotifications.length} recent
+                    </span>
+                    {unreadNotifications.length > 0 ? (
+                      <form action={markAllNotificationsReadAction}>
+                        <input
+                          name="organizationId"
+                          type="hidden"
+                          value={activeOrganization?.id ?? ""}
+                        />
+                        <input name="redirectTo" type="hidden" value={currentHref} />
+                        <button className="text-button" type="submit">
+                          Mark all read
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+                </div>
+                {latestNotifications.length > 0 ? (
+                  <ul className="notification-list">
+                    {latestNotifications.map((notification) => (
+                      <li
+                        key={notification.id}
+                        className={
+                          notification.readAt ? "notification-read" : "notification-unread"
+                        }
+                      >
+                        <div>
+                          <strong>{notification.title}</strong>
+                          <span>{notification.body}</span>
+                          <small>{notification.readAt ? "Read" : "Unread"}</small>
+                        </div>
+                        <div className="notification-actions">
+                          <time dateTime={notification.createdAt}>
+                            {formatDateTime(notification.createdAt)}
+                          </time>
+                          <form action={updateNotificationReadStateAction}>
+                            <input
+                              name="organizationId"
+                              type="hidden"
+                              value={notification.organizationId}
+                            />
+                            <input name="notificationId" type="hidden" value={notification.id} />
+                            <input
+                              name="read"
+                              type="hidden"
+                              value={notification.readAt ? "false" : "true"}
+                            />
+                            <input name="redirectTo" type="hidden" value={currentHref} />
+                            <button className="text-button" type="submit">
+                              {notification.readAt ? "Mark unread" : "Mark read"}
+                            </button>
+                          </form>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-copy">
+                    Notifications will appear after safe operation results, rollbacks, or retries.
+                  </p>
+                )}
+              </section>
+
+              <section className="panel" aria-labelledby="security-title">
+                <div className="section-heading">
+                  <div>
+                    <h2 id="security-title">Security</h2>
+                    <p>Authenticator verification for your account sign-in.</p>
+                  </div>
+                  <span className="metric-pill">
+                    {twoFactorStatus.enabled ? "2FA on" : "2FA off"}
+                  </span>
+                </div>
+                <TwoFactorSettings status={twoFactorStatus} />
+              </section>
+            </section>
+
+            <section className="panel" aria-labelledby="members-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="members-title">Members</h2>
+                  <p>
+                    Invite teammates and manage non-owner roles inside the current organization.
+                  </p>
+                </div>
+              </div>
+
+              {activeOrganization ? (
+                <>
+                  <InviteMemberForm organizationId={activeOrganization.id} />
+                  <div className="table-wrap members-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Member</th>
+                          <th>Status</th>
+                          <th>Role</th>
+                          <th>Invite</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeMembers.map((member) => (
+                          <tr key={member.id}>
+                            <td>
+                              <strong>{member.name ?? member.email}</strong>
+                              <span>{member.email}</span>
+                            </td>
+                            <td>
+                              <span className="status-pill">{member.status.toLowerCase()}</span>
+                            </td>
+                            <td>
+                              <MemberRoleForm
+                                organizationId={activeOrganization.id}
+                                member={member}
+                                currentUserId={user.id}
+                              />
+                            </td>
+                            <td>
+                              <InviteActionsForm
+                                organizationId={activeOrganization.id}
+                                member={member}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="empty-copy">Create an organization before inviting members.</p>
+              )}
+            </section>
+
+            <section className="panel" aria-labelledby="billing-title">
+              <div className="section-heading">
+                <div>
+                  <h2 id="billing-title">Billing</h2>
+                  <p>Plan limits and subscription state for the current organization.</p>
+                </div>
+                {billingOverview ? (
+                  <span className="metric-pill">{billingOverview.currentPlan.name}</span>
+                ) : null}
+              </div>
+
+              {billingOverview ? (
+                <>
+                  {billingStatus ? (
+                    <p className={`billing-feedback billing-feedback-${billingStatus}`}>
+                      {formatBillingFeedback(billingStatus, billingMessage)}
+                    </p>
+                  ) : null}
+
+                  <div className="billing-current">
+                    <div>
+                      <small>Current plan</small>
+                      <strong>{billingOverview.currentPlan.name}</strong>
+                      <span>{formatPlanPrice(billingOverview.currentPlan)}</span>
+                    </div>
+                    <div>
+                      <small>Status</small>
+                      <strong>{formatSubscriptionStatus(billingOverview.subscription)}</strong>
+                      <span>{formatSubscriptionPeriod(billingOverview.subscription)}</span>
+                    </div>
+                    <div className="billing-action-cell">
+                      {billingOverview.actions.portal.enabled ? (
+                        <form action={createBillingPortalSessionAction}>
+                          <input
+                            type="hidden"
+                            name="organizationId"
+                            value={activeOrganization?.id ?? ""}
+                          />
+                          <button className="secondary-button" type="submit">
+                            {billingOverview.actions.portal.label}
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <button className="secondary-button" disabled type="button">
+                            {billingOverview.actions.portal.label}
+                          </button>
+                          <span>{billingOverview.actions.portal.disabledReason}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="billing-gate-grid">
+                    {billingOverview.featureGates.map((gate) => (
+                      <div
+                        key={gate.key}
+                        className={
+                          gate.allowed ? "billing-gate" : "billing-gate billing-gate-blocked"
+                        }
+                      >
+                        <span>{gate.label}</span>
+                        <strong>
+                          {gate.used.toLocaleString("en")} / {formatLimitValue(gate.limit)}
+                        </strong>
+                        <small>
+                          {gate.allowed
+                            ? `${formatLimitValue(gate.remaining)} remaining`
+                            : gate.disabledReason}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="billing-plan-grid">
+                    {billingOverview.plans.map((plan) => {
+                      const checkoutAction = billingOverview.actions.checkout.find(
+                        (action) => action.targetPlanCode === plan.code
+                      );
+
+                      return (
+                        <article
+                          key={plan.id}
+                          className={
+                            plan.code === billingOverview.currentPlan.code
+                              ? "billing-plan billing-plan-current"
+                              : "billing-plan"
+                          }
+                        >
+                          <div>
+                            <h3>{plan.name}</h3>
+                            <strong>{formatPlanPrice(plan)}</strong>
+                          </div>
+                          <ul>
+                            <li>{formatLimitValue(plan.limits.sites)} sites</li>
+                            <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
+                            <li>{formatLimitValue(plan.limits.users)} users</li>
+                            <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
+                            <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
+                          </ul>
+                          {checkoutAction ? (
+                            <div className="billing-plan-action">
+                              {checkoutAction.enabled ? (
+                                <form action={createBillingCheckoutSessionAction}>
+                                  <input
+                                    type="hidden"
+                                    name="organizationId"
+                                    value={activeOrganization?.id ?? ""}
+                                  />
+                                  <input type="hidden" name="planCode" value={plan.code} />
+                                  <button className="secondary-button" type="submit">
+                                    {checkoutAction.label}
+                                  </button>
+                                </form>
+                              ) : (
+                                <>
+                                  <button className="secondary-button" disabled type="button">
+                                    {checkoutAction.label}
+                                  </button>
+                                  <span>{checkoutAction.disabledReason}</span>
+                                </>
+                              )}
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="empty-copy">Your role can not view billing for this organization.</p>
+              )}
+            </section>
+          </>
+        ) : null}
       </main>
     </div>
   );
@@ -2424,6 +2590,14 @@ function readQueryParam(
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
+function buildNavigationHref(path: string, siteId?: string): string {
+  if (!siteId) {
+    return path;
+  }
+
+  return `${path}?site=${encodeURIComponent(siteId)}`;
+}
+
 function readEnumQueryParam<TValue extends string>(
   params: Record<string, string | string[] | undefined>,
   key: string,
@@ -2435,7 +2609,8 @@ function readEnumQueryParam<TValue extends string>(
 
 function buildContentHref(
   params: Record<string, string | string[] | undefined>,
-  overrides: Record<string, string | null>
+  overrides: Record<string, string | null>,
+  basePath = "/"
 ): string {
   const nextParams = new URLSearchParams();
 
@@ -2456,7 +2631,7 @@ function buildContentHref(
   }
 
   const query = nextParams.toString();
-  return query ? `/?${query}` : "/";
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 function buildBacklogExportHref(input: {

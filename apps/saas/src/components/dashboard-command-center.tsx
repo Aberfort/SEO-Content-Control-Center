@@ -1,51 +1,46 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { createAuditForSiteAction } from "@/app/actions";
-import { PluginChallengeForm } from "@/components/plugin-challenge-form";
 import type {
+  ActivityLog,
   Audit,
   BacklogTaskSummary,
-  BillingOverview,
   GscConnectionOverview,
   Site
 } from "@/lib/types";
 
 type DashboardCommandCenterProps = {
   organizationId: string | null;
-  organizationName: string | null;
   sites: Site[];
   activeSite: Site | null;
-  canManageIntegrations: boolean;
   currentHref: string;
   syncedContentTotal: number;
   latestAudit: Audit | null;
   backlogSummary: BacklogTaskSummary;
   gscOverview: GscConnectionOverview | null;
-  billingOverview: BillingOverview | null;
+  activity: ActivityLog[];
 };
 
-type HealthTile = {
+type Signal = {
   label: string;
   value: string;
-  detail: string;
-  tone: "success" | "attention" | "danger" | "muted";
-  href: string;
+  tone: "success" | "information" | "attention" | "danger" | "muted";
 };
 
 export function DashboardCommandCenter({
   organizationId,
-  organizationName,
   sites,
   activeSite,
-  canManageIntegrations,
   currentHref,
   syncedContentTotal,
   latestAudit,
   backlogSummary,
   gscOverview,
-  billingOverview
+  activity
 }: DashboardCommandCenterProps) {
-  const tiles = buildHealthTiles({
+  const siteQuery = activeSite ? `?site=${encodeURIComponent(activeSite.id)}` : "";
+  const signals = buildSignals({
     activeSite,
     syncedContentTotal,
     latestAudit,
@@ -54,18 +49,11 @@ export function DashboardCommandCenter({
   });
 
   return (
-    <section className="command-center" aria-labelledby="command-center-title">
-      <div className="command-header">
+    <div className="overview-page">
+      <header className="overview-header">
         <div>
-          <p className="eyebrow">Site Command Center</p>
-          <h1 id="command-center-title">
-            {activeSite ? activeSite.name : "Connect a WordPress site to start SEO operations."}
-          </h1>
-          <p>
-            {activeSite
-              ? activeSite.url
-              : "Create a workspace, add a site, connect the plugin, then sync content evidence."}
-          </p>
+          <h1>Site overview</h1>
+          <p>{activeSite ? activeSite.url : "Choose a WordPress site to begin."}</p>
         </div>
         <form className="site-switcher" action="/" method="get">
           <label>
@@ -86,226 +74,256 @@ export function DashboardCommandCenter({
             Switch
           </button>
         </form>
-      </div>
+      </header>
 
-      <div className="command-grid">
-        <div className="next-action-panel">
-          <span className="panel-label">Next action</span>
-          <NextAction
-            organizationId={organizationId}
-            organizationName={organizationName}
-            activeSite={activeSite}
-            canManageIntegrations={canManageIntegrations}
-            currentHref={currentHref}
-            syncedContentTotal={syncedContentTotal}
-            latestAudit={latestAudit}
-            backlogSummary={backlogSummary}
+      <div className="overview-workspace">
+        <section className="priority-queue" aria-labelledby="priority-queue-title">
+          <div className="overview-section-heading">
+            <div>
+              <h2 id="priority-queue-title">Priority queue</h2>
+              <p>Work that moves this site forward.</p>
+            </div>
+          </div>
+
+          <PriorityRow
+            tone={activeSite?.status === "CONNECTED" ? "success" : "information"}
+            title={activeSite ? "WordPress connection" : "Add a WordPress site"}
+            detail={formatConnectionDetail(activeSite)}
+            status={activeSite ? formatStatus(activeSite.status) : "Not started"}
+            action={
+              <Link className="secondary-button" href={`/sites${siteQuery}`}>
+                {activeSite ? "Manage site" : "Add site"}
+              </Link>
+            }
           />
-        </div>
 
-        <div className="health-grid" aria-label="Site operating state">
-          {tiles.map((tile) => (
-            <Link
-              className={`health-tile health-tile-${tile.tone}`}
-              href={tile.href}
-              key={tile.label}
-              aria-label={`${tile.label}: ${tile.value}. ${tile.detail}`}
-            >
-              <span>{tile.label}</span>
-              <strong>{tile.value}</strong>
-              <small>{tile.detail}</small>
-            </Link>
-          ))}
-        </div>
+          <PriorityRow
+            tone={syncedContentTotal > 0 ? "success" : "information"}
+            title="Content evidence"
+            detail={
+              syncedContentTotal > 0
+                ? `${formatCount(syncedContentTotal, "item")} available for review.`
+                : "Run the WordPress plugin sync to collect content evidence."
+            }
+            status={syncedContentTotal > 0 ? "Synced" : "Awaiting sync"}
+            action={
+              <Link className="secondary-button" href={`/content${siteQuery}`}>
+                Review content
+              </Link>
+            }
+          />
+
+          <PriorityRow
+            tone={
+              latestAudit?.issueSummary.critical
+                ? "danger"
+                : latestAudit
+                  ? "attention"
+                  : "information"
+            }
+            title="Metadata audit"
+            detail={formatAuditDetail(latestAudit, syncedContentTotal)}
+            status={latestAudit ? formatStatus(latestAudit.status) : "Not run"}
+            action={
+              organizationId && activeSite && syncedContentTotal > 0 ? (
+                <form action={createAuditForSiteAction}>
+                  <input name="organizationId" type="hidden" value={organizationId} />
+                  <input name="siteId" type="hidden" value={activeSite.id} />
+                  <input name="redirectTo" type="hidden" value={currentHref} />
+                  <button className="secondary-button" type="submit">
+                    Run audit
+                  </button>
+                </form>
+              ) : (
+                <Link className="secondary-button" href={`/audits${siteQuery}`}>
+                  Open audits
+                </Link>
+              )
+            }
+          />
+
+          <PriorityRow
+            tone={
+              backlogSummary.bySeverity.CRITICAL > 0
+                ? "danger"
+                : backlogSummary.open > 0
+                  ? "attention"
+                  : "success"
+            }
+            title="SEO backlog"
+            detail={formatBacklogDetail(backlogSummary)}
+            status={`${backlogSummary.open.toLocaleString("en")} open`}
+            action={
+              <Link className="secondary-button" href={`/backlog${siteQuery}`}>
+                Review backlog
+              </Link>
+            }
+          />
+        </section>
+
+        <aside className="site-signals" aria-labelledby="site-signals-title">
+          <div className="overview-section-heading">
+            <div>
+              <h2 id="site-signals-title">Site signals</h2>
+              <p>Current integration and workflow state.</p>
+            </div>
+          </div>
+          <ul>
+            {signals.map((signal) => (
+              <li key={signal.label}>
+                <span className={`signal-dot signal-dot-${signal.tone}`} aria-hidden="true" />
+                <span>{signal.label}</span>
+                <strong>{signal.value}</strong>
+              </li>
+            ))}
+          </ul>
+        </aside>
       </div>
 
-      <div className="command-footer">
-        <span>{organizationName ?? "No workspace"}</span>
-        <span>{billingOverview?.currentPlan.name ?? "No plan"}</span>
-        <span>{activeSite ? activeSite.status.replaceAll("_", " ").toLowerCase() : "no site"}</span>
-      </div>
-    </section>
-  );
-}
-
-function NextAction({
-  organizationId,
-  organizationName,
-  activeSite,
-  canManageIntegrations,
-  currentHref,
-  syncedContentTotal,
-  latestAudit,
-  backlogSummary
-}: {
-  organizationId: string | null;
-  organizationName: string | null;
-  activeSite: Site | null;
-  canManageIntegrations: boolean;
-  currentHref: string;
-  syncedContentTotal: number;
-  latestAudit: Audit | null;
-  backlogSummary: BacklogTaskSummary;
-}) {
-  if (!organizationId) {
-    return (
-      <>
-        <h2>Create the workspace</h2>
-        <p>Start with an organization. Site connection and sync controls appear after that.</p>
-        <a className="button" href="#workspace-setup">
-          Create organization
-        </a>
-      </>
-    );
-  }
-
-  if (!activeSite) {
-    return (
-      <>
-        <h2>Add the first WordPress site</h2>
-        <p>{organizationName} is ready. Register the WordPress URL before plugin setup.</p>
-        <a className="button" href="#workspace-setup">
-          Add site
-        </a>
-      </>
-    );
-  }
-
-  if (activeSite.status === "PENDING_CONNECTION" || activeSite.status === "DISCONNECTED") {
-    return (
-      <>
-        <h2>Connect the WordPress plugin</h2>
-        <p>Generate a short-lived challenge, paste it into WordPress, then run the first sync.</p>
-        {canManageIntegrations ? (
-          <PluginChallengeForm organizationId={organizationId} siteId={activeSite.id} />
+      <section className="overview-activity" aria-labelledby="overview-activity-title">
+        <div className="overview-section-heading">
+          <div>
+            <h2 id="overview-activity-title">Recent activity</h2>
+            <p>Latest workspace changes and completed operations.</p>
+          </div>
+          <Link className="text-button" href="/settings#activity-title">
+            View activity
+          </Link>
+        </div>
+        {activity.length > 0 ? (
+          <ul>
+            {activity.slice(0, 5).map((item) => (
+              <li key={item.id}>
+                <span>{formatActivityAction(item.action)}</span>
+                <time dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <span className="muted-text">Your role cannot manage plugin connections.</span>
+          <p className="empty-copy">Activity will appear after site and workspace actions.</p>
         )}
-      </>
-    );
-  }
-
-  if (syncedContentTotal === 0) {
-    return (
-      <>
-        <h2>Run the first content sync</h2>
-        <p>Open the WordPress plugin screen and queue a manual sync from the connected site.</p>
-        <a
-          className="button"
-          href={`${activeSite.url.replace(/\/$/, "")}/wp-admin/options-general.php?page=sccc`}
-        >
-          Open WordPress plugin
-        </a>
-      </>
-    );
-  }
-
-  if (!latestAudit) {
-    return (
-      <>
-        <h2>Run the first metadata audit</h2>
-        <p>
-          {syncedContentTotal.toLocaleString("en")} content items are synced and ready for review.
-        </p>
-        <form action={createAuditForSiteAction}>
-          <input name="organizationId" type="hidden" value={organizationId} />
-          <input name="siteId" type="hidden" value={activeSite.id} />
-          <input name="redirectTo" type="hidden" value={currentHref} />
-          <button className="button" type="submit">
-            Run metadata audit
-          </button>
-        </form>
-      </>
-    );
-  }
-
-  if (backlogSummary.open > 0) {
-    return (
-      <>
-        <h2>Review open backlog work</h2>
-        <p>
-          {backlogSummary.open.toLocaleString("en")} open tasks are ready for triage, assignment, or
-          safe preview.
-        </p>
-        <a className="button" href="#backlog-title">
-          Review backlog
-        </a>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <h2>Inspect fresh site evidence</h2>
-      <p>
-        Content and audit evidence are available. Review synced pages or create tasks from findings.
-      </p>
-      <a className="button" href="#synced-content-title">
-        Review content
-      </a>
-    </>
+      </section>
+    </div>
   );
 }
 
-function buildHealthTiles(input: {
+function PriorityRow({
+  tone,
+  title,
+  detail,
+  status,
+  action
+}: {
+  tone: Signal["tone"];
+  title: string;
+  detail: string;
+  status: string;
+  action: ReactNode;
+}) {
+  return (
+    <div className="priority-row">
+      <span className={`priority-marker priority-marker-${tone}`} aria-hidden="true" />
+      <div className="priority-copy">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <span className={`queue-status queue-status-${tone}`}>{status}</span>
+      <div className="priority-action">{action}</div>
+    </div>
+  );
+}
+
+function buildSignals(input: {
   activeSite: Site | null;
   syncedContentTotal: number;
   latestAudit: Audit | null;
   backlogSummary: BacklogTaskSummary;
   gscOverview: GscConnectionOverview | null;
-}): HealthTile[] {
-  const siteStatus = input.activeSite?.status ?? null;
-
+}): Signal[] {
   return [
     {
-      label: "WordPress sync",
-      value:
-        input.syncedContentTotal > 0 ? formatItemCount(input.syncedContentTotal) : "Awaiting sync",
-      detail: siteStatus ? siteStatus.replaceAll("_", " ").toLowerCase() : "Add a site first",
-      tone: input.syncedContentTotal > 0 ? "success" : "attention",
-      href: "#synced-content-title"
+      label: "WordPress",
+      value: input.activeSite ? formatStatus(input.activeSite.status) : "No site",
+      tone: input.activeSite?.status === "CONNECTED" ? "success" : "information"
     },
     {
       label: "Search Console",
       value: input.gscOverview?.connected ? "Connected" : "Not connected",
-      detail: input.gscOverview?.connected
-        ? formatPropertyConnectionCount(input.gscOverview.connections.length)
-        : "Optional traffic evidence",
-      tone: input.gscOverview?.connected ? "success" : "muted",
-      href: "#gsc-title"
+      tone: input.gscOverview?.connected ? "success" : "muted"
     },
     {
-      label: "Audit health",
-      value: input.latestAudit ? input.latestAudit.status.toLowerCase() : "No audit",
-      detail: input.latestAudit
-        ? `${input.latestAudit.issueSummary.open} open / ${input.latestAudit.issueSummary.critical} critical`
-        : "Run from synced metadata",
+      label: "Synced content",
+      value: input.syncedContentTotal.toLocaleString("en"),
+      tone: input.syncedContentTotal > 0 ? "success" : "information"
+    },
+    {
+      label: "Critical audit issues",
+      value: (input.latestAudit?.issueSummary.critical ?? 0).toLocaleString("en"),
       tone: input.latestAudit?.issueSummary.critical
         ? "danger"
         : input.latestAudit
           ? "success"
-          : "muted",
-      href: "#audits-title"
+          : "muted"
     },
     {
-      label: "Backlog",
-      value: `${input.backlogSummary.open.toLocaleString("en")} open`,
-      detail: `${input.backlogSummary.bySeverity.HIGH} high / ${input.backlogSummary.bySeverity.CRITICAL} critical`,
-      tone:
-        input.backlogSummary.bySeverity.CRITICAL > 0
-          ? "danger"
-          : input.backlogSummary.open > 0
-            ? "attention"
-            : "muted",
-      href: "#backlog-title"
+      label: "Open backlog tasks",
+      value: input.backlogSummary.open.toLocaleString("en"),
+      tone: input.backlogSummary.open > 0 ? "attention" : "success"
     }
   ];
 }
 
-function formatItemCount(count: number) {
-  return `${count.toLocaleString("en")} ${count === 1 ? "item" : "items"}`;
+function formatConnectionDetail(site: Site | null): string {
+  if (!site) {
+    return "Register the first site before configuring integrations.";
+  }
+
+  if (site.status === "CONNECTED") {
+    return "The plugin connection is ready for content sync and safe operations.";
+  }
+
+  return "Finish the plugin connection before syncing content.";
 }
 
-function formatPropertyConnectionCount(count: number) {
-  return `${count.toLocaleString("en")} property ${count === 1 ? "connection" : "connections"}`;
+function formatAuditDetail(audit: Audit | null, syncedContentTotal: number): string {
+  if (!audit) {
+    return syncedContentTotal > 0
+      ? "Synced metadata is ready for the first audit."
+      : "Sync content before running the first metadata audit.";
+  }
+
+  return `${audit.issueSummary.open.toLocaleString("en")} open issues, ${audit.issueSummary.critical.toLocaleString("en")} critical.`;
+}
+
+function formatBacklogDetail(summary: BacklogTaskSummary): string {
+  if (summary.open === 0) {
+    return "No open SEO work is waiting for review.";
+  }
+
+  return `${summary.bySeverity.HIGH.toLocaleString("en")} high and ${summary.bySeverity.CRITICAL.toLocaleString("en")} critical tasks.`;
+}
+
+function formatCount(count: number, singular: string): string {
+  return `${count.toLocaleString("en")} ${count === 1 ? singular : `${singular}s`}`;
+}
+
+function formatStatus(status: string): string {
+  return status
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatActivityAction(action: string): string {
+  return action
+    .replaceAll("_", " ")
+    .replaceAll(".", " · ")
+    .replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

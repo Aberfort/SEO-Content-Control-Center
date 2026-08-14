@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 119
+
+- Replaced the mixed SaaS dashboard with dedicated Overview, Sites, Content, Audits, Backlog, and Settings routes while preserving the selected site across navigation.
+- Rebuilt Overview around the approved Action Queue direction: prioritized operational steps, compact site signals, and recent activity now lead the workspace without duplicating administration panels.
+- Added local Settings navigation and kept connection setup, content evidence, audit workflows, backlog operations, and account administration on their respective pages.
+- Refined the responsive app shell with a compact mobile top menu, dense product-oriented spacing, and green-led semantic success, information, attention, and danger colors.
+
 ### Iteration 118
 
 - Added a root `PRODUCT.md` for the SaaS/product surface so future design work has confirmed register, platform, users, positioning, anti-references, and accessibility principles.

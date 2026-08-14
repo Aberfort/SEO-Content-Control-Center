@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 115)
+## Поточний стан (після Iteration 119)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -63,10 +63,11 @@
 - Iteration 116 Plugin connection UI bridge реалізована: pending/disconnected site rows у SaaS Sites table мають inline `Generate challenge` action, яка створює одноразовий WordPress connection challenge, показує copyable `SaaS endpoint` / `Connection challenge` і використовує tested origin resolution для local/preview/deployed endpoints.
 - Iteration 117 Plugin sync datetime compatibility реалізована: shared plugin sync schema приймає WordPress `gmdate('c')` ISO datetime з `+00:00` offset для `modifiedAt`/`publishedAt`; regression test покриває offset payload, а локальний connected WordPress sync підтверджено реальним записом 3 synced content items у SaaS.
 - Iteration 118 SaaS dashboard command-center redesign реалізована: root `PRODUCT.md` зафіксував SaaS product/web context, а головна SaaS surface отримала Site Command Center з active-site state, next action, operational tiles, work-area nav, collapsible workspace setup і нижньою admin-зоною для account/member/billing/security/logs без змішування з SEO operations.
+- Iteration 119 SaaS information architecture redesign реалізована: монолітний dashboard розділено на реальні маршрути Overview, Sites, Content, Audits, Backlog і Settings; Overview перебудовано у затверджений Action Queue, active site зберігається між сторінками, а compact mobile top menu і green-led semantic palette роблять робочий простір щільним, але читабельним.
 
 ## Черга ітерацій
 
-Узгоджені продуктові, маркетингові, deployment-packaging, plugin-release, dependency-audit, Vercel production-build, локальна WordPress plugin connection UX, WordPress sync datetime compatibility і перший dashboard command-center redesign виконані. Репозиторний кодовий launch gate закритий: format/lint/test/build, Prisma migration deploy і `npm audit --audit-level=low` мають проходити на актуальному дереві залежностей.
+Узгоджені продуктові, маркетингові, deployment-packaging, plugin-release, dependency-audit, Vercel production-build, локальна WordPress plugin connection UX, WordPress sync datetime compatibility і dashboard information architecture redesign виконані. Репозиторний кодовий launch gate закритий: format/lint/test/build, Prisma migration deploy і `npm audit --audit-level=low` мають проходити на актуальному дереві залежностей.
 
 Наступний крок не є кодовою ітерацією без реального середовища: виконати operational launch cutover за існуючими runbooks (`docs/PRODUCTION_ENV.md`, `docs/STAGING_REHEARSAL.md`, `docs/SERVER_SMOKE_ROLLBACK.md`, `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`, `docs/LAUNCH_RUNBOOK_STEP_BY_STEP.md`) з production DNS/SSL/CDN, production secrets, worker process, uptime monitors, first real plugin install, demo/trial checks і post-launch watch window.
 
