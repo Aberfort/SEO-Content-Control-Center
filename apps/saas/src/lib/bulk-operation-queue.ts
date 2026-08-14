@@ -18,11 +18,13 @@ export type BulkOperationExecutionEnqueueResult =
 
 export type BulkOperationRollbackEnqueueResult = BulkOperationExecutionEnqueueResult;
 
+type Environment = Record<string, string | undefined>;
+
 export async function enqueueBulkOperationExecutionJob(input: {
   organizationId: string;
   siteId: string;
   operationId: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
 }): Promise<BulkOperationExecutionEnqueueResult> {
   const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
 
@@ -77,7 +79,7 @@ export async function enqueueBulkOperationRollbackJob(input: {
   organizationId: string;
   siteId: string;
   operationId: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
 }): Promise<BulkOperationRollbackEnqueueResult> {
   const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
 

@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 114
+
+- Closed the dependency-audit release blocker by moving both Next.js apps from `next@16.3.0-canary.70` to `next@16.3.1`, which brings in patched `postcss@8.5.23`, `nanoid@3.3.18`, and `sharp@0.35.3`.
+- Refreshed the root linting toolchain to `eslint@9.39.5`, `@eslint/js@9.39.5`, and `typescript-eslint@8.67.0`, resolving the audited `js-yaml` and `brace-expansion` transitive findings while staying on the existing ESLint 9 line.
+- Regenerated `package-lock.json` and confirmed `npm audit --audit-level=low` reports `found 0 vulnerabilities`.
+- Synchronized continuation and release-readiness documentation so the already-completed WordPress.org preparation work is no longer listed as the next Iteration 113 launch task.
+
 ### Iteration 113
 
 - Prepared the WordPress plugin for official directory submission: switched the license from Proprietary to GPLv2 or later across the plugin header, `readme.txt`, and `composer.json`, added a bundled `LICENSE.txt`, and included it in the release archive.

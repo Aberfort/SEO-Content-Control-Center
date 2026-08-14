@@ -6,7 +6,7 @@
 
 Ти — Principal Software Architect / Senior Full-Stack Engineer / Senior WordPress Plugin Developer.
 
-Працюй у проекті: `/Users/serhiiv/Projects/SEO-Content-Control-Center`
+Працюй у проекті: `/Users/serhiivasyliev/Projects/personal/SEO-Content-Control-Center`
 
 Мета: продовжити ітеративну розробку з того місця, де вона зупинилась, без втрати контексту. Виконуй по одній ітерації за раз, у порядку з розділу «Черга ітерацій», якщо я явно не попрошу інше.
 
@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 112)
+## Поточний стан (після Iteration 114)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -57,12 +57,14 @@
 - Iteration 110 Staging end-to-end release rehearsal реалізована як repeatable release gate: додано `npm run deploy:staging:rehearse` / `scripts/rehearse-staging-release.sh` для staging env validation, plugin package build, staging SaaS/marketing smoke і optional private worker health smoke; додано `docs/STAGING_REHEARSAL.md` з evidence checklist для реального plugin challenge exchange, paginated sync >200 items, GSC OAuth/sync, demo webhook, Stripe webhook idempotency, safe-operation preview/dry-run/CONFIRM/worker execution/rollback/retry visibility.
 - Iteration 111 Server smoke + rollback runbook реалізована: додано `npm run deploy:server:smoke` / `scripts/smoke-server-release.sh` для production env validation, `prisma migrate status`, Redis `PING`, plugin archive verification, SaaS/marketing/worker HTTP smoke та optional disposable restore drill; додано dependency-free `scripts/check-redis-url.mjs`; додано `docs/SERVER_SMOKE_ROLLBACK.md` з production smoke checklist, backup/restore drill, Docker Compose/managed-platform/plugin rollback paths і 60-minute post-deploy monitoring window.
 - Iteration 112 Final plugin release certification реалізована: додано `npm run plugin:release:certify` / `scripts/certify-plugin-release.sh` для version parity, fresh archive build, archive verification, SHA-256/size/entry metadata і Docker WordPress/PHP matrix against exact release zip; matrix certifier підтримує reuse archive через `SCCC_SKIP_PACKAGE=1`; додано `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md` з artifact evidence, staging Action Scheduler evidence, pass criteria і release blockers.
+- Iteration 113 WordPress.org submission readiness реалізована: плагін переведено на GPLv2-or-later, додано bundled `LICENSE.txt`, WordPress.org-compatible headers, `ABSPATH` guards для includes, `External services` disclosure у `readme.txt`, WPCS review нотатку, оновлено `Tested up to` на підставі release certification matrix, оновлено downloadable marketing zip і attribution на реального maintainer-а.
+- Iteration 114 Dependency audit closeout реалізована: Next.js apps оновлено з `16.3.0-canary.70` до `16.3.1`, linting stack оновлено до `eslint@9.39.5`, `@eslint/js@9.39.5`, `typescript-eslint@8.67.0`, lockfile підтягнув patched `postcss@8.5.23`, `nanoid@3.3.18`, `sharp@0.35.3`, `js-yaml@4.3.1`, `brace-expansion@1.1.18/5.0.9`, і `npm audit --audit-level=low` повертає `found 0 vulnerabilities`.
 
-## Черга ітерацій (виконуй по одній, звіряй з актуальним кодом перед стартом)
+## Черга ітерацій
 
-Узгоджені продуктові, маркетингові та deployment-packaging ітерації 92–108 виконані. Наступна черга — release/deploy-oriented, щоб довести всі продукти до серверного запуску:
+Узгоджені продуктові, маркетингові, deployment-packaging, plugin-release та dependency-audit ітерації виконані. Репозиторний кодовий launch gate закритий: format/lint/test/build, Prisma migration deploy і `npm audit --audit-level=low` мають проходити на актуальному дереві залежностей.
 
-1. **Iteration 113 — Launch cutover.** DNS/SSL/CDN, production migrations, worker start, uptime monitors, public route smoke, first real plugin install, demo/trial checks і post-launch watch window.
+Наступний крок не є кодовою ітерацією без реального середовища: виконати operational launch cutover за існуючими runbooks (`docs/PRODUCTION_ENV.md`, `docs/STAGING_REHEARSAL.md`, `docs/SERVER_SMOKE_ROLLBACK.md`, `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`, `docs/LAUNCH_RUNBOOK_STEP_BY_STEP.md`) з production DNS/SSL/CDN, production secrets, worker process, uptime monitors, first real plugin install, demo/trial checks і post-launch watch window.
 
 Відомий tech debt поза launch gate: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply; Phase 6 deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`.
 

@@ -164,7 +164,7 @@ Retry is also worker-only: failed execution retries enqueue execution jobs, whil
 
 - 2FA. Status: opt-in TOTP implemented for SaaS users.
 - SSO for Enterprise.
-- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification.
+- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification; current runtime and tooling dependencies pass the audit gate after the Next.js and ESLint stack refresh.
 - SAST. Status: CodeQL JavaScript/TypeScript analysis runs in CI.
 - Restore testing. Status: disposable database restore smoke script added as `npm run verify:backup-restore`.
 - Security review checklist for Enterprise customers.

@@ -1,4 +1,5 @@
 type Fetcher = typeof fetch;
+type Environment = Record<string, string | undefined>;
 
 export type GscPropertySummary = {
   siteUrl: string;
@@ -24,17 +25,17 @@ export type GscSearchInsightInput = {
 
 type GscTokenExchangeInput = {
   code: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
   fetcher?: Fetcher;
 };
 
 type GscRefreshTokenInput = {
   refreshToken: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
   fetcher?: Fetcher;
 };
 
-export function isGscOAuthConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isGscOAuthConfigured(env: Environment = process.env): boolean {
   return Boolean(
     hasEnvValue(env.SCCC_GSC_CLIENT_ID) &&
     hasEnvValue(env.SCCC_GSC_CLIENT_SECRET) &&
@@ -46,7 +47,7 @@ export function isGscOAuthConfigured(env: NodeJS.ProcessEnv = process.env): bool
  * Refresh-token flows only need client credentials; the redirect URI is
  * required for browser OAuth flows but not for background token refresh.
  */
-export function isGscClientConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isGscClientConfigured(env: Environment = process.env): boolean {
   return Boolean(hasEnvValue(env.SCCC_GSC_CLIENT_ID) && hasEnvValue(env.SCCC_GSC_CLIENT_SECRET));
 }
 

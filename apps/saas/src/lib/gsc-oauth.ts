@@ -43,18 +43,20 @@ type GscOAuthStateInput = {
   propertyUrl: string;
   now?: Date;
   ttlMs?: number;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
 };
 
 type GscAuthorizationUrlInput = {
   state: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Environment;
 };
+
+type Environment = Record<string, string | undefined>;
 
 const gscOAuthStateTtlMs = 10 * 60 * 1000;
 const gscOAuthScopes = ["openid", "email", "https://www.googleapis.com/auth/webmasters.readonly"];
 
-export function isGscStateSigningConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isGscStateSigningConfigured(env: Environment = process.env): boolean {
   return Boolean(resolveGscStateSecret(env)?.trim());
 }
 
@@ -128,7 +130,7 @@ export function parseGscOAuthState(
   state: string,
   input: {
     now?: Date;
-    env?: NodeJS.ProcessEnv;
+    env?: Environment;
   } = {}
 ): GscOAuthStatePayload {
   const [encodedPayload, signature] = state.split(".");
@@ -208,7 +210,7 @@ function buildDisabledAction(disabledReason: string): GscConnectAction {
   };
 }
 
-function signGscState(payload: string, env: NodeJS.ProcessEnv): string {
+function signGscState(payload: string, env: Environment): string {
   const secret = resolveGscStateSecret(env);
 
   if (!secret) {
@@ -218,7 +220,7 @@ function signGscState(payload: string, env: NodeJS.ProcessEnv): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-function resolveGscStateSecret(env: NodeJS.ProcessEnv): string | undefined {
+function resolveGscStateSecret(env: Environment): string | undefined {
   return env.SCCC_GSC_STATE_SECRET?.trim() || env.AUTH_SECRET?.trim();
 }
 

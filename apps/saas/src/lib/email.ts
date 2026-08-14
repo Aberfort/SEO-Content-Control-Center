@@ -55,6 +55,8 @@ type EmailConfig =
       password?: string;
     };
 
+type Environment = Record<string, string | undefined>;
+
 export async function sendInviteEmail(input: InviteEmailInput): Promise<EmailDeliveryStatus> {
   const config = resolveEmailConfig();
   const message = composeInviteEmail(input);
@@ -288,7 +290,7 @@ export function composePasswordResetEmail(input: PasswordResetEmailInput) {
   };
 }
 
-export function resolveEmailConfig(env: NodeJS.ProcessEnv = process.env): EmailConfig {
+export function resolveEmailConfig(env: Environment = process.env): EmailConfig {
   const transport = env.SCCC_EMAIL_TRANSPORT === "smtp" ? "smtp" : "noop";
   const from = env.SCCC_EMAIL_FROM ?? "SEO Content Control Center <no-reply@localhost>";
 

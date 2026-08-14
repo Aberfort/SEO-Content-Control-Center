@@ -118,7 +118,7 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 ## Phase 10 - Security Hardening
 
 - TOTP 2FA. Status: opt-in authenticator setup implemented with encrypted pending/active secrets and replay-protected login verification.
-- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification.
+- Dependency scanning. Status: `npm audit --audit-level=low` runs in CI and local external verification; the dependency tree is currently clean after the Next.js and ESLint toolchain security refresh.
 - SAST. Status: CodeQL JavaScript/TypeScript analysis runs in CI.
 - Restore testing. Status: disposable database restore smoke script implemented as `npm run verify:backup-restore`.
 - Enterprise security checklist. Status: planned.

@@ -2,12 +2,13 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 
 const tokenEncryptionVersion = "v1";
 const algorithm = "aes-256-gcm";
+type Environment = Record<string, string | undefined>;
 
-export function isTokenEncryptionConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isTokenEncryptionConfigured(env: Environment = process.env): boolean {
   return Boolean(env.SCCC_TOKEN_ENCRYPTION_KEY?.trim());
 }
 
-export function encryptSecret(value: string, env: NodeJS.ProcessEnv = process.env): string {
+export function encryptSecret(value: string, env: Environment = process.env): string {
   const key = resolveTokenEncryptionKey(env);
   const iv = randomBytes(12);
   const cipher = createCipheriv(algorithm, key, iv);
@@ -22,7 +23,7 @@ export function encryptSecret(value: string, env: NodeJS.ProcessEnv = process.en
   ].join(":");
 }
 
-export function decryptSecret(value: string, env: NodeJS.ProcessEnv = process.env): string {
+export function decryptSecret(value: string, env: Environment = process.env): string {
   const [version, encodedIv, encodedTag, encodedEncrypted] = value.split(":");
 
   if (version !== tokenEncryptionVersion || !encodedIv || !encodedTag || !encodedEncrypted) {
@@ -39,7 +40,7 @@ export function decryptSecret(value: string, env: NodeJS.ProcessEnv = process.en
   ]).toString("utf8");
 }
 
-function resolveTokenEncryptionKey(env: NodeJS.ProcessEnv): Buffer {
+function resolveTokenEncryptionKey(env: Environment): Buffer {
   const value = env.SCCC_TOKEN_ENCRYPTION_KEY?.trim();
 
   if (!value) {

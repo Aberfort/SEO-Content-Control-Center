@@ -177,7 +177,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - Docker-based WordPress plugin certification (`npm run plugin:certify:matrix`) that installs the packaged zip into real WordPress containers across PHP 8.1/8.2/8.3 and the previous WordPress branch, certifying activation, connection storage, WP-Cron sync scheduling, signed apply writes, tampered-signature rejection, and deactivation cleanup, mirrored as a CI matrix;
 - final WordPress plugin release certification (`npm run plugin:release:certify`) that verifies the exact versioned artifact, emits SHA-256/size metadata, runs the Docker WordPress/PHP matrix against that zip, and links the remaining live staging Action Scheduler evidence checklist;
 - Docker local dependencies;
-- CI workflow with dependency audit and CodeQL SAST;
+- CI workflow with dependency audit and CodeQL SAST, with the current Next.js and ESLint dependency tree passing `npm audit --audit-level=low`;
 - responsive public marketing with product/integrations, audience, knowledge base, SEO briefings, changelog, contact, service-information, pricing, security, demo, trial, and legal routes; sitemap/robots discovery; and a webhook-delivered demo lead flow;
 - release-hygiene format coverage that keeps generated Impeccable skill bundles and live-session artifacts out of the source formatting gate;
 - portable Docker Compose production packaging for SaaS, marketing, worker, and Prisma migrations, plus a deployment smoke script.
