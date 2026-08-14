@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 117
+
+- Fixed plugin sync validation so WordPress `gmdate('c')` timestamps with `+00:00` offsets are accepted by the shared sync schemas instead of being rejected as invalid datetimes.
+- Added regression coverage for offset-based WordPress `modifiedAt` and `publishedAt` values in plugin sync payloads.
+- Verified the local connected WordPress site can now complete a real sync into SaaS, updating `lastSyncAt` and ingesting the expected content inventory.
+
 ### Iteration 116
 
 - Added an inline pending-site connection action to the SaaS Sites table so operators can generate the one-time WordPress plugin challenge directly from the selected site row instead of hunting through unrelated Security settings.

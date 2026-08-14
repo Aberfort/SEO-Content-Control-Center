@@ -121,12 +121,13 @@ export const pluginSyncTaxonomyMetadataSchema = z.object({
 });
 
 export const pluginSyncSeoPluginSchema = z.enum(["yoast", "rank_math", "fallback"]);
+export const pluginSyncDateTimeSchema = z.string().datetime({ offset: true });
 
 export const pluginSyncMetadataSchema = z
   .object({
     authorId: z.number().int().nonnegative().nullable().optional(),
     authorName: z.string().trim().max(255).nullable().optional(),
-    publishedAt: z.string().datetime().nullable().optional(),
+    publishedAt: pluginSyncDateTimeSchema.nullable().optional(),
     featuredImagePresent: z.boolean().optional(),
     featuredImageId: z.number().int().nonnegative().nullable().optional(),
     featuredImageUrl: z.string().url().max(2048).nullable().optional(),
@@ -149,7 +150,7 @@ export const pluginSyncItemSchema = z.object({
   url: z.string().url().max(2048),
   title: z.string().max(512).nullable(),
   status: z.string().max(64),
-  modifiedAt: z.string().datetime(),
+  modifiedAt: pluginSyncDateTimeSchema,
   metadata: pluginSyncMetadataSchema.default({})
 });
 

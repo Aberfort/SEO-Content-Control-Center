@@ -158,11 +158,11 @@ describe("shared schemas", () => {
         url: "https://example.com/post",
         title: "Example",
         status: "publish",
-        modifiedAt: "2026-07-01T08:00:00.000Z",
+        modifiedAt: "2026-07-01T08:00:00+00:00",
         metadata: {
           authorId: 7,
           authorName: "Editor",
-          publishedAt: "2026-06-01T08:00:00.000Z",
+          publishedAt: "2026-06-01T08:00:00+00:00",
           featuredImagePresent: true,
           featuredImageId: 44,
           featuredImageUrl: "https://example.com/image.jpg",
