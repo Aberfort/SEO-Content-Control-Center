@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 115
+
+- Fixed Vercel marketing production builds that install app-scoped dependencies without the root Vitest dev dependency by excluding `*.test.ts`/`*.test.tsx` files from the Next.js production `tsconfig` for both Next apps.
+- Removed the unused `vitest/globals` type entry from the SaaS production `tsconfig`; all tests import Vitest APIs explicitly, so test execution remains unchanged while production type-checking no longer depends on the test runner.
+- Verified the marketing workspace build path that failed on Vercel now completes on `next@16.3.1`.
+
 ### Iteration 114
 
 - Closed the dependency-audit release blocker by moving both Next.js apps from `next@16.3.0-canary.70` to `next@16.3.1`, which brings in patched `postcss@8.5.23`, `nanoid@3.3.18`, and `sharp@0.35.3`.
