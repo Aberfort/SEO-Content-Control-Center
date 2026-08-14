@@ -511,6 +511,81 @@ th {
   font-size: 14px;
 }
 
+.site-action-cell {
+  min-width: 260px;
+}
+
+.plugin-challenge-form {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.plugin-challenge-form form {
+  margin: 0;
+}
+
+.plugin-challenge-form .form-error,
+.plugin-challenge-form .form-success,
+.plugin-challenge-meta {
+  margin: 0;
+}
+
+.plugin-challenge-details {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.copy-field-label {
+  display: grid;
+  gap: 7px;
+}
+
+.copy-field-label > span:first-child {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.copy-field {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.copy-field input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font:
+    12px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+  min-width: 0;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.copy-field input:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
+.plugin-challenge-meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .inventory-filters {
   align-items: end;
   display: grid;

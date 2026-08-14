@@ -23,13 +23,17 @@ import { createEmailVerificationRequestForUser } from "@/lib/email-verification"
 import { syncGscSearchInsightsForSite } from "@/lib/gsc-insights";
 import { syncGscDailyMetricsForSite } from "@/lib/gsc-metrics";
 import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
-import { disconnectPluginConnection } from "@/lib/plugin-connection";
+import {
+  createPluginConnectionChallenge,
+  disconnectPluginConnection
+} from "@/lib/plugin-connection";
 import {
   assertRateLimit,
   isRateLimitError,
   rateLimitKeyFromHeaders,
   type RateLimitPolicy
 } from "@/lib/rate-limit";
+import { requestOriginFromHeaders, resolvePluginConnectionEndpoint } from "@/lib/request-origin";
 import {
   confirmTwoFactorEnrollment,
   disableTwoFactorForUser,
@@ -43,6 +47,11 @@ export type ActionState = {
   twoFactorSetup?: {
     secret: string;
     otpauthUrl: string;
+  };
+  pluginConnectionChallenge?: {
+    endpoint: string;
+    challenge: string;
+    expiresAt: string;
   };
 };
 
@@ -106,6 +115,43 @@ export async function disconnectPluginConnectionAction(formData: FormData): Prom
   revalidatePath("/");
   revalidatePath("/dashboard");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function createPluginConnectionChallengeAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const organizationId = String(formData.get("organizationId") ?? "");
+  const siteId = String(formData.get("siteId") ?? "");
+
+  try {
+    await assertServerActionSameOrigin();
+    const headerStore = await headers();
+    await assertRateLimit(
+      "plugin-challenge",
+      rateLimitKeyFromHeaders(headerStore, `${user.id}:${organizationId}:${siteId}`)
+    );
+    const challenge = await createPluginConnectionChallenge({
+      user,
+      organizationId,
+      siteId
+    });
+
+    revalidatePath("/");
+    revalidatePath("/dashboard");
+    return {
+      ok: true,
+      message: "Connection challenge generated. Use it in the WordPress plugin within 10 minutes.",
+      pluginConnectionChallenge: {
+        endpoint: resolvePluginConnectionEndpoint(headerStore),
+        challenge: challenge.challenge,
+        expiresAt: challenge.expiresAt
+      }
+    };
+  } catch (error) {
+    return actionError(error, "Could not create connection challenge.");
+  }
 }
 
 export async function createBillingCheckoutSessionAction(formData: FormData): Promise<void> {
@@ -879,6 +925,20 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "SITE_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "Site was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "ORGANIZATION_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "Organization was not found."
+    };
+  }
+
   if (error instanceof Error && error.message === "PLAN_SITE_LIMIT_REACHED") {
     return {
       ok: false,
@@ -1111,20 +1171,6 @@ function actionError(error: unknown, fallback: string): ActionState {
     ok: false,
     message: fallback
   };
-}
-
-function requestOriginFromHeaders(headerStore: {
-  get(name: string): string | null;
-}): string | null {
-  const origin = headerStore.get("origin");
-
-  if (origin) {
-    return origin;
-  }
-
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
-  return host ? `${protocol}://${host}` : null;
 }
 
 function readRedirectTo(formData: FormData): string {

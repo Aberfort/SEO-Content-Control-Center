@@ -2,6 +2,12 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 116
+
+- Added an inline pending-site connection action to the SaaS Sites table so operators can generate the one-time WordPress plugin challenge directly from the selected site row instead of hunting through unrelated Security settings.
+- Added a small client-side connection setup panel that displays copyable `SaaS endpoint` and `Connection challenge` values, with challenge rotation and expiry messaging.
+- Added tested request-origin helpers so local, preview, and deployed SaaS origins resolve to the base endpoint the WordPress plugin expects.
+
 ### Iteration 115
 
 - Fixed Vercel marketing production builds that install app-scoped dependencies without the root Vitest dev dependency by excluding `*.test.ts`/`*.test.tsx` files from the Next.js production `tsconfig` for both Next apps.

@@ -46,6 +46,7 @@ import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { PluginChallengeForm } from "@/components/plugin-challenge-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
@@ -145,6 +146,9 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const assignableMembers = activeMembers.filter((member) => member.status === "ACTIVE");
   const canReadSite = activeOrganization
     ? hasPermission(activeOrganization.role, "site:read")
+    : false;
+  const canManageIntegrations = activeOrganization
+    ? hasPermission(activeOrganization.role, "integration:manage")
     : false;
   const canReadBilling = activeOrganization
     ? hasPermission(activeOrganization.role, "billing:read")
@@ -460,8 +464,13 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
                       <td>
                         <span className="status-pill">{site.status.replaceAll("_", " ")}</span>
                       </td>
-                      <td>
-                        {canDisconnectSiteStatus(site.status) ? (
+                      <td className="site-action-cell">
+                        {canCreatePluginChallengeStatus(site.status) && canManageIntegrations ? (
+                          <PluginChallengeForm
+                            organizationId={activeOrganization.id}
+                            siteId={site.id}
+                          />
+                        ) : canDisconnectSiteStatus(site.status) ? (
                           <form action={disconnectPluginConnectionAction}>
                             <input
                               name="organizationId"
@@ -2884,4 +2893,8 @@ function formatDateInput(value: string | null): string {
 
 function canDisconnectSiteStatus(status: Site["status"]): boolean {
   return status === "CONNECTED" || status === "SYNCING" || status === "ERROR";
+}
+
+function canCreatePluginChallengeStatus(status: Site["status"]): boolean {
+  return status === "PENDING_CONNECTION" || status === "DISCONNECTED";
 }
