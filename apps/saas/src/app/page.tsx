@@ -28,6 +28,7 @@ import {
 } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
+import { DashboardCommandCenter } from "@/components/dashboard-command-center";
 import { GscPropertyPicker } from "@/components/gsc-property-picker";
 import { matchTrafficLossPages } from "@/lib/gsc-content-matching";
 import {
@@ -65,7 +66,14 @@ import type {
   SyncedContentMetadata
 } from "@/lib/types";
 
-const navItems = ["Dashboard", "Sites", "Audits", "Backlog", "Integrations", "Security", "Billing"];
+const navItems = [
+  { label: "Overview", href: "/" },
+  { label: "Sites", href: "#sites-title" },
+  { label: "Content", href: "#synced-content-title" },
+  { label: "Audits", href: "#audits-title" },
+  { label: "Backlog", href: "#backlog-title" },
+  { label: "Admin", href: "#admin-title" }
+];
 
 type AppHomePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -318,10 +326,6 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
   const selectedContentBacklogCandidates = selectedContentItem
     ? buildSyncedContentBacklogCandidates(selectedContentItem, selectedContentHealthSignals)
     : [];
-  const totalSites = organizations.reduce(
-    (count, organization) => count + organization.sites.length,
-    0
-  );
   const latestActivity = activeOrganization?.activityLogs.slice(0, 5) ?? [];
   const latestNotifications = activeOrganization
     ? await repository.listNotificationsForOrganization(user.id, activeOrganization.id, {
@@ -364,78 +368,83 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => (
             <Link
-              key={item}
-              href={item === "Dashboard" ? "/" : "#"}
-              aria-current={item === "Dashboard" ? "page" : undefined}
+              key={item.label}
+              href={item.href}
+              aria-current={item.label === "Overview" ? "page" : undefined}
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </nav>
       </aside>
       <main className="main">
-        <div className="page-header">
-          <div>
-            <p className="eyebrow">Workspace setup</p>
-            <h1>
-              {activeOrganization
-                ? `${activeOrganization.name} is ready for WordPress connection.`
-                : "Create your workspace, then connect WordPress."}
-            </h1>
-          </div>
-          <Link className="button" href="/dashboard">
-            View dashboard
-          </Link>
-        </div>
-
-        <section className="grid" aria-label="Setup summary">
-          <article className="panel">
-            <h2>{organizations.length} organizations</h2>
-            <p>Current dev session user can only see organizations where they are a member.</p>
-          </article>
-          <article className="panel">
-            <h2>{totalSites} WordPress sites</h2>
-            <p>Sites are tenant-scoped and start in pending connection status.</p>
-          </article>
-          <article className="panel">
-            <h2>Safe operations only</h2>
-            <p>Risky SEO changes require preview, dry run, confirmation, and audit logs.</p>
-          </article>
-        </section>
-
-        <OnboardingChecklist
-          checklist={onboardingChecklist}
-          hrefs={{
-            workspace: "#workspace-setup",
-            site: "#workspace-setup",
-            plugin: "#sites-title",
-            content: "#synced-content-title",
-            audit: "#audits-title",
-            backlog: "#backlog-title"
-          }}
+        <DashboardCommandCenter
+          organizationId={activeOrganization?.id ?? null}
+          organizationName={activeOrganization?.name ?? null}
+          sites={activeOrganization?.sites ?? []}
+          activeSite={activeSite}
+          canManageIntegrations={canManageIntegrations}
+          currentHref={currentHref}
+          syncedContentTotal={syncedContent.total}
+          latestAudit={auditRuns[0] ?? null}
+          backlogSummary={backlogTasks.summary}
+          gscOverview={gscOverview}
+          billingOverview={billingOverview}
         />
 
-        <section id="workspace-setup" className="workspace-grid" aria-label="Workspace setup forms">
-          <article className="panel">
-            <h2>Create organization</h2>
-            <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>
-            <CreateOrganizationForm />
-          </article>
+        <nav className="operation-nav" aria-label="Dashboard work areas">
+          <a href="#sites-title">Connection</a>
+          <a href="#synced-content-title">Content</a>
+          <a href="#assistant-title">Recommendations</a>
+          <a href="#audits-title">Audits</a>
+          <a href="#backlog-title">Backlog</a>
+          <a href="#admin-title">Admin</a>
+        </nav>
 
-          <article className="panel">
-            <h2>Add WordPress site</h2>
-            {activeOrganization ? (
-              <>
-                <p>
-                  Add the first site to {activeOrganization.name}. Plugin connection comes next.
-                </p>
-                <CreateSiteForm organizationId={activeOrganization.id} />
-              </>
-            ) : (
-              <p className="empty-copy">Create an organization before adding a WordPress site.</p>
-            )}
-          </article>
-        </section>
+        <details
+          id="workspace-setup"
+          className="setup-disclosure"
+          open={!activeOrganization || !activeSite}
+        >
+          <summary>
+            <span>Workspace setup</span>
+            <small>
+              {onboardingChecklist.completedCount}/{onboardingChecklist.totalCount} complete
+            </small>
+          </summary>
+          <OnboardingChecklist
+            checklist={onboardingChecklist}
+            hrefs={{
+              workspace: "#workspace-setup",
+              site: "#workspace-setup",
+              plugin: "#sites-title",
+              content: "#synced-content-title",
+              audit: "#audits-title",
+              backlog: "#backlog-title"
+            }}
+          />
+          <section className="workspace-grid" aria-label="Workspace setup forms">
+            <article className="panel">
+              <h2>Create organization</h2>
+              <p>Bootstrap a tenant workspace. The current dev user becomes Owner.</p>
+              <CreateOrganizationForm />
+            </article>
+
+            <article className="panel">
+              <h2>Add WordPress site</h2>
+              {activeOrganization ? (
+                <>
+                  <p>
+                    Add the first site to {activeOrganization.name}. Plugin connection comes next.
+                  </p>
+                  <CreateSiteForm organizationId={activeOrganization.id} />
+                </>
+              ) : (
+                <p className="empty-copy">Create an organization before adding a WordPress site.</p>
+              )}
+            </article>
+          </section>
+        </details>
 
         <section className="panel empty-state" aria-labelledby="sites-title">
           <div className="section-heading">
@@ -860,103 +869,6 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           ) : (
             <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
           )}
-        </section>
-
-        <section className="panel" aria-labelledby="activity-title">
-          <h2 id="activity-title">Audit log</h2>
-          {latestActivity.length > 0 ? (
-            <ul className="activity-list">
-              {latestActivity.map((activity) => (
-                <li key={activity.id}>
-                  <span>{activity.action}</span>
-                  <time dateTime={activity.createdAt}>
-                    {new Intl.DateTimeFormat("en", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(new Date(activity.createdAt))}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-copy">Activity will appear after organization and site actions.</p>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="notifications-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="notifications-title">Notifications</h2>
-              <p>Recent safe operation lifecycle updates for this organization.</p>
-            </div>
-            <div className="notification-heading-actions">
-              <span className="metric-pill">
-                {unreadNotifications.length} unread / {latestNotifications.length} recent
-              </span>
-              {unreadNotifications.length > 0 ? (
-                <form action={markAllNotificationsReadAction}>
-                  <input name="organizationId" type="hidden" value={activeOrganization?.id ?? ""} />
-                  <input name="redirectTo" type="hidden" value={currentHref} />
-                  <button className="text-button" type="submit">
-                    Mark all read
-                  </button>
-                </form>
-              ) : null}
-            </div>
-          </div>
-          {latestNotifications.length > 0 ? (
-            <ul className="notification-list">
-              {latestNotifications.map((notification) => (
-                <li
-                  key={notification.id}
-                  className={notification.readAt ? "notification-read" : "notification-unread"}
-                >
-                  <div>
-                    <strong>{notification.title}</strong>
-                    <span>{notification.body}</span>
-                    <small>{notification.readAt ? "Read" : "Unread"}</small>
-                  </div>
-                  <div className="notification-actions">
-                    <time dateTime={notification.createdAt}>
-                      {formatDateTime(notification.createdAt)}
-                    </time>
-                    <form action={updateNotificationReadStateAction}>
-                      <input
-                        name="organizationId"
-                        type="hidden"
-                        value={notification.organizationId}
-                      />
-                      <input name="notificationId" type="hidden" value={notification.id} />
-                      <input
-                        name="read"
-                        type="hidden"
-                        value={notification.readAt ? "false" : "true"}
-                      />
-                      <input name="redirectTo" type="hidden" value={currentHref} />
-                      <button className="text-button" type="submit">
-                        {notification.readAt ? "Mark unread" : "Mark read"}
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-copy">
-              Notifications will appear after safe operation results, rollbacks, or retries.
-            </p>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="security-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="security-title">Security</h2>
-              <p>Authenticator verification for your account sign-in.</p>
-            </div>
-            <span className="metric-pill">{twoFactorStatus.enabled ? "2FA on" : "2FA off"}</span>
-          </div>
-          <TwoFactorSettings status={twoFactorStatus} />
         </section>
 
         <section className="panel" aria-labelledby="assistant-title">
@@ -2195,6 +2107,122 @@ export default async function AppHomePage({ searchParams }: AppHomePageProps) {
           ) : (
             <p className="empty-copy">Add a WordPress site before building a backlog.</p>
           )}
+        </section>
+
+        <section id="admin-title" className="admin-intro" aria-labelledby="admin-heading">
+          <div>
+            <p className="eyebrow">Administration</p>
+            <h2 id="admin-heading">Workspace controls</h2>
+          </div>
+          <p>
+            Account, member, billing, security, notifications, and audit trail stay available here
+            without interrupting the site operations flow above.
+          </p>
+        </section>
+
+        <section className="admin-grid" aria-label="Workspace administration">
+          <section className="panel" aria-labelledby="activity-title">
+            <h2 id="activity-title">Audit log</h2>
+            {latestActivity.length > 0 ? (
+              <ul className="activity-list">
+                {latestActivity.map((activity) => (
+                  <li key={activity.id}>
+                    <span>{activity.action}</span>
+                    <time dateTime={activity.createdAt}>
+                      {new Intl.DateTimeFormat("en", {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                      }).format(new Date(activity.createdAt))}
+                    </time>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-copy">
+                Activity will appear after organization and site actions.
+              </p>
+            )}
+          </section>
+
+          <section className="panel" aria-labelledby="notifications-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="notifications-title">Notifications</h2>
+                <p>Recent safe operation lifecycle updates for this organization.</p>
+              </div>
+              <div className="notification-heading-actions">
+                <span className="metric-pill">
+                  {unreadNotifications.length} unread / {latestNotifications.length} recent
+                </span>
+                {unreadNotifications.length > 0 ? (
+                  <form action={markAllNotificationsReadAction}>
+                    <input
+                      name="organizationId"
+                      type="hidden"
+                      value={activeOrganization?.id ?? ""}
+                    />
+                    <input name="redirectTo" type="hidden" value={currentHref} />
+                    <button className="text-button" type="submit">
+                      Mark all read
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            </div>
+            {latestNotifications.length > 0 ? (
+              <ul className="notification-list">
+                {latestNotifications.map((notification) => (
+                  <li
+                    key={notification.id}
+                    className={notification.readAt ? "notification-read" : "notification-unread"}
+                  >
+                    <div>
+                      <strong>{notification.title}</strong>
+                      <span>{notification.body}</span>
+                      <small>{notification.readAt ? "Read" : "Unread"}</small>
+                    </div>
+                    <div className="notification-actions">
+                      <time dateTime={notification.createdAt}>
+                        {formatDateTime(notification.createdAt)}
+                      </time>
+                      <form action={updateNotificationReadStateAction}>
+                        <input
+                          name="organizationId"
+                          type="hidden"
+                          value={notification.organizationId}
+                        />
+                        <input name="notificationId" type="hidden" value={notification.id} />
+                        <input
+                          name="read"
+                          type="hidden"
+                          value={notification.readAt ? "false" : "true"}
+                        />
+                        <input name="redirectTo" type="hidden" value={currentHref} />
+                        <button className="text-button" type="submit">
+                          {notification.readAt ? "Mark unread" : "Mark read"}
+                        </button>
+                      </form>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-copy">
+                Notifications will appear after safe operation results, rollbacks, or retries.
+              </p>
+            )}
+          </section>
+
+          <section className="panel" aria-labelledby="security-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="security-title">Security</h2>
+                <p>Authenticator verification for your account sign-in.</p>
+              </div>
+              <span className="metric-pill">{twoFactorStatus.enabled ? "2FA on" : "2FA off"}</span>
+            </div>
+            <TwoFactorSettings status={twoFactorStatus} />
+          </section>
         </section>
 
         <section className="panel" aria-labelledby="members-title">

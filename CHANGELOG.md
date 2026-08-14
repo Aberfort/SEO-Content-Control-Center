@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 118
+
+- Added a root `PRODUCT.md` for the SaaS/product surface so future design work has confirmed register, platform, users, positioning, anti-references, and accessibility principles.
+- Reframed the SaaS home dashboard around a Site Command Center that leads with active site state, next action, WordPress sync, Search Console, audit health, and backlog status.
+- Replaced the top-level mixed setup/admin flow with a collapsible workspace setup block, operational navigation, and a lower administration area for audit logs, notifications, security, members, and billing.
+- Added a reusable `DashboardCommandCenter` component and dashboard-specific layout styles while preserving existing forms, filters, tables, and safe-operation actions.
+
 ### Iteration 117
 
 - Fixed plugin sync validation so WordPress `gmdate('c')` timestamps with `+00:00` offsets are accepted by the shared sync schemas instead of being rejected as invalid datetimes.
