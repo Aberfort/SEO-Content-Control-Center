@@ -1589,6 +1589,8 @@ Creates a metadata audit when the member has `audit:run`. The MVP creates a tena
 
 The audit run also materializes `gsc.traffic-loss` issues from persisted Search Console page insights: the latest insight snapshot is compared against the snapshot from 7 days earlier, and dropping pages that match synced WordPress content through normalized URLs become audit issues. Severity follows the detection drop ratio (`HIGH` at a 50% click drop or more, otherwise `MEDIUM`), evidence carries the comparison ranges, current/baseline clicks, click delta, drop ratio, positions, and property URL, and the `gsc:traffic-loss:<externalId>` fingerprint deduplicates repeat audit runs into updates of the existing issue. Unmatched dropping pages never become issues.
 
+Every generated issue whose URL matches the latest persisted GSC insight snapshot also receives `evidence.searchImpact`. The impact band is `medium` at 10 clicks or 200 impressions and `high` at 50 clicks or 1,000 impressions, using the highest observed current/comparison volume; lower nonzero visibility is `low`. Evidence includes the current and adjacent comparison ranges, clicks, impressions, calculated CTR, weighted position, thresholds, and a fixed `trackingBaseline` captured when the issue is first observed with GSC evidence. Later audit runs compare the new current window with that fixed baseline and return `awaiting_followup`, `improved`, `declined`, or `stable`; improved/declined requires at least five clicks and 25% movement. The evidence explicitly states that period comparison shows correlation, not causation. Audit generation reads persisted snapshots only and never calls Google inline.
+
 Response:
 
 ```json
@@ -1672,11 +1674,52 @@ Response:
       "severity": "HIGH",
       "affectedUrl": "https://example.com/page",
       "evidence": {
-        "selector": "head meta[name=description]"
+        "selector": "head meta[name=description]",
+        "searchImpact": {
+          "source": "gsc_search_impact",
+          "band": "high",
+          "basis": "high impact: observed up to 60 clicks and 1200 impressions; medium starts at 10 clicks or 200 impressions, high at 50 clicks or 1,000 impressions.",
+          "thresholds": {
+            "mediumClicks": 10,
+            "mediumImpressions": 200,
+            "highClicks": 50,
+            "highImpressions": 1000,
+            "outcomeMinClicksDelta": 5,
+            "outcomeRatio": 0.25
+          },
+          "current": {
+            "range": { "startDate": "2026-08-08", "endDate": "2026-08-14" },
+            "clicks": 60,
+            "impressions": 1200,
+            "ctr": 0.05,
+            "position": 6
+          },
+          "comparison": {
+            "range": { "startDate": "2026-08-01", "endDate": "2026-08-07" },
+            "clicks": 40,
+            "impressions": 1000,
+            "ctr": 0.04,
+            "position": 7
+          },
+          "trackingBaseline": {
+            "range": { "startDate": "2026-08-01", "endDate": "2026-08-07" },
+            "clicks": 40,
+            "impressions": 1000,
+            "ctr": 0.04,
+            "position": 7
+          },
+          "outcome": {
+            "status": "improved",
+            "clicksDelta": 20,
+            "clicksDeltaRatio": 0.5,
+            "impressionsDelta": 200,
+            "disclaimer": "Period comparison shows correlation, not causation."
+          }
+        }
       },
       "explanation": "The page does not expose a meta description.",
       "recommendedAction": "Add a concise meta description.",
-      "potentialImpact": "Search snippets may be less relevant.",
+      "potentialImpact": "HIGH search impact: 60 clicks, 1200 impressions, 5.0% CTR, position 6 in 2026-08-08 to 2026-08-14.",
       "fingerprint": "meta-description-missing:https://example.com/page",
       "createdAt": "2026-07-01T10:00:00.000Z",
       "updatedAt": "2026-07-01T10:00:00.000Z"
@@ -1696,6 +1739,16 @@ Optional query params:
 - `severity` filters by `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
 
 Response content type: `text/csv; charset=utf-8`.
+
+The CSV keeps the current filters and includes `searchImpactBand`, `gscCurrentClicks`,
+`gscCurrentImpressions`, `gscOutcome`, and `gscClicksDelta` columns. Issues without matched GSC
+evidence keep those cells empty rather than receiving estimated values.
+
+When an enriched audit issue is converted to backlog work, the task receives one replaceable
+`search-impact:high|medium|low|none` tag. Repeating single or bulk conversion refreshes that tag on
+the existing task, and backlog listings prioritize the tag from high to none before their existing
+updated-time ordering. Tasks without matched GSC evidence remain visible and are not assigned an
+invented impact value.
 
 `PATCH /api/organizations/:organizationId/sites/:siteId/audits/:auditId/issues/:issueId`
 

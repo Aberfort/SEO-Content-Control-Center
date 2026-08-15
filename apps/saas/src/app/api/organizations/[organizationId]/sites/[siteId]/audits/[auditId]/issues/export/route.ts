@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
 import { jsonError, unauthorizedError, validationError } from "@/lib/http";
+import { readSearchImpact } from "@/lib/gsc-impact";
 import type { AuditIssue } from "@/lib/types";
 
 type RouteContext = {
@@ -25,6 +26,11 @@ const csvHeaders = [
   "recommendedAction",
   "explanation",
   "potentialImpact",
+  "searchImpactBand",
+  "gscCurrentClicks",
+  "gscCurrentImpressions",
+  "gscOutcome",
+  "gscClicksDelta",
   "fingerprint",
   "createdAt",
   "updatedAt"
@@ -80,21 +86,32 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 function buildAuditIssueCsv(issues: AuditIssue[]): string {
-  const rows = issues.map((issue) => [
-    issue.id,
-    issue.auditId,
-    issue.siteId,
-    issue.status,
-    issue.severity,
-    issue.issueType,
-    issue.affectedUrl,
-    issue.recommendedAction,
-    issue.explanation,
-    issue.potentialImpact ?? "",
-    issue.fingerprint,
-    issue.createdAt,
-    issue.updatedAt
-  ]);
+  const rows = issues.map((issue) => {
+    const impact = readSearchImpact(issue.evidence);
+
+    return [
+      issue.id,
+      issue.auditId,
+      issue.siteId,
+      issue.status,
+      issue.severity,
+      issue.issueType,
+      issue.affectedUrl,
+      issue.recommendedAction,
+      issue.explanation,
+      issue.potentialImpact ?? "",
+      impact?.band ?? "",
+      impact ? String(impact.current.clicks) : "",
+      impact ? String(impact.current.impressions) : "",
+      impact?.outcome.status ?? "",
+      impact?.outcome.clicksDelta === null || impact?.outcome.clicksDelta === undefined
+        ? ""
+        : String(impact.outcome.clicksDelta),
+      issue.fingerprint,
+      issue.createdAt,
+      issue.updatedAt
+    ];
+  });
 
   return [csvHeaders, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\n") + "\n";
 }

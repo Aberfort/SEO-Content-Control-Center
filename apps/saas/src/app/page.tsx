@@ -42,6 +42,7 @@ import {
   shiftDateOnly,
   type SiteTrafficLoss
 } from "@/lib/gsc-traffic-loss";
+import { readSearchImpact, readSearchImpactBandFromTags } from "@/lib/gsc-impact";
 import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
@@ -1661,83 +1662,111 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                           <thead>
                             <tr>
                               <th>Issue</th>
+                              <th>Search impact</th>
                               <th>Status</th>
                               <th>Severity</th>
                               <th>Backlog</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {auditIssues.map((issue) => (
-                              <tr key={issue.id}>
-                                <td>
-                                  <strong>{issue.recommendedAction}</strong>
-                                  <span>{issue.affectedUrl}</span>
-                                  <span>{issue.issueType.replaceAll("_", " ")}</span>
-                                </td>
-                                <td>
-                                  <form
-                                    className="status-form"
-                                    action={updateAuditIssueStatusAction}
-                                  >
-                                    <input
-                                      name="organizationId"
-                                      type="hidden"
-                                      value={issue.organizationId}
-                                    />
-                                    <input name="siteId" type="hidden" value={issue.siteId} />
-                                    <input name="auditId" type="hidden" value={issue.auditId} />
-                                    <input name="issueId" type="hidden" value={issue.id} />
-                                    <input
-                                      name="redirectTo"
-                                      type="hidden"
-                                      value={buildViewHref({
-                                        site: activeSite.id,
-                                        audit: activeAudit.id
-                                      })}
-                                    />
-                                    <select name="status" defaultValue={issue.status}>
-                                      {auditIssueStatuses.map((status) => (
-                                        <option key={status} value={status}>
-                                          {status.toLowerCase()}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <button className="secondary-button" type="submit">
-                                      Apply
-                                    </button>
-                                  </form>
-                                </td>
-                                <td>
-                                  <span
-                                    className={`severity-pill severity-${issue.severity.toLowerCase()}`}
-                                  >
-                                    {issue.severity}
-                                  </span>
-                                </td>
-                                <td>
-                                  <form action={createBacklogTaskFromAuditIssueAction}>
-                                    <input
-                                      name="organizationId"
-                                      type="hidden"
-                                      value={issue.organizationId}
-                                    />
-                                    <input name="siteId" type="hidden" value={issue.siteId} />
-                                    <input name="auditIssueId" type="hidden" value={issue.id} />
-                                    <input
-                                      name="redirectTo"
-                                      type="hidden"
-                                      value={buildViewHref({
-                                        site: activeSite.id,
-                                        audit: activeAudit.id
-                                      })}
-                                    />
-                                    <button className="secondary-button" type="submit">
-                                      Create task
-                                    </button>
-                                  </form>
-                                </td>
-                              </tr>
-                            ))}
+                            {auditIssues.map((issue) => {
+                              const impact = readSearchImpact(issue.evidence);
+
+                              return (
+                                <tr key={issue.id}>
+                                  <td>
+                                    <strong>{issue.recommendedAction}</strong>
+                                    <span>{issue.affectedUrl}</span>
+                                    <span>{issue.issueType.replaceAll("_", " ")}</span>
+                                  </td>
+                                  <td>
+                                    {impact ? (
+                                      <div className="search-impact-cell">
+                                        <span className={`impact-pill impact-${impact.band}`}>
+                                          {impact.band}
+                                        </span>
+                                        <span>
+                                          {impact.current.clicks} clicks ·{" "}
+                                          {impact.current.impressions} impressions
+                                        </span>
+                                        <span>
+                                          {impact.outcome.status.replaceAll("_", " ")}
+                                          {impact.outcome.clicksDelta === null
+                                            ? ""
+                                            : ` · ${formatSignedMetric(impact.outcome.clicksDelta)} clicks`}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="impact-unavailable">
+                                        No matched GSC evidence
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <form
+                                      className="status-form"
+                                      action={updateAuditIssueStatusAction}
+                                    >
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={issue.organizationId}
+                                      />
+                                      <input name="siteId" type="hidden" value={issue.siteId} />
+                                      <input name="auditId" type="hidden" value={issue.auditId} />
+                                      <input name="issueId" type="hidden" value={issue.id} />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({
+                                          site: activeSite.id,
+                                          audit: activeAudit.id
+                                        })}
+                                      />
+                                      <select name="status" defaultValue={issue.status}>
+                                        {auditIssueStatuses.map((status) => (
+                                          <option key={status} value={status}>
+                                            {status.toLowerCase()}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button className="secondary-button" type="submit">
+                                        Apply
+                                      </button>
+                                    </form>
+                                  </td>
+                                  <td>
+                                    <span
+                                      className={`severity-pill severity-${issue.severity.toLowerCase()}`}
+                                    >
+                                      {issue.severity}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <form action={createBacklogTaskFromAuditIssueAction}>
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={issue.organizationId}
+                                      />
+                                      <input name="siteId" type="hidden" value={issue.siteId} />
+                                      <input name="auditIssueId" type="hidden" value={issue.id} />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({
+                                          site: activeSite.id,
+                                          audit: activeAudit.id
+                                        })}
+                                      />
+                                      <button className="secondary-button" type="submit">
+                                        Create task
+                                      </button>
+                                    </form>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1855,6 +1884,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                           <th>Status</th>
                           <th>Assignment</th>
                           <th>Severity</th>
+                          <th>Search impact</th>
                           <th>Effort</th>
                           <th>Updated</th>
                         </tr>
@@ -2018,6 +2048,17 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               >
                                 {task.severity}
                               </span>
+                            </td>
+                            <td>
+                              {readSearchImpactBandFromTags(task.tags) ? (
+                                <span
+                                  className={`impact-pill impact-${readSearchImpactBandFromTags(task.tags)}`}
+                                >
+                                  {readSearchImpactBandFromTags(task.tags)}
+                                </span>
+                              ) : (
+                                <span className="impact-unavailable">Not measured</span>
+                              )}
                             </td>
                             <td>{task.effortEstimate ?? "n/a"}</td>
                             <td>
@@ -3053,6 +3094,10 @@ function formatGscPosition(metric: GscDailyMetric | GscSearchInsight): string {
     maximumFractionDigits: 1,
     minimumFractionDigits: 0
   });
+}
+
+function formatSignedMetric(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
 }
 
 function formatTrafficLossDelta(loss: SiteTrafficLoss): string {

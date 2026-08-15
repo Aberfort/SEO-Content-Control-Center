@@ -551,6 +551,7 @@ h1 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
+  min-width: 0;
   padding: 20px;
 }
 
@@ -1360,7 +1361,7 @@ th {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(180px, 260px) repeat(2, minmax(150px, 210px)) auto auto;
+  grid-template-columns: minmax(180px, 260px) repeat(2, minmax(150px, 210px)) auto auto auto;
   margin-bottom: 16px;
 }
 
@@ -1401,6 +1402,55 @@ th {
 .audit-issue-table strong,
 .audit-issue-table td > span:not(.severity-pill) {
   display: block;
+}
+
+.search-impact-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+}
+
+.search-impact-cell > span:not(.impact-pill),
+.impact-unavailable {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.impact-pill {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  justify-self: start;
+  line-height: 1;
+  padding: 5px 7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.impact-high {
+  background: #feeceb;
+  border-color: #f7c9c5;
+  color: #9f2d26;
+}
+
+.impact-medium {
+  background: #fff5d9;
+  border-color: #efd99a;
+  color: #8a5700;
+}
+
+.impact-low {
+  background: #e8f4fb;
+  border-color: #bfdeef;
+  color: #1d6088;
+}
+
+.impact-none {
+  background: #f1f4f3;
+  border-color: #d8dfdc;
+  color: #53615c;
 }
 
 .audit-issue-table td > span:not(.severity-pill) {

@@ -241,6 +241,11 @@
 - Normalized URL collisions between synced items resolve deterministically by external id order.
 - Content URL lookups for matching stay inside organization/site scope.
 - Audit runs materialize traffic loss drops matched to synced content as `gsc.traffic-loss` issues; unmatched drops never become issues.
+- Audit runs enrich every URL-matched issue with persisted GSC clicks, impressions, CTR, weighted position, current/comparison ranges, and a fixed first-observed tracking baseline without calling Google inline.
+- Search impact bands use explicit thresholds: medium at 10 clicks or 200 impressions and high at 50 clicks or 1,000 impressions across current/comparison visibility.
+- Follow-up outcome state remains `awaiting_followup` for the baseline range, then becomes improved/declined only at a five-click and 25% movement threshold; every outcome states that period comparison is correlation, not causation.
+- Audit issue lists sort impact high-to-none before their existing severity/update ordering, and CSV export includes impact band, current clicks/impressions, outcome, and click delta.
+- Audit-derived backlog tasks persist one replaceable `search-impact:*` tag, refresh it during repeated single/bulk conversion, show it in the Backlog table, and sort high-to-none before recency.
 - Search opportunities flag pages with at least 200 impressions in the top 10 whose CTR is below half of the deterministic position benchmark.
 - Striking distance opportunities cover weighted positions 5 through 15 inclusive with at least 100 impressions.
 - Opportunity rows aggregate insight rows per page across queries before thresholds apply, and each type is bounded and sorted by impressions.

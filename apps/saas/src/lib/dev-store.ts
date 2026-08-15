@@ -129,6 +129,11 @@ import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildGscOpportunities, matchGscOpportunityEntries } from "./gsc-opportunities";
 import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
 import {
+  compareIssuesBySearchImpact,
+  compareTasksBySearchImpact,
+  withSearchImpactTag
+} from "./gsc-impact";
+import {
   buildAuditIssueInputsFromTrafficLoss,
   type GeneratedTrafficLossAuditIssueInput
 } from "./gsc-traffic-loss-issues";
@@ -1601,6 +1606,12 @@ export function listAuditIssuesForAudit(
       return scopeMatches && statusMatches && severityMatches && queryMatches;
     })
     .sort((left, right) => {
+      const impactDelta = compareIssuesBySearchImpact(left, right);
+
+      if (impactDelta !== 0) {
+        return impactDelta;
+      }
+
       const severityDelta = severityRank(right.severity) - severityRank(left.severity);
 
       if (severityDelta !== 0) {
@@ -1715,6 +1726,7 @@ export function createBacklogTaskFromAuditIssue(
   );
 
   if (existing) {
+    existing.tags = withSearchImpactTag(existing.tags, issue.evidence);
     return withBacklogDetails(existing, store.backlogComments, store.activityLogs, 3);
   }
 
@@ -1733,7 +1745,7 @@ export function createBacklogTaskFromAuditIssue(
     effortEstimate: mapIssueSeverityToEffort(issue.severity),
     assigneeId: null,
     dueDate: null,
-    tags: ["audit", issue.issueType],
+    tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence),
     createdAt: timestamp,
     updatedAt: timestamp,
     comments: []
@@ -1812,6 +1824,7 @@ export function createBacklogTasksFromAudit(
     );
 
     if (existing) {
+      existing.tags = withSearchImpactTag(existing.tags, issue.evidence);
       tasks.push(withBacklogDetails(existing, store.backlogComments, store.activityLogs, 3));
       existingCount += 1;
       continue;
@@ -1832,7 +1845,7 @@ export function createBacklogTasksFromAudit(
       effortEstimate: mapIssueSeverityToEffort(issue.severity),
       assigneeId: null,
       dueDate: null,
-      tags: ["audit", issue.issueType],
+      tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence),
       createdAt: timestamp,
       updatedAt: timestamp,
       comments: []
@@ -1888,7 +1901,10 @@ export function listBacklogTasksForSite(
   const store = getDevStore();
   const scopedTasks = store.backlogTasks
     .filter((task) => task.organizationId === organizationId && task.siteId === siteId)
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    .sort(
+      (left, right) =>
+        compareTasksBySearchImpact(left, right) || right.updatedAt.localeCompare(left.updatedAt)
+    );
 
   return {
     items: scopedTasks

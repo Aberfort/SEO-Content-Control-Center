@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 124
+
+- Added transparent Search Console impact enrichment for every matched audit issue, with `high`, `medium`, `low`, and `none` bands based on persisted clicks/impressions and explicit medium/high thresholds.
+- Embedded current and adjacent comparison windows with clicks, impressions, CTR, weighted position, and a fixed first-observed tracking baseline in issue evidence.
+- Added deterministic tracked outcomes (`awaiting_followup`, `improved`, `declined`, or `stable`) using a minimum five-click and 25% change threshold, with an explicit correlation-not-causation disclaimer.
+- Prioritized issue listings by search impact before technical severity, exposed impact and tracked movement in the Audits table, and added impact/outcome columns to filtered CSV exports.
+- Carried matched impact bands into audit-derived backlog tasks through replaceable `search-impact:*` tags, refreshed existing tasks during repeat conversion, and sorted backlog work by impact before recency.
+- Kept all calculations read-only over persisted GSC snapshots; audit requests do not call Google inline and unmatched issues remain visible without invented metrics.
+
 ### Iteration 123
 
 - Shipped plugin `0.5.0` with bounded synchronization of active findings from the latest completed local audit; incomplete audits do not replace platform evidence, while completed clean results intentionally clear resolved evidence.

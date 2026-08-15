@@ -127,6 +127,15 @@ import {
 } from "./gsc-opportunities";
 import { buildPageTrafficLoss, shiftDateOnly } from "./gsc-traffic-loss";
 import {
+  attachSearchImpact,
+  buildSearchImpactAssessments,
+  compareIssuesBySearchImpact,
+  compareTasksBySearchImpact,
+  preserveSearchImpactBaseline,
+  withSearchImpactTag,
+  type SearchImpactAssessment
+} from "./gsc-impact";
+import {
   buildAuditIssueInputsFromTrafficLoss,
   type GeneratedTrafficLossAuditIssueInput
 } from "./gsc-traffic-loss-issues";
@@ -2279,10 +2288,7 @@ const prismaRepository: AppRepository = {
       ],
       take: 500
     });
-    const syncedContentIssues = syncedContentItems.flatMap((item) =>
-      buildAuditIssueInputsFromSyncedContent(mapSyncedContentItem(item))
-    );
-    const trafficLossIssues = await buildDbTrafficLossIssueInputs(
+    const gscAuditContext = await loadDbGscAuditContext(
       input.siteId,
       syncedContentItems.map((item) => ({
         id: item.id,
@@ -2291,7 +2297,30 @@ const prismaRepository: AppRepository = {
         title: item.title
       }))
     );
-    const generatedIssues = [...syncedContentIssues, ...trafficLossIssues];
+    const syncedContentIssues = syncedContentItems.flatMap((item) =>
+      buildAuditIssueInputsFromSyncedContent(mapSyncedContentItem(item)).map((issue) =>
+        attachSearchImpact(issue, gscAuditContext.assessments.get(issue.evidence.externalId))
+      )
+    );
+    const trafficLossIssues = gscAuditContext.trafficLossIssues.map((issue) =>
+      attachSearchImpact(issue, gscAuditContext.assessments.get(issue.evidence.externalId))
+    );
+    const existingIssues = await prisma.auditIssue.findMany({
+      where: {
+        organizationId: input.organizationId,
+        siteId: input.siteId
+      },
+      select: {
+        fingerprint: true,
+        evidence: true
+      }
+    });
+    const existingEvidenceByFingerprint = new Map(
+      existingIssues.map((issue) => [issue.fingerprint, issue.evidence])
+    );
+    const generatedIssues = [...syncedContentIssues, ...trafficLossIssues].map((issue) =>
+      preserveSearchImpactBaseline(issue, existingEvidenceByFingerprint.get(issue.fingerprint))
+    );
 
     const auditResult = await prisma.$transaction(async (tx) => {
       const auditStartedAt = new Date();
@@ -2445,10 +2474,13 @@ const prismaRepository: AppRepository = {
           id: "desc"
         }
       ],
-      take: normalizedOptions.limit ?? 100
+      take: 500
     });
 
-    return issues.map(mapAuditIssue);
+    return issues
+      .map(mapAuditIssue)
+      .sort(compareIssuesBySearchImpact)
+      .slice(0, normalizedOptions.limit ?? 100);
   },
 
   async updateAuditIssueStatus(input) {
@@ -2667,7 +2699,14 @@ const prismaRepository: AppRepository = {
       });
 
       if (existing) {
-        return existing;
+        const tags = withSearchImpactTag(existing.tags, issue.evidence);
+
+        return tags.join("\u0000") === existing.tags.join("\u0000")
+          ? existing
+          : tx.backlogTask.update({
+              where: { id: existing.id },
+              data: { tags }
+            });
       }
 
       const created = await tx.backlogTask.create({
@@ -2681,7 +2720,7 @@ const prismaRepository: AppRepository = {
           severity: issue.severity,
           potentialImpact: issue.potentialImpact ?? issue.explanation,
           effortEstimate: mapIssueSeverityToEffort(issue.severity),
-          tags: ["audit", issue.issueType]
+          tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence)
         }
       });
 
@@ -2772,6 +2811,30 @@ const prismaRepository: AppRepository = {
         }
       }
 
+      const refreshedExistingTasks = await Promise.all(
+        issues
+          .filter((issue) => existingTaskByIssueId.has(issue.id))
+          .map(async (issue) => {
+            const existing = existingTaskByIssueId.get(issue.id)!;
+            const tags = withSearchImpactTag(existing.tags, issue.evidence);
+
+            if (tags.join("\u0000") === existing.tags.join("\u0000")) {
+              return existing;
+            }
+
+            return tx.backlogTask.update({
+              where: { id: existing.id },
+              data: { tags }
+            });
+          })
+      );
+
+      for (const task of refreshedExistingTasks) {
+        if (task.auditIssueId) {
+          existingTaskByIssueId.set(task.auditIssueId, task);
+        }
+      }
+
       const issuesToCreate = issues.filter((issue) => !existingTaskByIssueId.has(issue.id));
       const createdTasks = await Promise.all(
         issuesToCreate.map((issue) =>
@@ -2786,7 +2849,7 @@ const prismaRepository: AppRepository = {
               severity: issue.severity,
               potentialImpact: issue.potentialImpact ?? issue.explanation,
               effortEstimate: mapIssueSeverityToEffort(issue.severity),
-              tags: ["audit", issue.issueType]
+              tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence)
             }
           })
         )
@@ -2893,7 +2956,7 @@ const prismaRepository: AppRepository = {
         : {})
     };
 
-    const [tasks, total, statusGroups, severityGroups] = await prisma.$transaction([
+    const [candidateTasks, total, statusGroups, severityGroups] = await prisma.$transaction([
       prisma.backlogTask.findMany({
         where: filteredWhere,
         include: backlogTaskCommentInclude,
@@ -2905,7 +2968,7 @@ const prismaRepository: AppRepository = {
             id: "desc"
           }
         ],
-        take: normalizedOptions.limit ?? 50
+        take: 500
       }),
       prisma.backlogTask.count({
         where: baseWhere
@@ -2931,6 +2994,9 @@ const prismaRepository: AppRepository = {
         }
       })
     ]);
+    const tasks = candidateTasks
+      .sort(compareTasksBySearchImpact)
+      .slice(0, normalizedOptions.limit ?? 50);
     const taskActivityLogs = await listRecentActivityForBacklogTasks(
       organizationId,
       siteId,
@@ -4910,18 +4976,21 @@ async function loadLatestDbInsightSnapshot(siteId: string): Promise<{
  * Builds traffic-loss audit issue inputs from the latest persisted insight
  * snapshot compared against the snapshot from 7 days earlier.
  */
-async function buildDbTrafficLossIssueInputs(
+async function loadDbGscAuditContext(
   siteId: string,
   contentEntries: SyncedContentUrlEntry[]
-): Promise<GeneratedTrafficLossAuditIssueInput[]> {
+): Promise<{
+  assessments: Map<string, SearchImpactAssessment>;
+  trafficLossIssues: GeneratedTrafficLossAuditIssueInput[];
+}> {
   if (contentEntries.length === 0) {
-    return [];
+    return { assessments: new Map(), trafficLossIssues: [] };
   }
 
   const snapshot = await loadLatestDbInsightSnapshot(siteId);
 
   if (!snapshot) {
-    return [];
+    return { assessments: new Map(), trafficLossIssues: [] };
   }
 
   const baselineInsights = await prisma.gscSearchInsight.findMany({
@@ -4933,17 +5002,25 @@ async function buildDbTrafficLossIssueInputs(
     }
   });
   const pages = buildPageTrafficLoss(snapshot.insights, baselineInsights.map(mapGscSearchInsight));
+  const assessments = buildSearchImpactAssessments({
+    currentInsights: snapshot.insights,
+    comparisonInsights: baselineInsights.map(mapGscSearchInsight),
+    contentEntries
+  });
 
   if (!pages.available || pages.drops.length === 0) {
-    return [];
+    return { assessments, trafficLossIssues: [] };
   }
 
-  return buildAuditIssueInputsFromTrafficLoss({
-    drops: matchTrafficLossPages(pages.drops, contentEntries),
-    currentRange: pages.currentRange,
-    baselineRange: pages.baselineRange,
-    propertyUrl: snapshot.propertyUrl
-  });
+  return {
+    assessments,
+    trafficLossIssues: buildAuditIssueInputsFromTrafficLoss({
+      drops: matchTrafficLossPages(pages.drops, contentEntries),
+      currentRange: pages.currentRange,
+      baselineRange: pages.baselineRange,
+      propertyUrl: snapshot.propertyUrl
+    })
+  };
 }
 
 /**

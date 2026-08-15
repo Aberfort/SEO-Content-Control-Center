@@ -22,11 +22,13 @@ Status: implemented.
 
 ## Iteration 124 - Search Impact Prioritization
 
+Status: implemented.
+
 - Join each eligible issue to recent GSC clicks, impressions, CTR, position, traffic-loss, and
   opportunity evidence.
 - Show explicit impact bands with the measurements and thresholds that produced them.
-- Capture a pre-change baseline and compare post-change windows without claiming causality where the
-  evidence only shows correlation.
+- Capture a fixed first-observed issue baseline and compare later audit windows without claiming
+  causality where the evidence only shows correlation.
 - Prioritize the audit and backlog by expected operational value, confidence, and urgency.
 
 ## Iteration 125 - Recurring Deliverables
