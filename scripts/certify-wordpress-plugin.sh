@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
 # Certifies the packaged WordPress plugin zip against a real WordPress
-# container: activation, version contract, REST route registration,
-# connection storage, WP-Cron sync scheduling, signed safe-operation apply,
-# signature rejection, deactivation cleanup, and clean deletion.
+# container: activation, version contract, standalone and recurring local audit, REST route
+# registration, connection storage, WP-Cron sync scheduling, signed
+# safe-operation apply, signature rejection, deactivation cleanup, and clean
+# deletion.
 #
 # Configuration:
 #   SCCC_WP_IMAGE        WordPress image tag (default wordpress:php8.3-apache)
@@ -175,6 +176,56 @@ case "${pre_connection_response}" in
 esac
 log "Apply route is registered and refuses unconnected requests."
 
+log "Creating an unconnected local-audit target post."
+post_id="$(wp_cli post create \
+  --post_title="Certification target" \
+  --post_content="Short certification content without an internal link." \
+  --post_status=publish \
+  --porcelain | tr -d '\r')"
+
+case "${post_id}" in
+  ''|*[!0-9]*) fail "Could not create a certification post." ;;
+esac
+
+wp_cli post meta update "${post_id}" _yoast_wpseo_meta-robots-noindex 1 >/dev/null
+
+log "Running the standalone local content audit before platform connection."
+wp_cli eval 'do_action("sccc_run_local_audit");' >/dev/null
+local_audit_option="$(wp_cli option get sccc_local_audit --format=json | tr -d '\r')"
+
+case "${local_audit_option}" in
+  *'"status":"complete"'*) ;;
+  *) fail "Local audit did not persist a complete result: ${local_audit_option}" ;;
+esac
+
+case "${local_audit_option}" in
+  *'"code":"published-noindex"'*) ;;
+  *) fail "Local audit did not detect the published noindex target: ${local_audit_option}" ;;
+esac
+
+case "${local_audit_option}" in
+  *'"code":"orphan-content"'*) ;;
+  *) fail "Local audit did not produce inbound-link findings: ${local_audit_option}" ;;
+esac
+
+log "Standalone local audit completed without a platform connection."
+
+log "Scheduling a daily local audit through the WP-Cron fallback."
+local_schedule_result="$(wp_cli eval '$settings = new SCCC\Plugin\LocalAuditSettings(); $settings->setInterval("daily"); $runner = new SCCC\Plugin\LocalAuditRunner(new SCCC\Plugin\ContentCollector(), new SCCC\Plugin\LocalAuditEngine(), new SCCC\Plugin\LocalAuditStore(), SCCC\Plugin\ContentCollector::BATCH_SIZE, new SCCC\Plugin\LocalLinkGraph(), $settings); echo $runner->ensureRecurring();' | tr -d '\r')"
+
+case "${local_schedule_result}" in
+  *WP-Cron*) ;;
+  *) fail "Local audit schedule did not use WP-Cron: ${local_schedule_result}" ;;
+esac
+
+local_cron_hooks="$(wp_cli cron event list --fields=hook | tr -d '\r')"
+
+case "${local_cron_hooks}" in
+  *sccc_run_scheduled_local_audit*) ;;
+  *) fail "Recurring local audit hook is not scheduled." ;;
+esac
+log "Recurring local audit is scheduled."
+
 log "Seeding the certification connection."
 wp_cli eval-file /tmp/sccc-cert/seed-connection.php \
   "${cert_org_id}" "${cert_site_id}" "${cert_token}" "${cert_endpoint}" >/dev/null
@@ -194,13 +245,6 @@ case "${cron_hooks}" in
   *) fail "Recurring sync hook sccc_run_incremental_sync is not scheduled after connection." ;;
 esac
 log "Recurring sync is scheduled."
-
-log "Creating a certification target post."
-post_id="$(wp_cli post create --post_title="Certification target" --post_status=publish --porcelain | tr -d '\r')"
-
-case "${post_id}" in
-  ''|*[!0-9]*) fail "Could not create a certification post." ;;
-esac
 
 sign_payload() {
   local timestamp="$1"
@@ -267,13 +311,23 @@ case "${post_deactivation_hooks}" in
   *sccc_run_incremental_sync*) fail "Recurring sync hook is still scheduled after deactivation." ;;
   *) ;;
 esac
-log "Deactivation removed the scheduled sync."
+case "${post_deactivation_hooks}" in
+  *sccc_run_scheduled_local_audit*) fail "Recurring local audit hook is still scheduled after deactivation." ;;
+  *) ;;
+esac
+log "Deactivation removed scheduled sync and local audit jobs."
 
-log "Deleting the plugin cleanly."
-wp_cli plugin delete "${plugin_slug}" >/dev/null
+log "Uninstalling the plugin and deleting its local data."
+wp_cli plugin uninstall "${plugin_slug}" >/dev/null
 
 if wp_cli plugin is-installed "${plugin_slug}" >/dev/null 2>&1; then
   fail "Plugin is still installed after deletion."
 fi
+
+for removed_option in sccc_connection sccc_sync_log sccc_local_audit sccc_local_audit_settings; do
+  if wp_cli option get "${removed_option}" >/dev/null 2>&1; then
+    fail "Plugin option ${removed_option} is still stored after deletion."
+  fi
+done
 
 log "Certification passed for ${wp_image}."

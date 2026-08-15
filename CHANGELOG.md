@@ -2,6 +2,24 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 121
+
+- Shipped plugin `0.3.0` retention features: local inbound-link mapping now identifies orphan content and URLs with only one inbound internal link without expanding the SaaS sync payload.
+- Added bounded latest-versus-previous audit comparison with new, resolved, and unchanged counts while retaining only the current result and a compact resolved finding set.
+- Added administrator-controlled daily/weekly local audit scheduling through Action Scheduler or WP-Cron, disabled by default and removed on deactivation/uninstall.
+- Added bounded intentional-finding ignore rules, inline Ignore/Restore actions, active/ignored and change filters, state-aware CSV export, and immediate summary recalculation.
+- Extended the native WordPress admin surface with compact schedule, change-summary, resolved-findings, and retention controls plus deterministic PHP and Docker certification coverage.
+
+### Iteration 120
+
+- Shipped plugin `0.2.0` with a standalone, read-only WordPress Content Health Audit that runs without an account, API key, SaaS connection, URL quota, or external request.
+- Added deterministic local checks for published noindex, missing SEO titles/descriptions, canonical mismatches, thin content, missing internal links, and stale content, backed by bounded background batches and latest-result persistence.
+- Replaced the connection-first plugin screen with a Content Health dashboard containing summary counts, issue/search/type/severity filters, edit/view actions, CSV export, responsive admin styling, a WordPress Dashboard widget, and a Site Health test.
+- Moved optional SaaS connection/sync controls to a secondary Platform tab while preserving challenge exchange, recurring sync, disconnect, logs, and signed review-first operations.
+- Fixed the PHP smoke harness so plugin includes and existing sync/apply tests execute instead of exiting at the `ABSPATH` guard, then added local audit engine/store/runner coverage.
+- Updated plugin packaging to include admin assets and synchronized the `0.2.0` version contract, readme, positioning, QA checklist, and continuation documentation.
+- Added uninstall cleanup for local audit data, sync logs, connection credentials, and scheduled jobs.
+
 ### Iteration 119
 
 - Replaced the mixed SaaS dashboard with dedicated Overview, Sites, Content, Audits, Backlog, and Settings routes while preserving the selected site across navigation.

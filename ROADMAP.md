@@ -42,6 +42,7 @@
 - Yoast and Rank Math extraction. Status: SEO title, meta description, canonical URL, and robots directive extraction implemented with fallback WordPress title metadata.
 - Disconnect flow. Status: SaaS dashboard and signed WordPress admin disconnect invalidate server-side plugin connections.
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
+- Local audit retention. Status: inbound-link graph, orphan/weak-link findings, latest-versus-previous change summary, bounded ignore rules, and opt-in daily/weekly local scheduling implemented without expanding the SaaS sync payload.
 
 ## Phase 3 - SEO Audit MVP
 

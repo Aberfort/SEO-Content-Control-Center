@@ -181,7 +181,7 @@ typical site and require zero configuration.
 
 ## Implementation Order
 
-### Release A: standalone value
+### Release A: standalone value (implemented in Iteration 120)
 
 1. Extract a local audit result model from the metadata already collected by `ContentCollector`.
 2. Add deterministic checks and unit coverage.
@@ -190,7 +190,7 @@ typical site and require zero configuration.
 5. Keep platform connection in a secondary tab or section.
 6. Add CSV export, Dashboard widget, and updated WordPress.org copy/screenshots.
 
-### Release B: retention
+### Release B: retention (implemented in Iteration 121)
 
 1. Add inbound-link mapping and orphan/weakly linked content detection.
 2. Add scheduled local scans with an explicit user-controlled interval.

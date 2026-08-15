@@ -298,6 +298,29 @@ final class ContentCollector
     }
 
     /**
+     * Returns bounded internal link targets for the local link graph. These
+     * values are not included in the SaaS sync metadata payload.
+     *
+     * @return array<int,string>
+     */
+    public function collectInternalLinkTargets(object $post, string $currentUrl): array
+    {
+        if (! property_exists($post, 'post_content')) {
+            return [];
+        }
+
+        $targets = [];
+
+        foreach ($this->extractHrefs((string) $post->post_content) as $href) {
+            if ('internal' === $this->classifyHref($href, $currentUrl)) {
+                $targets[] = $href;
+            }
+        }
+
+        return array_slice(array_values(array_unique($targets)), 0, 500);
+    }
+
+    /**
      * @return array<int,string>
      */
     private function extractHrefs(string $html): array

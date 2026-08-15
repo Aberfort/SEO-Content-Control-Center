@@ -8,6 +8,14 @@ does not crawl external URLs from the SaaS app, and does not mutate WordPress co
 WordPress plugin also exposes a separate signed apply endpoint for worker execution and rollback
 restore; that endpoint is limited to bounded Yoast/Rank Math SEO metadata fields.
 
+Plugin `0.3.0` also provides a standalone local Content Health Audit. That audit runs inside
+WordPress without an account, SaaS connection, or external API request. It reuses the bounded
+`ContentCollector` evidence locally, builds an inbound-link graph without adding link targets to the
+SaaS sync payload, and never enters the signed plugin API flow unless an administrator separately
+connects the Platform tab. It persists the latest result plus a bounded previous-scan comparison,
+supports bounded local ignore rules, and can optionally run daily or weekly through Action Scheduler
+or WP-Cron.
+
 ## Base URL
 
 Use the SaaS app origin as the endpoint base, for example:

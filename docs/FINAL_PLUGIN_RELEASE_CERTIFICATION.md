@@ -24,8 +24,9 @@ The command performs:
   plus the previous WordPress branch.
 
 The matrix installs the exact built zip into disposable WordPress containers and
-checks activation, installed version, REST route registration, seeded connection
-storage, recurring sync through the WP-Cron fallback, signed safe-operation
+checks activation, installed version, standalone local audit findings, recurring
+local audit and connected sync through the WP-Cron fallback, REST route registration, seeded connection
+storage, signed safe-operation
 apply writes, tampered-signature rejection, deactivation cleanup, and clean
 delete.
 

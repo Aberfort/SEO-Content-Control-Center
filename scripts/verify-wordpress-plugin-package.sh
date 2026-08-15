@@ -26,8 +26,15 @@ for required_entry in \
   "${archive_root}readme.txt" \
   "${archive_root}LICENSE.txt" \
   "${archive_root}VERSION" \
+  "${archive_root}uninstall.php" \
   "${archive_root}composer.json" \
+  "${archive_root}assets/admin.css" \
   "${archive_root}includes/Plugin.php" \
+  "${archive_root}includes/LocalAuditEngine.php" \
+  "${archive_root}includes/LocalLinkGraph.php" \
+  "${archive_root}includes/LocalAuditSettings.php" \
+  "${archive_root}includes/LocalAuditStore.php" \
+  "${archive_root}includes/LocalAuditRunner.php" \
   "${archive_root}includes/SyncScheduler.php"; do
   if ! grep -Fqx "${required_entry}" <<< "${entries}"; then
     echo "Plugin archive is missing ${required_entry}" >&2

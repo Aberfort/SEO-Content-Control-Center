@@ -82,6 +82,21 @@
 
 ## WordPress Plugin
 
+- Activating the plugin exposes Content Health as the primary admin destination without requiring a SaaS account or connection.
+- A local audit queues through Action Scheduler or WP-Cron and scans published posts/pages in bounded batches.
+- Local audit findings cover published noindex, missing SEO title/meta description, canonical mismatch, thin content, missing internal links, and stale content with deterministic severity/evidence.
+- Local link graph counts unique audited inbound sources and flags zero inbound links as orphan content and one inbound link as a weak-link opportunity.
+- Local link targets remain local and do not expand the strict SaaS plugin sync metadata schema.
+- Draft, pending, private, and future content do not create local published-content findings.
+- Local audit results persist only the latest scan, expose summary counts, and support search plus severity/issue/content-type filters.
+- A completed rerun compares against the previous result with bounded new/resolved/unchanged state and does not accumulate unlimited audit history.
+- Administrators can ignore and restore intentional findings; ignored findings stay filterable/exportable and are excluded from active summary counts.
+- Daily/weekly local schedules are explicit opt-in, use Action Scheduler or WP-Cron, do not duplicate events, and are removed on deactivation/uninstall.
+- Every local finding links to the normal WordPress Edit and View actions and the complete latest audit exports as UTF-8 CSV.
+- WordPress Dashboard and Site Health expose local audit state; only published noindex findings produce a critical Site Health result.
+- The local audit runs without external requests and remains available when the optional platform is disconnected.
+- Platform challenge exchange, sync controls, recurring status, disconnect, and sync logs remain available on the secondary Platform tab.
+
 - PHP files pass syntax checks.
 - Admin pages use capability checks.
 - Forms/actions use nonce checks.
@@ -98,6 +113,7 @@
 - Manual sync queues work and sends a signed sync request when the scheduled job runs.
 - Connected plugins schedule recurring sync through Action Scheduler or hourly WP-Cron fallback without duplicating scheduled jobs.
 - Plugin disconnect and deactivation unschedule recurring and pending manual sync jobs.
+- Plugin deletion removes local audit results, sync logs, stored connection credentials, and plugin-owned scheduled jobs.
 - Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.
 - Plugin sync log failure details redact tokens, signatures, authorization values, and endpoint URLs.
@@ -253,10 +269,10 @@
 
 - `wordpress-plugin/VERSION`, the plugin header/runtime constant, `readme.txt` stable tag, and Composer release metadata use the same semantic version.
 - `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create `dist/seo-content-control-center-<version>.zip`.
-- The archive opens without errors, has one `seo-content-control-center/` root, and includes the entrypoint, `readme.txt`, version file, Composer manifest, and required `includes` classes.
+- The archive opens without errors, has one `seo-content-control-center/` root, and includes the entrypoint, `uninstall.php`, admin assets, `readme.txt`, version file, Composer manifest, and required `includes` classes.
 - The archive excludes tests, certification helpers, development `vendor` files, `.git` files, Composer lockfiles, and `phpcs.xml.dist`.
 - CI publishes the checked archive as the `seo-content-control-center-plugin` artifact after the normal build passes.
-- `npm run plugin:certify` installs the built zip into a real disposable WordPress container and passes activation, version, REST route, connection, cron, signed apply, tampered-signature, deactivation, and deletion checks.
+- `npm run plugin:certify` installs the built zip into a real disposable WordPress container and passes activation, standalone local audit, version, REST route, connection, cron, signed apply, tampered-signature, deactivation, deletion, and data-cleanup checks.
 - `npm run plugin:certify:matrix` passes on latest WordPress with PHP 8.1, 8.2, and 8.3 plus the previous WordPress branch, and CI runs the same combinations.
 - `npm run plugin:release:certify` passes before publishing and records the final artifact version, SHA-256, byte size, zip entry count, and matrix result.
 - Certification confirms the signed apply writes bounded SEO title, canonical, and robots noindex meta and that tampered signatures return `PLUGIN_APPLY_SIGNATURE_INVALID`.

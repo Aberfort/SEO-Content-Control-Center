@@ -40,7 +40,7 @@ final class SyncScheduler
         $scheduler = $this->queueSync();
         $this->syncLogStore->recordQueued($scheduler);
 
-        wp_safe_redirect(add_query_arg('sccc_status', 'sync_queued', admin_url('options-general.php?page=sccc')));
+        wp_safe_redirect(add_query_arg('sccc_status', 'sync_queued', admin_url('admin.php?page=sccc&tab=platform')));
         exit;
     }
 

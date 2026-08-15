@@ -173,6 +173,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - bulk operation execution queue processing with signed WordPress plugin apply calls and per-item result persistence;
 - shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
 - WordPress plugin skeleton with secure defaults;
+- standalone WordPress Content Health Audit with no-account local checks for metadata, indexability, freshness, outbound and inbound link health; latest-scan change comparison; bounded ignore rules; optional daily/weekly scheduling; filters, CSV export, Dashboard widget, and Site Health visibility;
 - versioned WordPress plugin release packaging with a checked `readme.txt`, runtime-only zip archive, Composer/npm entrypoints, CI artifact upload, and archive smoke verification;
 - Docker-based WordPress plugin certification (`npm run plugin:certify:matrix`) that installs the packaged zip into real WordPress containers across PHP 8.1/8.2/8.3 and the previous WordPress branch, certifying activation, connection storage, WP-Cron sync scheduling, signed apply writes, tampered-signature rejection, and deactivation cleanup, mirrored as a CI matrix;
 - final WordPress plugin release certification (`npm run plugin:release:certify`) that verifies the exact versioned artifact, emits SHA-256/size metadata, runs the Docker WordPress/PHP matrix against that zip, and links the remaining live staging Action Scheduler evidence checklist;

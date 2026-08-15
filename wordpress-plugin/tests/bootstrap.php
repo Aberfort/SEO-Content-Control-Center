@@ -7,6 +7,15 @@
 
 declare(strict_types=1);
 
+if (! defined('ABSPATH')) {
+    define('ABSPATH', __DIR__ . '/wordpress/');
+}
+
+if (! defined('DAY_IN_SECONDS')) {
+    define('DAY_IN_SECONDS', 86400);
+    define('WEEK_IN_SECONDS', 604800);
+}
+
 if (! function_exists('get_option')) {
     $GLOBALS['sccc_test_options'] = [];
     $GLOBALS['sccc_test_option_autoload'] = [];
@@ -36,6 +45,13 @@ if (! function_exists('__')) {
     function __(string $text, string $domain = 'default'): string
     {
         return $text;
+    }
+}
+
+if (! function_exists('wp_json_encode')) {
+    function wp_json_encode(mixed $value, int $flags = 0, int $depth = 512): string|false
+    {
+        return json_encode($value, $flags, $depth);
     }
 }
 
@@ -272,12 +288,21 @@ require_once __DIR__ . '/../includes/SafeOperationEndpoint.php';
 require_once __DIR__ . '/../includes/ContentCollector.php';
 require_once __DIR__ . '/../includes/SyncLogStore.php';
 require_once __DIR__ . '/../includes/SyncScheduler.php';
+require_once __DIR__ . '/../includes/LocalAuditEngine.php';
+require_once __DIR__ . '/../includes/LocalLinkGraph.php';
+require_once __DIR__ . '/../includes/LocalAuditSettings.php';
+require_once __DIR__ . '/../includes/LocalAuditStore.php';
+require_once __DIR__ . '/../includes/LocalAuditRunner.php';
 require_once __DIR__ . '/../includes/AdminPage.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
 $api_client = new SCCC\Plugin\ApiClient($signer);
 $collector = new SCCC\Plugin\ContentCollector();
 $sync_log_store = new SCCC\Plugin\SyncLogStore();
+$local_audit_engine = new SCCC\Plugin\LocalAuditEngine();
+$local_link_graph = new SCCC\Plugin\LocalLinkGraph();
+$local_audit_settings = new SCCC\Plugin\LocalAuditSettings();
+$local_audit_store = new SCCC\Plugin\LocalAuditStore();
 $timestamp = time();
 $body = '{"siteId":"22222222-2222-4222-8222-222222222222"}';
 $signature = $signer->sign('POST', '/api/plugin/sync', $timestamp, $body, 'secret');
@@ -373,6 +398,193 @@ if (
     exit(1);
 }
 
+$linked_items = $local_link_graph->analyze(
+    [
+        [
+            'external_id' => 'post:1',
+            'url' => 'https://wp.example.com/source/',
+            'outbound_urls' => ['/target/'],
+            'findings' => [],
+        ],
+        [
+            'external_id' => 'page:2',
+            'url' => 'http://www.wp.example.com/target',
+            'outbound_urls' => [],
+            'findings' => [],
+        ],
+    ]
+);
+
+if (
+    0 !== ($linked_items[0]['inbound_link_count'] ?? null)
+    || 'orphan-content' !== ($linked_items[0]['findings'][0]['code'] ?? null)
+    || 1 !== ($linked_items[1]['inbound_link_count'] ?? null)
+    || 'weakly-linked-content' !== ($linked_items[1]['findings'][0]['code'] ?? null)
+    || isset($linked_items[0]['outbound_urls'])
+) {
+    fwrite(STDERR, "LocalLinkGraph analysis failed.\n");
+    exit(1);
+}
+
+$ignored_fingerprint = SCCC\Plugin\LocalAuditSettings::fingerprint('post:1', 'orphan-content');
+$local_audit_settings->setIgnored($ignored_fingerprint, true);
+
+if (! $local_audit_settings->isIgnored('post:1', 'orphan-content')) {
+    fwrite(STDERR, "LocalAuditSettings ignore rule failed.\n");
+    exit(1);
+}
+
+$local_audit_settings->setIgnored($ignored_fingerprint, false);
+$local_audit_settings->setInterval('daily');
+
+if ('daily' !== $local_audit_settings->get()['interval']) {
+    fwrite(STDERR, "LocalAuditSettings interval failed.\n");
+    exit(1);
+}
+
+$audit_item = [
+    'externalId' => 'page:99',
+    'type' => 'page',
+    'url' => 'https://wp.example.com/audit-page/',
+    'title' => 'Audit page',
+    'status' => 'publish',
+    'modifiedAt' => '2025-01-01T00:00:00+00:00',
+    'metadata' => [
+        'wordCount' => 120,
+        'internalLinkCount' => 0,
+        'seoTitle' => null,
+        'metaDescription' => null,
+        'canonicalUrl' => 'https://wp.example.com/another-page/',
+        'robotsNoindex' => true,
+    ],
+];
+$audit_findings = $local_audit_engine->inspect($audit_item, strtotime('2026-08-14T00:00:00+00:00'));
+$audit_codes = array_column($audit_findings, 'code');
+
+if (
+    [
+        'published-noindex',
+        'seo-title-missing',
+        'meta-description-missing',
+        'canonical-different',
+        'thin-content',
+        'internal-links-missing',
+        'content-stale',
+    ] !== $audit_codes
+) {
+    fwrite(STDERR, "LocalAuditEngine finding generation failed.\n");
+    exit(1);
+}
+
+$draft_item = $audit_item;
+$draft_item['status'] = 'draft';
+
+if ([] !== $local_audit_engine->inspect($draft_item, strtotime('2026-08-14T00:00:00+00:00'))) {
+    fwrite(STDERR, "LocalAuditEngine did not skip unpublished content.\n");
+    exit(1);
+}
+
+$summary = $local_audit_engine->summarize(
+    [
+        ['findings' => $audit_findings],
+        ['findings' => []],
+    ]
+);
+
+if (
+    2 !== $summary['total_urls']
+    || 1 !== $summary['affected_urls']
+    || 7 !== $summary['issue_count']
+    || 1 !== $summary['critical']
+    || 3 !== $summary['attention']
+    || 2 !== $summary['opportunity']
+    || 1 !== $summary['maintenance']
+    || 1 !== $summary['complete']
+) {
+    fwrite(STDERR, "LocalAuditEngine summary failed.\n");
+    exit(1);
+}
+
+$local_audit_store->start();
+
+if ('queued' !== ($local_audit_store->get()['status'] ?? null)) {
+    fwrite(STDERR, "LocalAuditStore queued state failed.\n");
+    exit(1);
+}
+
+$local_audit_store->complete([['findings' => $audit_findings]], $summary);
+$stored_audit = $local_audit_store->get();
+
+if ('complete' !== ($stored_audit['status'] ?? null) || 7 !== ($stored_audit['summary']['issue_count'] ?? null)) {
+    fwrite(STDERR, "LocalAuditStore completed state failed.\n");
+    exit(1);
+}
+
+$local_audit_store->fail('Audit failed at https://wp.example.com/private');
+$failed_audit = $local_audit_store->get();
+
+if ('error' !== ($failed_audit['status'] ?? null) || str_contains((string) ($failed_audit['error'] ?? ''), 'https://wp.example.com/private')) {
+    fwrite(STDERR, "LocalAuditStore failure state or redaction failed.\n");
+    exit(1);
+}
+
+delete_option('sccc_local_audit');
+$previous_item = [
+    'external_id' => 'post:10',
+    'title' => 'Previous title',
+    'url' => 'https://wp.example.com/previous/',
+    'findings' => [[
+        'code' => 'thin-content',
+        'label' => 'Thin content',
+        'severity' => 'opportunity',
+        'evidence' => 'Previous evidence.',
+        'ignored' => false,
+    ]],
+];
+$current_item = [
+    'external_id' => 'post:11',
+    'title' => 'Current title',
+    'url' => 'https://wp.example.com/current/',
+    'findings' => [[
+        'code' => 'orphan-content',
+        'label' => 'No inbound internal links',
+        'severity' => 'warning',
+        'evidence' => 'Current evidence.',
+        'ignored' => false,
+    ]],
+];
+$local_audit_store->start();
+$local_audit_store->complete([$previous_item], $local_audit_engine->summarize([$previous_item]));
+$local_audit_store->start();
+$local_audit_store->complete([$current_item], $local_audit_engine->summarize([$current_item]));
+$changed_audit = $local_audit_store->get();
+
+if (
+    1 !== ($changed_audit['changes']['new_count'] ?? null)
+    || 1 !== ($changed_audit['changes']['resolved_count'] ?? null)
+    || 'new' !== ($changed_audit['items'][0]['findings'][0]['change'] ?? null)
+) {
+    fwrite(STDERR, "LocalAuditStore change comparison failed.\n");
+    exit(1);
+}
+
+$current_fingerprint = (string) ($changed_audit['items'][0]['findings'][0]['fingerprint'] ?? '');
+$local_audit_store->setIgnored($current_fingerprint, true);
+$ignored_audit = $local_audit_store->get();
+
+if (0 !== ($ignored_audit['changes']['new_count'] ?? null) || 1 !== ($ignored_audit['summary']['ignored_findings'] ?? null)) {
+    fwrite(STDERR, "LocalAuditStore ignored finding summary failed.\n");
+    exit(1);
+}
+
+$local_audit_store->setIgnored($current_fingerprint, false);
+$restored_audit = $local_audit_store->get();
+
+if (1 !== ($restored_audit['changes']['new_count'] ?? null)) {
+    fwrite(STDERR, "LocalAuditStore restored finding state failed.\n");
+    exit(1);
+}
+
 $sync_body_with_items = $api_client->buildSyncBody($connection, [$item]);
 
 if (! str_contains($sync_body_with_items, '"externalId":"post:123"')) {
@@ -410,6 +622,15 @@ if (! $signer->verify('POST', '/api/plugin/connections/disconnect', $timestamp, 
 }
 
 $admin_page = new SCCC\Plugin\AdminPage();
+
+foreach (['Plugin.php', 'SyncScheduler.php'] as $redirect_source) {
+    $redirect_code = file_get_contents(__DIR__ . '/../includes/' . $redirect_source);
+
+    if (false === $redirect_code || str_contains($redirect_code, 'options-general.php?page=sccc')) {
+        fwrite(STDERR, "Plugin admin redirect still targets the retired Settings URL.\n");
+        exit(1);
+    }
+}
 
 if (
     [
@@ -536,6 +757,11 @@ $GLOBALS['sccc_test_posts'] = array_map(
     ],
     [1, 2, 3, 4, 5]
 );
+$GLOBALS['sccc_test_posts_by_id'] = [];
+
+foreach ($GLOBALS['sccc_test_posts'] as $test_post) {
+    $GLOBALS['sccc_test_posts_by_id'][(int) $test_post->ID] = $test_post;
+}
 
 $first_batch = $collector->collectBatch(0, 2);
 
@@ -560,6 +786,52 @@ if (4 !== count($skip_batch['items']) || true !== $skip_batch['hasMore']) {
 }
 
 $GLOBALS['sccc_test_posts'][2]->permalink = 'https://wp.example.com/post-3/';
+
+$local_audit_runner = new SCCC\Plugin\LocalAuditRunner(
+    $collector,
+    $local_audit_engine,
+    $local_audit_store,
+    2,
+    $local_link_graph,
+    $local_audit_settings
+);
+
+if ('WP-Cron' !== $local_audit_runner->queue() || false === wp_next_scheduled(SCCC\Plugin\LocalAuditRunner::HOOK)) {
+    fwrite(STDERR, "LocalAuditRunner did not queue its background job.\n");
+    exit(1);
+}
+
+$local_audit_runner->cancelScheduled();
+
+if (false !== wp_next_scheduled(SCCC\Plugin\LocalAuditRunner::HOOK)) {
+    fwrite(STDERR, "LocalAuditRunner did not cancel its background job.\n");
+    exit(1);
+}
+
+$local_audit_settings->setInterval('daily');
+
+if ('WP-Cron' !== $local_audit_runner->ensureRecurring() || false === wp_next_scheduled(SCCC\Plugin\LocalAuditRunner::RECURRING_HOOK)) {
+    fwrite(STDERR, "LocalAuditRunner did not schedule a recurring local audit.\n");
+    exit(1);
+}
+
+$audit_schedule_status = $local_audit_runner->getRecurringStatus();
+
+if (! $audit_schedule_status['enabled'] || 'daily' !== $audit_schedule_status['interval'] || 'WP-Cron' !== $audit_schedule_status['scheduler']) {
+    fwrite(STDERR, "LocalAuditRunner recurring status failed.\n");
+    exit(1);
+}
+
+$local_audit_runner->cancelScheduled();
+$local_audit_settings->setInterval('off');
+
+$local_audit_runner->run();
+$runner_audit = $local_audit_store->get();
+
+if ('complete' !== ($runner_audit['status'] ?? null) || 5 !== ($runner_audit['summary']['total_urls'] ?? null)) {
+    fwrite(STDERR, "LocalAuditRunner did not persist a complete paginated audit.\n");
+    exit(1);
+}
 
 $connection_store->save(
     $connection['organization_id'],

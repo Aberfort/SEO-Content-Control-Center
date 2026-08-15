@@ -34,11 +34,13 @@ trap cleanup EXIT
 
 mkdir -p "${release_dir}" "${output_dir}"
 cp "${plugin_dir}/seo-content-control-center.php" "${release_dir}/"
+cp "${plugin_dir}/uninstall.php" "${release_dir}/"
 cp "${plugin_dir}/readme.txt" "${release_dir}/"
 cp "${plugin_dir}/LICENSE.txt" "${release_dir}/"
 cp "${plugin_dir}/VERSION" "${release_dir}/"
 cp "${plugin_dir}/composer.json" "${release_dir}/"
 cp -R "${plugin_dir}/includes" "${release_dir}/includes"
+cp -R "${plugin_dir}/assets" "${release_dir}/assets"
 
 rm -f "${archive_path}"
 
