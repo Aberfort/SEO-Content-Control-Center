@@ -7,6 +7,7 @@ import {
   auditListQuerySchema,
   assistantRecommendationListQuerySchema,
   backlogTaskCommentCreateSchema,
+  backlogTaskOutcomeUpdateSchema,
   backlogTaskFromAuditIssueSchema,
   backlogTaskFromCandidateSchema,
   backlogTasksFromAuditSchema,
@@ -42,6 +43,7 @@ import {
   type BacklogTaskFromCandidateInput,
   type BacklogTasksFromAuditInput,
   type BacklogTaskListQuery,
+  type BacklogTaskOutcomeUpdateInput,
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
   type BulkOperationPreviewCreateInput,
@@ -105,6 +107,7 @@ import {
   updateAuditIssueStatus as updateDevAuditIssueStatus,
   updateBacklogTaskAssignment as updateDevBacklogTaskAssignment,
   updateBacklogTaskStatus as updateDevBacklogTaskStatus,
+  updateBacklogTaskOutcome as updateDevBacklogTaskOutcome,
   getBillingOverviewForOrganization as getDevBillingOverviewForOrganization,
   getBillingCheckoutContext as getDevBillingCheckoutContext,
   getBillingPortalContext as getDevBillingPortalContext,
@@ -184,8 +187,10 @@ import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildSiteDeliverableSummary } from "./deliverable-summary";
 import {
   buildBulkOperationDryRunPreviewResult,
+  buildSafeOperationBatchPreview,
   buildSafeOperationPreview,
-  countExecutableSafeOperationItems
+  countExecutableSafeOperationItems,
+  normalizeBulkOperationTaskIds
 } from "./bulk-operation-preview";
 import {
   enqueueBulkOperationExecutionJob,
@@ -289,6 +294,10 @@ type UpdateBacklogTaskStatusInputWithUser = UpdateBacklogTaskStatusInput & {
 };
 
 type UpdateBacklogTaskAssignmentInputWithUser = UpdateBacklogTaskAssignmentInput & {
+  user: AppUser;
+};
+
+type UpdateBacklogTaskOutcomeInputWithUser = BacklogTaskOutcomeUpdateInput & {
   user: AppUser;
 };
 
@@ -521,6 +530,7 @@ type AppRepository = {
   updateBacklogTaskAssignment(
     input: UpdateBacklogTaskAssignmentInputWithUser
   ): Promise<BacklogTask>;
+  updateBacklogTaskOutcome(input: UpdateBacklogTaskOutcomeInputWithUser): Promise<BacklogTask>;
   listBacklogTaskComments(
     userId: string,
     organizationId: string,
@@ -678,6 +688,9 @@ const devStoreRepository: AppRepository = {
   },
   async updateBacklogTaskAssignment(input) {
     return updateDevBacklogTaskAssignment(input);
+  },
+  async updateBacklogTaskOutcome(input) {
+    return updateDevBacklogTaskOutcome(input);
   },
   async listBacklogTaskComments(userId, organizationId, siteId, taskId) {
     return listDevBacklogTaskComments(userId, organizationId, siteId, taskId);
@@ -1608,7 +1621,13 @@ const prismaRepository: AppRepository = {
           }),
           prisma.backlogTask.findMany({
             where: { organizationId, siteId: site.id },
-            select: { status: true, dueDate: true, updatedAt: true }
+            select: {
+              status: true,
+              dueDate: true,
+              updatedAt: true,
+              outcomeStatus: true,
+              outcomeVerifiedAt: true
+            }
           }),
           prisma.bulkOperation.findMany({
             where: { organizationId, siteId: site.id },
@@ -2747,9 +2766,7 @@ const prismaRepository: AppRepository = {
         where: {
           id: issue.id
         },
-        data: {
-          status: parsed.status
-        }
+        data: { status: parsed.status }
       });
 
       await tx.activityLog.create({
@@ -2898,6 +2915,61 @@ const prismaRepository: AppRepository = {
       });
 
       return created;
+    });
+
+    return mapBacklogTask(task);
+  },
+
+  async updateBacklogTaskOutcome(input) {
+    const parsed = backlogTaskOutcomeUpdateSchema.parse({
+      organizationId: input.organizationId,
+      siteId: input.siteId,
+      taskId: input.taskId,
+      outcomeStatus: input.outcomeStatus,
+      outcomeNote: input.outcomeNote
+    });
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "backlog:update"
+    });
+    const existing = await prisma.backlogTask.findFirst({
+      where: {
+        id: parsed.taskId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) throw new Error("BACKLOG_TASK_NOT_FOUND");
+    if (existing.status !== "DONE") throw new Error("BACKLOG_TASK_OUTCOME_REQUIRES_DONE");
+
+    const task = await prisma.$transaction(async (tx) => {
+      const updated = await tx.backlogTask.update({
+        where: { id: existing.id },
+        data: {
+          outcomeStatus: parsed.outcomeStatus,
+          outcomeNote: parsed.outcomeStatus ? (parsed.outcomeNote ?? null) : null,
+          outcomeVerifiedAt: parsed.outcomeStatus ? new Date() : null
+        }
+      });
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: parsed.outcomeStatus
+            ? "backlog_task.outcome_verified"
+            : "backlog_task.outcome_cleared",
+          entityType: "BacklogTask",
+          entityId: updated.id,
+          metadata: {
+            siteId: parsed.siteId,
+            outcomeStatus: parsed.outcomeStatus,
+            outcomeNote: updated.outcomeNote
+          }
+        }
+      });
+      return updated;
     });
 
     return mapBacklogTask(task);
@@ -3277,7 +3349,10 @@ const prismaRepository: AppRepository = {
           id: existing.id
         },
         data: {
-          status: parsed.status
+          status: parsed.status,
+          ...(parsed.status === "DONE"
+            ? {}
+            : { outcomeStatus: null, outcomeNote: null, outcomeVerifiedAt: null })
         }
       });
 
@@ -3541,6 +3616,11 @@ const prismaRepository: AppRepository = {
       },
       include: {
         items: {
+          include: {
+            backlogTask: {
+              select: { title: true, url: true }
+            }
+          },
           orderBy: {
             createdAt: "asc"
           }
@@ -3629,9 +3709,10 @@ const prismaRepository: AppRepository = {
       permission: "content_operation:preview"
     });
 
-    const task = await prisma.backlogTask.findFirst({
+    const taskIds = normalizeBulkOperationTaskIds(parsed);
+    const taskRows = await prisma.backlogTask.findMany({
       where: {
-        id: parsed.taskId,
+        id: { in: taskIds },
         organizationId: parsed.organizationId,
         siteId: parsed.siteId,
         site: {
@@ -3640,39 +3721,58 @@ const prismaRepository: AppRepository = {
       }
     });
 
-    if (!task) {
+    if (taskRows.length !== taskIds.length) {
       throw new Error("BACKLOG_TASK_NOT_FOUND");
     }
-
-    const syncedContentItem = await prisma.syncedContentItem.findFirst({
+    const taskById = new Map(taskRows.map((task) => [task.id, task]));
+    const tasks = taskIds.map((taskId) => taskById.get(taskId)!);
+    const syncedContentItems = await prisma.syncedContentItem.findMany({
       where: {
         organizationId: parsed.organizationId,
         siteId: parsed.siteId,
-        url: task.url
+        url: { in: [...new Set(tasks.map((task) => task.url))] }
       },
       orderBy: {
         lastSeenAt: "desc"
       }
     });
-    const previewResult = buildSafeOperationPreview({
-      task,
-      syncedContentItem: syncedContentItem ? mapSyncedContentItem(syncedContentItem) : null
-    });
+    const syncedContentByUrl = new Map<string, SyncedContentItem>();
+
+    for (const item of syncedContentItems) {
+      if (!syncedContentByUrl.has(item.url)) {
+        syncedContentByUrl.set(item.url, mapSyncedContentItem(item));
+      }
+    }
+
+    const previewResults = tasks.map((task) =>
+      buildSafeOperationPreview({
+        task,
+        syncedContentItem: syncedContentByUrl.get(task.url) ?? null
+      })
+    );
+    const executableEntries = previewResults
+      .map((previewResult, index) => ({ previewResult, task: tasks[index]! }))
+      .filter(({ previewResult }) => tasks.length === 1 || previewResult.preview.executable);
     const operation = await prisma.$transaction(async (tx) => {
       const created = await tx.bulkOperation.create({
         data: {
           organizationId: parsed.organizationId,
           siteId: parsed.siteId,
-          type: "BACKLOG_TASK_PREVIEW",
+          type: tasks.length > 1 ? "BACKLOG_TASK_BULK_REVIEW" : "BACKLOG_TASK_PREVIEW",
           status: "PREVIEWED",
-          preview: toPrismaJson(previewResult.preview),
+          preview: toPrismaJson(
+            previewResults.length > 1
+              ? buildSafeOperationBatchPreview(previewResults)
+              : previewResults[0]!.preview
+          ),
           items: {
-            create: {
+            create: executableEntries.map(({ previewResult, task }) => ({
+              backlogTaskId: task.id,
               externalId: previewResult.item.externalId,
               status: "PREVIEWED",
               beforeValue: toPrismaJson(previewResult.item.beforeValue),
               afterValue: toPrismaJson(previewResult.item.afterValue)
-            }
+            }))
           }
         },
         include: {
@@ -3689,11 +3789,11 @@ const prismaRepository: AppRepository = {
           entityId: created.id,
           metadata: {
             siteId: parsed.siteId,
-            taskId: task.id,
+            taskIds: taskIds.join(","),
             type: created.type,
             itemCount: created.items.length,
-            executable: previewResult.preview.executable,
-            noMutation: previewResult.preview.noMutation
+            executableCount: previewResults.filter((result) => result.preview.executable).length,
+            noMutation: previewResults.every((result) => result.preview.noMutation)
           }
         }
       });
@@ -3729,6 +3829,10 @@ const prismaRepository: AppRepository = {
 
     if (existing.status !== "PREVIEWED") {
       throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    if (existing.items.length === 0) {
+      throw new Error("BULK_OPERATION_NOT_EXECUTABLE");
     }
 
     const dryRunResult = buildBulkOperationDryRunResult(existing);
@@ -5882,6 +5986,9 @@ function mapBacklogTask(
     assigneeId: string | null;
     dueDate: Date | null;
     tags: string[];
+    outcomeStatus: BacklogTask["outcomeStatus"];
+    outcomeNote: string | null;
+    outcomeVerifiedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     comments?: Array<{
@@ -5915,6 +6022,9 @@ function mapBacklogTask(
     assigneeId: task.assigneeId,
     dueDate: task.dueDate?.toISOString() ?? null,
     tags: task.tags,
+    outcomeStatus: task.outcomeStatus,
+    outcomeNote: task.outcomeNote,
+    outcomeVerifiedAt: task.outcomeVerifiedAt?.toISOString() ?? null,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
     comments: task.comments?.map(mapBacklogTaskComment) ?? [],
@@ -6063,6 +6173,7 @@ function mapBulkOperation(
     items?: Array<{
       id: string;
       bulkOperationId: string;
+      backlogTaskId: string | null;
       externalId: string;
       status: string;
       beforeValue: unknown;
@@ -6070,6 +6181,7 @@ function mapBulkOperation(
       error: string | null;
       createdAt: Date;
       updatedAt: Date;
+      backlogTask?: { title: string; url: string } | null;
     }>;
   },
   retryMode?: BulkOperationRetryMode | null
@@ -6180,6 +6292,7 @@ function readBulkOperationRetryModeFromMetadata(metadata: unknown): BulkOperatio
 function mapBulkOperationItem(item: {
   id: string;
   bulkOperationId: string;
+  backlogTaskId: string | null;
   externalId: string;
   status: string;
   beforeValue: unknown;
@@ -6187,10 +6300,14 @@ function mapBulkOperationItem(item: {
   error: string | null;
   createdAt: Date;
   updatedAt: Date;
+  backlogTask?: { title: string; url: string } | null;
 }): BulkOperation["items"][number] {
   return {
     id: item.id,
     bulkOperationId: item.bulkOperationId,
+    backlogTaskId: item.backlogTaskId,
+    taskTitle: item.backlogTask?.title ?? null,
+    taskUrl: item.backlogTask?.url ?? null,
     externalId: item.externalId,
     status: item.status,
     beforeValue: item.beforeValue,

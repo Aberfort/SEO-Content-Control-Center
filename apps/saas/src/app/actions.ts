@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { billingCheckoutCreateSchema, deliveryPreferenceUpdateSchema } from "@sccc/shared";
+import {
+  billingCheckoutCreateSchema,
+  deliveryPreferenceUpdateSchema,
+  type BacklogTaskOutcomeUpdateInput
+} from "@sccc/shared";
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
@@ -562,15 +566,45 @@ export async function createBulkOperationPreviewAction(formData: FormData): Prom
 
   await assertServerActionSameOrigin();
   await assertBulkOperationServerActionRateLimit(user.id, formData, "preview");
+  const taskIds = formData
+    .getAll("taskIds")
+    .map((taskId) => String(taskId))
+    .filter(Boolean);
+  const taskId = String(formData.get("taskId") ?? "");
+
   await repository.createBulkOperationPreview({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
     siteId: String(formData.get("siteId") ?? ""),
-    taskId: String(formData.get("taskId") ?? "")
+    ...(taskIds.length > 0 ? { taskIds } : { taskId })
   });
 
   revalidatePath("/");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function updateBacklogTaskOutcomeAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/backlog");
+  const outcomeStatus = String(formData.get("outcomeStatus") ?? "") as Exclude<
+    BacklogTaskOutcomeUpdateInput["outcomeStatus"],
+    null | undefined
+  >;
+  const outcomeNote = String(formData.get("outcomeNote") ?? "").trim();
+
+  await assertServerActionSameOrigin();
+  await repository.updateBacklogTaskOutcome({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    taskId: String(formData.get("taskId") ?? ""),
+    outcomeStatus: outcomeStatus || null,
+    outcomeNote: outcomeNote || null
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/backlog");
 }
 
 export async function runBulkOperationDryRunAction(formData: FormData): Promise<void> {

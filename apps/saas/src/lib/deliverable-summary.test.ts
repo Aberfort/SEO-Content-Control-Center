@@ -30,11 +30,19 @@ describe("buildSiteDeliverableSummary", () => {
         }
       ],
       tasks: [
-        { status: "DONE", dueDate: null, updatedAt: "2026-08-08T00:00:00.000Z" },
+        {
+          status: "DONE",
+          dueDate: null,
+          updatedAt: "2026-08-08T00:00:00.000Z",
+          outcomeStatus: "IMPROVED",
+          outcomeVerifiedAt: "2026-08-09T00:00:00.000Z"
+        },
         {
           status: "TODO",
           dueDate: "2026-08-09T00:00:00.000Z",
-          updatedAt: "2026-08-01T00:00:00.000Z"
+          updatedAt: "2026-08-01T00:00:00.000Z",
+          outcomeStatus: null,
+          outcomeVerifiedAt: null
         }
       ],
       operations: [{ status: "FAILED", updatedAt: "2026-08-07T00:00:00.000Z" }]
@@ -46,7 +54,14 @@ describe("buildSiteDeliverableSummary", () => {
       completedTasks: 1,
       unresolvedRisks: 2,
       overdueTasks: 1,
-      failedOperations: 1
+      failedOperations: 1,
+      taskOutcomes: {
+        improved: 1,
+        stable: 0,
+        declined: 0,
+        inconclusive: 0,
+        awaitingVerification: 0
+      }
     });
   });
 });

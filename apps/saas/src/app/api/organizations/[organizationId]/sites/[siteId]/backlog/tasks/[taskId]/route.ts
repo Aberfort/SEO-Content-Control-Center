@@ -37,8 +37,16 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const task =
-      hasAssignmentInput(body) && !readString(body, "status")
+    const task = hasOutcomeInput(body)
+      ? await repository.updateBacklogTaskOutcome({
+          user,
+          organizationId,
+          siteId,
+          taskId,
+          outcomeStatus: readNullableString(body, "outcomeStatus") as never,
+          outcomeNote: readNullableString(body, "outcomeNote")
+        })
+      : hasAssignmentInput(body) && !readString(body, "status")
         ? await repository.updateBacklogTaskAssignment({
             user,
             organizationId,
@@ -75,6 +83,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError(404, "BACKLOG_ASSIGNEE_NOT_FOUND", "Backlog assignee was not found.");
     }
 
+    if (error instanceof Error && error.message === "BACKLOG_TASK_OUTCOME_REQUIRES_DONE") {
+      return jsonError(
+        409,
+        "BACKLOG_TASK_OUTCOME_NOT_READY",
+        "Complete the task before verifying its outcome."
+      );
+    }
+
     if (error instanceof Error && error.message.startsWith("Role ")) {
       return jsonError(403, "FORBIDDEN", "Your role does not allow updating backlog tasks.");
     }
@@ -95,4 +111,8 @@ function readNullableString(input: Record<string, unknown>, key: string): string
 
 function hasAssignmentInput(input: Record<string, unknown>): boolean {
   return "assigneeId" in input || "dueDate" in input;
+}
+
+function hasOutcomeInput(input: Record<string, unknown>): boolean {
+  return "outcomeStatus" in input || "outcomeNote" in input;
 }

@@ -51,6 +51,23 @@ export type SafeOperationPreviewBuildResult = {
   item: SafeOperationPreviewItemPayload;
 };
 
+export type SafeOperationBatchPreviewPayload = {
+  noMutation: boolean;
+  executable: boolean;
+  summary: string;
+  taskIds: string[];
+  eligibleItems: number;
+  blockedItems: number;
+  reviews: Array<{
+    taskId: string;
+    externalId: string;
+    executable: boolean;
+    summary: string;
+    executionDisabledReason?: string;
+  }>;
+  safeguards: string[];
+};
+
 const seoTitleIssueTypes = new Set([
   "missing_meta_title",
   "meta_title_missing",
@@ -135,6 +152,37 @@ export function buildSafeOperationPreview(input: {
       afterValue
     }
   };
+}
+
+export function buildSafeOperationBatchPreview(
+  results: SafeOperationPreviewBuildResult[]
+): SafeOperationBatchPreviewPayload {
+  const eligibleItems = results.filter((result) => result.preview.executable).length;
+  const blockedItems = results.length - eligibleItems;
+
+  return {
+    noMutation: eligibleItems === 0,
+    executable: eligibleItems > 0,
+    summary: `Review ${results.length} backlog task${results.length === 1 ? "" : "s"}; ${eligibleItems} eligible for signed execution and ${blockedItems} review-only.`,
+    taskIds: results.map((result) => result.preview.taskId),
+    eligibleItems,
+    blockedItems,
+    reviews: results.map((result) => ({
+      taskId: result.preview.taskId,
+      externalId: result.item.externalId,
+      executable: result.preview.executable,
+      summary: result.preview.summary,
+      executionDisabledReason: result.preview.executionDisabledReason
+    })),
+    safeguards: [...new Set(results.flatMap((result) => result.preview.safeguards))]
+  };
+}
+
+export function normalizeBulkOperationTaskIds(input: {
+  taskId?: string;
+  taskIds?: string[];
+}): string[] {
+  return [...new Set([...(input.taskIds ?? []), ...(input.taskId ? [input.taskId] : [])])];
 }
 
 export function buildBulkOperationDryRunPreviewResult(input: {

@@ -290,10 +290,51 @@ export const bulkOperationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional()
 });
 
-export const bulkOperationPreviewCreateSchema = z.object({
+export const bulkOperationPreviewCreateSchema = z
+  .object({
+    organizationId: organizationIdSchema,
+    siteId: siteIdSchema,
+    taskId: z.string().uuid().optional(),
+    taskIds: z.array(z.string().uuid()).max(25).optional()
+  })
+  .superRefine((input, context) => {
+    const taskIds = [
+      ...new Set([...(input.taskIds ?? []), ...(input.taskId ? [input.taskId] : [])])
+    ];
+
+    if (taskIds.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one task is required.",
+        path: ["taskIds"]
+      });
+    }
+
+    if (taskIds.length > 25) {
+      context.addIssue({
+        code: z.ZodIssueCode.too_big,
+        type: "array",
+        maximum: 25,
+        inclusive: true,
+        message: "At most 25 tasks can be reviewed together.",
+        path: ["taskIds"]
+      });
+    }
+  });
+
+export const backlogTaskOutcomeStatusSchema = z.enum([
+  "IMPROVED",
+  "STABLE",
+  "DECLINED",
+  "INCONCLUSIVE"
+]);
+
+export const backlogTaskOutcomeUpdateSchema = z.object({
   organizationId: organizationIdSchema,
   siteId: siteIdSchema,
-  taskId: z.string().uuid()
+  taskId: z.string().uuid(),
+  outcomeStatus: backlogTaskOutcomeStatusSchema.nullable(),
+  outcomeNote: z.string().trim().max(1000).nullable().optional()
 });
 
 export const bulkOperationDryRunSchema = z.object({
@@ -424,6 +465,7 @@ export type BacklogTaskListQuery = z.infer<typeof backlogTaskListQuerySchema>;
 export type BacklogTaskCommentCreateInput = z.infer<typeof backlogTaskCommentCreateSchema>;
 export type BulkOperationListQuery = z.infer<typeof bulkOperationListQuerySchema>;
 export type BulkOperationPreviewCreateInput = z.infer<typeof bulkOperationPreviewCreateSchema>;
+export type BacklogTaskOutcomeUpdateInput = z.infer<typeof backlogTaskOutcomeUpdateSchema>;
 export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;

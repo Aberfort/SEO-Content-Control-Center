@@ -95,7 +95,13 @@ export function buildLiveWorkspaceDigestDeps(
           }),
           prisma.backlogTask.findMany({
             where: { organizationId: organization.id, siteId: site.id },
-            select: { status: true, dueDate: true, updatedAt: true }
+            select: {
+              status: true,
+              dueDate: true,
+              updatedAt: true,
+              outcomeStatus: true,
+              outcomeVerifiedAt: true
+            }
           }),
           prisma.bulkOperation.findMany({
             where: { organizationId: organization.id, siteId: site.id },
@@ -340,6 +346,8 @@ function composeDigestText(summary: WorkspaceDeliverableSummary, settingsUrl: st
     `Overdue tasks: ${summary.totals.overdueTasks}`,
     `Failed safe operations: ${summary.totals.failedOperations}`,
     `Improved outcomes: ${summary.totals.outcomes.improved}`,
+    `Verified task improvements: ${summary.totals.taskOutcomes.improved}`,
+    `Tasks awaiting verification: ${summary.totals.taskOutcomes.awaitingVerification}`,
     "",
     "Search outcome movement is correlation, not proof of causation.",
     settingsUrl ? `Delivery preferences: ${settingsUrl}` : ""
@@ -363,7 +371,13 @@ function summarizeSite(input: {
     createdAt: Date;
     updatedAt: Date;
   }>;
-  tasks: Array<{ status: string; dueDate: Date | null; updatedAt: Date }>;
+  tasks: Array<{
+    status: string;
+    dueDate: Date | null;
+    updatedAt: Date;
+    outcomeStatus: string | null;
+    outcomeVerifiedAt: Date | null;
+  }>;
   operations: Array<{ status: string; updatedAt: Date }>;
 }): SiteDeliverableSummary {
   const inside = (value: Date) => value >= input.start && value < input.endExclusive;
@@ -378,6 +392,25 @@ function summarizeSite(input: {
     const status = readOutcomeStatus(issue.evidence);
     if (status === "awaiting_followup") outcomes.awaitingFollowup += 1;
     else if (status) outcomes[status] += 1;
+  }
+  const taskOutcomes: SiteDeliverableSummary["taskOutcomes"] = {
+    improved: 0,
+    stable: 0,
+    declined: 0,
+    inconclusive: 0,
+    awaitingVerification: 0
+  };
+
+  for (const task of input.tasks) {
+    if (task.outcomeStatus && task.outcomeVerifiedAt && inside(task.outcomeVerifiedAt)) {
+      const key = task.outcomeStatus.toLowerCase() as keyof Omit<
+        SiteDeliverableSummary["taskOutcomes"],
+        "awaitingVerification"
+      >;
+      if (key in taskOutcomes) taskOutcomes[key] += 1;
+    } else if (task.status === "DONE" && inside(task.updatedAt)) {
+      taskOutcomes.awaitingVerification += 1;
+    }
   }
 
   return {
@@ -405,7 +438,8 @@ function summarizeSite(input: {
     failedOperations: input.operations.filter(
       (operation) => operation.status === "FAILED" && inside(operation.updatedAt)
     ).length,
-    outcomes
+    outcomes,
+    taskOutcomes
   };
 }
 

@@ -24,7 +24,14 @@ describe("workspace deliverables", () => {
         unresolvedRisks: 4,
         overdueTasks: 1,
         failedOperations: 0,
-        outcomes: { improved: 2, declined: 1, stable: 0, awaitingFollowup: 1 }
+        outcomes: { improved: 2, declined: 1, stable: 0, awaitingFollowup: 1 },
+        taskOutcomes: {
+          improved: 2,
+          stable: 1,
+          declined: 0,
+          inconclusive: 0,
+          awaitingVerification: 1
+        }
       },
       {
         siteId: "site-1",
@@ -36,7 +43,14 @@ describe("workspace deliverables", () => {
         unresolvedRisks: 3,
         overdueTasks: 0,
         failedOperations: 1,
-        outcomes: { improved: 1, declined: 0, stable: 2, awaitingFollowup: 0 }
+        outcomes: { improved: 1, declined: 0, stable: 2, awaitingFollowup: 0 },
+        taskOutcomes: {
+          improved: 1,
+          stable: 0,
+          declined: 1,
+          inconclusive: 1,
+          awaitingVerification: 2
+        }
       }
     ]
   });
@@ -50,7 +64,14 @@ describe("workspace deliverables", () => {
       unresolvedRisks: 7,
       overdueTasks: 1,
       failedOperations: 1,
-      outcomes: { improved: 3, declined: 1, stable: 2, awaitingFollowup: 1 }
+      outcomes: { improved: 3, declined: 1, stable: 2, awaitingFollowup: 1 },
+      taskOutcomes: {
+        improved: 3,
+        stable: 1,
+        declined: 1,
+        inconclusive: 1,
+        awaitingVerification: 3
+      }
     });
   });
 

@@ -2,12 +2,42 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildBulkOperationDryRunPreviewResult,
+  buildSafeOperationBatchPreview,
   buildSafeOperationPreview,
-  countExecutableSafeOperationItems
+  countExecutableSafeOperationItems,
+  normalizeBulkOperationTaskIds
 } from "./bulk-operation-preview";
 import type { BacklogTask, SyncedContentItem } from "./types";
 
 describe("safe bulk operation preview payloads", () => {
+  it("preserves per-task evidence while separating executable and review-only findings", () => {
+    const executable = buildSafeOperationPreview({
+      task: buildTask({ id: "task-1", issueType: "missing_meta_title" }),
+      syncedContentItem: buildSyncedContentItem({
+        externalId: "post:42",
+        metadata: { seoPlugin: "yoast", seoTitle: null }
+      })
+    });
+    const reviewOnly = buildSafeOperationPreview({
+      task: buildTask({ id: "task-2", issueType: "unsupported_check" }),
+      syncedContentItem: null
+    });
+
+    expect(buildSafeOperationBatchPreview([executable, reviewOnly])).toMatchObject({
+      executable: true,
+      eligibleItems: 1,
+      blockedItems: 1,
+      taskIds: ["task-1", "task-2"],
+      reviews: [
+        { taskId: "task-1", executable: true },
+        { taskId: "task-2", executable: false }
+      ]
+    });
+    expect(
+      normalizeBulkOperationTaskIds({ taskId: "task-1", taskIds: ["task-1", "task-2"] })
+    ).toEqual(["task-1", "task-2"]);
+  });
+
   it("builds an executable Yoast SEO title payload from synced content evidence", () => {
     const result = buildSafeOperationPreview({
       task: buildTask({

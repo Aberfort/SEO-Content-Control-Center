@@ -137,6 +137,7 @@ async function recordBulkOperationResult(input: {
     }
 
     const operationItemIds = new Set(operation.items.map((item) => item.id));
+    const operationItemsById = new Map(operation.items.map((item) => [item.id, item]));
 
     for (const item of input.itemResults) {
       if (!operationItemIds.has(item.itemId)) {
@@ -152,6 +153,34 @@ async function recordBulkOperationResult(input: {
           beforeValue: toNullableJson(item.beforeValue),
           afterValue: toNullableJson(item.afterValue),
           error: item.status === "FAILED" ? (item.error ?? "Item failed.") : null
+        }
+      });
+    }
+
+    const completedTaskIds = input.itemResults.flatMap((item) => {
+      const taskId = operationItemsById.get(item.itemId)?.backlogTaskId;
+      return item.status === "COMPLETED" && taskId ? [taskId] : [];
+    });
+    const failedTaskIds = input.itemResults.flatMap((item) => {
+      const taskId = operationItemsById.get(item.itemId)?.backlogTaskId;
+      return item.status === "FAILED" && taskId ? [taskId] : [];
+    });
+
+    if (completedTaskIds.length > 0) {
+      await tx.backlogTask.updateMany({
+        where: { id: { in: completedTaskIds }, organizationId: input.organizationId },
+        data: { status: "DONE", outcomeStatus: null, outcomeNote: null, outcomeVerifiedAt: null }
+      });
+    }
+
+    if (failedTaskIds.length > 0) {
+      await tx.backlogTask.updateMany({
+        where: { id: { in: failedTaskIds }, organizationId: input.organizationId },
+        data: {
+          status: "IN_REVIEW",
+          outcomeStatus: null,
+          outcomeNote: null,
+          outcomeVerifiedAt: null
         }
       });
     }
@@ -263,6 +292,23 @@ async function recordBulkOperationRollbackResult(input: {
           id: item.itemId
         },
         data
+      });
+    }
+
+    const rolledBackTaskIds = input.itemResults.flatMap((item) => {
+      const taskId = operationItemsById.get(item.itemId)?.backlogTaskId;
+      return item.status === "ROLLED_BACK" && taskId ? [taskId] : [];
+    });
+
+    if (rolledBackTaskIds.length > 0) {
+      await tx.backlogTask.updateMany({
+        where: { id: { in: rolledBackTaskIds }, organizationId: input.organizationId },
+        data: {
+          status: "IN_REVIEW",
+          outcomeStatus: null,
+          outcomeNote: null,
+          outcomeVerifiedAt: null
+        }
       });
     }
 

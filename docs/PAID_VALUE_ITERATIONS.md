@@ -45,6 +45,8 @@ Status: implemented.
 
 ## Iteration 126 - Operations Workflow
 
+Status: implemented.
+
 - Make the full issue to task to safe-operation path visible as one lifecycle.
 - Add bulk review for compatible findings while preserving per-item evidence and confirmation.
 - Improve partial-failure and non-restorable guidance, retry eligibility, and rollback visibility.

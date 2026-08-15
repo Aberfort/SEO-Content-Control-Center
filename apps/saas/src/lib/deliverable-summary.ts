@@ -15,6 +15,8 @@ type TaskRecord = {
   status: string;
   dueDate: Date | string | null;
   updatedAt: Date | string;
+  outcomeStatus: string | null;
+  outcomeVerifiedAt: Date | string | null;
 };
 
 type OperationRecord = {
@@ -60,6 +62,33 @@ export function buildSiteDeliverableSummary(input: {
     }
   }
 
+  const taskOutcomes: SiteDeliverableSummary["taskOutcomes"] = {
+    improved: 0,
+    stable: 0,
+    declined: 0,
+    inconclusive: 0,
+    awaitingVerification: 0
+  };
+
+  for (const task of input.tasks) {
+    if (
+      task.outcomeStatus &&
+      task.outcomeVerifiedAt &&
+      isInsidePeriod(task.outcomeVerifiedAt, input.start, input.endExclusive)
+    ) {
+      const key = task.outcomeStatus.toLowerCase() as keyof Omit<
+        SiteDeliverableSummary["taskOutcomes"],
+        "awaitingVerification"
+      >;
+      if (key in taskOutcomes) taskOutcomes[key] += 1;
+    } else if (
+      task.status === "DONE" &&
+      isInsidePeriod(task.updatedAt, input.start, input.endExclusive)
+    ) {
+      taskOutcomes.awaitingVerification += 1;
+    }
+  }
+
   return {
     siteId: input.siteId,
     siteName: input.siteName,
@@ -84,7 +113,8 @@ export function buildSiteDeliverableSummary(input: {
         operation.status === "FAILED" &&
         isInsidePeriod(operation.updatedAt, input.start, input.endExclusive)
     ).length,
-    outcomes
+    outcomes,
+    taskOutcomes
   };
 }
 

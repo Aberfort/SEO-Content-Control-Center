@@ -471,6 +471,9 @@ export type BacklogTask = {
   assigneeId: string | null;
   dueDate: string | null;
   tags: string[];
+  outcomeStatus: "IMPROVED" | "STABLE" | "DECLINED" | "INCONCLUSIVE" | null;
+  outcomeNote: string | null;
+  outcomeVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
   comments: BacklogTaskComment[];
@@ -580,6 +583,9 @@ export type BulkOperationStatus =
 export type BulkOperationItem = {
   id: string;
   bulkOperationId: string;
+  backlogTaskId: string | null;
+  taskTitle: string | null;
+  taskUrl: string | null;
   externalId: string;
   status: string;
   beforeValue: unknown;

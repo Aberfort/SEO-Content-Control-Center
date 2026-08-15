@@ -13,7 +13,6 @@ import {
   createBillingPortalSessionAction,
   createBulkOperationPreviewAction,
   disconnectPluginConnectionAction,
-  finishBulkOperationAction,
   markAllNotificationsReadAction,
   rollbackBulkOperationAction,
   runBulkOperationDryRunAction,
@@ -23,6 +22,7 @@ import {
   syncGscSearchInsightsAction,
   updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
+  updateBacklogTaskOutcomeAction,
   updateBacklogTaskStatusAction,
   updateDeliveryPreferenceAction,
   updateNotificationReadStateAction
@@ -61,6 +61,8 @@ import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
 import { getTwoFactorStatusForUser } from "@/lib/two-factor";
 import type {
   BillingSubscription,
+  BulkOperationItem,
+  BulkOperationStatus,
   GscConnectionOverview,
   GscDailyMetric,
   GscSearchInsight,
@@ -1882,201 +1884,308 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 </form>
 
                 {backlogTasks.items.length > 0 ? (
-                  <div className="table-wrap">
-                    <table className="backlog-table">
-                      <thead>
-                        <tr>
-                          <th>Task</th>
-                          <th>Status</th>
-                          <th>Assignment</th>
-                          <th>Severity</th>
-                          <th>Search impact</th>
-                          <th>Effort</th>
-                          <th>Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {backlogTasks.items.map((task) => (
-                          <tr key={task.id}>
-                            <td>
-                              <strong>{task.title}</strong>
-                              <span>{task.url}</span>
-                              <span>{task.issueType.replaceAll("_", " ")}</span>
-                              {task.comments.length > 0 ? (
-                                <div className="backlog-comments" aria-label="Recent comments">
-                                  {task.comments.map((comment) => (
-                                    <article key={comment.id}>
-                                      <strong>{comment.authorName ?? comment.authorEmail}</strong>
-                                      <p>{comment.body}</p>
-                                      <time dateTime={comment.createdAt}>
-                                        {formatDateTime(comment.createdAt)}
-                                      </time>
-                                    </article>
-                                  ))}
-                                </div>
-                              ) : null}
-                              {task.activityLogs?.length ? (
-                                <div className="backlog-activity" aria-label="Change history">
-                                  <strong>Change history</strong>
-                                  <ul>
-                                    {task.activityLogs.map((log) => (
-                                      <li key={log.id}>
-                                        <span>{formatBacklogActivity(log)}</span>
-                                        <time dateTime={log.createdAt}>
-                                          {formatDateTime(log.createdAt)}
-                                        </time>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ) : null}
-                              <form
-                                className="preview-form"
-                                action={createBulkOperationPreviewAction}
-                              >
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={task.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={task.siteId} />
-                                <input name="taskId" type="hidden" value={task.id} />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <button className="secondary-button" type="submit">
-                                  Preview
-                                </button>
-                              </form>
-                              <form
-                                className="comment-form"
-                                action={createBacklogTaskCommentAction}
-                              >
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={task.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={task.siteId} />
-                                <input name="taskId" type="hidden" value={task.id} />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <textarea
-                                  aria-label="Comment"
-                                  maxLength={2000}
-                                  name="body"
-                                  required
-                                  rows={2}
-                                />
-                                <button className="secondary-button" type="submit">
-                                  Comment
-                                </button>
-                              </form>
-                            </td>
-                            <td>
-                              <form className="status-form" action={updateBacklogTaskStatusAction}>
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={task.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={task.siteId} />
-                                <input name="taskId" type="hidden" value={task.id} />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <select name="status" defaultValue={task.status}>
-                                  {backlogStatuses.map((status) => (
-                                    <option key={status} value={status}>
-                                      {status.replaceAll("_", " ")}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button className="secondary-button" type="submit">
-                                  Apply
-                                </button>
-                              </form>
-                            </td>
-                            <td>
-                              <form
-                                className="assignment-form"
-                                action={updateBacklogTaskAssignmentAction}
-                              >
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={task.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={task.siteId} />
-                                <input name="taskId" type="hidden" value={task.id} />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <select name="assigneeId" defaultValue={task.assigneeId ?? ""}>
-                                  <option value="">Unassigned</option>
-                                  {assignableMembers.map((member) => (
-                                    <option key={member.userId} value={member.userId}>
-                                      {member.name ?? member.email}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  aria-label="Due date"
-                                  defaultValue={formatDateInput(task.dueDate)}
-                                  name="dueDate"
-                                  type="date"
-                                />
-                                <button className="secondary-button" type="submit">
-                                  Apply
-                                </button>
-                              </form>
-                            </td>
-                            <td>
-                              <span
-                                className={`severity-pill severity-${task.severity.toLowerCase()}`}
-                              >
-                                {task.severity}
-                              </span>
-                            </td>
-                            <td>
-                              {readSearchImpactBandFromTags(task.tags) ? (
-                                <span
-                                  className={`impact-pill impact-${readSearchImpactBandFromTags(task.tags)}`}
-                                >
-                                  {readSearchImpactBandFromTags(task.tags)}
-                                </span>
-                              ) : (
-                                <span className="impact-unavailable">Not measured</span>
-                              )}
-                            </td>
-                            <td>{task.effortEstimate ?? "n/a"}</td>
-                            <td>
-                              <time dateTime={task.updatedAt}>
-                                {formatDateTime(task.updatedAt)}
-                              </time>
-                            </td>
+                  <>
+                    <form
+                      action={createBulkOperationPreviewAction}
+                      className="bulk-review-toolbar"
+                      id="bulk-review-form"
+                    >
+                      <input
+                        name="organizationId"
+                        type="hidden"
+                        value={activeOrganization?.id ?? ""}
+                      />
+                      <input name="siteId" type="hidden" value={activeSite.id} />
+                      <input
+                        name="redirectTo"
+                        type="hidden"
+                        value={buildViewHref({ site: activeSite.id })}
+                      />
+                      <div>
+                        <strong>Safe batch review</strong>
+                        <span>Select up to 25 tasks. Each item keeps its own evidence.</span>
+                      </div>
+                      <button className="primary-button" type="submit">
+                        Review selected
+                      </button>
+                    </form>
+                    <div className="table-wrap">
+                      <table className="backlog-table">
+                        <thead>
+                          <tr>
+                            <th className="selection-column">
+                              <span className="sr-only">Select</span>
+                            </th>
+                            <th>Task</th>
+                            <th>Status</th>
+                            <th>Assignment</th>
+                            <th>Severity</th>
+                            <th>Search impact</th>
+                            <th>Effort</th>
+                            <th>Updated</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {backlogTasks.items.map((task) => (
+                            <tr key={task.id}>
+                              <td className="selection-column">
+                                <input
+                                  aria-label={`Select ${task.title}`}
+                                  disabled={task.status === "DONE" || task.status === "IGNORED"}
+                                  form="bulk-review-form"
+                                  name="taskIds"
+                                  type="checkbox"
+                                  value={task.id}
+                                />
+                              </td>
+                              <td>
+                                <strong>{task.title}</strong>
+                                <span>{task.url}</span>
+                                <span>{task.issueType.replaceAll("_", " ")}</span>
+                                <div className="task-workflow" aria-label="Task workflow">
+                                  <span className={task.auditIssueId ? "is-complete" : ""}>
+                                    Issue
+                                  </span>
+                                  <span className="is-current">Task</span>
+                                  <span
+                                    className={
+                                      bulkOperations.some((operation) =>
+                                        operation.items.some(
+                                          (item) => item.backlogTaskId === task.id
+                                        )
+                                      )
+                                        ? "is-complete"
+                                        : ""
+                                    }
+                                  >
+                                    Operation
+                                  </span>
+                                  <span className={task.outcomeVerifiedAt ? "is-complete" : ""}>
+                                    Outcome
+                                  </span>
+                                </div>
+                                {task.comments.length > 0 ? (
+                                  <div className="backlog-comments" aria-label="Recent comments">
+                                    {task.comments.map((comment) => (
+                                      <article key={comment.id}>
+                                        <strong>{comment.authorName ?? comment.authorEmail}</strong>
+                                        <p>{comment.body}</p>
+                                        <time dateTime={comment.createdAt}>
+                                          {formatDateTime(comment.createdAt)}
+                                        </time>
+                                      </article>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                {task.activityLogs?.length ? (
+                                  <div className="backlog-activity" aria-label="Change history">
+                                    <strong>Change history</strong>
+                                    <ul>
+                                      {task.activityLogs.map((log) => (
+                                        <li key={log.id}>
+                                          <span>{formatBacklogActivity(log)}</span>
+                                          <time dateTime={log.createdAt}>
+                                            {formatDateTime(log.createdAt)}
+                                          </time>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                                <form
+                                  className="preview-form"
+                                  action={createBulkOperationPreviewAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={task.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={task.siteId} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({
+                                      site: activeSite.id
+                                    })}
+                                  />
+                                  <button className="secondary-button" type="submit">
+                                    Preview
+                                  </button>
+                                </form>
+                                <form
+                                  className="comment-form"
+                                  action={createBacklogTaskCommentAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={task.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={task.siteId} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({
+                                      site: activeSite.id
+                                    })}
+                                  />
+                                  <textarea
+                                    aria-label="Comment"
+                                    maxLength={2000}
+                                    name="body"
+                                    required
+                                    rows={2}
+                                  />
+                                  <button className="secondary-button" type="submit">
+                                    Comment
+                                  </button>
+                                </form>
+                              </td>
+                              <td>
+                                <form
+                                  className="status-form"
+                                  action={updateBacklogTaskStatusAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={task.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={task.siteId} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({
+                                      site: activeSite.id
+                                    })}
+                                  />
+                                  <select name="status" defaultValue={task.status}>
+                                    {backlogStatuses.map((status) => (
+                                      <option key={status} value={status}>
+                                        {status.replaceAll("_", " ")}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button className="secondary-button" type="submit">
+                                    Apply
+                                  </button>
+                                </form>
+                                {task.status === "DONE" ? (
+                                  <form
+                                    className="outcome-form"
+                                    action={updateBacklogTaskOutcomeAction}
+                                  >
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={task.organizationId}
+                                    />
+                                    <input name="siteId" type="hidden" value={task.siteId} />
+                                    <input name="taskId" type="hidden" value={task.id} />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({ site: activeSite.id })}
+                                    />
+                                    <label>
+                                      <span>Verified outcome</span>
+                                      <select
+                                        name="outcomeStatus"
+                                        defaultValue={task.outcomeStatus ?? ""}
+                                      >
+                                        <option value="">Awaiting verification</option>
+                                        <option value="IMPROVED">Improved</option>
+                                        <option value="STABLE">Stable</option>
+                                        <option value="DECLINED">Declined</option>
+                                        <option value="INCONCLUSIVE">Inconclusive</option>
+                                      </select>
+                                    </label>
+                                    <input
+                                      aria-label="Outcome evidence note"
+                                      defaultValue={task.outcomeNote ?? ""}
+                                      maxLength={1000}
+                                      name="outcomeNote"
+                                      placeholder="Evidence note"
+                                      type="text"
+                                    />
+                                    <button className="secondary-button" type="submit">
+                                      Save outcome
+                                    </button>
+                                  </form>
+                                ) : null}
+                              </td>
+                              <td>
+                                <form
+                                  className="assignment-form"
+                                  action={updateBacklogTaskAssignmentAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={task.organizationId}
+                                  />
+                                  <input name="siteId" type="hidden" value={task.siteId} />
+                                  <input name="taskId" type="hidden" value={task.id} />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({
+                                      site: activeSite.id
+                                    })}
+                                  />
+                                  <select name="assigneeId" defaultValue={task.assigneeId ?? ""}>
+                                    <option value="">Unassigned</option>
+                                    {assignableMembers.map((member) => (
+                                      <option key={member.userId} value={member.userId}>
+                                        {member.name ?? member.email}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    aria-label="Due date"
+                                    defaultValue={formatDateInput(task.dueDate)}
+                                    name="dueDate"
+                                    type="date"
+                                  />
+                                  <button className="secondary-button" type="submit">
+                                    Apply
+                                  </button>
+                                </form>
+                              </td>
+                              <td>
+                                <span
+                                  className={`severity-pill severity-${task.severity.toLowerCase()}`}
+                                >
+                                  {task.severity}
+                                </span>
+                              </td>
+                              <td>
+                                {readSearchImpactBandFromTags(task.tags) ? (
+                                  <span
+                                    className={`impact-pill impact-${readSearchImpactBandFromTags(task.tags)}`}
+                                  >
+                                    {readSearchImpactBandFromTags(task.tags)}
+                                  </span>
+                                ) : (
+                                  <span className="impact-unavailable">Not measured</span>
+                                )}
+                              </td>
+                              <td>{task.effortEstimate ?? "n/a"}</td>
+                              <td>
+                                <time dateTime={task.updatedAt}>
+                                  {formatDateTime(task.updatedAt)}
+                                </time>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <p className="empty-copy">
                     {backlogTasks.summary.total > 0
@@ -2087,11 +2196,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
 
                 {bulkOperations.length > 0 ? (
                   <div className="bulk-preview-panel" aria-label="Recent safe operation previews">
-                    <h3>Recent previews</h3>
+                    <div className="section-heading">
+                      <div>
+                        <h3>Safe operation workflow</h3>
+                        <p>Review evidence, dry run, confirm, execute, then verify the outcome.</p>
+                      </div>
+                    </div>
                     <div className="bulk-preview-list">
                       {bulkOperations.map((operation) => (
                         <article key={operation.id}>
-                          <div>
+                          <div className="operation-summary">
                             <strong>{operation.type.replaceAll("_", " ")}</strong>
                             <span>{formatBulkOperationPreview(operation.preview)}</span>
                             {operation.dryRunResult ? (
@@ -2112,13 +2226,49 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               </span>
                             ) : null}
                           </div>
+                          <ol className="operation-steps" aria-label="Operation progress">
+                            {buildBulkOperationSteps(operation.status).map((step) => (
+                              <li className={step.state} key={step.label}>
+                                <span aria-hidden="true" />
+                                {step.label}
+                              </li>
+                            ))}
+                          </ol>
+                          <div className="operation-items">
+                            {operation.items.map((item) => (
+                              <div key={item.id}>
+                                <div>
+                                  <strong>{item.taskTitle ?? item.externalId}</strong>
+                                  <span>{item.taskUrl ?? item.externalId}</span>
+                                </div>
+                                <span className="status-pill">
+                                  {item.status.replaceAll("_", " ")}
+                                </span>
+                                <p>{formatBulkOperationItemGuidance(item)}</p>
+                              </div>
+                            ))}
+                            {readReviewOnlyOperationItems(operation.preview).map((review) => (
+                              <div key={`${review.taskId}:${review.externalId}`}>
+                                <div>
+                                  <strong>Review-only task</strong>
+                                  <span>{review.externalId}</span>
+                                </div>
+                                <span className="status-pill">REVIEW ONLY</span>
+                                <p>
+                                  {review.summary}{" "}
+                                  {formatExecutionDisabledReason(review.executionDisabledReason)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
                           <span className="status-pill">
                             {operation.status.replaceAll("_", " ")}
                           </span>
                           <time dateTime={operation.createdAt}>
                             {formatDateTime(operation.createdAt)}
                           </time>
-                          {operation.status === "PREVIEWED" ? (
+                          {operation.status === "PREVIEWED" &&
+                          isBulkOperationPreviewExecutable(operation.preview) ? (
                             <form action={runBulkOperationDryRunAction}>
                               <input
                                 name="organizationId"
@@ -2191,55 +2341,12 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             </form>
                           ) : null}
                           {operation.status === "RUNNING" ? (
-                            <>
-                              <form action={finishBulkOperationAction}>
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={operation.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={operation.siteId} />
-                                <input name="operationId" type="hidden" value={operation.id} />
-                                <input name="status" type="hidden" value="COMPLETED" />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <button className="secondary-button" type="submit">
-                                  Complete
-                                </button>
-                              </form>
-                              <form action={finishBulkOperationAction}>
-                                <input
-                                  name="organizationId"
-                                  type="hidden"
-                                  value={operation.organizationId}
-                                />
-                                <input name="siteId" type="hidden" value={operation.siteId} />
-                                <input name="operationId" type="hidden" value={operation.id} />
-                                <input name="status" type="hidden" value="FAILED" />
-                                <input
-                                  name="message"
-                                  type="hidden"
-                                  value="Marked failed from the SaaS dashboard."
-                                />
-                                <input
-                                  name="redirectTo"
-                                  type="hidden"
-                                  value={buildViewHref({
-                                    site: activeSite.id
-                                  })}
-                                />
-                                <button className="secondary-button" type="submit">
-                                  Mark failed
-                                </button>
-                              </form>
-                            </>
+                            <p className="operation-guidance">
+                              Worker execution is in progress. Results update per item.
+                            </p>
                           ) : null}
-                          {operation.status === "COMPLETED" || operation.status === "FAILED" ? (
+                          {(operation.status === "COMPLETED" || operation.status === "FAILED") &&
+                          canRollbackBulkOperation(operation.items) ? (
                             <form action={rollbackBulkOperationAction}>
                               <input
                                 name="organizationId"
@@ -2910,6 +3017,47 @@ function formatBulkOperationPreview(preview: unknown): string {
   return typeof summary === "string" ? summary : "Preview prepared without WordPress changes.";
 }
 
+function isBulkOperationPreviewExecutable(preview: unknown): boolean {
+  if (!isRecord(preview)) return true;
+  return preview.executable !== false;
+}
+
+function readReviewOnlyOperationItems(preview: unknown): Array<{
+  taskId: string;
+  externalId: string;
+  summary: string;
+  executionDisabledReason?: string;
+}> {
+  if (!isRecord(preview) || !Array.isArray(preview.reviews)) return [];
+
+  return preview.reviews.flatMap((review) => {
+    if (!isRecord(review) || review.executable !== false) return [];
+    if (
+      typeof review.taskId !== "string" ||
+      typeof review.externalId !== "string" ||
+      typeof review.summary !== "string"
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        taskId: review.taskId,
+        externalId: review.externalId,
+        summary: review.summary,
+        executionDisabledReason:
+          typeof review.executionDisabledReason === "string"
+            ? review.executionDisabledReason
+            : undefined
+      }
+    ];
+  });
+}
+
+function formatExecutionDisabledReason(reason?: string): string {
+  return reason ? `Reason: ${reason.replaceAll("_", " ")}.` : "";
+}
+
 function formatBulkOperationDryRun(dryRunResult: unknown): string {
   if (typeof dryRunResult !== "object" || dryRunResult === null) {
     return "Dry run completed without WordPress changes.";
@@ -2981,6 +3129,61 @@ function formatBulkOperationRetryMode(retryMode: unknown, status: string): strin
   }
 
   return "";
+}
+
+function buildBulkOperationSteps(status: BulkOperationStatus) {
+  const labels = ["Review", "Dry run", "Confirm", "Execute", "Verify"];
+  const activeIndex: Record<BulkOperationStatus, number> = {
+    DRAFT: 0,
+    PREVIEWED: 0,
+    DRY_RUN_PASSED: 1,
+    CONFIRMED: 2,
+    RUNNING: 3,
+    COMPLETED: 4,
+    FAILED: 3,
+    ROLLED_BACK: 3
+  };
+  const current = activeIndex[status];
+
+  return labels.map((label, index) => ({
+    label,
+    state: index < current ? "is-complete" : index === current ? "is-current" : ""
+  }));
+}
+
+function formatBulkOperationItemGuidance(item: BulkOperationItem): string {
+  if (item.status === "FAILED") {
+    return item.error
+      ? `Failed: ${item.error}. Retry remains available for this item.`
+      : "Execution failed. Retry remains available for this item.";
+  }
+
+  if (item.status === "ROLLED_BACK") {
+    return "The previous WordPress value was restored.";
+  }
+
+  if (item.status === "COMPLETED") {
+    return "WordPress accepted the change. Verify its search outcome on the task.";
+  }
+
+  if (!isRecord(item.afterValue) || item.externalId.startsWith("backlog-task:")) {
+    return "Review-only evidence. This item cannot write to WordPress automatically.";
+  }
+
+  return "Eligible for a bounded, signed WordPress metadata update.";
+}
+
+function canRollbackBulkOperation(items: BulkOperationItem[]): boolean {
+  return items.some(
+    (item) =>
+      (item.status === "COMPLETED" || item.status === "FAILED") &&
+      isRecord(item.beforeValue) &&
+      !item.externalId.startsWith("backlog-task:")
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function normalizeBulkOperationItemStatusSummary(

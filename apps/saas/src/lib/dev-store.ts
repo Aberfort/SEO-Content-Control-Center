@@ -7,6 +7,7 @@ import {
   auditListQuerySchema,
   assistantRecommendationListQuerySchema,
   backlogTaskCommentCreateSchema,
+  backlogTaskOutcomeUpdateSchema,
   backlogTaskFromAuditIssueSchema,
   backlogTasksFromAuditSchema,
   bulkOperationConfirmSchema,
@@ -35,6 +36,7 @@ import {
   type AuditListQuery,
   type BacklogTaskCommentCreateInput,
   type BacklogTaskFromAuditIssueInput,
+  type BacklogTaskOutcomeUpdateInput,
   type BacklogTasksFromAuditInput,
   type BulkOperationConfirmInput,
   type BulkOperationDryRunInput,
@@ -128,9 +130,11 @@ import {
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildSiteDeliverableSummary } from "./deliverable-summary";
 import {
+  buildSafeOperationBatchPreview,
   buildBulkOperationDryRunPreviewResult,
   buildSafeOperationPreview,
-  countExecutableSafeOperationItems
+  countExecutableSafeOperationItems,
+  normalizeBulkOperationTaskIds
 } from "./bulk-operation-preview";
 import { matchTrafficLossPages } from "./gsc-content-matching";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
@@ -1906,6 +1910,9 @@ export function createBacklogTaskFromAuditIssue(
     assigneeId: null,
     dueDate: null,
     tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence),
+    outcomeStatus: null,
+    outcomeNote: null,
+    outcomeVerifiedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     comments: []
@@ -2006,6 +2013,9 @@ export function createBacklogTasksFromAudit(
       assigneeId: null,
       dueDate: null,
       tags: withSearchImpactTag(["audit", issue.issueType], issue.evidence),
+      outcomeStatus: null,
+      outcomeNote: null,
+      outcomeVerifiedAt: null,
       createdAt: timestamp,
       updatedAt: timestamp,
       comments: []
@@ -2118,6 +2128,11 @@ export function updateBacklogTaskStatus(input: {
 
   const previousStatus = task.status;
   task.status = input.status;
+  if (input.status !== "DONE") {
+    task.outcomeStatus = null;
+    task.outcomeNote = null;
+    task.outcomeVerifiedAt = null;
+  }
   task.updatedAt = nowIso();
 
   if (previousStatus !== input.status) {
@@ -2134,6 +2149,52 @@ export function updateBacklogTaskStatus(input: {
       }
     });
   }
+
+  return task;
+}
+
+export function updateBacklogTaskOutcome(
+  input: BacklogTaskOutcomeUpdateInput & { user: AppUser }
+): BacklogTask {
+  const parsed = backlogTaskOutcomeUpdateSchema.parse({
+    organizationId: input.organizationId,
+    siteId: input.siteId,
+    taskId: input.taskId,
+    outcomeStatus: input.outcomeStatus,
+    outcomeNote: input.outcomeNote
+  });
+  const task = getDevStore().backlogTasks.find(
+    (candidate) =>
+      candidate.id === parsed.taskId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "backlog:update"
+  });
+
+  if (!task) throw new Error("BACKLOG_TASK_NOT_FOUND");
+  if (task.status !== "DONE") throw new Error("BACKLOG_TASK_OUTCOME_REQUIRES_DONE");
+
+  task.outcomeStatus = parsed.outcomeStatus;
+  task.outcomeNote = parsed.outcomeStatus ? (parsed.outcomeNote ?? null) : null;
+  task.outcomeVerifiedAt = parsed.outcomeStatus ? nowIso() : null;
+  task.updatedAt = nowIso();
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: parsed.outcomeStatus ? "backlog_task.outcome_verified" : "backlog_task.outcome_cleared",
+    entityType: "BacklogTask",
+    entityId: task.id,
+    metadata: {
+      siteId: parsed.siteId,
+      outcomeStatus: parsed.outcomeStatus,
+      outcomeNote: task.outcomeNote
+    }
+  });
 
   return task;
 }
@@ -2373,38 +2434,51 @@ export function createBulkOperationPreview(
     permission: "content_operation:preview"
   });
 
-  const task = store.backlogTasks.find(
-    (candidate) =>
-      candidate.id === parsed.taskId &&
-      candidate.organizationId === parsed.organizationId &&
-      candidate.siteId === parsed.siteId
-  );
+  const taskIds = normalizeBulkOperationTaskIds(parsed);
+  const tasks = taskIds
+    .map((taskId) =>
+      store.backlogTasks.find(
+        (candidate) =>
+          candidate.id === taskId &&
+          candidate.organizationId === parsed.organizationId &&
+          candidate.siteId === parsed.siteId
+      )
+    )
+    .filter((task): task is BacklogTask => Boolean(task));
 
-  if (!task) {
+  if (tasks.length !== taskIds.length) {
     throw new Error("BACKLOG_TASK_NOT_FOUND");
   }
 
   const timestamp = nowIso();
-  const previewResult = buildSafeOperationPreview({
-    task,
-    syncedContentItem: null
-  });
+  const previewResults = tasks.map((task) =>
+    buildSafeOperationPreview({ task, syncedContentItem: null })
+  );
+  const executableEntries = previewResults
+    .map((previewResult, index) => ({ previewResult, task: tasks[index]! }))
+    .filter(({ previewResult }) => tasks.length === 1 || previewResult.preview.executable);
   const operation: BulkOperation = {
     id: randomUUID(),
     organizationId: parsed.organizationId,
     siteId: parsed.siteId,
-    type: "BACKLOG_TASK_PREVIEW",
+    type: tasks.length > 1 ? "BACKLOG_TASK_BULK_REVIEW" : "BACKLOG_TASK_PREVIEW",
     status: "PREVIEWED",
-    preview: previewResult.preview,
+    preview:
+      previewResults.length > 1
+        ? buildSafeOperationBatchPreview(previewResults)
+        : previewResults[0]?.preview,
     dryRunResult: null,
     confirmedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     items: []
   };
-  const item: BulkOperationItem = {
+  const items: BulkOperationItem[] = executableEntries.map(({ previewResult, task }) => ({
     id: randomUUID(),
     bulkOperationId: operation.id,
+    backlogTaskId: task.id,
+    taskTitle: task.title,
+    taskUrl: task.url,
     externalId: previewResult.item.externalId,
     status: "PREVIEWED",
     beforeValue: previewResult.item.beforeValue,
@@ -2412,11 +2486,11 @@ export function createBulkOperationPreview(
     error: null,
     createdAt: timestamp,
     updatedAt: timestamp
-  };
+  }));
 
-  operation.items = [item];
+  operation.items = items;
   store.bulkOperations.push(operation);
-  store.bulkOperationItems.push(item);
+  store.bulkOperationItems.push(...items);
   writeActivityLog({
     organizationId: parsed.organizationId,
     userId: input.user.id,
@@ -2425,11 +2499,11 @@ export function createBulkOperationPreview(
     entityId: operation.id,
     metadata: {
       siteId: parsed.siteId,
-      taskId: task.id,
+      taskIds: taskIds.join(","),
       type: operation.type,
-      itemCount: 1,
-      executable: previewResult.preview.executable,
-      noMutation: previewResult.preview.noMutation
+      itemCount: items.length,
+      executableCount: previewResults.filter((result) => result.preview.executable).length,
+      noMutation: previewResults.every((result) => result.preview.noMutation)
     }
   });
 
@@ -2671,6 +2745,18 @@ export function finishBulkOperation(
     if (item.status === "FAILED") {
       failedItemCount += 1;
     }
+
+    const task = item.backlogTaskId
+      ? store.backlogTasks.find((candidate) => candidate.id === item.backlogTaskId)
+      : null;
+
+    if (task) {
+      task.status = item.status === "COMPLETED" ? "DONE" : "IN_REVIEW";
+      task.outcomeStatus = null;
+      task.outcomeNote = null;
+      task.outcomeVerifiedAt = null;
+      task.updatedAt = timestamp;
+    }
   }
 
   operation.status = parsed.status === "FAILED" || failedItemCount > 0 ? "FAILED" : "COMPLETED";
@@ -2743,6 +2829,18 @@ export function rollbackBulkOperation(
     item.status = "ROLLED_BACK";
     item.error = null;
     item.updatedAt = timestamp;
+
+    const task = item.backlogTaskId
+      ? store.backlogTasks.find((candidate) => candidate.id === item.backlogTaskId)
+      : null;
+
+    if (task) {
+      task.status = "IN_REVIEW";
+      task.outcomeStatus = null;
+      task.outcomeNote = null;
+      task.outcomeVerifiedAt = null;
+      task.updatedAt = timestamp;
+    }
   }
 
   operation.items = items;
