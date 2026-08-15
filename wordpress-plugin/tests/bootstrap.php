@@ -621,11 +621,28 @@ if (0 !== ($ignored_audit['changes']['new_count'] ?? null) || 1 !== ($ignored_au
     exit(1);
 }
 
+$ignored_sync_findings = $local_audit_store->findingsForSync();
+
+if (! is_array($ignored_sync_findings) || [] !== ($ignored_sync_findings['post:11'] ?? null)) {
+    fwrite(STDERR, "LocalAuditStore exported an ignored finding.\n");
+    exit(1);
+}
+
 $local_audit_store->setIgnored($current_fingerprint, false);
 $restored_audit = $local_audit_store->get();
 
 if (1 !== ($restored_audit['changes']['new_count'] ?? null)) {
     fwrite(STDERR, "LocalAuditStore restored finding state failed.\n");
+    exit(1);
+}
+
+$restored_sync_findings = $local_audit_store->findingsForSync();
+
+if (
+    'orphan-content' !== ($restored_sync_findings['post:11'][0]['code'] ?? null)
+    || 64 !== strlen((string) ($restored_sync_findings['post:11'][0]['fingerprint'] ?? ''))
+) {
+    fwrite(STDERR, "LocalAuditStore bounded finding export failed.\n");
     exit(1);
 }
 
@@ -893,7 +910,8 @@ $paginated_scheduler = new SCCC\Plugin\SyncScheduler(
     $api_client,
     $collector,
     $sync_log_store,
-    2
+    2,
+    $local_audit_store
 );
 $paginated_scheduler->runSync();
 
@@ -913,6 +931,26 @@ $cursors = array_map(
 
 if (['0', '2', '4'] !== $cursors) {
     fwrite(STDERR, "SyncScheduler paginated cursors failed.\n");
+    exit(1);
+}
+
+$synced_items = array_merge(
+    ...array_map(
+        static function (array $request): array {
+            $decoded = json_decode($request['body'], true);
+
+            return is_array($decoded) && is_array($decoded['items'] ?? null) ? $decoded['items'] : [];
+        },
+        $GLOBALS['sccc_test_remote_posts']
+    )
+);
+$first_synced_findings = $synced_items[0]['metadata']['localFindings'] ?? null;
+
+if (
+    ! is_array($first_synced_findings)
+    || 'orphan-content' !== ($first_synced_findings[array_key_last($first_synced_findings)]['code'] ?? null)
+) {
+    fwrite(STDERR, "SyncScheduler did not attach completed local findings.\n");
     exit(1);
 }
 

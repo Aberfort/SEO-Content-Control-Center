@@ -99,6 +99,7 @@ The local audit remains available after disconnecting the platform.
 | Team backlog and assignment             | No                    | Yes                          |
 | Multi-site workspace                    | No                    | Yes                          |
 | Safe metadata execution and rollback    | No                    | Yes                          |
+| E-E-A-T-informed trust evidence         | No                    | Planned paid platform only   |
 
 Do not impose a local URL quota or time-limited scan. WordPress.org does not permit trialware; paid
 service functionality is acceptable when the service provides substantive functionality and is
@@ -202,6 +203,13 @@ typical site and require zero configuration.
 1. Deep-link local findings into the matching connected content/audit view.
 2. Explain which findings gain Search Console evidence after connection.
 3. Show safe-operation availability only for supported, connected metadata fields.
+
+### Release D: evidence continuity (implemented in Iteration 123)
+
+1. Sync only active findings from the latest completed local audit through a strict bounded schema.
+2. Materialize those findings as platform audit issues without duplicating metadata-derived issues.
+3. Preserve privacy by excluding post bodies, the complete link graph, ignored findings, and
+   incomplete snapshots.
 
 ## Market Rationale
 

@@ -329,7 +329,22 @@ export async function acceptPluginSyncBatch(input: {
 
   await prisma.$transaction(async (tx) => {
     for (const item of parsed.items) {
-      const metadata = toPrismaJson(item.metadata);
+      const existing = Object.hasOwn(item.metadata, "localFindings")
+        ? null
+        : await tx.syncedContentItem.findUnique({
+            where: {
+              siteId_externalId: {
+                siteId: parsed.siteId,
+                externalId: item.externalId
+              }
+            },
+            select: {
+              metadata: true
+            }
+          });
+      const metadata = toPrismaJson(
+        preserveAcceptedLocalFindings(item.metadata, existing?.metadata)
+      );
 
       await tx.syncedContentItem.upsert({
         where: {
@@ -382,6 +397,29 @@ export async function acceptPluginSyncBatch(input: {
 
 function toPrismaJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? {})) as Prisma.InputJsonValue;
+}
+
+export function preserveAcceptedLocalFindings(
+  incoming: Record<string, unknown>,
+  existing: unknown
+): Record<string, unknown> {
+  if (Object.hasOwn(incoming, "localFindings")) {
+    return incoming;
+  }
+
+  if (
+    typeof existing !== "object" ||
+    existing === null ||
+    Array.isArray(existing) ||
+    !Array.isArray((existing as Record<string, unknown>).localFindings)
+  ) {
+    return incoming;
+  }
+
+  return {
+    ...incoming,
+    localFindings: (existing as Record<string, unknown>).localFindings
+  };
 }
 
 export function createOpaqueToken(): string {

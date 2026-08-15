@@ -51,4 +51,54 @@ describe("buildAuditIssueInputsFromSyncedContent", () => {
       fingerprint: "synced_content:post:1:thin-content"
     });
   });
+
+  it("prefers synced WordPress evidence and adds link-graph-only findings without duplicates", () => {
+    const localItem: SyncedContentItem = {
+      ...baseItem,
+      metadata: {
+        ...baseItem.metadata,
+        localFindings: [
+          {
+            code: "published-noindex",
+            label: "Published content is noindex",
+            severity: "critical",
+            evidence: "The completed WordPress audit confirmed a noindex directive.",
+            fingerprint: "a".repeat(64)
+          },
+          {
+            code: "orphan-content",
+            label: "No inbound internal links",
+            severity: "warning",
+            evidence: "No published page in the completed local graph links here.",
+            fingerprint: "b".repeat(64)
+          }
+        ]
+      }
+    };
+
+    const issues = buildAuditIssueInputsFromSyncedContent(localItem, referenceDate);
+    const noindexIssues = issues.filter(
+      (issue) => issue.fingerprint === "synced_content:post:1:robots-noindex"
+    );
+    const orphanIssue = issues.find(
+      (issue) => issue.fingerprint === "local_audit:post:1:orphan-content"
+    );
+
+    expect(noindexIssues).toHaveLength(1);
+    expect(noindexIssues[0]).toMatchObject({
+      severity: "CRITICAL",
+      evidence: {
+        source: "wordpress_local_audit",
+        findingCode: "published-noindex"
+      }
+    });
+    expect(orphanIssue).toMatchObject({
+      issueType: "local_audit.orphan-content",
+      severity: "MEDIUM",
+      evidence: {
+        source: "wordpress_local_audit",
+        findingCode: "orphan-content"
+      }
+    });
+  });
 });

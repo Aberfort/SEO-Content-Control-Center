@@ -26,7 +26,8 @@ final class SyncScheduler
         private readonly ApiClient $apiClient,
         private readonly ContentCollector $contentCollector,
         private readonly SyncLogStore $syncLogStore,
-        private readonly int $syncBatchSize = ContentCollector::BATCH_SIZE
+        private readonly int $syncBatchSize = ContentCollector::BATCH_SIZE,
+        private readonly ?LocalAuditStore $localAuditStore = null
     ) {
     }
 
@@ -57,13 +58,15 @@ final class SyncScheduler
             $offset = 0;
             $batches = 0;
             $totalItems = 0;
+            $localFindings = ($this->localAuditStore ?? new LocalAuditStore())->findingsForSync();
 
             do {
                 $batch = $this->contentCollector->collectBatch($offset, $this->syncBatchSize);
+                $items = $this->attachLocalFindings($batch['items'], $localFindings);
 
-                if ([] !== $batch['items']) {
-                    $this->apiClient->sendSync($connection, $batch['items'], (string) $offset);
-                    $totalItems += count($batch['items']);
+                if ([] !== $items) {
+                    $this->apiClient->sendSync($connection, $items, (string) $offset);
+                    $totalItems += count($items);
                 }
 
                 $offset += $this->syncBatchSize;
@@ -75,6 +78,27 @@ final class SyncScheduler
             $this->syncLogStore->recordFailure($error->getMessage());
             return;
         }
+    }
+
+    /**
+     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}> $items
+     * @param array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null $localFindings
+     * @return array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}>
+     */
+    private function attachLocalFindings(array $items, ?array $localFindings): array
+    {
+        if (null === $localFindings) {
+            return $items;
+        }
+
+        foreach ($items as &$item) {
+            if (array_key_exists($item['externalId'], $localFindings)) {
+                $item['metadata']['localFindings'] = $localFindings[$item['externalId']];
+            }
+        }
+        unset($item);
+
+        return $items;
     }
 
     public function queueSync(): string

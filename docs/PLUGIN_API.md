@@ -3,18 +3,20 @@
 This document is the implementation contract for connecting a WordPress site to the SaaS app,
 syncing bounded content inventory metadata, and disconnecting a plugin connection.
 
-The current MVP intentionally syncs inventory metadata only. It does not send WordPress post bodies,
+The current MVP intentionally syncs bounded inventory metadata plus active findings from the latest
+completed local audit. It does not send WordPress post bodies or the complete internal-link graph,
 does not crawl external URLs from the SaaS app, and does not mutate WordPress content inline. The
 WordPress plugin also exposes a separate signed apply endpoint for worker execution and rollback
 restore; that endpoint is limited to bounded Yoast/Rank Math SEO metadata fields.
 
-Plugin `0.4.0` also provides a standalone local Content Health Audit. That audit runs inside
+Plugin `0.5.0` also provides a standalone local Content Health Audit. That audit runs inside
 WordPress without an account, SaaS connection, or external API request. It reuses the bounded
 `ContentCollector` evidence locally, builds an inbound-link graph without adding link targets to the
 SaaS sync payload, and never enters the signed plugin API flow unless an administrator separately
 connects the Platform tab. It persists the latest result plus a bounded previous-scan comparison,
 supports bounded local ignore rules, and can optionally run daily or weekly through Action Scheduler
-or WP-Cron.
+or WP-Cron. After connection, active findings from a completed snapshot join their matching inventory
+items; ignored findings and incomplete/error snapshots are not sent.
 
 When a site is connected, the local result builds browser-only deep links to the site-scoped SaaS
 Content and Audit views. It marks findings that can gain Search Console clicks, impressions,
@@ -181,7 +183,16 @@ Request:
         "metaDescription": "Example meta description for search snippets.",
         "canonicalUrl": "https://example.com/post",
         "robotsNoindex": false,
-        "robotsNofollow": false
+        "robotsNofollow": false,
+        "localFindings": [
+          {
+            "code": "orphan-content",
+            "label": "No inbound internal links",
+            "severity": "warning",
+            "evidence": "No published page in the completed local graph links here.",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
       }
     }
   ]
@@ -205,12 +216,22 @@ Payload rules:
 - `externalId` is unique per connected site.
 - `type` is one of `post`, `page`, `custom_post_type`, or `taxonomy`.
 - `metadata` is optional for backward compatibility.
+- `metadata.localFindings` is optional and accepts at most 32 active findings from a completed local
+  audit. Each finding uses an allow-listed code, a bounded label/evidence string, one of four local
+  severities, and a lowercase 64-character SHA-256 fingerprint.
+- A completed local audit attaches an empty `localFindings` array to audited clean items so a later
+  platform audit can stop reproducing resolved local evidence. Incomplete or failed local audits do
+  not attach the field and therefore do not replace the last accepted snapshot.
 - Unknown metadata keys are rejected.
-- WordPress post bodies, secrets, signatures, and endpoint URLs must not be included in item
-  metadata.
+- WordPress post bodies, the complete internal-link graph, ignored findings, secrets, signatures,
+  and endpoint URLs must not be included in item metadata.
 
 The SaaS app upserts synced items by `siteId + externalId`, updates `lastSeenAt`, stores bounded
 metadata as JSON, and records `lastSyncAt` on the connection.
+
+When a platform audit runs, local findings replace duplicate metadata-derived issues by stable
+fingerprint. Link-graph-only findings (`orphan-content` and `weakly-linked-content`) become distinct
+`local_audit.*` issues because the platform deliberately does not receive all link targets.
 
 The plugin paginates the full posts/pages inventory in batches of 200 items ordered by post ID
 ascending. Each batch request sets `cursor` to the batch offset as a string (`"0"`, `"200"`,

@@ -4,7 +4,7 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -33,8 +33,8 @@ The free local audit can:
 The optional SEO Content Control Center platform connection can:
 
 * exchange a one-time connection challenge for a site-scoped connection;
-* sync bounded content metadata for posts and pages in paginated batches;
-* combine local evidence with Google Search Console traffic loss and opportunity data;
+* sync bounded content metadata and active findings from the latest completed local audit in paginated batches;
+* materialize local findings as platform audit issues and combine them with Google Search Console traffic loss and opportunity data;
 * deep-link connected findings into matching platform Content and Audit views;
 * identify findings that can gain Search Console evidence and supported Yoast/Rank Math fields that can enter the safe-preview workflow;
 * prioritize work in a multi-site team backlog with audit history;
@@ -75,7 +75,7 @@ No. The plugin syncs bounded metadata and accepts only signed, supported operati
 
 = What does the plugin sync? =
 
-It syncs bounded posts/pages inventory and metadata, including URL, title, status, modified time, author, publish date, featured-image presence, taxonomies, word count, link counts, and supported SEO metadata signals. It does not sync post bodies.
+It syncs bounded posts/pages inventory and metadata, including URL, title, status, modified time, author, publish date, featured-image presence, taxonomies, word count, link counts, supported SEO metadata signals, and active findings from the latest completed local audit. A finding contains only its allow-listed code, label, severity, short evidence, and fingerprint. It does not sync post bodies, the full link graph, or ignored findings.
 
 = What happens when I deactivate the plugin? =
 
@@ -92,7 +92,7 @@ This plugin connects your WordPress site to the SEO Content Control Center SaaS 
 Once connected, the plugin sends requests to the SaaS endpoint you configured in these cases:
 
 * **Connecting the site** &mdash; the one-time connection challenge you paste in is exchanged for a signed, site-scoped connection token.
-* **Scheduled and manual sync** &mdash; bounded post/page metadata (URL, title, status, modified time, author, publish date, featured-image presence, taxonomies, word count, link counts, and supported SEO metadata signals) is sent in paginated batches. Full post/page content bodies are never sent.
+* **Scheduled and manual sync** &mdash; bounded post/page metadata (URL, title, status, modified time, author, publish date, featured-image presence, taxonomies, word count, link counts, supported SEO metadata signals, and active findings from the latest completed local audit) is sent in paginated batches. Each finding is limited to an allow-listed code, label, severity, short evidence, and fingerprint. Full post/page content bodies, the full internal-link graph, and ignored findings are never sent.
 * **Receiving SEO operations** &mdash; the SaaS worker sends signed, review-first title/meta-description/canonical/noindex-nofollow proposals for an administrator to preview and confirm before anything is written back to WordPress.
 * **Disconnecting the site** &mdash; a request invalidates the stored connection token on the SaaS side.
 
@@ -101,6 +101,12 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.5.0 =
+
+* Synced active, bounded findings from the latest completed local audit with matching content items.
+* Materialized WordPress local findings as deduplicated platform audit issues, including orphan and weak-link evidence that metadata alone cannot reproduce.
+* Kept post bodies, the full link graph, ignored findings, and incomplete audit state outside the SaaS sync payload.
 
 = 0.4.0 =
 

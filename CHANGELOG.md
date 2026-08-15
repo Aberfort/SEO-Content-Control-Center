@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 123
+
+- Shipped plugin `0.5.0` with bounded synchronization of active findings from the latest completed local audit; incomplete audits do not replace platform evidence, while completed clean results intentionally clear resolved evidence.
+- Added strict shared validation for nine allow-listed finding codes, four severities, 64-character fingerprints, bounded labels/evidence, and a maximum of 32 findings per content item.
+- Materialized synced WordPress findings as platform audit issues, preferring direct local evidence over duplicate metadata checks and adding orphan/weak-link issues the platform cannot derive from per-page link counts.
+- Preserved the privacy boundary: post bodies, the complete internal-link graph, ignored findings, connection secrets, and arbitrary finding fields are not synchronized.
+- Preserved the last accepted local-finding snapshot when a sync occurs during an incomplete or failed local audit, while an explicit empty list from a completed clean audit clears resolved evidence.
+- Added the paid-value iteration plan for GSC impact, recurring reports, stronger workflows, enforceable entitlements, and a platform-only Content Trust Evidence framework informed by E-E-A-T without claiming a Google score or ranking factor.
+
 ### Iteration 122
 
 - Shipped plugin `0.4.0` platform conversion: connected local findings now deep-link to the matching site-scoped Content inventory and latest Audit issue search without exposing connection secrets.

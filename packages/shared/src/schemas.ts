@@ -122,6 +122,26 @@ export const pluginSyncTaxonomyMetadataSchema = z.object({
 
 export const pluginSyncSeoPluginSchema = z.enum(["yoast", "rank_math", "fallback"]);
 export const pluginSyncDateTimeSchema = z.string().datetime({ offset: true });
+export const pluginSyncLocalFindingCodeSchema = z.enum([
+  "published-noindex",
+  "seo-title-missing",
+  "meta-description-missing",
+  "canonical-different",
+  "thin-content",
+  "internal-links-missing",
+  "orphan-content",
+  "weakly-linked-content",
+  "content-stale"
+]);
+export const pluginSyncLocalFindingSchema = z
+  .object({
+    code: pluginSyncLocalFindingCodeSchema,
+    label: z.string().trim().min(1).max(160),
+    severity: z.enum(["critical", "warning", "opportunity", "maintenance"]),
+    evidence: z.string().trim().min(1).max(1024),
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/)
+  })
+  .strict();
 
 export const pluginSyncMetadataSchema = z
   .object({
@@ -140,7 +160,8 @@ export const pluginSyncMetadataSchema = z
     metaDescription: z.string().trim().max(1024).nullable().optional(),
     canonicalUrl: z.string().trim().url().max(2048).nullable().optional(),
     robotsNoindex: z.boolean().nullable().optional(),
-    robotsNofollow: z.boolean().nullable().optional()
+    robotsNofollow: z.boolean().nullable().optional(),
+    localFindings: z.array(pluginSyncLocalFindingSchema).max(32).optional()
   })
   .strict();
 

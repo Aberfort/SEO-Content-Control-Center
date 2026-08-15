@@ -375,6 +375,24 @@ export type SyncedContentMetadata = {
   canonicalUrl?: string | null;
   robotsNoindex?: boolean | null;
   robotsNofollow?: boolean | null;
+  localFindings?: SyncedLocalFinding[];
+};
+
+export type SyncedLocalFinding = {
+  code:
+    | "published-noindex"
+    | "seo-title-missing"
+    | "meta-description-missing"
+    | "canonical-different"
+    | "thin-content"
+    | "internal-links-missing"
+    | "orphan-content"
+    | "weakly-linked-content"
+    | "content-stale";
+  label: string;
+  severity: "critical" | "warning" | "opportunity" | "maintenance";
+  evidence: string;
+  fingerprint: string;
 };
 
 export type SyncedContentHealthSignal = {

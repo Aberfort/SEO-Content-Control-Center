@@ -634,7 +634,14 @@ final class AdminPage
         $connection = $store->get();
         $syncLogStore = new SyncLogStore();
         $syncLogs = $syncLogStore->all();
-        $scheduler = new SyncScheduler($store, new ApiClient(new RequestSigner()), new ContentCollector(), $syncLogStore);
+        $scheduler = new SyncScheduler(
+            $store,
+            new ApiClient(new RequestSigner()),
+            new ContentCollector(),
+            $syncLogStore,
+            ContentCollector::BATCH_SIZE,
+            $this->store()
+        );
         $recurringSync = $scheduler->getRecurringSyncStatus();
         ?>
         <section class="sccc-section" aria-labelledby="sccc-platform-title">

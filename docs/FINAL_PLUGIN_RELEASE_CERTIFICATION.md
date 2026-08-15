@@ -24,7 +24,7 @@ The command performs:
   plus the previous WordPress branch.
 
 The matrix installs the exact built zip into disposable WordPress containers and
-checks activation, installed version, standalone local audit findings, recurring
+checks activation, installed version, standalone local audit findings, bounded local finding export, recurring
 local audit and connected sync through the WP-Cron fallback, connected finding deep links and
 bounded safe-preview eligibility, REST route registration, seeded connection storage, signed safe-operation
 apply writes, tampered-signature rejection, deactivation cleanup, and clean
@@ -39,15 +39,15 @@ Record the command output here before publishing:
 
 | Field              | Value                                                                                                                                                                                                |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Certification date | 2026-07-26                                                                                                                                                                                           |
+| Certification date | 2026-08-15                                                                                                                                                                                           |
 | Git commit SHA     | _fill in after committing this run's changes_                                                                                                                                                        |
-| Plugin version     | 0.1.0                                                                                                                                                                                                |
-| Archive path       | dist/seo-content-control-center-0.1.0.zip                                                                                                                                                            |
-| SHA-256            | 1433ea95d0d05b130a7aa914695d9fdf6e7ce50074733e3e2127ec1da7e757cb                                                                                                                                     |
-| Size bytes         | 29463                                                                                                                                                                                                |
-| Zip entries        | 16                                                                                                                                                                                                   |
-| Matrix result      | PASS on wordpress:php8.1-apache (WP 6.9/PHP 8.1.34), wordpress:php8.2-apache (WP 7.0.1/PHP 8.2.32), wordpress:php8.3-apache (WP 7.0.1/PHP 8.3.32), wordpress:6.8-php8.2-apache (WP 6.8.3/PHP 8.2.29) |
-| Operator           | Claude Code (automated), reviewed by Serhii Vasyliev                                                                                                                                                 |
+| Plugin version     | 0.5.0                                                                                                                                                                                                |
+| Archive path       | dist/seo-content-control-center-0.5.0.zip                                                                                                                                                            |
+| SHA-256            | 22d1757e4947a0a0cb5d3df36c22a25d51d0b64721e2318abe4e858a5a6cc716                                                                                                                                     |
+| Size bytes         | 51942                                                                                                                                                                                                |
+| Zip entries        | 25                                                                                                                                                                                                   |
+| Matrix result      | PASS on wordpress:php8.1-apache (WP 6.9/PHP 8.1.34), wordpress:php8.2-apache (WP 7.0.4/PHP 8.2.33), wordpress:php8.3-apache (WP 7.0.4/PHP 8.3.33), wordpress:6.8-php8.2-apache (WP 6.8.3/PHP 8.2.29) |
+| Operator           | Codex (automated), reviewed by Serhii Vasyliev                                                                                                                                                       |
 
 ## Staging Action Scheduler Evidence
 

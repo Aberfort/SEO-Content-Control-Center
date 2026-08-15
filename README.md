@@ -106,6 +106,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - WordPress plugin paginated inventory sync in ID-ordered batches of 200 with offset cursors and a per-run batch safety bound;
 - WordPress plugin content metadata sync for author, publish date, featured image, taxonomies, word count, and internal/outbound link counts;
 - WordPress plugin SEO metadata sync for Yoast, Rank Math, and fallback title/canonical/robots signals;
+- bounded active local-finding sync from completed WordPress audits, with strict validation and no post bodies, full link graph, or ignored findings;
 - WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;
 - WordPress local audit deep links into connected Content/Audit views with Search Console enrichment context and bounded safe-preview eligibility hints;
 - WordPress plugin signed safe operation apply endpoint for bounded Yoast/Rank Math SEO metadata batches;
@@ -128,6 +129,7 @@ This repository currently contains the Phase 0 foundation and the first SaaS MVP
 - computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex/nofollow, canonical mismatch, and link-count signals;
 - computed backlog candidate tasks from synced content health signals;
 - tenant-scoped metadata audit run creation, completion, listing, and issue summaries with synced-content issue materialization from existing plugin metadata;
+- deduplicated materialization of WordPress local evidence, including orphan and weak-link findings unavailable from per-page metadata alone;
 - SaaS dashboard audit panel with queue action and recent run status;
 - SaaS dashboard audit issue triage with status updates and backlog task creation;
 - SaaS dashboard audit issue summary counts for selected audit runs;

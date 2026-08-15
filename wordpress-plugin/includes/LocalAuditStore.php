@@ -16,6 +16,18 @@ if (! defined('ABSPATH')) {
 final class LocalAuditStore
 {
     private const OPTION = 'sccc_local_audit';
+    private const MAX_SYNC_FINDINGS = 32;
+    private const SYNC_FINDING_CODES = [
+        'published-noindex',
+        'seo-title-missing',
+        'meta-description-missing',
+        'canonical-different',
+        'thin-content',
+        'internal-links-missing',
+        'orphan-content',
+        'weakly-linked-content',
+        'content-stale',
+    ];
 
     /**
      * @return array<string,mixed>|null
@@ -144,6 +156,72 @@ final class LocalAuditStore
         $audit['changes'] = $changes;
 
         update_option(self::OPTION, $audit, false);
+    }
+
+    /**
+     * Returns only active findings from a completed audit, keyed by content external ID.
+     * A null result means there is no complete snapshot and existing SaaS evidence must
+     * not be replaced. Empty finding arrays intentionally clear resolved evidence.
+     *
+     * @return array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null
+     */
+    public function findingsForSync(): ?array
+    {
+        $audit = $this->get();
+
+        if (! is_array($audit) || 'complete' !== ($audit['status'] ?? null) || ! is_array($audit['items'] ?? null)) {
+            return null;
+        }
+
+        $byExternalId = [];
+
+        foreach ($audit['items'] as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $externalId = substr(trim((string) ($item['external_id'] ?? '')), 0, 191);
+
+            if ('' === $externalId) {
+                continue;
+            }
+
+            $byExternalId[$externalId] = [];
+            $findings = is_array($item['findings'] ?? null) ? $item['findings'] : [];
+
+            foreach ($findings as $finding) {
+                if (! is_array($finding) || true === ($finding['ignored'] ?? false)) {
+                    continue;
+                }
+
+                $code = (string) ($finding['code'] ?? '');
+                $severity = (string) ($finding['severity'] ?? '');
+                $fingerprint = (string) ($finding['fingerprint'] ?? LocalAuditSettings::fingerprint($externalId, $code));
+
+                if (
+                    ! in_array($code, self::SYNC_FINDING_CODES, true)
+                    || ! in_array($severity, ['critical', 'warning', 'opportunity', 'maintenance'], true)
+                    || 1 !== preg_match('/^[a-f0-9]{64}$/', $fingerprint)
+                ) {
+                    continue;
+                }
+
+                $label = substr(trim((string) ($finding['label'] ?? '')), 0, 160);
+                $evidence = substr(trim((string) ($finding['evidence'] ?? '')), 0, 1024);
+
+                if ('' === $label || '' === $evidence) {
+                    continue;
+                }
+
+                $byExternalId[$externalId][] = compact('code', 'label', 'severity', 'evidence', 'fingerprint');
+
+                if (self::MAX_SYNC_FINDINGS === count($byExternalId[$externalId])) {
+                    break;
+                }
+            }
+        }
+
+        return $byExternalId;
     }
 
     /**

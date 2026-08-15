@@ -44,6 +44,7 @@
 - Sync logs. Status: plugin-local recent sync log with queued/success/error entries and sanitized failure details implemented.
 - Local audit retention. Status: inbound-link graph, orphan/weak-link findings, latest-versus-previous change summary, bounded ignore rules, and opt-in daily/weekly local scheduling implemented without expanding the SaaS sync payload.
 - Local-to-platform conversion. Status: connected findings deep-link to site-scoped Content/Audit views, identify Search Console enrichment, and expose safe-preview availability only for supported Yoast/Rank Math metadata fields.
+- Local finding synchronization. Status: active findings from the latest completed local audit are synchronized through a strict bounded contract and materialized as deduplicated platform audit issues; post bodies, the complete link graph, ignored findings, and incomplete snapshots stay local.
 
 ## Phase 3 - SEO Audit MVP
 
@@ -139,3 +140,12 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 - Installable artifact. Status: `npm run plugin:package` and `composer run package --working-dir=wordpress-plugin` create a single-root, runtime-only versioned zip under `dist/` and verify its contents.
 - CI release artifact. Status: CI packages the plugin after build and uploads `seo-content-control-center-plugin` for installation testing.
 - Staging certification. Status: `npm run plugin:certify:matrix` certifies the packaged zip against real WordPress containers across latest-WordPress PHP 8.1/8.2/8.3 plus the previous WordPress branch, covering activation, the version contract, REST route registration, connection storage, WP-Cron sync scheduling, signed apply writes with tampered-signature rejection, deactivation cron cleanup, and clean deletion; CI runs the same matrix per combination. `npm run plugin:release:certify` now emits final artifact metadata and runs the full matrix against that exact zip. Real SaaS challenge exchange, paginated sync, GSC, webhooks, and safe-operation worker execution are covered by `docs/STAGING_REHEARSAL.md`; final plugin Action Scheduler evidence is covered by `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`.
+
+## Paid Value Iterations
+
+- Iteration 123 - Local evidence continuity. Status: implemented; bounded local findings now become platform audit issues.
+- Iteration 124 - Search impact prioritization. Status: planned; combine local issues with GSC clicks, impressions, position, traffic loss, and opportunity evidence into explicit impact bands and track before/after outcomes.
+- Iteration 125 - Recurring deliverables. Status: planned; issue-change alerts, weekly workspace digest, and exportable client report with deterministic evidence and delivery preferences.
+- Iteration 126 - Operations workflow. Status: planned; strengthen issue-to-task-to-safe-operation guidance, bulk review, partial-failure recovery, and outcome visibility.
+- Iteration 127 - Content Trust Evidence. Status: planned as a paid platform-only capability; assess observable Experience, Expertise, Authoritativeness, and Trust evidence, show missing/insufficient evidence and YMYL review flags, and never label the result a Google score or ranking guarantee.
+- Iteration 128 - Commercial enforcement. Status: planned; define plan entitlements, enforce URL/feature limits server-side, align pricing copy, and cover upgrade/downgrade behavior.

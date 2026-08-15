@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { signPluginRequest } from "@sccc/shared";
 
-import { hashPluginToken } from "./plugin-connection";
+import { hashPluginToken, preserveAcceptedLocalFindings } from "./plugin-connection";
 
 describe("plugin connection signing", () => {
   it("matches the WordPress plugin request signing payload format", () => {
@@ -22,5 +22,25 @@ describe("plugin connection signing", () => {
     expect(hashPluginToken("secret")).toBe(
       "2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b"
     );
+  });
+
+  it("preserves completed local evidence when an incomplete audit omits the field", () => {
+    const previous = [
+      {
+        code: "orphan-content",
+        fingerprint: "a".repeat(64)
+      }
+    ];
+
+    expect(preserveAcceptedLocalFindings({ wordCount: 400 }, { localFindings: previous })).toEqual({
+      wordCount: 400,
+      localFindings: previous
+    });
+    expect(
+      preserveAcceptedLocalFindings(
+        { wordCount: 400, localFindings: [] },
+        { localFindings: previous }
+      )
+    ).toEqual({ wordCount: 400, localFindings: [] });
   });
 });

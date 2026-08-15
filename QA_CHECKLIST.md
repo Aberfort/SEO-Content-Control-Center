@@ -116,7 +116,9 @@
 - Connected plugins schedule recurring sync through Action Scheduler or hourly WP-Cron fallback without duplicating scheduled jobs.
 - Plugin disconnect and deactivation unschedule recurring and pending manual sync jobs.
 - Plugin deletion removes local audit results, sync logs, stored connection credentials, and plugin-owned scheduled jobs.
-- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, and SEO plugin source.
+- Manual sync sends posts/pages inventory items with external ID, type, URL, title, status, modified timestamp, and bounded metadata for author, publish date, featured image, taxonomies, word count, internal/outbound link counts, SEO title, meta description, canonical URL, robots directives, SEO plugin source, and active findings from the latest completed local audit.
+- Local finding sync accepts only nine allow-listed codes, four severities, bounded label/evidence strings, lowercase SHA-256 fingerprints, and at most 32 findings per item.
+- Ignored local findings, post bodies, the complete internal-link graph, and incomplete/error local audit snapshots do not enter the SaaS sync payload.
 - Plugin sync log records queued, successful, and failed sync attempts with bounded recent history.
 - Plugin sync log failure details redact tokens, signatures, authorization values, and endpoint URLs.
 - Plugin sync rejects missing, expired, mismatched, or invalid signatures.
@@ -127,7 +129,7 @@
 - SaaS synced content detail shows computed health signals for title, publish status, sync freshness, modified-date freshness, thin content word count, missing SEO title/meta description, noindex/nofollow, canonical mismatch, and link counts.
 - SaaS synced content detail shows computed backlog candidate tasks for actionable warning/critical/info signals.
 - SaaS users with audit run permission can create a site metadata audit and generate an activity log entry.
-- Creating a site metadata audit materializes scoped audit issues from synced content health signals, including missing internal links, marks the audit completed, and does not crawl external URLs.
+- Creating a site metadata audit materializes scoped audit issues from synced content health signals and WordPress local findings, deduplicates overlapping evidence, includes orphan/weak-link issues, marks the audit completed, and does not crawl external URLs.
 - SaaS users with audit read permission can list only audit runs for a site inside their organization.
 - SaaS dashboard users can create an audit for the selected site and see the recent completed metadata run.
 - SaaS audit run listing includes total, open, resolved, high, and critical issue summary counts scoped to each audit.

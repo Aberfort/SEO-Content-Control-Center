@@ -210,6 +210,19 @@ esac
 
 log "Standalone local audit completed without a platform connection."
 
+local_finding_export="$(wp_cli eval '$findings = (new SCCC\Plugin\LocalAuditStore())->findingsForSync(); echo wp_json_encode($findings, JSON_UNESCAPED_SLASHES);' | tr -d '\r')"
+
+case "${local_finding_export}" in
+  *'"code":"published-noindex"'*'"fingerprint":"'*) ;;
+  *) fail "Completed local findings were not exported through the bounded sync contract: ${local_finding_export}" ;;
+esac
+
+case "${local_finding_export}" in
+  *post_content*|*outbound_urls*) fail "Local finding export leaked local-only content or link graph fields." ;;
+  *) ;;
+esac
+log "Completed local findings are available through the bounded sync contract."
+
 log "Scheduling a daily local audit through the WP-Cron fallback."
 local_schedule_result="$(wp_cli eval '$settings = new SCCC\Plugin\LocalAuditSettings(); $settings->setInterval("daily"); $runner = new SCCC\Plugin\LocalAuditRunner(new SCCC\Plugin\ContentCollector(), new SCCC\Plugin\LocalAuditEngine(), new SCCC\Plugin\LocalAuditStore(), SCCC\Plugin\ContentCollector::BATCH_SIZE, new SCCC\Plugin\LocalLinkGraph(), $settings); echo $runner->ensureRecurring();' | tr -d '\r')"
 
