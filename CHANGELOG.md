@@ -2,6 +2,13 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 122
+
+- Shipped plugin `0.4.0` platform conversion: connected local findings now deep-link to the matching site-scoped Content inventory and latest Audit issue search without exposing connection secrets.
+- Added explicit Search Console enrichment guidance and per-finding GSC evidence markers so local checks clearly show which platform context becomes available after sync.
+- Added conservative safe-preview eligibility hints only for supported Yoast/Rank Math SEO title, meta description, canonical URL, and noindex fields; fallback and unsupported findings never advertise an executable operation.
+- Persisted the local-only SEO provider identifier in audit snapshots without expanding the signed SaaS sync payload, and extended PHP/package/Docker certification coverage for the conversion contract.
+
 ### Iteration 121
 
 - Shipped plugin `0.3.0` retention features: local inbound-link mapping now identifies orphan content and URLs with only one inbound internal link without expanding the SaaS sync payload.

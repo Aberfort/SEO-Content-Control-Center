@@ -4,7 +4,7 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,8 @@ The optional SEO Content Control Center platform connection can:
 * exchange a one-time connection challenge for a site-scoped connection;
 * sync bounded content metadata for posts and pages in paginated batches;
 * combine local evidence with Google Search Console traffic loss and opportunity data;
+* deep-link connected findings into matching platform Content and Audit views;
+* identify findings that can gain Search Console evidence and supported Yoast/Rank Math fields that can enter the safe-preview workflow;
 * prioritize work in a multi-site team backlog with audit history;
 * schedule recurring sync through Action Scheduler, with an hourly WP-Cron fallback;
 * show sanitized sync history in the WordPress admin;
@@ -99,6 +101,12 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.4.0 =
+
+* Added connected deep links from every local finding to matching platform Content and Audit views.
+* Added clear Search Console enrichment context for connected findings.
+* Added conservative safe-preview availability hints only for supported Yoast or Rank Math metadata fields.
 
 = 0.3.0 =
 

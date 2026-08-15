@@ -35,6 +35,7 @@ for required_entry in \
   "${archive_root}includes/LocalAuditSettings.php" \
   "${archive_root}includes/LocalAuditStore.php" \
   "${archive_root}includes/LocalAuditRunner.php" \
+  "${archive_root}includes/PlatformConversion.php" \
   "${archive_root}includes/SyncScheduler.php"; do
   if ! grep -Fqx "${required_entry}" <<< "${entries}"; then
     echo "Plugin archive is missing ${required_entry}" >&2

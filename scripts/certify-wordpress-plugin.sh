@@ -237,6 +237,25 @@ case "${connection_option}" in
   *) fail "Connection option does not contain the seeded site id." ;;
 esac
 
+log "Checking connected finding deep links and safe-operation eligibility."
+conversion_result="$(wp_cli eval '$connection = (new SCCC\Plugin\ConnectionStore())->get(); $audit = (new SCCC\Plugin\LocalAuditStore())->get(); $row = null; foreach ($audit["items"] as $item) { foreach ($item["findings"] as $finding) { if ("published-noindex" === $finding["code"]) { $row = array_merge($item, $finding); break 2; } } } echo wp_json_encode((new SCCC\Plugin\PlatformConversion())->describe($connection, $row), JSON_UNESCAPED_SLASHES);' | tr -d '\r')"
+
+case "${conversion_result}" in
+  *"${cert_endpoint}/content?site=${cert_site_id}"*) ;;
+  *) fail "Connected content deep link was not generated: ${conversion_result}" ;;
+esac
+
+case "${conversion_result}" in
+  *"${cert_endpoint}/audits?site=${cert_site_id}"*) ;;
+  *) fail "Connected audit deep link was not generated: ${conversion_result}" ;;
+esac
+
+case "${conversion_result}" in
+  *'"available":true'*) ;;
+  *) fail "Supported connected metadata did not expose safe preview eligibility: ${conversion_result}" ;;
+esac
+log "Connected finding links and bounded safe-operation hint are available."
+
 log "Checking recurring sync scheduling through the WP-Cron fallback."
 cron_hooks="$(wp_cli cron event list --fields=hook | tr -d '\r')"
 

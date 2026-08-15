@@ -20,7 +20,9 @@ final class AdminPage
     public function __construct(
         private readonly ?LocalAuditStore $auditStore = null,
         private readonly ?LocalAuditSettings $auditSettings = null,
-        private readonly ?LocalAuditRunner $auditRunner = null
+        private readonly ?LocalAuditRunner $auditRunner = null,
+        private readonly ?ConnectionStore $connectionStore = null,
+        private readonly ?PlatformConversion $platformConversion = null
     ) {
     }
 
@@ -313,6 +315,7 @@ final class AdminPage
     {
         $audit = $this->store()->get();
         $schedule = $this->runner()->getRecurringStatus();
+        $connection = $this->connectionStore()->get();
         ?>
         <section class="sccc-section" aria-labelledby="sccc-health-title">
             <div class="sccc-section-header">
@@ -350,15 +353,16 @@ final class AdminPage
                     <?php submit_button(__('Save schedule', 'seo-content-control-center'), 'secondary', 'submit', false); ?>
                 </form>
             </div>
-            <?php $this->renderAuditBody($audit); ?>
+            <?php $this->renderAuditBody($audit, $connection); ?>
         </section>
         <?php
     }
 
     /**
      * @param array<string,mixed>|null $audit
+     * @param array<string,mixed>|null $connection
      */
-    private function renderAuditBody(?array $audit): void
+    private function renderAuditBody(?array $audit, ?array $connection): void
     {
         if (null === $audit) {
             ?>
@@ -387,7 +391,35 @@ final class AdminPage
         $items = isset($audit['items']) && is_array($audit['items']) ? $audit['items'] : [];
         $this->renderSummary($summary, (int) ($audit['completed_at'] ?? 0));
         $this->renderChanges(is_array($audit['changes'] ?? null) ? $audit['changes'] : []);
-        $this->renderFindings($items);
+        $this->renderPlatformContext($connection);
+        $this->renderFindings($items, $connection);
+    }
+
+    /**
+     * @param array<string,mixed>|null $connection
+     */
+    private function renderPlatformContext(?array $connection): void
+    {
+        if (null === $connection) {
+            return;
+        }
+
+        $endpoint = rtrim((string) ($connection['endpoint'] ?? ''), '/');
+        $siteId = (string) ($connection['site_id'] ?? '');
+        $contentUrl = $endpoint . '/content?site=' . rawurlencode($siteId);
+        $auditsUrl = $endpoint . '/audits?site=' . rawurlencode($siteId);
+        ?>
+        <div class="sccc-platform-context">
+            <div>
+                <strong><?php echo esc_html__('Connected evidence', 'seo-content-control-center'); ?></strong>
+                <p><?php echo esc_html__('Findings marked GSC evidence can gain clicks, impressions, position, and traffic-change context after Search Console sync. Safe preview appears only for supported Yoast or Rank Math metadata fields.', 'seo-content-control-center'); ?></p>
+            </div>
+            <div class="sccc-inline-actions">
+                <a class="button" href="<?php echo esc_url($contentUrl); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Synced content', 'seo-content-control-center'); ?></a>
+                <a class="button" href="<?php echo esc_url($auditsUrl); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Platform audits', 'seo-content-control-center'); ?></a>
+            </div>
+        </div>
+        <?php
     }
 
     /**
@@ -463,8 +495,9 @@ final class AdminPage
 
     /**
      * @param array<int,mixed> $items
+     * @param array<string,mixed>|null $connection
      */
-    private function renderFindings(array $items): void
+    private function renderFindings(array $items, ?array $connection): void
     {
         $search = $this->readTextQuery('sccc_search');
         $severity = $this->readQueryValue('sccc_severity');
@@ -521,7 +554,7 @@ final class AdminPage
                         <tr><td colspan="5"><?php echo esc_html__('No findings match the current filters.', 'seo-content-control-center'); ?></td></tr>
                     <?php else : ?>
                         <?php foreach ($visible as $row) : ?>
-                            <?php $this->renderFindingRow($row); ?>
+                            <?php $this->renderFindingRow($row, $connection); ?>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
@@ -533,11 +566,13 @@ final class AdminPage
 
     /**
      * @param array<string,mixed> $row
+     * @param array<string,mixed>|null $connection
      */
-    private function renderFindingRow(array $row): void
+    private function renderFindingRow(array $row, ?array $connection): void
     {
         $postId = (int) ($row['post_id'] ?? 0);
         $editUrl = $postId > 0 ? get_edit_post_link($postId, 'raw') : '';
+        $platform = null !== $connection ? $this->conversion()->describe($connection, $row) : null;
         ?>
         <tr class="<?php echo true === ($row['ignored'] ?? false) ? 'sccc-finding-ignored' : ''; ?>">
             <td>
@@ -554,13 +589,33 @@ final class AdminPage
                 <?php endif; ?>
                 <div><?php echo esc_html((string) $row['label']); ?></div>
             </td>
-            <td><?php echo esc_html((string) $row['evidence']); ?></td>
+            <td>
+                <?php echo esc_html((string) $row['evidence']); ?>
+                <?php if (is_array($platform) && true === $platform['gsc_enrichable']) : ?>
+                    <span class="sccc-evidence-hint"><?php echo esc_html__('GSC evidence', 'seo-content-control-center'); ?></span>
+                <?php endif; ?>
+                <?php if (is_array($platform) && true === $platform['safe_operation']['available']) : ?>
+                    <span class="sccc-safe-hint">
+                        <?php
+                        printf(
+                            /* translators: %s: supported metadata field. */
+                            esc_html__('Safe preview: %s', 'seo-content-control-center'),
+                            esc_html((string) $platform['safe_operation']['field'])
+                        );
+                        ?>
+                    </span>
+                <?php endif; ?>
+            </td>
             <td><?php echo esc_html($this->formatIsoDate((string) ($row['modified_at'] ?? ''))); ?></td>
             <td class="sccc-row-actions">
                 <?php if (is_string($editUrl) && '' !== $editUrl) : ?>
                     <a href="<?php echo esc_url($editUrl); ?>"><?php echo esc_html__('Edit', 'seo-content-control-center'); ?></a>
                 <?php endif; ?>
                 <a href="<?php echo esc_url((string) ($row['url'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('View', 'seo-content-control-center'); ?></a>
+                <?php if (is_array($platform)) : ?>
+                    <a href="<?php echo esc_url($platform['content_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Content', 'seo-content-control-center'); ?></a>
+                    <a href="<?php echo esc_url($platform['audit_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Audit', 'seo-content-control-center'); ?></a>
+                <?php endif; ?>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="sccc_update_finding_rule" />
                     <input type="hidden" name="sccc_fingerprint" value="<?php echo esc_attr((string) ($row['fingerprint'] ?? '')); ?>" />
@@ -575,7 +630,7 @@ final class AdminPage
 
     private function renderPlatform(): void
     {
-        $store = new ConnectionStore();
+        $store = $this->connectionStore();
         $connection = $store->get();
         $syncLogStore = new SyncLogStore();
         $syncLogs = $syncLogStore->all();
@@ -838,6 +893,16 @@ final class AdminPage
             new LocalLinkGraph(),
             $this->settings()
         );
+    }
+
+    private function connectionStore(): ConnectionStore
+    {
+        return $this->connectionStore ?? new ConnectionStore();
+    }
+
+    private function conversion(): PlatformConversion
+    {
+        return $this->platformConversion ?? new PlatformConversion();
     }
 
     private function formatTimestamp(int $timestamp): string

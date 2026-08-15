@@ -293,6 +293,7 @@ require_once __DIR__ . '/../includes/LocalLinkGraph.php';
 require_once __DIR__ . '/../includes/LocalAuditSettings.php';
 require_once __DIR__ . '/../includes/LocalAuditStore.php';
 require_once __DIR__ . '/../includes/LocalAuditRunner.php';
+require_once __DIR__ . '/../includes/PlatformConversion.php';
 require_once __DIR__ . '/../includes/AdminPage.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
@@ -439,6 +440,49 @@ $local_audit_settings->setInterval('daily');
 
 if ('daily' !== $local_audit_settings->get()['interval']) {
     fwrite(STDERR, "LocalAuditSettings interval failed.\n");
+    exit(1);
+}
+
+$platform_conversion = new SCCC\Plugin\PlatformConversion();
+$platform_details = $platform_conversion->describe(
+    [
+        'site_id' => '22222222-2222-4222-8222-222222222222',
+        'endpoint' => 'https://app.example.com/',
+    ],
+    [
+        'external_id' => 'post:123',
+        'url' => 'https://wp.example.com/a page/',
+        'code' => 'meta-description-missing',
+        'seo_plugin' => 'yoast',
+    ]
+);
+
+if (
+    'https://app.example.com/content?site=22222222-2222-4222-8222-222222222222&q=post%3A123' !== $platform_details['content_url']
+    || 'https://app.example.com/audits?site=22222222-2222-4222-8222-222222222222&auditIssueQ=https%3A%2F%2Fwp.example.com%2Fa%20page%2F' !== $platform_details['audit_url']
+    || true !== $platform_details['gsc_enrichable']
+    || true !== $platform_details['safe_operation']['available']
+    || 'meta description' !== $platform_details['safe_operation']['field']
+) {
+    fwrite(STDERR, "PlatformConversion connected metadata description failed.\n");
+    exit(1);
+}
+
+$fallback_details = $platform_conversion->describe(
+    [
+        'site_id' => '22222222-2222-4222-8222-222222222222',
+        'endpoint' => 'https://app.example.com',
+    ],
+    [
+        'external_id' => 'post:123',
+        'url' => 'https://wp.example.com/page/',
+        'code' => 'meta-description-missing',
+        'seo_plugin' => 'fallback',
+    ]
+);
+
+if (true === $fallback_details['safe_operation']['available']) {
+    fwrite(STDERR, "PlatformConversion exposed an unsupported fallback metadata operation.\n");
     exit(1);
 }
 
@@ -828,7 +872,11 @@ $local_audit_settings->setInterval('off');
 $local_audit_runner->run();
 $runner_audit = $local_audit_store->get();
 
-if ('complete' !== ($runner_audit['status'] ?? null) || 5 !== ($runner_audit['summary']['total_urls'] ?? null)) {
+if (
+    'complete' !== ($runner_audit['status'] ?? null)
+    || 5 !== ($runner_audit['summary']['total_urls'] ?? null)
+    || 'fallback' !== ($runner_audit['items'][0]['seo_plugin'] ?? null)
+) {
     fwrite(STDERR, "LocalAuditRunner did not persist a complete paginated audit.\n");
     exit(1);
 }

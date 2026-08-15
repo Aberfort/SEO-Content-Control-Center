@@ -100,6 +100,7 @@ final class LocalAuditRunner
                         'title' => $item['title'],
                         'status' => $item['status'],
                         'modified_at' => $item['modifiedAt'],
+                        'seo_plugin' => (string) ($item['metadata']['seoPlugin'] ?? 'fallback'),
                         'outbound_urls' => $this->outboundUrls($item),
                         'findings' => $this->engine->inspect($item),
                     ];

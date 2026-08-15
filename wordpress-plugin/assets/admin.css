@@ -130,6 +130,28 @@
   color: #1d2327;
 }
 
+.sccc-platform-context {
+  align-items: center;
+  background: #edf7f1;
+  border: 1px solid #b8dcc2;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 14px 16px;
+}
+
+.sccc-platform-context p {
+  color: #3c434a;
+  margin: 4px 0 0;
+  max-width: 820px;
+}
+
+.sccc-platform-context .sccc-inline-actions {
+  flex-wrap: wrap;
+  margin: 0;
+}
+
 .sccc-resolved-findings {
   margin-top: 12px;
 }
@@ -261,6 +283,22 @@
   color: #3c434a;
 }
 
+.sccc-evidence-hint,
+.sccc-safe-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.sccc-evidence-hint {
+  color: #135e96;
+}
+
+.sccc-safe-hint {
+  color: #006b1b;
+}
+
 .sccc-finding-ignored td {
   color: #646970;
 }
@@ -310,9 +348,14 @@
 
   .sccc-section-header,
   .sccc-results-header,
-  .sccc-audit-schedule {
+  .sccc-audit-schedule,
+  .sccc-platform-context {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .sccc-platform-context .sccc-inline-actions {
+    justify-content: flex-start;
   }
 
   .sccc-audit-schedule form {

@@ -197,7 +197,7 @@ typical site and require zero configuration.
 3. Show changes since the previous scan without turning history into an unlimited local database.
 4. Add dismiss/ignore rules for intentional findings.
 
-### Release C: platform conversion
+### Release C: platform conversion (implemented in Iteration 122)
 
 1. Deep-link local findings into the matching connected content/audit view.
 2. Explain which findings gain Search Console evidence after connection.

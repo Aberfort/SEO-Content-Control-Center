@@ -56,6 +56,8 @@
 - Empty dashboard states do not pretend audits or integrations are connected.
 - Onboarding checklist reflects workspace, site, plugin connection, synced content, audit, and backlog setup progress.
 - Plugin API documentation covers challenge exchange, signed sync, signed disconnect, metadata bounds, and error codes.
+- Connected local findings link to the selected site's filtered Content and latest Audit views without including connection tokens.
+- Search Console enrichment markers appear only after connection, and safe-preview hints appear only for supported Yoast/Rank Math metadata findings.
 
 ## Database
 

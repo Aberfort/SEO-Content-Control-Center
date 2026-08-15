@@ -25,8 +25,8 @@ The command performs:
 
 The matrix installs the exact built zip into disposable WordPress containers and
 checks activation, installed version, standalone local audit findings, recurring
-local audit and connected sync through the WP-Cron fallback, REST route registration, seeded connection
-storage, signed safe-operation
+local audit and connected sync through the WP-Cron fallback, connected finding deep links and
+bounded safe-preview eligibility, REST route registration, seeded connection storage, signed safe-operation
 apply writes, tampered-signature rejection, deactivation cleanup, and clean
 delete.
 

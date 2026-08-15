@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 121)
+## Поточний стан (після Iteration 122)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -66,6 +66,7 @@
 - Iteration 119 SaaS information architecture redesign реалізована: монолітний dashboard розділено на реальні маршрути Overview, Sites, Content, Audits, Backlog і Settings; Overview перебудовано у затверджений Action Queue, active site зберігається між сторінками, а compact mobile top menu і green-led semantic palette роблять робочий простір щільним, але читабельним.
 - Iteration 120 WordPress plugin standalone value реалізована: plugin `0.2.0` отримав no-account local Content Health Audit із deterministic checks, bounded background batches, latest-result persistence, summary/filters/edit-view/CSV UI, Dashboard widget і Site Health test; optional SaaS connection перенесено у secondary Platform tab, admin assets включено в zip, а PHP harness тепер реально виконує старі та нові smoke-тести після виправлення `ABSPATH` setup.
 - Iteration 121 WordPress plugin retention реалізована: plugin `0.3.0` отримав local inbound-link graph з orphan/weak-link findings, bounded latest-versus-previous comparison, inline ignore/restore rules, active/ignored і change filters, state-aware CSV та opt-in daily/weekly audit schedule через Action Scheduler або WP-Cron без розширення SaaS sync payload.
+- Iteration 122 WordPress plugin platform conversion реалізована: plugin `0.4.0` deep-link-ить connected local findings у site-scoped Content/Audit views, пояснює Search Console enrichment і показує safe-preview eligibility лише для підтримуваних Yoast/Rank Math metadata fields без розширення sync payload.
 
 ## Черга ітерацій
 
@@ -73,7 +74,7 @@
 
 Наступний крок не є кодовою ітерацією без реального середовища: виконати operational launch cutover за існуючими runbooks (`docs/PRODUCTION_ENV.md`, `docs/STAGING_REHEARSAL.md`, `docs/SERVER_SMOKE_ROLLBACK.md`, `docs/FINAL_PLUGIN_RELEASE_CERTIFICATION.md`, `docs/LAUNCH_RUNBOOK_STEP_BY_STEP.md`) з production DNS/SSL/CDN, production secrets, worker process, uptime monitors, first real plugin install, demo/trial checks і post-launch watch window.
 
-Наступна погоджена кодова ітерація для WordPress-плагіна, якщо operational cutover ще не має реального середовища: Release C platform conversion — deep links з локальних findings у відповідний connected content/audit view, пояснення Search Console enrichment і видимість safe-operation availability лише для підтримуваних connected metadata fields.
+Погоджена кодова черга WordPress-плагіна (Release A/B/C) завершена. Нових кодових ітерацій у затвердженому плані немає; наступні зміни мають виходити з operational launch evidence, WordPress.org review feedback або окремо погодженого tech-debt/product scope.
 
 Відомий tech debt поза launch gate: `apps/saas/src/app/page.tsx` ~2900 рядків — розбити на компоненти; dev-store не персистить synced content; детекція видаленого контенту в plugin sync (cleanup за `lastSeenAt`); WordPress-конекшени без encrypted token потребують reconnect для worker apply; Phase 6 deeper operator guidance для partial/non-restorable failures; SSO for Enterprise; security review checklist for Enterprise; публічний API під план-ліміт `apiAccess`.
 
