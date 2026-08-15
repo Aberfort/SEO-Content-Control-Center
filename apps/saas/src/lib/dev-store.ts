@@ -47,6 +47,7 @@ import {
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type ClientReportQuery,
+  type ContentTrustEvidence,
   type DeliveryPreferenceUpdateInput,
   type InviteMemberInput,
   type NotificationListQuery,
@@ -129,6 +130,7 @@ import {
 } from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildSiteDeliverableSummary } from "./deliverable-summary";
+import { buildContentTrustEvidence } from "./content-trust-evidence";
 import {
   buildSafeOperationBatchPreview,
   buildBulkOperationDryRunPreviewResult,
@@ -1426,6 +1428,21 @@ export function getSyncedContentItem(
   });
 
   return null;
+}
+
+export function getContentTrustEvidence(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  contentItemId: string
+): ContentTrustEvidence | null {
+  const item = getSyncedContentItem(userId, organizationId, siteId, contentItemId);
+  if (!item) return null;
+
+  return buildContentTrustEvidence({
+    item,
+    planCode: getActiveDevSubscription(organizationId)?.plan.code ?? "TRIAL"
+  });
 }
 
 export function listAssistantRecommendationsForSite(

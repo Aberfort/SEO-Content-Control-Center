@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { hasPermission } from "@sccc/shared";
+import { hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
 
 import {
   confirmBulkOperationAction,
@@ -53,6 +53,7 @@ import { PluginChallengeForm } from "@/components/plugin-challenge-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { buildContentTrustBacklogCandidates } from "@/lib/content-trust-evidence";
 import {
   buildSyncedContentBacklogCandidates,
   buildSyncedContentHealthSignals
@@ -371,8 +372,22 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
   const selectedContentHealthSignals = selectedContentItem
     ? buildSyncedContentHealthSignals(selectedContentItem)
     : [];
+  const selectedContentTrustEvidence =
+    activeOrganization && activeSite && selectedContentItem
+      ? await repository.getContentTrustEvidence(
+          user.id,
+          activeOrganization.id,
+          activeSite.id,
+          selectedContentItem.id
+        )
+      : null;
   const selectedContentBacklogCandidates = selectedContentItem
-    ? buildSyncedContentBacklogCandidates(selectedContentItem, selectedContentHealthSignals)
+    ? [
+        ...buildSyncedContentBacklogCandidates(selectedContentItem, selectedContentHealthSignals),
+        ...(selectedContentTrustEvidence
+          ? buildContentTrustBacklogCandidates(selectedContentTrustEvidence)
+          : [])
+      ]
     : [];
   const latestActivity = activeOrganization?.activityLogs.slice(0, 5) ?? [];
   const latestNotifications = activeOrganization
@@ -1330,6 +1345,127 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               <dd>{formatDateTime(selectedContentItem.lastSeenAt)}</dd>
                             </div>
                           </dl>
+
+                          {selectedContentTrustEvidence ? (
+                            <section
+                              className="content-trust-evidence"
+                              aria-labelledby="content-trust-title"
+                            >
+                              <div className="trust-evidence-heading">
+                                <div>
+                                  <h4 id="content-trust-title">Content Trust Evidence</h4>
+                                  <p>Observable evidence organized around E-E-A-T review.</p>
+                                </div>
+                                <span className="trust-method-badge">Not a score</span>
+                              </div>
+
+                              {selectedContentTrustEvidence.access.allowed ? (
+                                <>
+                                  <div
+                                    className="trust-evidence-summary"
+                                    aria-label="Evidence status summary"
+                                  >
+                                    {(
+                                      [
+                                        "present",
+                                        "missing",
+                                        "insufficient",
+                                        "human_review"
+                                      ] as const
+                                    ).map((status) => (
+                                      <span
+                                        className={`trust-status trust-status-${status}`}
+                                        key={status}
+                                      >
+                                        <strong>
+                                          {selectedContentTrustEvidence.summary[status]}
+                                        </strong>
+                                        {formatContentTrustStatus(status)}
+                                      </span>
+                                    ))}
+                                  </div>
+
+                                  <div className="trust-dimensions">
+                                    {selectedContentTrustEvidence.dimensions.map((dimension) => (
+                                      <section key={dimension.dimension}>
+                                        <header>
+                                          <div>
+                                            <h5>{dimension.label}</h5>
+                                            <p>{dimension.description}</p>
+                                          </div>
+                                          <span>
+                                            {dimension.counts.missing +
+                                              dimension.counts.insufficient +
+                                              dimension.counts.human_review}{" "}
+                                            to review
+                                          </span>
+                                        </header>
+                                        <div className="trust-signal-list">
+                                          {dimension.signals.map((signal) => (
+                                            <article key={signal.id}>
+                                              <div className="trust-signal-title">
+                                                <strong>{signal.label}</strong>
+                                                <span
+                                                  className={`trust-status trust-status-${signal.status}`}
+                                                >
+                                                  {formatContentTrustStatus(signal.status)}
+                                                </span>
+                                              </div>
+                                              <p>{signal.evidence}</p>
+                                              {signal.recommendation ? (
+                                                <p className="trust-recommendation">
+                                                  {signal.recommendation}
+                                                </p>
+                                              ) : null}
+                                              {signal.sourceFields.length > 0 ? (
+                                                <span className="trust-source">
+                                                  Source: {signal.sourceFields.join(", ")}
+                                                </span>
+                                              ) : (
+                                                <span className="trust-source">
+                                                  Source: human review required
+                                                </span>
+                                              )}
+                                            </article>
+                                          ))}
+                                        </div>
+                                      </section>
+                                    ))}
+                                  </div>
+
+                                  <details className="trust-methodology">
+                                    <summary>
+                                      {selectedContentTrustEvidence.methodology.title}
+                                    </summary>
+                                    <ul>
+                                      {selectedContentTrustEvidence.methodology.statements.map(
+                                        (statement) => (
+                                          <li key={statement}>{statement}</li>
+                                        )
+                                      )}
+                                    </ul>
+                                    <a
+                                      href={selectedContentTrustEvidence.methodology.guidanceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      Read the Google Search Central guidance
+                                    </a>
+                                  </details>
+                                </>
+                              ) : (
+                                <div className="trust-locked-state">
+                                  <div>
+                                    <strong>Available on Starter and higher</strong>
+                                    <p>{selectedContentTrustEvidence.access.reason}</p>
+                                  </div>
+                                  <Link className="secondary-button" href="/settings#billing-title">
+                                    View plans
+                                  </Link>
+                                </div>
+                              )}
+                            </section>
+                          ) : null}
 
                           <div className="health-signal-list" aria-label="Content health signals">
                             {selectedContentHealthSignals.map((signal) => (
@@ -3356,6 +3492,11 @@ function formatTaxonomies(metadata: SyncedContentMetadata): string {
   return taxonomies
     .map((taxonomy) => `${taxonomy.taxonomy}: ${taxonomy.terms.join(", ")}`)
     .join("; ");
+}
+
+function formatContentTrustStatus(status: ContentTrustEvidenceStatus): string {
+  if (status === "human_review") return "Human review";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function formatDateTime(value: string): string {

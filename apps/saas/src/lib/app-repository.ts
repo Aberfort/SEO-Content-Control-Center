@@ -52,6 +52,7 @@ import {
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type ClientReportQuery,
+  type ContentTrustEvidence,
   type DeliveryPreferenceUpdateInput,
   type InviteMemberInput,
   type NotificationListQuery,
@@ -76,6 +77,7 @@ import {
   createSite as createDevSite,
   getGscConnectionSecretForSite as getDevGscConnectionSecretForSite,
   getSyncedContentItem as getDevSyncedContentItem,
+  getContentTrustEvidence as getDevContentTrustEvidence,
   getGscConnectionOverviewForSite as getDevGscConnectionOverviewForSite,
   getOrganizationSummary as getDevOrganizationSummary,
   inviteMember as inviteDevMember,
@@ -186,6 +188,10 @@ import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./bi
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
 import { buildSiteDeliverableSummary } from "./deliverable-summary";
 import {
+  buildContentTrustBacklogCandidates,
+  buildContentTrustEvidence
+} from "./content-trust-evidence";
+import {
   buildBulkOperationDryRunPreviewResult,
   buildSafeOperationBatchPreview,
   buildSafeOperationPreview,
@@ -245,6 +251,7 @@ import type {
   OrganizationMemberSummary,
   OrganizationSummary,
   Site,
+  SyncedContentBacklogCandidate,
   SyncedContentList,
   SyncedContentListOptions,
   SyncedContentItem,
@@ -513,6 +520,12 @@ type AppRepository = {
     siteId: string,
     contentItemId: string
   ): Promise<SyncedContentItem | null>;
+  getContentTrustEvidence(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    contentItemId: string
+  ): Promise<ContentTrustEvidence | null>;
   createBacklogTaskFromCandidate(input: CreateBacklogTaskFromCandidateInput): Promise<BacklogTask>;
   createBacklogTaskFromAuditIssue(
     input: CreateBacklogTaskFromAuditIssueWithUser
@@ -670,6 +683,9 @@ const devStoreRepository: AppRepository = {
   },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
+  },
+  async getContentTrustEvidence(userId, organizationId, siteId, contentItemId) {
+    return getDevContentTrustEvidence(userId, organizationId, siteId, contentItemId);
   },
   async createBacklogTaskFromCandidate(input) {
     return createDevBacklogTaskFromCandidate(input);
@@ -2813,6 +2829,40 @@ const prismaRepository: AppRepository = {
     return item ? mapSyncedContentItem(item) : null;
   },
 
+  async getContentTrustEvidence(userId, organizationId, siteId, contentItemId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "site:read"
+    });
+
+    const [item, subscription] = await prisma.$transaction([
+      prisma.syncedContentItem.findFirst({
+        where: {
+          id: contentItemId,
+          organizationId,
+          siteId,
+          site: { organizationId }
+        }
+      }),
+      prisma.subscription.findFirst({
+        where: {
+          organizationId,
+          status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"] }
+        },
+        include: { plan: true },
+        orderBy: { updatedAt: "desc" }
+      })
+    ]);
+
+    if (!item) return null;
+
+    return buildContentTrustEvidence({
+      item: mapSyncedContentItem(item),
+      planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL"
+    });
+  },
+
   async createBacklogTaskFromCandidate(input) {
     const parsed = backlogTaskFromCandidateSchema.parse(input);
     await requireDbOrganizationAccess({
@@ -2841,11 +2891,15 @@ const prismaRepository: AppRepository = {
     const healthCandidate = buildSyncedContentBacklogCandidates(syncedItem, healthSignals).find(
       (backlogCandidate) => backlogCandidate.id === parsed.candidateId
     );
-    const gscCandidate = healthCandidate
+    const trustCandidate = healthCandidate
       ? null
-      : await findDbGscOpportunityCandidate(parsed.siteId, syncedItem, parsed.candidateId);
+      : await findDbContentTrustCandidate(parsed.organizationId, syncedItem, parsed.candidateId);
+    const gscCandidate =
+      healthCandidate || trustCandidate
+        ? null
+        : await findDbGscOpportunityCandidate(parsed.siteId, syncedItem, parsed.candidateId);
 
-    if (!healthCandidate && !gscCandidate) {
+    if (!healthCandidate && !trustCandidate && !gscCandidate) {
       throw new Error("BACKLOG_CANDIDATE_NOT_FOUND");
     }
 
@@ -2860,16 +2914,27 @@ const prismaRepository: AppRepository = {
             sourceSignalId: healthCandidate.sourceSignalId
           }
         }
-      : {
-          issueType: `gsc.${gscCandidate!.type}`,
-          title: gscCandidate!.title,
-          priority: gscCandidate!.priority,
-          rationale: gscCandidate!.rationale,
-          tags: ["gsc", gscCandidate!.type],
-          logMetadata: {
-            sourceType: gscCandidate!.type
+      : trustCandidate
+        ? {
+            issueType: trustCandidate.sourceSignalId,
+            title: trustCandidate.title,
+            priority: trustCandidate.priority,
+            rationale: trustCandidate.rationale,
+            tags: ["content-trust", trustCandidate.sourceSignalId],
+            logMetadata: {
+              sourceSignalId: trustCandidate.sourceSignalId
+            }
           }
-        };
+        : {
+            issueType: `gsc.${gscCandidate!.type}`,
+            title: gscCandidate!.title,
+            priority: gscCandidate!.priority,
+            rationale: gscCandidate!.rationale,
+            tags: ["gsc", gscCandidate!.type],
+            logMetadata: {
+              sourceType: gscCandidate!.type
+            }
+          };
     const task = await prisma.$transaction(async (tx) => {
       const existing = await tx.backlogTask.findFirst({
         where: {
@@ -5502,6 +5567,37 @@ async function findDbGscOpportunityCandidate(
 
   return (
     buildGscOpportunityBacklogCandidates(matched).find(
+      (candidate) => candidate.id === candidateId
+    ) ?? null
+  );
+}
+
+async function findDbContentTrustCandidate(
+  organizationId: string,
+  item: SyncedContentItem,
+  candidateId: string
+): Promise<SyncedContentBacklogCandidate | null> {
+  if (!candidateId.startsWith("content-trust:")) return null;
+
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      organizationId,
+      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"] }
+    },
+    include: { plan: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  const evidence = buildContentTrustEvidence({
+    item,
+    planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL"
+  });
+
+  if (!evidence.access.allowed) {
+    throw new Error("CONTENT_TRUST_REQUIRES_PAID_PLAN");
+  }
+
+  return (
+    buildContentTrustBacklogCandidates(evidence).find(
       (candidate) => candidate.id === candidateId
     ) ?? null
   );

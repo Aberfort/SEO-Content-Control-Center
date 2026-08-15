@@ -37,12 +37,19 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const healthSignals = buildSyncedContentHealthSignals(item);
+    const contentTrustEvidence = await repository.getContentTrustEvidence(
+      user.id,
+      organizationId,
+      siteId,
+      contentItemId
+    );
 
     return Response.json({
       data: {
         ...item,
         healthSignals,
-        backlogCandidates: buildSyncedContentBacklogCandidates(item, healthSignals)
+        backlogCandidates: buildSyncedContentBacklogCandidates(item, healthSignals),
+        contentTrustEvidence
       }
     });
   } catch (error) {

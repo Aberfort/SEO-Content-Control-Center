@@ -116,6 +116,14 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(404, "BACKLOG_CANDIDATE_NOT_FOUND", "Backlog candidate was not found.");
     }
 
+    if (error instanceof Error && error.message === "CONTENT_TRUST_REQUIRES_PAID_PLAN") {
+      return jsonError(
+        403,
+        "CONTENT_TRUST_REQUIRES_PAID_PLAN",
+        "Content Trust Evidence tasks require Starter or a higher plan."
+      );
+    }
+
     if (error instanceof Error && error.message === "AUDIT_NOT_FOUND") {
       return jsonError(404, "AUDIT_NOT_FOUND", "Audit was not found.");
     }

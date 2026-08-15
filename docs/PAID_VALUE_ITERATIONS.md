@@ -54,6 +54,8 @@ Status: implemented.
 
 ## Iteration 127 - Content Trust Evidence
 
+Status: implemented.
+
 This is a paid platform-only capability. It is informed by Google's E-E-A-T guidance but is not a
 Google score, ranking factor score, or ranking guarantee. Google explicitly says E-E-A-T itself is
 not a specific ranking factor and describes trust as the most important part of the concept.
@@ -74,6 +76,17 @@ higher paid plans can receive deterministic evidence checks; AI-assisted narrati
 uses plan AI credits and never substitutes for the underlying evidence.
 
 Primary guidance: [Google Search Central: Creating helpful, reliable, people-first content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content).
+
+Implemented behavior:
+
+- Starter and higher plans receive deterministic evidence checks from persisted WordPress inventory;
+  Trial receives a locked state without detailed evidence.
+- Every signal exposes its source fields, status, evidence, and recommended human action. No
+  universal score is calculated.
+- Missing, insufficient, and human-review signals can be turned into tenant-scoped backlog tasks;
+  the server recomputes plan access and evidence before accepting a candidate.
+- Trust review includes secure delivery, dates, canonical identity, source transparency,
+  ownership/contact clarity, and heightened-risk topic review.
 
 ## Iteration 128 - Commercial Enforcement
 

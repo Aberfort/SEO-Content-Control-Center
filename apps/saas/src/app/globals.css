@@ -1244,6 +1244,221 @@ th {
   margin-top: 16px;
 }
 
+.content-trust-evidence {
+  border-top: 1px solid var(--border);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+
+.trust-evidence-heading {
+  align-items: start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.trust-evidence-heading h4 {
+  font-size: 15px;
+  line-height: 1.35;
+  margin: 0 0 4px;
+}
+
+.trust-evidence-heading p,
+.trust-locked-state p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.trust-method-badge {
+  background: #eef4ff;
+  border: 1px solid #c7d7fe;
+  border-radius: 999px;
+  color: #3538cd;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
+.trust-evidence-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.trust-status {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 5px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.trust-status-present {
+  background: #eaf6ef;
+  border-color: #c7e4d2;
+  color: #22633f;
+}
+
+.trust-status-missing {
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: #b42318;
+}
+
+.trust-status-insufficient {
+  background: #fffaeb;
+  border-color: #fedf89;
+  color: #8a4b08;
+}
+
+.trust-status-human_review {
+  background: #e8f4fb;
+  border-color: #bfdeef;
+  color: #1d6088;
+}
+
+.trust-dimensions {
+  border-bottom: 1px solid var(--border);
+  margin-top: 16px;
+}
+
+.trust-dimensions > section {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
+  padding: 16px 0;
+}
+
+.trust-dimensions > section > header {
+  align-content: start;
+  display: grid;
+  gap: 8px;
+}
+
+.trust-dimensions h5 {
+  font-size: 14px;
+  line-height: 1.35;
+  margin: 0 0 4px;
+}
+
+.trust-dimensions header p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 34ch;
+}
+
+.trust-dimensions header > span {
+  color: #344054;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.trust-signal-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.trust-signal-list article {
+  padding: 11px 12px;
+}
+
+.trust-signal-list article + article {
+  border-top: 1px solid var(--border);
+}
+
+.trust-signal-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.trust-signal-title strong {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.trust-signal-list article > p {
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.trust-signal-list article > p.trust-recommendation {
+  color: var(--foreground);
+  font-weight: 650;
+}
+
+.trust-source {
+  color: #667085;
+  display: block;
+  font:
+    10px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+
+.trust-methodology {
+  margin-top: 14px;
+}
+
+.trust-methodology summary {
+  color: #344054;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.trust-methodology ul {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.trust-methodology a {
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.trust-locked-state {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.trust-locked-state strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
 .health-signal-list {
   display: grid;
   gap: 10px;
@@ -2673,6 +2888,19 @@ th {
   .assistant-action {
     align-items: flex-start;
     justify-items: start;
+  }
+
+  .trust-dimensions > section {
+    grid-template-columns: 1fr;
+  }
+
+  .trust-dimensions header p {
+    max-width: 65ch;
+  }
+
+  .trust-locked-state {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .bulk-review-toolbar {
