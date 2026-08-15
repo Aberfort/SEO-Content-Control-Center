@@ -7,7 +7,7 @@ import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
-import { jsonError, unauthorizedError, validationError } from "@/lib/http";
+import { commercialAccessError, jsonError, unauthorizedError, validationError } from "@/lib/http";
 
 type RouteContext = { params: Promise<{ organizationId: string }> };
 
@@ -41,6 +41,8 @@ export async function GET(request: Request, context: RouteContext) {
     });
   } catch (error) {
     if (error instanceof ZodError) return validationError(error);
+    const commercialResponse = commercialAccessError(error);
+    if (commercialResponse) return commercialResponse;
     return jsonError(404, "REPORT_SCOPE_NOT_FOUND", "Report scope was not found.");
   }
 }

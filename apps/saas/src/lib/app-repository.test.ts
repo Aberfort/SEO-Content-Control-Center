@@ -47,7 +47,7 @@ describe("app repository", () => {
       action: {
         type: "gsc_oauth",
         enabled: false,
-        disabledReason: "Google Search Console OAuth is not configured.",
+        disabledReason: "Google Search Console impact is available on paid plans.",
         noMutation: true
       }
     });
@@ -56,10 +56,10 @@ describe("app repository", () => {
       repository.getGscConnectionOverviewForSite(user.id, organization.id, siteId)
     ).resolves.toMatchObject({
       action: {
-        enabled: true,
-        href: `/api/organizations/${organization.id}/sites/${siteId}/gsc/oauth/start?propertyUrl=https%3A%2F%2Frepository.example.com%2F`,
-        disabledReason: null,
-        noMutation: false
+        enabled: false,
+        href: null,
+        disabledReason: "Google Search Console impact is available on paid plans.",
+        noMutation: true
       }
     });
     const connection = await repository.upsertGscConnection({
@@ -256,8 +256,7 @@ describe("app repository", () => {
         sites: 1,
         urlsPerSite: 500,
         users: 2,
-        aiCredits: 0,
-        apiAccess: false
+        aiCredits: 0
       }
     });
     expect(billingOverview.plans.map((plan) => plan.code)).toEqual([

@@ -8,6 +8,8 @@ import {
   pluginConnectionDisconnectSchema,
   pluginConnectionExchangeSchema,
   pluginSyncBatchSchema,
+  planCodes,
+  resolveCommercialAccess,
   signPluginRequest,
   type PluginConnectionChallengeCreateInput,
   type PluginConnectionDisconnectInput,
@@ -328,6 +330,44 @@ export async function acceptPluginSyncBatch(input: {
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
+    const [subscription, existingCount, existingBatchItems] = await Promise.all([
+      tx.subscription.findFirst({
+        where: {
+          organizationId: parsed.organizationId,
+          status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
+        },
+        include: { plan: true },
+        orderBy: { updatedAt: "desc" }
+      }),
+      tx.syncedContentItem.count({ where: { siteId: parsed.siteId } }),
+      tx.syncedContentItem.findMany({
+        where: {
+          siteId: parsed.siteId,
+          externalId: { in: parsed.items.map((item) => item.externalId) }
+        },
+        select: { externalId: true }
+      })
+    ]);
+    const rawPlanCode = subscription?.plan.code ?? "TRIAL";
+    const planCode = planCodes.includes(rawPlanCode as (typeof planCodes)[number])
+      ? (rawPlanCode as (typeof planCodes)[number])
+      : "TRIAL";
+    const access = resolveCommercialAccess({
+      planCode,
+      status: subscription?.status,
+      provider: subscription?.provider,
+      trialEndsAt: subscription?.trialEndsAt
+    });
+
+    if (access.mode === "read_only") throw new Error("BILLING_READ_ONLY");
+
+    assertSyncedUrlCapacity({
+      existingCount,
+      existingExternalIds: existingBatchItems.map((item) => item.externalId),
+      incomingExternalIds: parsed.items.map((item) => item.externalId),
+      limit: access.limits.urlsPerSite
+    });
+
     for (const item of parsed.items) {
       const existing = Object.hasOwn(item.metadata, "localFindings")
         ? null
@@ -393,6 +433,24 @@ export async function acceptPluginSyncBatch(input: {
     accepted: parsed.items.length,
     cursor: parsed.cursor
   };
+}
+
+export function assertSyncedUrlCapacity(input: {
+  existingCount: number;
+  existingExternalIds: string[];
+  incomingExternalIds: string[];
+  limit: number | "custom";
+}): void {
+  if (input.limit === "custom") return;
+
+  const existingExternalIds = new Set(input.existingExternalIds);
+  const incomingNewItems = new Set(
+    input.incomingExternalIds.filter((externalId) => !existingExternalIds.has(externalId))
+  ).size;
+
+  if (input.existingCount + incomingNewItems > input.limit) {
+    throw new Error("PLAN_URL_LIMIT_REACHED");
+  }
 }
 
 function toPrismaJson(value: unknown): Prisma.InputJsonValue {

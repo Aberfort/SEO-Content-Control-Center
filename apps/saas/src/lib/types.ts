@@ -1,4 +1,10 @@
-import type { PlanCode, PlanLimits, Role, WorkspaceDeliverableSummary } from "@sccc/shared";
+import type {
+  CommercialAccess,
+  PlanCode,
+  PlanLimits,
+  Role,
+  WorkspaceDeliverableSummary
+} from "@sccc/shared";
 
 export type AppUser = {
   id: string;
@@ -156,6 +162,7 @@ export type BillingOverview = {
   currentPlan: BillingPlan;
   subscription: BillingSubscription | null;
   isFallbackTrial: boolean;
+  commercialAccess: CommercialAccess;
   featureGates: BillingFeatureGate[];
   actions: {
     checkout: BillingAction[];

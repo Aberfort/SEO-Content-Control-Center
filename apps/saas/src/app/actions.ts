@@ -1008,6 +1008,24 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "BILLING_READ_ONLY") {
+    return {
+      ok: false,
+      message: "Billing access is read-only. Upgrade or restore the subscription to continue."
+    };
+  }
+
+  if (
+    error instanceof Error &&
+    error.message.startsWith("PLAN_") &&
+    error.message.endsWith("_REQUIRED")
+  ) {
+    return {
+      ok: false,
+      message: "This feature requires a paid plan upgrade."
+    };
+  }
+
   if (error instanceof Error && error.message === "MEMBER_ALREADY_EXISTS") {
     return {
       ok: false,

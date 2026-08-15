@@ -51,6 +51,22 @@ export async function POST(request: Request) {
       return jsonError(403, "PLUGIN_SYNC_SCOPE_MISMATCH", "Plugin sync scope does not match.");
     }
 
+    if (error instanceof Error && error.message === "BILLING_READ_ONLY") {
+      return jsonError(
+        402,
+        "BILLING_READ_ONLY",
+        "Platform sync is read-only until billing is restored."
+      );
+    }
+
+    if (error instanceof Error && error.message === "PLAN_URL_LIMIT_REACHED") {
+      return jsonError(
+        402,
+        "PLAN_URL_LIMIT_REACHED",
+        "The synced URL limit has been reached for this site."
+      );
+    }
+
     return jsonError(400, "PLUGIN_SYNC_FAILED", "Could not accept plugin sync batch.");
   }
 }

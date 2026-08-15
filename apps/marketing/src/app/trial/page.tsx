@@ -17,8 +17,8 @@ type TrialPageProps = {
 const trialIncludes = [
   "One WordPress site and up to 500 URLs",
   "Two users with role-based access",
-  "Search Console evidence and SEO audits",
-  "Prioritized backlog and safe-operation workflow"
+  "Local WordPress findings and SEO audits",
+  "Prioritized backlog with paid features clearly previewed"
 ];
 
 export default async function TrialPage({ searchParams }: TrialPageProps) {

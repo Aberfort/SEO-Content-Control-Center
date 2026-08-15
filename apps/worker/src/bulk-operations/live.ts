@@ -1,5 +1,6 @@
 import { decryptSecret, isTokenEncryptionConfigured } from "@sccc/gsc";
 import { Prisma } from "@prisma/client";
+import { assertEntitlement, planCodes, resolveCommercialAccess } from "@sccc/shared";
 
 import type {
   BulkOperationApplyDeps,
@@ -41,6 +42,27 @@ function buildLiveBulkOperationApplyDeps(): BulkOperationApplyDeps {
   return {
     async loadOperation(organizationId, siteId, operationId) {
       const prisma = await getPrisma();
+      const subscription = await prisma.subscription.findFirst({
+        where: {
+          organizationId,
+          status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
+        },
+        include: { plan: true },
+        orderBy: { updatedAt: "desc" }
+      });
+      const rawPlanCode = subscription?.plan.code ?? "TRIAL";
+      const planCode = planCodes.includes(rawPlanCode as (typeof planCodes)[number])
+        ? (rawPlanCode as (typeof planCodes)[number])
+        : "TRIAL";
+      assertEntitlement(
+        resolveCommercialAccess({
+          planCode,
+          status: subscription?.status,
+          provider: subscription?.provider,
+          trialEndsAt: subscription?.trialEndsAt
+        }),
+        "safeOperations"
+      );
       const operation = await prisma.bulkOperation.findFirst({
         where: {
           id: operationId,

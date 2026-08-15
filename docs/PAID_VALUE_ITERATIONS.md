@@ -96,6 +96,20 @@ Implemented behavior:
 - Align in-product upgrade states and public pricing with the actual gates.
 - Test trials, upgrades, downgrades, expired subscriptions, and retained read-only access.
 
+Implemented behavior:
+
+- One shared commercial catalog now names sites, users, synced URL capacity, GSC impact, recurring
+  reports, Content Trust Evidence, AI summaries, safe operations, and API access.
+- Starter unlocks the deterministic paid workflow and Pro adds AI summaries; Agency and Enterprise
+  expand capacity. The API entitlement is named but remains disabled and absent from public pricing
+  until the authenticated public API is implemented.
+- Plugin sync enforces per-site URL capacity while still allowing existing records to refresh.
+- Repository and worker paths independently enforce GSC, reporting, trust, AI, and safe-operation
+  access, so UI or queue calls cannot bypass plan decisions.
+- Expired, past-due, incomplete, and canceled access is read-only: existing content, audits, tasks,
+  reports, and operation history remain readable while new premium work is blocked.
+- Public pricing and trial copy now describe the same capability boundaries as the product.
+
 ## Success Criteria
 
 - A paid workspace can explain why one issue should be fixed before another using current evidence.

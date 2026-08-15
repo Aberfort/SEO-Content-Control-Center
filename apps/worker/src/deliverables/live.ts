@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import {
   buildWorkspaceDeliverableSummary,
+  canUseEntitlement,
+  planCodes,
+  resolveCommercialAccess,
   type SiteDeliverableSummary,
   type WorkspaceDeliverableSummary
 } from "@sccc/shared";
@@ -28,7 +31,13 @@ export function buildLiveDeliverablesScheduleDeps(
         select: { id: true },
         orderBy: { id: "asc" }
       });
-      return organizations.map((organization: { id: string }) => organization.id);
+      const allowed: string[] = [];
+      for (const organization of organizations) {
+        if (await organizationCanReceiveReports(prisma, organization.id)) {
+          allowed.push(organization.id);
+        }
+      }
+      return allowed;
     },
     enqueue
   };
@@ -40,6 +49,9 @@ export function buildLiveWorkspaceDigestDeps(
   return {
     async run(input) {
       const prisma = await getPrisma();
+      if (!(await organizationCanReceiveReports(prisma, input.organizationId))) {
+        return { runId: "entitlement-blocked", status: "SKIPPED", deduplicated: false };
+      }
       const periodStart = new Date(`${input.startDate}T00:00:00.000Z`);
       const periodEnd = new Date(`${input.endDate}T00:00:00.000Z`);
       const existing = await prisma.deliverableRun.findUnique({
@@ -221,6 +233,34 @@ export function buildLiveWorkspaceDigestDeps(
       return { runId: run.id, status, recipients: recipients.length, delivered: delivery.sent };
     }
   };
+}
+
+async function organizationCanReceiveReports(
+  prisma: Awaited<ReturnType<typeof getPrisma>>,
+  organizationId: string
+): Promise<boolean> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      organizationId,
+      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
+    },
+    include: { plan: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  const rawPlanCode = subscription?.plan.code ?? "TRIAL";
+  const planCode = planCodes.includes(rawPlanCode as (typeof planCodes)[number])
+    ? (rawPlanCode as (typeof planCodes)[number])
+    : "TRIAL";
+
+  return canUseEntitlement(
+    resolveCommercialAccess({
+      planCode,
+      status: subscription?.status,
+      provider: subscription?.provider,
+      trialEndsAt: subscription?.trialEndsAt
+    }),
+    "recurringReports"
+  );
 }
 
 async function deliverDigestEmail(input: {

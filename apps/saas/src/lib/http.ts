@@ -37,5 +37,26 @@ export function securityError(error: unknown): Response | null {
     );
   }
 
+  const commercialResponse = commercialAccessError(error);
+  if (commercialResponse) return commercialResponse;
+
+  return null;
+}
+
+export function commercialAccessError(error: unknown): Response | null {
+  if (!(error instanceof Error)) return null;
+
+  if (error.message === "BILLING_READ_ONLY") {
+    return jsonError(
+      402,
+      "BILLING_READ_ONLY",
+      "Billing access is read-only. Upgrade or restore the subscription to continue."
+    );
+  }
+
+  if (error.message.startsWith("PLAN_") && error.message.endsWith("_REQUIRED")) {
+    return jsonError(402, error.message, "This feature requires a paid plan upgrade.");
+  }
+
   return null;
 }

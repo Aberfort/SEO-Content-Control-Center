@@ -455,7 +455,7 @@ Response:
 
 `GET /api/organizations/:organizationId/billing`
 
-Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, current non-canceled subscription when one exists, feature gate usage, and provider-gated billing actions. New workspaces receive a local no-charge `TRIALING` subscription with no billing provider. Expired local no-provider Trial subscriptions are exposed as `PAST_DUE`, and gated feature usage returns `BILLING_TRIAL_EXPIRED` in `disabledCode`. The overview does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
+Returns the tenant-scoped billing overview when the current user has `billing:read`. This read-only response includes the active plan catalog, current plan, latest subscription, resolved commercial access, capacity gate usage, and provider-gated billing actions. New workspaces receive a local no-charge `TRIALING` subscription with no billing provider. Expired trials and subscriptions in a payment-problem or canceled state retain readable records but expose `commercialAccess.mode` as `read_only`; premium work and capacity mutations return a billing error. The overview does not create checkout sessions, change subscriptions, or open a billing portal. Checkout actions are enabled only when a billing provider, secret, and target plan price ID are configured. Portal actions are enabled only for Stripe-backed subscriptions with a stored provider customer id and configured provider secret.
 
 Response:
 
@@ -471,8 +471,7 @@ Response:
         "sites": 5,
         "urlsPerSite": 50000,
         "users": 10,
-        "aiCredits": 500,
-        "apiAccess": false
+        "aiCredits": 500
       },
       "isActive": true
     },
@@ -489,8 +488,7 @@ Response:
           "sites": 5,
           "urlsPerSite": 50000,
           "users": 10,
-          "aiCredits": 500,
-          "apiAccess": false
+          "aiCredits": 500
         },
         "isActive": true
       },
@@ -501,6 +499,21 @@ Response:
       "updatedAt": "2026-07-01T00:00:00.000Z"
     },
     "isFallbackTrial": false,
+    "commercialAccess": {
+      "planCode": "PRO",
+      "mode": "full",
+      "limits": { "sites": 5, "urlsPerSite": 50000, "users": 10, "aiCredits": 500 },
+      "entitlements": {
+        "gscImpact": true,
+        "recurringReports": true,
+        "contentTrustEvidence": true,
+        "aiSummaries": true,
+        "safeOperations": true,
+        "apiAccess": false
+      },
+      "disabledCode": null,
+      "disabledReason": null
+    },
     "featureGates": [
       {
         "key": "sites",
@@ -557,8 +570,7 @@ Response:
           "sites": 1,
           "urlsPerSite": 500,
           "users": 2,
-          "aiCredits": 0,
-          "apiAccess": false
+          "aiCredits": 0
         },
         "isActive": true
       }

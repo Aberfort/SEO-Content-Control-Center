@@ -19,6 +19,7 @@ export {
 
 type GscConnectActionInput = {
   canManageIntegrations: boolean;
+  disabledReason?: string | null;
   oauthConfigured?: boolean;
   tokenEncryptionConfigured?: boolean;
   stateSigningConfigured?: boolean;
@@ -63,6 +64,10 @@ export function isGscStateSigningConfigured(env: Environment = process.env): boo
 export function buildGscConnectAction(input: GscConnectActionInput): GscConnectAction {
   if (!input.canManageIntegrations) {
     return buildDisabledAction("Your role can not manage integrations.");
+  }
+
+  if (input.disabledReason) {
+    return buildDisabledAction(input.disabledReason);
   }
 
   if (!(input.oauthConfigured ?? isGscOAuthConfigured())) {

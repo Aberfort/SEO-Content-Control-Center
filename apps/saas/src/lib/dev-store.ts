@@ -19,6 +19,7 @@ import {
   bulkOperationRollbackSchema,
   bulkOperationStartSchema,
   buildWorkspaceDeliverableSummary,
+  canUseEntitlement,
   clientReportQuerySchema,
   deliveryPreferenceUpdateSchema,
   hasPermission,
@@ -26,6 +27,7 @@ import {
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  resolveCommercialAccess,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
@@ -319,11 +321,27 @@ function getActiveDevSubscription(organizationId: string): BillingSubscription |
       .subscriptions.filter(
         (candidate) =>
           candidate.organizationId === organizationId &&
-          ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"].includes(candidate.status)
+          ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"].includes(candidate.status)
       )
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null;
 
   return subscription ? normalizeLocalTrialStatus(subscription) : null;
+}
+
+function getDevCommercialGateBlock(subscription: BillingSubscription | null) {
+  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
+  if (trialExpiryGateBlock) return trialExpiryGateBlock;
+
+  const access = resolveCommercialAccess({
+    planCode: subscription?.plan.code ?? "TRIAL",
+    status: subscription?.status,
+    provider: subscription?.provider,
+    trialEndsAt: subscription?.trialEndsAt
+  });
+
+  return access.mode === "read_only"
+    ? { disabledReason: access.disabledReason!, disabledCode: access.disabledCode! }
+    : null;
 }
 
 function ensurePlaceholderUser(email: string): AppUser {
@@ -525,7 +543,7 @@ export function createSite(input: CreateSiteInput): Site {
 
   const subscription = getActiveDevSubscription(parsed.organizationId);
   const currentPlan = subscription?.plan ?? findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
-  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
+  const trialExpiryGateBlock = getDevCommercialGateBlock(subscription);
   const featureGates = buildBillingFeatureGates({
     limits: currentPlan.limits,
     sitesUsed: countDevSites(parsed.organizationId),
@@ -608,6 +626,12 @@ export function getGscConnectionOverviewForSite(
     .filter((connection) => connection.siteId === siteId && connection.disconnectedAt === null)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const mappedConnections = connections.map(mapGscConnectionSummary);
+  const access = resolveCommercialAccess({
+    planCode: getActiveDevSubscription(organizationId)?.plan.code ?? "TRIAL",
+    status: getActiveDevSubscription(organizationId)?.status,
+    provider: getActiveDevSubscription(organizationId)?.provider,
+    trialEndsAt: getActiveDevSubscription(organizationId)?.trialEndsAt
+  });
 
   return {
     siteId,
@@ -616,6 +640,9 @@ export function getGscConnectionOverviewForSite(
     oauthConfigured: isGscOAuthConfigured(),
     action: buildGscConnectAction({
       canManageIntegrations: hasPermission(member.role, "integration:manage"),
+      disabledReason: canUseEntitlement(access, "gscImpact")
+        ? null
+        : (access.disabledReason ?? "Google Search Console impact is available on paid plans."),
       organizationId,
       siteId,
       propertyUrl: site.url
@@ -1078,13 +1105,20 @@ export function getBillingOverviewForOrganization(
   const plans = buildFallbackBillingPlans();
   const subscription = getActiveDevSubscription(organizationId);
   const currentPlan = subscription?.plan ?? findBillingPlan(plans, "TRIAL");
-  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
+  const trialExpiryGateBlock = getDevCommercialGateBlock(subscription);
+  const commercialAccess = resolveCommercialAccess({
+    planCode: currentPlan.code,
+    status: subscription?.status,
+    provider: subscription?.provider,
+    trialEndsAt: subscription?.trialEndsAt
+  });
 
   return {
     plans,
     currentPlan,
     subscription,
     isFallbackTrial: !subscription,
+    commercialAccess,
     featureGates: buildBillingFeatureGates({
       limits: currentPlan.limits,
       sitesUsed: countDevSites(organizationId),
@@ -3227,7 +3261,7 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
 
   const subscription = getActiveDevSubscription(parsed.organizationId);
   const currentPlan = subscription?.plan ?? findBillingPlan(buildFallbackBillingPlans(), "TRIAL");
-  const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
+  const trialExpiryGateBlock = getDevCommercialGateBlock(subscription);
   const featureGates = buildBillingFeatureGates({
     limits: currentPlan.limits,
     sitesUsed: countDevSites(parsed.organizationId),

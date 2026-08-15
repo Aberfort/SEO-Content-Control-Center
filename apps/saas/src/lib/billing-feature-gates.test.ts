@@ -9,8 +9,7 @@ describe("billing feature gates", () => {
         sites: 1,
         urlsPerSite: 500,
         users: 2,
-        aiCredits: 0,
-        apiAccess: false
+        aiCredits: 0
       },
       sitesUsed: 1,
       usersUsed: 1
@@ -38,8 +37,7 @@ describe("billing feature gates", () => {
         sites: "custom",
         urlsPerSite: "custom",
         users: "custom",
-        aiCredits: 10000,
-        apiAccess: true
+        aiCredits: 10000
       },
       sitesUsed: 100,
       usersUsed: 100
@@ -69,8 +67,7 @@ describe("billing feature gates", () => {
         sites: 1,
         urlsPerSite: 500,
         users: 2,
-        aiCredits: 0,
-        apiAccess: false
+        aiCredits: 0
       },
       sitesUsed: 0,
       usersUsed: 1,

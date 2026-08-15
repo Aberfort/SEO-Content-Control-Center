@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
+import { canUseEntitlement, hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
 
 import {
   confirmBulkOperationAction,
@@ -214,6 +214,12 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     activeOrganization && canReadBilling
       ? await repository.getBillingOverviewForOrganization(user.id, activeOrganization.id)
       : null;
+  const safeOperationsAvailable = billingOverview
+    ? canUseEntitlement(billingOverview.commercialAccess, "safeOperations")
+    : true;
+  const recurringReportsAvailable = billingOverview
+    ? canUseEntitlement(billingOverview.commercialAccess, "recurringReports")
+    : true;
   const gscOverview =
     activeOrganization && activeSite && canReadSite
       ? await repository.getGscConnectionOverviewForSite(
@@ -1073,7 +1079,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                   site: recommendation.siteId
                                 })}
                               />
-                              <button className="secondary-button" type="submit">
+                              <button
+                                className="secondary-button"
+                                disabled={!safeOperationsAvailable}
+                                title={
+                                  safeOperationsAvailable
+                                    ? undefined
+                                    : "Safe operations require an active paid plan."
+                                }
+                                type="submit"
+                              >
                                 {recommendation.action.label}
                               </button>
                             </form>
@@ -2041,7 +2056,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                         <strong>Safe batch review</strong>
                         <span>Select up to 25 tasks. Each item keeps its own evidence.</span>
                       </div>
-                      <button className="primary-button" type="submit">
+                      <button
+                        className="primary-button"
+                        disabled={!safeOperationsAvailable}
+                        title={
+                          safeOperationsAvailable
+                            ? undefined
+                            : "Safe operations require an active paid plan."
+                        }
+                        type="submit"
+                      >
                         Review selected
                       </button>
                     </form>
@@ -2146,7 +2170,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                       site: activeSite.id
                                     })}
                                   />
-                                  <button className="secondary-button" type="submit">
+                                  <button
+                                    className="secondary-button"
+                                    disabled={!safeOperationsAvailable}
+                                    title={
+                                      safeOperationsAvailable
+                                        ? undefined
+                                        : "Safe operations require an active paid plan."
+                                    }
+                                    type="submit"
+                                  >
                                     Preview
                                   </button>
                                 </form>
@@ -2640,28 +2673,36 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                       </p>
                     </div>
                     <div className="client-report-actions">
-                      <Link
-                        className="secondary-button"
-                        href={buildClientReportHref({
-                          organizationId: activeOrganization.id,
-                          startDate: reportStartDate,
-                          endDate: reportEndDate,
-                          format: "html"
-                        })}
-                      >
-                        Export HTML
-                      </Link>
-                      <Link
-                        className="secondary-button"
-                        href={buildClientReportHref({
-                          organizationId: activeOrganization.id,
-                          startDate: reportStartDate,
-                          endDate: reportEndDate,
-                          format: "csv"
-                        })}
-                      >
-                        Export CSV
-                      </Link>
+                      {recurringReportsAvailable ? (
+                        <>
+                          <Link
+                            className="secondary-button"
+                            href={buildClientReportHref({
+                              organizationId: activeOrganization.id,
+                              startDate: reportStartDate,
+                              endDate: reportEndDate,
+                              format: "html"
+                            })}
+                          >
+                            Export HTML
+                          </Link>
+                          <Link
+                            className="secondary-button"
+                            href={buildClientReportHref({
+                              organizationId: activeOrganization.id,
+                              startDate: reportStartDate,
+                              endDate: reportEndDate,
+                              format: "csv"
+                            })}
+                          >
+                            Export CSV
+                          </Link>
+                        </>
+                      ) : (
+                        <a className="secondary-button" href="#billing-title">
+                          Upgrade for reports
+                        </a>
+                      )}
                     </div>
                     <small>
                       Includes evidence period, methodology, critical findings, traffic drops,
@@ -2937,7 +2978,6 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             <li>{formatLimitValue(plan.limits.urlsPerSite)} URLs per site</li>
                             <li>{formatLimitValue(plan.limits.users)} users</li>
                             <li>{plan.limits.aiCredits.toLocaleString("en")} AI credits</li>
-                            <li>{plan.limits.apiAccess ? "API access" : "No API access"}</li>
                           </ul>
                           {checkoutAction ? (
                             <div className="billing-plan-action">

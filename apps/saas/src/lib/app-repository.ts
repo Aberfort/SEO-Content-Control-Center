@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
   acceptInviteSchema,
+  assertEntitlement,
   assertPermission,
   auditIssueListQuerySchema,
   auditListQuerySchema,
@@ -29,6 +30,7 @@ import {
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  resolveCommercialAccess,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
@@ -52,6 +54,7 @@ import {
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
   type ClientReportQuery,
+  type CommercialAccess,
   type ContentTrustEvidence,
   type DeliveryPreferenceUpdateInput,
   type InviteMemberInput,
@@ -1051,7 +1054,6 @@ const prismaRepository: AppRepository = {
       organizationId,
       permission: "organization:read"
     });
-
     const logs = await prisma.activityLog.findMany({
       where: {
         organizationId
@@ -1082,7 +1084,7 @@ const prismaRepository: AppRepository = {
         where: {
           organizationId,
           status: {
-            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"]
           }
         },
         include: {
@@ -1112,17 +1114,32 @@ const prismaRepository: AppRepository = {
     const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
     const currentPlan = subscriptionSummary?.plan ?? findBillingPlan(visiblePlans, "TRIAL");
     const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscriptionSummary);
+    const commercialAccess = resolveCommercialAccess({
+      planCode: currentPlan.code,
+      status: subscriptionSummary?.status,
+      provider: subscriptionSummary?.provider,
+      trialEndsAt: subscriptionSummary?.trialEndsAt
+    });
+    const commercialGateBlock =
+      trialExpiryGateBlock ??
+      (commercialAccess.mode === "read_only"
+        ? {
+            disabledReason: commercialAccess.disabledReason!,
+            disabledCode: commercialAccess.disabledCode!
+          }
+        : null);
 
     return {
       plans: visiblePlans,
       currentPlan,
       subscription: subscriptionSummary,
       isFallbackTrial: !subscriptionSummary,
+      commercialAccess,
       featureGates: buildBillingFeatureGates({
         limits: currentPlan.limits,
         sitesUsed,
         usersUsed,
-        ...(trialExpiryGateBlock ?? {})
+        ...(commercialGateBlock ?? {})
       }),
       actions: buildBillingActions({
         plans: visiblePlans,
@@ -1160,7 +1177,7 @@ const prismaRepository: AppRepository = {
         where: {
           organizationId: input.organizationId,
           status: {
-            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"]
           }
         },
         include: {
@@ -1207,7 +1224,7 @@ const prismaRepository: AppRepository = {
         where: {
           organizationId: input.organizationId,
           status: {
-            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+            in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"]
           }
         },
         include: {
@@ -1597,6 +1614,7 @@ const prismaRepository: AppRepository = {
       organizationId,
       permission: "organization:read"
     });
+    assertEntitlement(await getDbCommercialAccess(organizationId), "recurringReports");
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: { id: true, name: true }
@@ -1833,6 +1851,10 @@ const prismaRepository: AppRepository = {
       }
     });
     const mappedConnections = connections.map(mapGscConnectionSummary);
+    const access = await getDbCommercialAccess(organizationId);
+    const gscDisabledReason = access.entitlements.gscImpact
+      ? access.disabledReason
+      : "Google Search Console impact is available on paid plans.";
 
     return {
       siteId,
@@ -1841,6 +1863,7 @@ const prismaRepository: AppRepository = {
       oauthConfigured: isGscOAuthConfigured(),
       action: buildGscConnectAction({
         canManageIntegrations: hasPermission(membership.role, "integration:manage"),
+        disabledReason: gscDisabledReason,
         organizationId,
         siteId,
         propertyUrl: site.url
@@ -1854,6 +1877,7 @@ const prismaRepository: AppRepository = {
       organizationId: input.organizationId,
       permission: "integration:manage"
     });
+    assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
 
     const site = await prisma.site.findFirst({
       where: {
@@ -1916,6 +1940,7 @@ const prismaRepository: AppRepository = {
       organizationId: input.organizationId,
       permission: "integration:manage"
     });
+    assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
 
     const site = await prisma.site.findFirst({
       where: {
@@ -2033,6 +2058,7 @@ const prismaRepository: AppRepository = {
       organizationId: input.organizationId,
       permission: "integration:manage"
     });
+    assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
 
     const site = await prisma.site.findFirst({
       where: {
@@ -2178,6 +2204,7 @@ const prismaRepository: AppRepository = {
       organizationId: input.organizationId,
       permission: "integration:manage"
     });
+    assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
 
     const site = await prisma.site.findFirst({
       where: {
@@ -2373,8 +2400,19 @@ const prismaRepository: AppRepository = {
     });
     let aiSummary: AssistantAiSummary | null = null;
     const aiConfig = getAssistantAiConfig();
+    const assistantAccess = resolveCommercialAccess({
+      planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL",
+      status: subscription?.status,
+      provider: subscription?.provider,
+      trialEndsAt: subscription?.trialEndsAt
+    });
 
-    if (aiConfig && sortedRecommendations.length > 0) {
+    if (
+      aiConfig &&
+      assistantAccess.entitlements.aiSummaries &&
+      assistantAccess.mode === "full" &&
+      sortedRecommendations.length > 0
+    ) {
       if (assistantUsage.limited) {
         await createAiCreditLimitNotificationOncePerPeriod({
           organizationId,
@@ -2848,7 +2886,7 @@ const prismaRepository: AppRepository = {
       prisma.subscription.findFirst({
         where: {
           organizationId,
-          status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"] }
+          status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
         },
         include: { plan: true },
         orderBy: { updatedAt: "desc" }
@@ -2857,9 +2895,19 @@ const prismaRepository: AppRepository = {
 
     if (!item) return null;
 
+    const access = resolveCommercialAccess({
+      planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL",
+      status: subscription?.status,
+      provider: subscription?.provider,
+      trialEndsAt: subscription?.trialEndsAt
+    });
+
     return buildContentTrustEvidence({
       item: mapSyncedContentItem(item),
-      planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL"
+      planCode:
+        access.mode === "full" && access.entitlements.contentTrustEvidence
+          ? access.planCode
+          : "TRIAL"
     });
   },
 
@@ -3773,6 +3821,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:preview"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const taskIds = normalizeBulkOperationTaskIds(parsed);
     const taskRows = await prisma.backlogTask.findMany({
@@ -3876,6 +3925,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:preview"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const existing = await prisma.bulkOperation.findFirst({
       where: {
@@ -3957,6 +4007,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:confirm"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const existing = await prisma.bulkOperation.findFirst({
       where: {
@@ -4033,6 +4084,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:confirm"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const existing = await prisma.bulkOperation.findFirst({
       where: {
@@ -4265,6 +4317,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:confirm"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const existing = await prisma.bulkOperation.findFirst({
       where: {
@@ -4378,6 +4431,7 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       permission: "content_operation:confirm"
     });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
 
     const existing = await prisma.bulkOperation.findFirst({
       where: {
@@ -5582,19 +5636,19 @@ async function findDbContentTrustCandidate(
   const subscription = await prisma.subscription.findFirst({
     where: {
       organizationId,
-      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"] }
+      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
     },
     include: { plan: true },
     orderBy: { updatedAt: "desc" }
   });
-  const evidence = buildContentTrustEvidence({
-    item,
-    planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL"
+  const access = resolveCommercialAccess({
+    planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL",
+    status: subscription?.status,
+    provider: subscription?.provider,
+    trialEndsAt: subscription?.trialEndsAt
   });
-
-  if (!evidence.access.allowed) {
-    throw new Error("CONTENT_TRUST_REQUIRES_PAID_PLAN");
-  }
+  assertEntitlement(access, "contentTrustEvidence");
+  const evidence = buildContentTrustEvidence({ item, planCode: access.planCode });
 
   return (
     buildContentTrustBacklogCandidates(evidence).find(
@@ -5739,6 +5793,24 @@ function addUtcDays(value: Date, days: number): Date {
   return result;
 }
 
+async function getDbCommercialAccess(organizationId: string): Promise<CommercialAccess> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      organizationId,
+      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
+    },
+    include: { plan: true },
+    orderBy: { updatedAt: "desc" }
+  });
+
+  return resolveCommercialAccess({
+    planCode: normalizePlanCode(subscription?.plan.code ?? "TRIAL") ?? "TRIAL",
+    status: subscription?.status,
+    provider: subscription?.provider,
+    trialEndsAt: subscription?.trialEndsAt
+  });
+}
+
 async function getDbBillingLimitContext(organizationId: string): Promise<{
   currentPlan: BillingPlan;
   sitesUsed: number;
@@ -5751,7 +5823,7 @@ async function getDbBillingLimitContext(organizationId: string): Promise<{
       where: {
         organizationId,
         status: {
-          in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE"]
+          in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"]
         }
       },
       include: {
@@ -5778,12 +5850,24 @@ async function getDbBillingLimitContext(organizationId: string): Promise<{
 
   const subscriptionSummary = subscription ? mapBillingSubscription(subscription) : null;
   const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscriptionSummary);
+  const currentPlan = subscriptionSummary?.plan ?? findBillingPlan([], "TRIAL");
+  const access = resolveCommercialAccess({
+    planCode: currentPlan.code,
+    status: subscriptionSummary?.status,
+    provider: subscriptionSummary?.provider,
+    trialEndsAt: subscriptionSummary?.trialEndsAt
+  });
+  const commercialGateBlock =
+    trialExpiryGateBlock ??
+    (access.mode === "read_only"
+      ? { disabledReason: access.disabledReason!, disabledCode: access.disabledCode! }
+      : null);
 
   return {
-    currentPlan: subscriptionSummary?.plan ?? findBillingPlan([], "TRIAL"),
+    currentPlan,
     sitesUsed,
     usersUsed,
-    ...(trialExpiryGateBlock ?? {})
+    ...(commercialGateBlock ?? {})
   };
 }
 

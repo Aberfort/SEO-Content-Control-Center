@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { signPluginRequest } from "@sccc/shared";
 
-import { hashPluginToken, preserveAcceptedLocalFindings } from "./plugin-connection";
+import {
+  assertSyncedUrlCapacity,
+  hashPluginToken,
+  preserveAcceptedLocalFindings
+} from "./plugin-connection";
 
 describe("plugin connection signing", () => {
   it("matches the WordPress plugin request signing payload format", () => {
@@ -42,5 +46,25 @@ describe("plugin connection signing", () => {
         { localFindings: previous }
       )
     ).toEqual({ wordCount: 400, localFindings: [] });
+  });
+
+  it("counts only new unique URLs against the synced URL limit", () => {
+    expect(() =>
+      assertSyncedUrlCapacity({
+        existingCount: 499,
+        existingExternalIds: ["post:1"],
+        incomingExternalIds: ["post:1", "post:2", "post:2"],
+        limit: 500
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      assertSyncedUrlCapacity({
+        existingCount: 500,
+        existingExternalIds: ["post:1"],
+        incomingExternalIds: ["post:1", "post:2"],
+        limit: 500
+      })
+    ).toThrow("PLAN_URL_LIMIT_REACHED");
   });
 });

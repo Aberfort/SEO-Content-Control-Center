@@ -7,7 +7,6 @@ export type PlanLimits = {
   urlsPerSite: number | "custom";
   users: number | "custom";
   aiCredits: number;
-  apiAccess: boolean;
 };
 
 export const planLimits = {
@@ -15,35 +14,30 @@ export const planLimits = {
     sites: 1,
     urlsPerSite: 500,
     users: 2,
-    aiCredits: 0,
-    apiAccess: false
+    aiCredits: 0
   },
   STARTER: {
     sites: 1,
     urlsPerSite: 5000,
     users: 3,
-    aiCredits: 0,
-    apiAccess: false
+    aiCredits: 0
   },
   PRO: {
     sites: 5,
     urlsPerSite: 50000,
     users: 10,
-    aiCredits: 500,
-    apiAccess: false
+    aiCredits: 500
   },
   AGENCY: {
     sites: 50,
     urlsPerSite: 250000,
     users: 50,
-    aiCredits: 2500,
-    apiAccess: true
+    aiCredits: 2500
   },
   ENTERPRISE: {
     sites: "custom",
     urlsPerSite: "custom",
     users: "custom",
-    aiCredits: 10000,
-    apiAccess: true
+    aiCredits: 10000
   }
 } satisfies Record<PlanCode, PlanLimits>;

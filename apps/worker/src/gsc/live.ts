@@ -7,6 +7,7 @@ import {
   queryGscSearchInsights,
   refreshGscAccessToken
 } from "@sccc/gsc";
+import { canUseEntitlement, planCodes, resolveCommercialAccess } from "@sccc/shared";
 
 import type { GscScheduleDeps, GscSyncDeps } from "./handlers";
 import type { GscSyncConnection } from "./plan";
@@ -30,6 +31,7 @@ export function buildLiveGscSyncDeps(): GscSyncDeps {
   return {
     async loadConnection(organizationId, siteId) {
       const prisma = await getPrisma();
+      if (!(await organizationCanUseGsc(prisma, organizationId))) return null;
       const connection = await prisma.gscConnection.findFirst({
         where: {
           siteId,
@@ -169,15 +171,52 @@ export function buildLiveGscScheduleDeps(enqueue: GscScheduleDeps["enqueue"]): G
         }
       });
 
-      return connections.map(
-        (connection: { siteId: string; site: { organizationId: string } }) => ({
+      const allowedOrganizationIds = new Set<string>();
+      for (const organizationId of new Set(
+        connections.map((connection) => connection.site.organizationId)
+      )) {
+        if (await organizationCanUseGsc(prisma, organizationId)) {
+          allowedOrganizationIds.add(organizationId);
+        }
+      }
+
+      return connections
+        .filter((connection) => allowedOrganizationIds.has(connection.site.organizationId))
+        .map((connection: { siteId: string; site: { organizationId: string } }) => ({
           organizationId: connection.site.organizationId,
           siteId: connection.siteId
-        })
-      );
+        }));
     },
     enqueue
   };
+}
+
+async function organizationCanUseGsc(
+  prisma: Awaited<ReturnType<typeof getPrisma>>,
+  organizationId: string
+): Promise<boolean> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      organizationId,
+      status: { in: ["TRIALING", "ACTIVE", "PAST_DUE", "INCOMPLETE", "CANCELED"] }
+    },
+    include: { plan: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  const rawPlanCode = subscription?.plan.code ?? "TRIAL";
+  const planCode = planCodes.includes(rawPlanCode as (typeof planCodes)[number])
+    ? (rawPlanCode as (typeof planCodes)[number])
+    : "TRIAL";
+
+  return canUseEntitlement(
+    resolveCommercialAccess({
+      planCode,
+      status: subscription?.status,
+      provider: subscription?.provider,
+      trialEndsAt: subscription?.trialEndsAt
+    }),
+    "gscImpact"
+  );
 }
 
 async function recordSyncActivity(input: {

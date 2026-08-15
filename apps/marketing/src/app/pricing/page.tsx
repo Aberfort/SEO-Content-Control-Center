@@ -1,4 +1,4 @@
-import { planLimits, type PlanCode } from "@sccc/shared";
+import { planEntitlements, planLimits, type PlanCode } from "@sccc/shared";
 import type { Metadata } from "next";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import Link from "next/link";
@@ -63,7 +63,10 @@ const comparisonRows: Array<{
   { label: "URLs per site", value: (code) => formatLimit(planLimits[code].urlsPerSite) },
   { label: "Team members", value: (code) => formatLimit(planLimits[code].users) },
   { label: "AI credits / month", value: (code) => formatLimit(planLimits[code].aiCredits) },
-  { label: "API access", value: (code) => planLimits[code].apiAccess },
+  { label: "Content Trust Evidence", value: (code) => planEntitlements[code].contentTrustEvidence },
+  { label: "Recurring client reports", value: (code) => planEntitlements[code].recurringReports },
+  { label: "AI summaries", value: (code) => planEntitlements[code].aiSummaries },
+  { label: "Safe WordPress operations", value: (code) => planEntitlements[code].safeOperations },
   { label: "Audit and rollback history", value: () => true },
   { label: "Google Search Console", value: () => true }
 ];
@@ -170,8 +173,8 @@ export default function PricingPage() {
           <h2>14 days to validate the real workflow.</h2>
         </div>
         <p>
-          The trial includes one site, 500 URLs, and two users. Checkout appears only when billing
-          is configured, and any payment requirement is shown before a paid plan is activated.
+          The trial includes one site, 500 URLs, two users, local WordPress findings, audits, and a
+          prioritized backlog. Paid evidence, reporting, and execution stay locked until upgrade.
         </p>
       </section>
 
