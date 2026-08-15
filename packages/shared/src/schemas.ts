@@ -365,6 +365,30 @@ export const notificationReadUpdateSchema = z.object({
   read: z.boolean()
 });
 
+export const deliveryPreferenceUpdateSchema = z
+  .object({
+    organizationId: organizationIdSchema,
+    emailEnabled: z.boolean(),
+    criticalAlerts: z.boolean(),
+    trafficDropAlerts: z.boolean(),
+    overdueAlerts: z.boolean(),
+    failedOperationAlerts: z.boolean(),
+    weeklyDigest: z.boolean()
+  })
+  .strict();
+
+export const clientReportQuerySchema = z
+  .object({
+    siteId: z.string().uuid().optional(),
+    startDate: z.string().date(),
+    endDate: z.string().date(),
+    format: z.enum(["html", "csv"]).default("html")
+  })
+  .refine((value) => value.startDate <= value.endDate, {
+    message: "startDate must be on or before endDate",
+    path: ["startDate"]
+  });
+
 export const assistantRecommendationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).optional()
 });
@@ -410,6 +434,8 @@ export type NotificationListQuery = z.infer<typeof notificationListQuerySchema>;
 export type NotificationMarkAllReadInput = z.infer<typeof notificationMarkAllReadSchema>;
 export type NotificationReadStateInput = z.infer<typeof notificationReadStateSchema>;
 export type NotificationReadUpdateInput = z.infer<typeof notificationReadUpdateSchema>;
+export type DeliveryPreferenceUpdateInput = z.infer<typeof deliveryPreferenceUpdateSchema>;
+export type ClientReportQuery = z.infer<typeof clientReportQuerySchema>;
 export type AssistantRecommendationListQuery = z.infer<
   typeof assistantRecommendationListQuerySchema
 >;

@@ -4,6 +4,8 @@ import {
   createQueueProducer,
   createQueueRedisConnection,
   defaultJobOptions,
+  deliverablesScheduleCronPattern,
+  deliverablesScheduleJobId,
   gscScheduleCronPattern,
   gscScheduleJobId,
   jobNames,
@@ -21,6 +23,15 @@ import {
   buildLiveBulkOperationRollbackDeps,
   isBulkOperationWorkerConfigured
 } from "./bulk-operations/live";
+import {
+  createDeliverablesScheduleHandler,
+  createWorkspaceWeeklyDigestHandler
+} from "./deliverables/handlers";
+import {
+  buildLiveDeliverablesScheduleDeps,
+  buildLiveWorkspaceDigestDeps,
+  isDeliverablesWorkerConfigured
+} from "./deliverables/live";
 import {
   createGscDailyMetricsSyncHandler,
   createGscScheduleHandler,
@@ -48,6 +59,7 @@ export type WorkerProcess = {
   registry: JobHandlerRegistry;
   gscSyncEnabled: boolean;
   bulkOperationExecutionEnabled: boolean;
+  deliverablesEnabled: boolean;
   sentryEnabled: boolean;
   analyticsEnabled: boolean;
   healthPort: number | null;
@@ -258,6 +270,43 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     });
   }
 
+  const deliverablesEnabled = isDeliverablesWorkerConfigured(env);
+
+  if (deliverablesEnabled) {
+    const deliverablesQueue = createQueueProducer(queueNames.deliverables, connection);
+    closers.push(() => deliverablesQueue.close());
+    registry.register(
+      jobNames.deliverablesSchedule,
+      createDeliverablesScheduleHandler(
+        buildLiveDeliverablesScheduleDeps(async (job) => {
+          await deliverablesQueue.add(job.name, job.data, {
+            ...defaultJobOptions,
+            jobId: job.jobId
+          });
+        })
+      )
+    );
+    registry.register(
+      jobNames.workspaceWeeklyDigest,
+      createWorkspaceWeeklyDigestHandler(buildLiveWorkspaceDigestDeps(env))
+    );
+    createQueueWorker(queueNames.deliverables);
+    await deliverablesQueue.add(
+      jobNames.deliverablesSchedule,
+      {},
+      {
+        jobId: deliverablesScheduleJobId,
+        repeat: { pattern: deliverablesScheduleCronPattern },
+        attempts: defaultJobOptions.attempts
+      }
+    );
+  } else {
+    logWorkerEvent("warn", "worker.deliverables_disabled", {
+      workerId,
+      hint: "Set DATABASE_URL to enable recurring workspace deliverables."
+    });
+  }
+
   const healthPort = parseWorkerHealthPort(env.SCCC_WORKER_HEALTH_PORT);
   let healthServer: Awaited<ReturnType<typeof startWorkerHealthServer>> | null = null;
 
@@ -299,6 +348,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     queues: workers.length,
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
+    deliverablesEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,
@@ -310,6 +360,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     registry,
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
+    deliverablesEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,

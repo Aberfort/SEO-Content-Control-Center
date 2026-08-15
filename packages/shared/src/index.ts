@@ -5,3 +5,4 @@ export * from "./schemas";
 export * from "./events";
 export * from "./observability";
 export * from "./plugin-signing";
+export * from "./deliverables";

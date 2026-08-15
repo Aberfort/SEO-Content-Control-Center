@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { billingCheckoutCreateSchema } from "@sccc/shared";
+import { billingCheckoutCreateSchema, deliveryPreferenceUpdateSchema } from "@sccc/shared";
 import { ZodError } from "zod";
 
 import { getAppRepository } from "@/lib/app-repository";
@@ -713,6 +713,27 @@ export async function markAllNotificationsReadAction(formData: FormData): Promis
 
   revalidatePath("/");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function updateDeliveryPreferenceAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = readRedirectTo(formData);
+
+  await assertServerActionSameOrigin();
+  const parsed = deliveryPreferenceUpdateSchema.parse({
+    organizationId: String(formData.get("organizationId") ?? ""),
+    emailEnabled: formData.get("emailEnabled") === "on",
+    criticalAlerts: formData.get("criticalAlerts") === "on",
+    trafficDropAlerts: formData.get("trafficDropAlerts") === "on",
+    overdueAlerts: formData.get("overdueAlerts") === "on",
+    failedOperationAlerts: formData.get("failedOperationAlerts") === "on",
+    weeklyDigest: formData.get("weeklyDigest") === "on"
+  });
+  await repository.updateDeliveryPreference({ user, ...parsed });
+
+  revalidatePath("/settings");
+  redirect(redirectTo);
 }
 
 export async function registerAction(

@@ -35,7 +35,7 @@
 - Тести детермінованих обчислень завжди приймають `referenceDate`/`now` параметром — не читай реальний годинник у фікстурах (вже був time-bomb тест).
 - Формат ітерації: невеликий вертикальний зріз → зміни коду + тести → синхронне оновлення документів → запис `### Iteration N` зверху CHANGELOG. Документи, які оновлюються майже щоітерації: `ROADMAP.md` (рядки `Status:`), `API_SPEC.md`, `SECURITY.md`, `QA_CHECKLIST.md`, `README.md` (список Current Iteration), `CHANGELOG.md`; для плагіна — `docs/PLUGIN_API.md`; для інфри — `ARCHITECTURE.md` (секція Current Implementation Status) і `DEPLOYMENT.md`.
 
-## Поточний стан (після Iteration 124)
+## Поточний стан (після Iteration 125)
 
 - Phases 0–6 закриті як робочий MVP: foundation, auth/org/site/members, plugin connect/sync/disconnect/paginated sync, audit MVP, GSC (OAuth, properties, metrics, insights, scheduled worker sync, traffic loss, opportunities), backlog, safe operations з worker execution/rollback/retry та dashboard/API visibility.
 - Phase 7 Assistant реалізований: deterministic recommendations з backlog/synced content/GSC evidence, optional Anthropic AI summary, AI-credit metering, plan limit blocking, source display, no prompt persistence.
@@ -69,15 +69,15 @@
 - Iteration 122 WordPress plugin platform conversion реалізована: plugin `0.4.0` deep-link-ить connected local findings у site-scoped Content/Audit views, пояснює Search Console enrichment і показує safe-preview eligibility лише для підтримуваних Yoast/Rank Math metadata fields без розширення sync payload.
 - Iteration 123 Local evidence continuity реалізована: plugin `0.5.0` синхронізує bounded active findings лише з latest completed local audit; strict shared schema відхиляє довільні коди/поля, SaaS deduplicate-ить metadata overlap і додає orphan/weak-link issues без post bodies, повного link graph чи ignored findings.
 - Iteration 124 Search impact prioritization реалізована: matched audit issues отримують transparent high/medium/low/none GSC bands, current/comparison metrics, fixed first-observed tracking baseline та deterministic follow-up outcome із correlation-not-causation disclaimer; Audits і audit-derived backlog сортуються impact-first, а CSV експортує evidence.
+- Iteration 125 Recurring deliverables реалізована: tenant-scoped per-member delivery preferences керують critical/traffic/overdue/failed-operation alerts і weekly digest; Monday worker створює idempotent prior-week runs, а Settings надає site/workspace client reports у print-ready HTML та CSV з transparent methodology.
 
 ## Черга ітерацій
 
 Погоджена черга платної цінності зафіксована в `docs/PAID_VALUE_ITERATIONS.md`. Виконуй по одній ітерації:
 
-1. **Iteration 125 — Recurring deliverables:** alerts, weekly digest, exportable client report і delivery preferences.
-2. **Iteration 126 — Operations workflow:** цілісний issue-task-safe-operation lifecycle, bulk review, partial failure/rollback guidance, verified outcome state.
-3. **Iteration 127 — Content Trust Evidence:** paid platform-only evidence framework за Experience, Expertise, Authoritativeness, Trust; без fake Google score/ranking guarantee; deterministic checks для paid plans, AI narrative лише через credits.
-4. **Iteration 128 — Commercial enforcement:** named entitlements, server-side URL/feature gates, pricing alignment, trial/upgrade/downgrade tests.
+1. **Iteration 126 — Operations workflow:** цілісний issue-task-safe-operation lifecycle, bulk review, partial failure/rollback guidance, verified outcome state.
+2. **Iteration 127 — Content Trust Evidence:** paid platform-only evidence framework за Experience, Expertise, Authoritativeness, Trust; без fake Google score/ranking guarantee; deterministic checks для paid plans, AI narrative лише через credits.
+3. **Iteration 128 — Commercial enforcement:** named entitlements, server-side URL/feature gates, pricing alignment, trial/upgrade/downgrade tests.
 
 Для Iteration 127 обов'язково спирайся на актуальну офіційну документацію Google Search Central. Google прямо зазначає, що E-E-A-T не є окремим specific ranking factor; продукт має показувати evidence і uncertainty, а не приписувати Google власну формулу.
 

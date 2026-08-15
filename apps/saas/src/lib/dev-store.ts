@@ -17,6 +17,9 @@ import {
   bulkOperationRetrySchema,
   bulkOperationRollbackSchema,
   bulkOperationStartSchema,
+  buildWorkspaceDeliverableSummary,
+  clientReportQuerySchema,
+  deliveryPreferenceUpdateSchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
@@ -41,6 +44,8 @@ import {
   type BulkOperationRetryInput,
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
+  type ClientReportQuery,
+  type DeliveryPreferenceUpdateInput,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
@@ -89,6 +94,8 @@ import type {
   BulkOperationItemStatusSummary,
   BulkOperationListOptions,
   BulkOperationRetryMode,
+  ClientReport,
+  DeliveryPreference,
   InviteResult,
   NotificationBulkUpdateResult,
   Notification,
@@ -119,6 +126,7 @@ import {
   normalizeLocalTrialStatus
 } from "./billing-trial";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import { buildSiteDeliverableSummary } from "./deliverable-summary";
 import {
   buildBulkOperationDryRunPreviewResult,
   buildSafeOperationPreview,
@@ -152,6 +160,7 @@ type DevStoreState = {
   bulkOperationItems: BulkOperationItem[];
   activityLogs: ActivityLog[];
   notifications: Notification[];
+  deliveryPreferences: DeliveryPreference[];
   subscriptions: BillingSubscription[];
   gscConnections: StoreGscConnection[];
   gscDailyMetrics: GscDailyMetric[];
@@ -259,6 +268,7 @@ function initialState(): DevStoreState {
     bulkOperationItems: [],
     activityLogs: [],
     notifications: [],
+    deliveryPreferences: [],
     subscriptions: [],
     gscConnections: [],
     gscDailyMetrics: [],
@@ -1244,6 +1254,120 @@ export function updateNotificationReadState(
   return notification;
 }
 
+export function getDeliveryPreference(userId: string, organizationId: string): DeliveryPreference {
+  requireOrganizationAccess({ userId, organizationId, permission: "organization:read" });
+  const existing = getDevStore().deliveryPreferences.find(
+    (preference) => preference.userId === userId && preference.organizationId === organizationId
+  );
+
+  return existing ?? defaultDeliveryPreference(userId, organizationId);
+}
+
+export function updateDeliveryPreference(
+  input: DeliveryPreferenceUpdateInput & { user: AppUser }
+): DeliveryPreference {
+  const parsed = deliveryPreferenceUpdateSchema.parse({
+    organizationId: input.organizationId,
+    emailEnabled: input.emailEnabled,
+    criticalAlerts: input.criticalAlerts,
+    trafficDropAlerts: input.trafficDropAlerts,
+    overdueAlerts: input.overdueAlerts,
+    failedOperationAlerts: input.failedOperationAlerts,
+    weeklyDigest: input.weeklyDigest
+  });
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "organization:read"
+  });
+  const store = getDevStore();
+  const existing = store.deliveryPreferences.find(
+    (preference) =>
+      preference.userId === input.user.id && preference.organizationId === parsed.organizationId
+  );
+  const updated: DeliveryPreference = {
+    ...parsed,
+    userId: input.user.id,
+    updatedAt: nowIso()
+  };
+
+  if (existing) {
+    Object.assign(existing, updated);
+    return existing;
+  }
+
+  store.deliveryPreferences.push(updated);
+  return updated;
+}
+
+export function getClientReport(
+  userId: string,
+  organizationId: string,
+  options: ClientReportQuery
+): ClientReport {
+  const parsed = clientReportQuerySchema.parse(options);
+  requireOrganizationAccess({ userId, organizationId, permission: "organization:read" });
+  const store = getDevStore();
+  const organization = store.organizations.find((candidate) => candidate.id === organizationId);
+
+  if (!organization) {
+    throw new Error("ORGANIZATION_NOT_FOUND");
+  }
+
+  const start = new Date(`${parsed.startDate}T00:00:00.000Z`);
+  const endExclusive = addUtcDays(new Date(`${parsed.endDate}T00:00:00.000Z`), 1);
+  const generatedAt = new Date();
+  const sites = store.sites.filter(
+    (site) =>
+      site.organizationId === organizationId && (!parsed.siteId || site.id === parsed.siteId)
+  );
+
+  if (parsed.siteId && sites.length === 0) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  return buildWorkspaceDeliverableSummary({
+    organizationId,
+    organizationName: organization.name,
+    startDate: parsed.startDate,
+    endDate: parsed.endDate,
+    generatedAt: generatedAt.toISOString(),
+    sites: sites.map((site) =>
+      buildSiteDeliverableSummary({
+        siteId: site.id,
+        siteName: site.name,
+        siteUrl: site.url,
+        start,
+        endExclusive,
+        generatedAt,
+        issues: store.auditIssues.filter((issue) => issue.siteId === site.id),
+        tasks: store.backlogTasks.filter((task) => task.siteId === site.id),
+        operations: store.bulkOperations.filter((operation) => operation.siteId === site.id)
+      })
+    )
+  });
+}
+
+function defaultDeliveryPreference(userId: string, organizationId: string): DeliveryPreference {
+  return {
+    organizationId,
+    userId,
+    emailEnabled: true,
+    criticalAlerts: true,
+    trafficDropAlerts: true,
+    overdueAlerts: true,
+    failedOperationAlerts: true,
+    weeklyDigest: true,
+    updatedAt: null
+  };
+}
+
+function addUtcDays(value: Date, days: number): Date {
+  const result = new Date(value);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
 export function listSyncedContentForSite(
   userId: string,
   organizationId: string,
@@ -1446,6 +1570,14 @@ export function createAuditForSite(input: {
     input.organizationId,
     input.siteId
   );
+  const existingFingerprints = new Set(
+    store.auditIssues
+      .filter(
+        (issue) => issue.organizationId === input.organizationId && issue.siteId === input.siteId
+      )
+      .map((issue) => issue.fingerprint)
+  );
+  const newIssues = generatedIssues.filter((issue) => !existingFingerprints.has(issue.fingerprint));
   const timestamp = nowIso();
   const audit: Audit = {
     id: randomUUID(),
@@ -1460,6 +1592,34 @@ export function createAuditForSite(input: {
 
   store.audits.push(audit);
   upsertAuditIssuesByFingerprint(store, audit, generatedIssues);
+  const newCriticalCount = newIssues.filter((issue) => issue.severity === "CRITICAL").length;
+  const significantTrafficDropCount = newIssues.filter(
+    (issue) => issue.issueType === "gsc.traffic-loss" && issue.severity === "HIGH"
+  ).length;
+
+  if (newCriticalCount > 0) {
+    store.notifications.push({
+      id: randomUUID(),
+      organizationId: input.organizationId,
+      type: "deliverable.alert.critical_findings",
+      title: `${newCriticalCount} new critical finding${newCriticalCount === 1 ? "" : "s"}`,
+      body: `${site.name} has new critical evidence requiring review.`,
+      readAt: null,
+      createdAt: timestamp
+    });
+  }
+
+  if (significantTrafficDropCount > 0) {
+    store.notifications.push({
+      id: randomUUID(),
+      organizationId: input.organizationId,
+      type: "deliverable.alert.traffic_drop",
+      title: `${significantTrafficDropCount} significant traffic drop${significantTrafficDropCount === 1 ? "" : "s"}`,
+      body: `${site.name} has new high-severity Search Console traffic-loss evidence.`,
+      readAt: null,
+      createdAt: timestamp
+    });
+  }
   writeActivityLog({
     organizationId: input.organizationId,
     userId: input.user.id,

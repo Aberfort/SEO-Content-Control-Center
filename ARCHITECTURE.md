@@ -5,13 +5,13 @@
 - SaaS application: Next.js, TypeScript, React, Tailwind CSS, API routes/server actions, Auth.js-compatible authentication, PostgreSQL, Redis-backed rate limits and queues, BullMQ workers, S3-compatible storage (planned), Stripe billing.
 - WordPress plugin: PHP 8.1+, PSR-4 autoloading, WP REST API, Action Scheduler for background work, nonce/capability checks, sanitized inputs, escaped outputs.
 - Marketing site: public Next.js app with SEO metadata, lead/demo/trial forms, product content, status and legal pages.
-- Workers: BullMQ worker process foundation with heartbeat, handler registry, graceful shutdown, scheduled Google Search Console sync, and safe bulk operation execution.
+- Workers: BullMQ worker process foundation with heartbeat, handler registry, graceful shutdown, scheduled Google Search Console sync, recurring workspace deliverables, and safe bulk operation execution.
 
 ## Current Implementation Status
 
 The core MVP architecture is implemented, while production cutover and some post-launch/enterprise capabilities remain. As of Iteration 112 the codebase stands as follows:
 
-- A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, and `sccc-bulk-operations` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The `sccc-plugin-sync` queue name remains reserved.
+- A worker foundation exists: `apps/worker` runs BullMQ workers on the `sccc-maintenance`, `sccc-gsc-sync`, `sccc-bulk-operations`, and `sccc-deliverables` queues when configured, with a Redis heartbeat, a job handler registry, tenant payload validation helpers, and graceful shutdown. The deliverables scheduler runs Monday at 08:00 UTC, fans out deterministic prior-week organization jobs, and persists idempotent delivery runs. The `sccc-plugin-sync` queue name remains reserved.
 - Rate limits use Redis-backed fixed windows when `REDIS_URL` is configured and fall back to process-local in-memory windows otherwise (or when Redis is unavailable).
 - Audits complete synchronously inside the HTTP request from already-synced metadata; no crawling or queued audit jobs exist.
 - Google Search Console metric and insight syncs run on a daily repeatable worker schedule for every active connection, and can still be triggered manually from the dashboard. The shared Google API client lives in `packages/gsc`.

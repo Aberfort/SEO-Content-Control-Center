@@ -2,6 +2,15 @@
 
 ## 0.1.0 - Foundation Iterations
 
+### Iteration 125
+
+- Added per-member, tenant-scoped email delivery preferences for critical findings, significant traffic drops, overdue work, failed safe operations, and the weekly digest, including a master unsubscribe control.
+- Added immediate audit alerts and failed-operation alerts that respect category preferences, while preserving organization-scoped in-app notifications.
+- Added a Monday 08:00 UTC BullMQ deliverables schedule with deterministic organization jobs, idempotent persisted runs, SMTP delivery, overdue-work alerts, and retryable failure state.
+- Added deterministic seven-day workspace summaries covering new risks, completed and overdue work, failed operations, and tracked Search Console outcomes without causality claims.
+- Added site-scoped or workspace-wide client report downloads in print-ready HTML and CSV with an explicit evidence period and transparent methodology.
+- Added a dedicated Settings deliverables panel, API routes, Prisma migration, repository/dev-store parity, and focused contract, summary, email, worker, and repository tests.
+
 ### Iteration 124
 
 - Added transparent Search Console impact enrichment for every matched audit issue, with `high`, `medium`, `low`, and `none` bands based on persisted clicks/impressions and explicit medium/high thresholds.

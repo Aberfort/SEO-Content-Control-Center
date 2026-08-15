@@ -145,7 +145,7 @@ Phase 6 execution status: the SaaS state machine, executable SEO title/meta desc
 
 - Iteration 123 - Local evidence continuity. Status: implemented; bounded local findings now become platform audit issues.
 - Iteration 124 - Search impact prioritization. Status: implemented; matched issues carry transparent GSC impact bands, current/comparison metrics, a fixed first-observed tracking baseline, deterministic follow-up outcomes, impact-first audit/backlog listing, and CSV evidence without inline Google calls or causality claims.
-- Iteration 125 - Recurring deliverables. Status: planned; issue-change alerts, weekly workspace digest, and exportable client report with deterministic evidence and delivery preferences.
+- Iteration 125 - Recurring deliverables. Status: implemented; preference-aware critical/traffic/overdue/failed-operation alerts, Monday workspace digest with idempotent delivery runs, and site/workspace HTML or CSV client reports use deterministic persisted evidence and transparent methodology.
 - Iteration 126 - Operations workflow. Status: planned; strengthen issue-to-task-to-safe-operation guidance, bulk review, partial-failure recovery, and outcome visibility.
 - Iteration 127 - Content Trust Evidence. Status: planned as a paid platform-only capability; assess observable Experience, Expertise, Authoritativeness, and Trust evidence, show missing/insufficient evidence and YMYL review flags, and never label the result a Google score or ranking guarantee.
 - Iteration 128 - Commercial enforcement. Status: planned; define plan entitlements, enforce URL/feature limits server-side, align pricing copy, and cover upgrade/downgrade behavior.

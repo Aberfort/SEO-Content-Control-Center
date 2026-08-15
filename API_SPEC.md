@@ -639,6 +639,22 @@ Response:
 }
 ```
 
+## Recurring Deliverables
+
+`GET /api/organizations/:organizationId/delivery-preferences`
+
+Returns the current member's tenant-scoped delivery settings. Missing records resolve to enabled defaults.
+
+`PUT /api/organizations/:organizationId/delivery-preferences`
+
+Persists the master email switch plus `criticalAlerts`, `trafficDropAlerts`, `overdueAlerts`, `failedOperationAlerts`, and `weeklyDigest` booleans for the authenticated member. The route requires same-origin mutation protection.
+
+`GET /api/organizations/:organizationId/reports/client?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&format=html|csv&siteId=optional`
+
+Downloads a private, no-store workspace or site report. Counts are computed from persisted tenant evidence for the inclusive UTC period; unresolved and overdue counts are generation-time snapshots. Search outcome movement is reported as correlation, not proof of causation.
+
+The worker schedules the previous UTC week's digest every Monday at 08:00 UTC. Deterministic job and database keys prevent duplicate delivery for the same organization and period.
+
 ## Notifications
 
 `GET /api/organizations/:organizationId/notifications`

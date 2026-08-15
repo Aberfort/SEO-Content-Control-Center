@@ -19,6 +19,9 @@ import {
   bulkOperationRetrySchema,
   bulkOperationRollbackSchema,
   bulkOperationStartSchema,
+  buildWorkspaceDeliverableSummary,
+  clientReportQuerySchema,
+  deliveryPreferenceUpdateSchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
@@ -46,6 +49,8 @@ import {
   type BulkOperationRetryInput,
   type BulkOperationRollbackInput,
   type BulkOperationStartInput,
+  type ClientReportQuery,
+  type DeliveryPreferenceUpdateInput,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
@@ -103,9 +108,12 @@ import {
   getBillingOverviewForOrganization as getDevBillingOverviewForOrganization,
   getBillingCheckoutContext as getDevBillingCheckoutContext,
   getBillingPortalContext as getDevBillingPortalContext,
+  getClientReport as getDevClientReport,
+  getDeliveryPreference as getDevDeliveryPreference,
   applyBillingWebhookUpdate as applyDevBillingWebhookUpdate,
   markAllNotificationsRead as markAllDevNotificationsRead,
   updateNotificationReadState as updateDevNotificationReadState,
+  updateDeliveryPreference as updateDevDeliveryPreference,
   updateMemberRole as updateDevMemberRole,
   selectGscConnectionProperty as selectDevGscConnectionProperty,
   replaceGscSearchInsights as replaceDevGscSearchInsights,
@@ -158,6 +166,7 @@ import {
   sortBillingPlans
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
+import { sendWorkspaceAlertEmail } from "./email";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import {
   aiCreditLimitNotificationType,
@@ -172,6 +181,7 @@ import {
 } from "./billing-trial";
 import type { BillingWebhookApplyResult, StripeBillingWebhookUpdate } from "./billing-webhook";
 import { buildBulkOperationNotification } from "./bulk-operation-notifications";
+import { buildSiteDeliverableSummary } from "./deliverable-summary";
 import {
   buildBulkOperationDryRunPreviewResult,
   buildSafeOperationPreview,
@@ -212,6 +222,8 @@ import type {
   BulkOperationItemStatusSummary,
   BulkOperationListOptions,
   BulkOperationRetryMode,
+  ClientReport,
+  DeliveryPreference,
   GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
@@ -337,6 +349,10 @@ type UpdateNotificationReadStateInput = NotificationReadUpdateInput & {
   user: AppUser;
 };
 
+type UpdateDeliveryPreferenceInput = DeliveryPreferenceUpdateInput & {
+  user: AppUser;
+};
+
 type BillingCheckoutContextInput = {
   user: AppUser;
   organizationId: string;
@@ -413,6 +429,13 @@ type AppRepository = {
     organizationId: string
   ): Promise<NotificationBulkUpdateResult>;
   updateNotificationReadState(input: UpdateNotificationReadStateInput): Promise<Notification>;
+  getDeliveryPreference(userId: string, organizationId: string): Promise<DeliveryPreference>;
+  updateDeliveryPreference(input: UpdateDeliveryPreferenceInput): Promise<DeliveryPreference>;
+  getClientReport(
+    userId: string,
+    organizationId: string,
+    options: ClientReportQuery
+  ): Promise<ClientReport>;
   listSyncedContentForSite(
     userId: string,
     organizationId: string,
@@ -580,6 +603,15 @@ const devStoreRepository: AppRepository = {
   },
   async updateNotificationReadState(input) {
     return updateDevNotificationReadState(input);
+  },
+  async getDeliveryPreference(userId, organizationId) {
+    return getDevDeliveryPreference(userId, organizationId);
+  },
+  async updateDeliveryPreference(input) {
+    return updateDevDeliveryPreference(input);
+  },
+  async getClientReport(userId, organizationId, options) {
+    return getDevClientReport(userId, organizationId, options);
   },
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     return listDevSyncedContentForSite(userId, organizationId, siteId, options);
@@ -1453,6 +1485,161 @@ const prismaRepository: AppRepository = {
     return mapNotification(notification);
   },
 
+  async getDeliveryPreference(userId, organizationId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "organization:read"
+    });
+    const preference = await prisma.deliveryPreference.findUnique({
+      where: {
+        organizationId_userId: { organizationId, userId }
+      }
+    });
+
+    return preference
+      ? mapDeliveryPreference(preference)
+      : defaultDeliveryPreference(userId, organizationId);
+  },
+
+  async updateDeliveryPreference(input) {
+    const parsed = deliveryPreferenceUpdateSchema.parse({
+      organizationId: input.organizationId,
+      emailEnabled: input.emailEnabled,
+      criticalAlerts: input.criticalAlerts,
+      trafficDropAlerts: input.trafficDropAlerts,
+      overdueAlerts: input.overdueAlerts,
+      failedOperationAlerts: input.failedOperationAlerts,
+      weeklyDigest: input.weeklyDigest
+    });
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "organization:read"
+    });
+    const preference = await prisma.deliveryPreference.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id
+        }
+      },
+      update: {
+        emailEnabled: parsed.emailEnabled,
+        criticalAlerts: parsed.criticalAlerts,
+        trafficDropAlerts: parsed.trafficDropAlerts,
+        overdueAlerts: parsed.overdueAlerts,
+        failedOperationAlerts: parsed.failedOperationAlerts,
+        weeklyDigest: parsed.weeklyDigest
+      },
+      create: {
+        organizationId: parsed.organizationId,
+        userId: input.user.id,
+        emailEnabled: parsed.emailEnabled,
+        criticalAlerts: parsed.criticalAlerts,
+        trafficDropAlerts: parsed.trafficDropAlerts,
+        overdueAlerts: parsed.overdueAlerts,
+        failedOperationAlerts: parsed.failedOperationAlerts,
+        weeklyDigest: parsed.weeklyDigest
+      }
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        organizationId: parsed.organizationId,
+        userId: input.user.id,
+        action: "delivery_preferences.updated",
+        entityType: "DeliveryPreference",
+        entityId: preference.id,
+        metadata: {
+          emailEnabled: preference.emailEnabled,
+          weeklyDigest: preference.weeklyDigest
+        }
+      }
+    });
+
+    return mapDeliveryPreference(preference);
+  },
+
+  async getClientReport(userId, organizationId, options) {
+    const parsed = clientReportQuerySchema.parse(options);
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      permission: "organization:read"
+    });
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true }
+    });
+
+    if (!organization) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
+
+    const sites = await prisma.site.findMany({
+      where: {
+        organizationId,
+        ...(parsed.siteId ? { id: parsed.siteId } : {})
+      },
+      orderBy: [{ name: "asc" }, { id: "asc" }]
+    });
+
+    if (parsed.siteId && sites.length === 0) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const start = new Date(`${parsed.startDate}T00:00:00.000Z`);
+    const endExclusive = addUtcDays(new Date(`${parsed.endDate}T00:00:00.000Z`), 1);
+    const generatedAt = new Date();
+    const summaries = await Promise.all(
+      sites.map(async (site) => {
+        const [issues, tasks, operations] = await Promise.all([
+          prisma.auditIssue.findMany({
+            where: { organizationId, siteId: site.id },
+            select: {
+              issueType: true,
+              status: true,
+              severity: true,
+              evidence: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }),
+          prisma.backlogTask.findMany({
+            where: { organizationId, siteId: site.id },
+            select: { status: true, dueDate: true, updatedAt: true }
+          }),
+          prisma.bulkOperation.findMany({
+            where: { organizationId, siteId: site.id },
+            select: { status: true, updatedAt: true }
+          })
+        ]);
+
+        return buildSiteDeliverableSummary({
+          siteId: site.id,
+          siteName: site.name,
+          siteUrl: site.url,
+          start,
+          endExclusive,
+          generatedAt,
+          issues,
+          tasks,
+          operations
+        });
+      })
+    );
+
+    return buildWorkspaceDeliverableSummary({
+      organizationId,
+      organizationName: organization.name,
+      startDate: parsed.startDate,
+      endDate: parsed.endDate,
+      generatedAt: generatedAt.toISOString(),
+      sites: summaries
+    });
+  },
+
   async listSyncedContentForSite(userId, organizationId, siteId, options) {
     await requireDbOrganizationAccess({
       userId,
@@ -2321,6 +2508,13 @@ const prismaRepository: AppRepository = {
     const generatedIssues = [...syncedContentIssues, ...trafficLossIssues].map((issue) =>
       preserveSearchImpactBaseline(issue, existingEvidenceByFingerprint.get(issue.fingerprint))
     );
+    const newIssues = generatedIssues.filter(
+      (issue) => !existingEvidenceByFingerprint.has(issue.fingerprint)
+    );
+    const newCriticalCount = newIssues.filter((issue) => issue.severity === "CRITICAL").length;
+    const significantTrafficDropCount = newIssues.filter(
+      (issue) => issue.issueType === "gsc.traffic-loss" && issue.severity === "HIGH"
+    ).length;
 
     const auditResult = await prisma.$transaction(async (tx) => {
       const auditStartedAt = new Date();
@@ -2384,6 +2578,28 @@ const prismaRepository: AppRepository = {
         });
       }
 
+      if (newCriticalCount > 0) {
+        await tx.notification.create({
+          data: {
+            organizationId: input.organizationId,
+            type: "deliverable.alert.critical_findings",
+            title: `${newCriticalCount} new critical finding${newCriticalCount === 1 ? "" : "s"}`,
+            body: `${site.name} has new critical evidence requiring review.`
+          }
+        });
+      }
+
+      if (significantTrafficDropCount > 0) {
+        await tx.notification.create({
+          data: {
+            organizationId: input.organizationId,
+            type: "deliverable.alert.traffic_drop",
+            title: `${significantTrafficDropCount} significant traffic drop${significantTrafficDropCount === 1 ? "" : "s"}`,
+            body: `${site.name} has new high-severity Search Console traffic-loss evidence.`
+          }
+        });
+      }
+
       const persistedIssues = await tx.auditIssue.findMany({
         where: {
           auditId: created.id
@@ -2399,6 +2615,24 @@ const prismaRepository: AppRepository = {
         issueSummary: summarizeAuditIssueRows(persistedIssues)
       };
     });
+
+    if (newCriticalCount > 0) {
+      await deliverDbAuditAlert({
+        organizationId: input.organizationId,
+        preference: "criticalAlerts",
+        title: `${newCriticalCount} new critical finding${newCriticalCount === 1 ? "" : "s"}`,
+        body: `${site.name} has new critical evidence requiring review.`
+      });
+    }
+
+    if (significantTrafficDropCount > 0) {
+      await deliverDbAuditAlert({
+        organizationId: input.organizationId,
+        preference: "trafficDropAlerts",
+        title: `${significantTrafficDropCount} significant traffic drop${significantTrafficDropCount === 1 ? "" : "s"}`,
+        body: `${site.name} has new high-severity Search Console traffic-loss evidence.`
+      });
+    }
 
     return mapAudit(auditResult.audit, auditResult.issueSummary);
   },
@@ -5209,6 +5443,100 @@ function mapNotification(notification: {
     readAt: notification.readAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString()
   };
+}
+
+function mapDeliveryPreference(preference: {
+  organizationId: string;
+  userId: string;
+  emailEnabled: boolean;
+  criticalAlerts: boolean;
+  trafficDropAlerts: boolean;
+  overdueAlerts: boolean;
+  failedOperationAlerts: boolean;
+  weeklyDigest: boolean;
+  updatedAt: Date;
+}): DeliveryPreference {
+  return {
+    organizationId: preference.organizationId,
+    userId: preference.userId,
+    emailEnabled: preference.emailEnabled,
+    criticalAlerts: preference.criticalAlerts,
+    trafficDropAlerts: preference.trafficDropAlerts,
+    overdueAlerts: preference.overdueAlerts,
+    failedOperationAlerts: preference.failedOperationAlerts,
+    weeklyDigest: preference.weeklyDigest,
+    updatedAt: preference.updatedAt.toISOString()
+  };
+}
+
+function defaultDeliveryPreference(userId: string, organizationId: string): DeliveryPreference {
+  return {
+    organizationId,
+    userId,
+    emailEnabled: true,
+    criticalAlerts: true,
+    trafficDropAlerts: true,
+    overdueAlerts: true,
+    failedOperationAlerts: true,
+    weeklyDigest: true,
+    updatedAt: null
+  };
+}
+
+async function deliverDbAuditAlert(input: {
+  organizationId: string;
+  preference: "criticalAlerts" | "trafficDropAlerts";
+  title: string;
+  body: string;
+}): Promise<void> {
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: {
+      name: true,
+      members: {
+        where: { status: "ACTIVE" },
+        select: {
+          user: {
+            select: {
+              email: true,
+              deliveryPreferences: {
+                where: { organizationId: input.organizationId },
+                select: {
+                  emailEnabled: true,
+                  criticalAlerts: true,
+                  trafficDropAlerts: true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!organization) return;
+
+  const actionUrl = `${(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")}/audits`;
+  await Promise.all(
+    organization.members.map(async (member) => {
+      const preference = member.user.deliveryPreferences[0];
+      if (preference && (!preference.emailEnabled || !preference[input.preference])) return;
+
+      await sendWorkspaceAlertEmail({
+        to: member.user.email,
+        organizationName: organization.name,
+        title: input.title,
+        body: input.body,
+        actionUrl: actionUrl || undefined
+      });
+    })
+  );
+}
+
+function addUtcDays(value: Date, days: number): Date {
+  const result = new Date(value);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
 }
 
 async function getDbBillingLimitContext(organizationId: string): Promise<{

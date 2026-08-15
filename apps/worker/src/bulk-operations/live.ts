@@ -8,6 +8,7 @@ import type {
   BulkOperationRollbackDeps,
   BulkOperationRollbackResultItem
 } from "./handlers";
+import { deliverWorkspaceAlert } from "../deliverables/live";
 
 async function getPrisma() {
   const { prisma } = await import("@sccc/database");
@@ -194,6 +195,16 @@ async function recordBulkOperationResult(input: {
       }
     });
   });
+
+  if (input.status === "FAILED") {
+    await deliverWorkspaceAlert({
+      organizationId: input.organizationId,
+      preference: "failedOperationAlerts",
+      title: "Safe operation failed",
+      body: `A safe content operation failed for ${failedItemCount} of ${input.itemResults.length} items.${formatOptionalDetail(input.message)}`,
+      actionPath: "/backlog"
+    }).catch(() => undefined);
+  }
 }
 
 async function recordBulkOperationRollbackResult(input: {
@@ -295,6 +306,16 @@ async function recordBulkOperationRollbackResult(input: {
       }
     });
   });
+
+  if (input.status === "FAILED") {
+    await deliverWorkspaceAlert({
+      organizationId: input.organizationId,
+      preference: "failedOperationAlerts",
+      title: "Safe operation rollback failed",
+      body: `A rollback failed for ${failedItemCount} of ${input.itemResults.length} items.${formatOptionalDetail(input.message)}`,
+      actionPath: "/backlog"
+    }).catch(() => undefined);
+  }
 }
 
 function toNullableJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {

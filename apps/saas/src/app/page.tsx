@@ -24,6 +24,7 @@ import {
   updateAuditIssueStatusAction,
   updateBacklogTaskAssignmentAction,
   updateBacklogTaskStatusAction,
+  updateDeliveryPreferenceAction,
   updateNotificationReadStateAction
 } from "@/app/actions";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
@@ -383,6 +384,11 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
         limit: 100
       })
     : [];
+  const deliveryPreference = activeOrganization
+    ? await repository.getDeliveryPreference(user.id, activeOrganization.id)
+    : null;
+  const reportEndDate = new Date().toISOString().slice(0, 10);
+  const reportStartDate = shiftDateOnly(reportEndDate, -6);
   const assistantRecommendationList =
     activeOrganization && activeSite
       ? await repository.listAssistantRecommendationsForSite(
@@ -2300,6 +2306,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
         {view === "settings" ? (
           <>
             <nav className="settings-nav" aria-label="Settings sections">
+              <a href="#deliverables-title">Deliverables</a>
               <a href="#activity-title">Activity</a>
               <a href="#notifications-title">Notifications</a>
               <a href="#security-title">Security</a>
@@ -2316,6 +2323,111 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 here without interrupting the site operations flow above.
               </p>
             </section>
+
+            {activeOrganization && deliveryPreference ? (
+              <section className="panel deliverables-panel" aria-labelledby="deliverables-title">
+                <div className="section-heading">
+                  <div>
+                    <h2 id="deliverables-title">Recurring deliverables</h2>
+                    <p>Choose email delivery and export a reproducible client report.</p>
+                  </div>
+                  <span className="metric-pill">
+                    {deliveryPreference.emailEnabled ? "Email on" : "Email off"}
+                  </span>
+                </div>
+                <div className="deliverables-grid">
+                  <form
+                    className="delivery-preference-form"
+                    action={updateDeliveryPreferenceAction}
+                  >
+                    <input name="organizationId" type="hidden" value={activeOrganization.id} />
+                    <input name="redirectTo" type="hidden" value={currentHref} />
+                    <label className="delivery-master-toggle">
+                      <input
+                        defaultChecked={deliveryPreference.emailEnabled}
+                        name="emailEnabled"
+                        type="checkbox"
+                      />
+                      <span>
+                        <strong>Email delivery</strong>
+                        <small>Turn off to unsubscribe from every workspace email.</small>
+                      </span>
+                    </label>
+                    <fieldset>
+                      <legend>Deliveries</legend>
+                      {[
+                        [
+                          "criticalAlerts",
+                          "New critical findings",
+                          deliveryPreference.criticalAlerts
+                        ],
+                        [
+                          "trafficDropAlerts",
+                          "Significant traffic drops",
+                          deliveryPreference.trafficDropAlerts
+                        ],
+                        ["overdueAlerts", "Overdue work", deliveryPreference.overdueAlerts],
+                        [
+                          "failedOperationAlerts",
+                          "Failed safe operations",
+                          deliveryPreference.failedOperationAlerts
+                        ],
+                        ["weeklyDigest", "Weekly workspace digest", deliveryPreference.weeklyDigest]
+                      ].map(([name, label, checked]) => (
+                        <label key={String(name)}>
+                          <input
+                            defaultChecked={Boolean(checked)}
+                            name={String(name)}
+                            type="checkbox"
+                          />
+                          <span>{String(label)}</span>
+                        </label>
+                      ))}
+                    </fieldset>
+                    <button className="button" type="submit">
+                      Save delivery preferences
+                    </button>
+                  </form>
+                  <div className="client-report-panel">
+                    <div>
+                      <span className="eyebrow">Client report</span>
+                      <strong>Last 7 days</strong>
+                      <p>
+                        {reportStartDate} to {reportEndDate} UTC · all workspace sites
+                      </p>
+                    </div>
+                    <div className="client-report-actions">
+                      <Link
+                        className="secondary-button"
+                        href={buildClientReportHref({
+                          organizationId: activeOrganization.id,
+                          startDate: reportStartDate,
+                          endDate: reportEndDate,
+                          format: "html"
+                        })}
+                      >
+                        Export HTML
+                      </Link>
+                      <Link
+                        className="secondary-button"
+                        href={buildClientReportHref({
+                          organizationId: activeOrganization.id,
+                          startDate: reportStartDate,
+                          endDate: reportEndDate,
+                          format: "csv"
+                        })}
+                      >
+                        Export CSV
+                      </Link>
+                    </div>
+                    <small>
+                      Includes evidence period, methodology, critical findings, traffic drops,
+                      completed and overdue work, failed operations, and measured outcomes.
+                    </small>
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             <section className="admin-grid" aria-label="Workspace administration">
               <section className="panel" aria-labelledby="activity-title">
@@ -2345,7 +2457,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 <div className="section-heading">
                   <div>
                     <h2 id="notifications-title">Notifications</h2>
-                    <p>Recent safe operation lifecycle updates for this organization.</p>
+                    <p>Recent alerts, digest deliveries, and safe operation lifecycle updates.</p>
                   </div>
                   <div className="notification-heading-actions">
                     <span className="metric-pill">
@@ -2407,7 +2519,8 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   </ul>
                 ) : (
                   <p className="empty-copy">
-                    Notifications will appear after safe operation results, rollbacks, or retries.
+                    Alerts will appear after critical findings, traffic drops, overdue work, digest
+                    delivery, or safe operation changes.
                   </p>
                 )}
               </section>
@@ -2726,6 +2839,20 @@ function buildAuditIssueExportHref(input: {
   const query = params.toString();
   const path = `/api/organizations/${input.organizationId}/sites/${input.siteId}/audits/${input.auditId}/issues/export`;
   return query ? `${path}?${query}` : path;
+}
+
+function buildClientReportHref(input: {
+  organizationId: string;
+  startDate: string;
+  endDate: string;
+  format: "html" | "csv";
+}): string {
+  const params = new URLSearchParams({
+    startDate: input.startDate,
+    endDate: input.endDate,
+    format: input.format
+  });
+  return `/api/organizations/${input.organizationId}/reports/client?${params.toString()}`;
 }
 
 function buildAuditIssueSummary(

@@ -94,6 +94,9 @@
 - A completed rerun compares against the previous result with bounded new/resolved/unchanged state and does not accumulate unlimited audit history.
 - Administrators can ignore and restore intentional findings; ignored findings stay filterable/exportable and are excluded from active summary counts.
 - Daily/weekly local schedules are explicit opt-in, use Action Scheduler or WP-Cron, do not duplicate events, and are removed on deactivation/uninstall.
+- Delivery preferences are member- and tenant-scoped; the master unsubscribe and every category switch suppress the matching email without hiding in-app evidence.
+- Weekly digest jobs use the previous inclusive UTC week, deterministic organization/period identifiers, and do not redeliver completed or skipped runs.
+- Client report HTML and CSV stay tenant/site scoped, include the requested evidence period and methodology, and escape organization/site values.
 - Every local finding links to the normal WordPress Edit and View actions and the complete latest audit exports as UTF-8 CSV.
 - WordPress Dashboard and Site Health expose local audit state; only published noindex findings produce a critical Site Health result.
 - The local audit runs without external requests and remains available when the optional platform is disconnected.

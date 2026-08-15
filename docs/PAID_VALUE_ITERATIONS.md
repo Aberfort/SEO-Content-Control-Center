@@ -33,6 +33,8 @@ Status: implemented.
 
 ## Iteration 125 - Recurring Deliverables
 
+Status: implemented.
+
 - Notify teams about new critical findings, significant traffic drops, overdue work, and failed safe
   operations.
 - Produce a weekly workspace digest with changes, completed work, unresolved risks, and measurable

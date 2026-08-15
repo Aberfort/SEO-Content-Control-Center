@@ -1,4 +1,4 @@
-import type { PlanCode, PlanLimits, Role } from "@sccc/shared";
+import type { PlanCode, PlanLimits, Role, WorkspaceDeliverableSummary } from "@sccc/shared";
 
 export type AppUser = {
   id: string;
@@ -76,6 +76,32 @@ export type NotificationListOptions = {
 export type NotificationBulkUpdateResult = {
   updatedCount: number;
 };
+
+export type DeliveryPreference = {
+  organizationId: string;
+  userId: string;
+  emailEnabled: boolean;
+  criticalAlerts: boolean;
+  trafficDropAlerts: boolean;
+  overdueAlerts: boolean;
+  failedOperationAlerts: boolean;
+  weeklyDigest: boolean;
+  updatedAt: string | null;
+};
+
+export type DeliverableRun = {
+  id: string;
+  organizationId: string;
+  type: "weekly_digest";
+  periodStart: string;
+  periodEnd: string;
+  status: "GENERATED" | "DELIVERED" | "SKIPPED" | "FAILED";
+  recipientCount: number;
+  deliveredAt: string | null;
+  createdAt: string;
+};
+
+export type ClientReport = WorkspaceDeliverableSummary;
 
 export type BillingPlan = {
   id: string;

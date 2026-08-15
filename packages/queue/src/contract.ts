@@ -3,16 +3,15 @@ import { z } from "zod";
 /**
  * Queue names shared by the SaaS producer side and the worker consumer side.
  *
- * Only the maintenance queue is processed by the worker foundation. The other
- * queue names are reserved contracts for scheduled GSC sync jobs and bulk
- * operation execution so producers and consumers agree on naming before those
- * iterations land.
+ * Queue names are shared by producers and the worker so scheduled and
+ * tenant-scoped jobs retain one stable contract.
  */
 export const queueNames = {
   maintenance: "sccc-maintenance",
   gscSync: "sccc-gsc-sync",
   bulkOperations: "sccc-bulk-operations",
-  pluginSync: "sccc-plugin-sync"
+  pluginSync: "sccc-plugin-sync",
+  deliverables: "sccc-deliverables"
 } as const;
 
 export type QueueName = (typeof queueNames)[keyof typeof queueNames];
@@ -23,7 +22,9 @@ export const jobNames = {
   gscDailyMetricsSync: "gsc.daily-metrics.sync",
   gscSearchInsightsSync: "gsc.search-insights.sync",
   bulkOperationExecute: "bulk-operation.execute",
-  bulkOperationRollback: "bulk-operation.rollback"
+  bulkOperationRollback: "bulk-operation.rollback",
+  deliverablesSchedule: "deliverables.schedule",
+  workspaceWeeklyDigest: "deliverables.workspace-weekly-digest"
 } as const;
 
 export type JobName = (typeof jobNames)[keyof typeof jobNames];
@@ -78,6 +79,16 @@ export const bulkOperationRollbackJobDataSchema = z
 
 export type BulkOperationRollbackJobData = z.infer<typeof bulkOperationRollbackJobDataSchema>;
 
+export const workspaceWeeklyDigestJobDataSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    startDate: z.string().date(),
+    endDate: z.string().date()
+  })
+  .strict();
+
+export type WorkspaceWeeklyDigestJobData = z.infer<typeof workspaceWeeklyDigestJobDataSchema>;
+
 /**
  * Cron pattern for the repeatable GSC sync scheduler job. Search Analytics
  * data lags days behind real time, so one daily run is enough.
@@ -85,6 +96,9 @@ export type BulkOperationRollbackJobData = z.infer<typeof bulkOperationRollbackJ
 export const gscScheduleCronPattern = "0 6 * * *";
 
 export const gscScheduleJobId = "gsc-schedule-sync";
+
+export const deliverablesScheduleCronPattern = "0 8 * * 1";
+export const deliverablesScheduleJobId = "deliverables-schedule";
 
 /**
  * Default retry strategy for queued jobs. Failed jobs stay in the failed set

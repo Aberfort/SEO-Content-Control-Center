@@ -16,10 +16,12 @@
     "@sccc/queue": "0.1.0",
     "@sccc/shared": "0.1.0",
     "bullmq": "^5.34.5",
-    "ioredis": "5.10.1"
+    "ioredis": "5.10.1",
+    "nodemailer": "^9.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.2"
   }
 }

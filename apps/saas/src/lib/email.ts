@@ -40,6 +40,14 @@ export type PasswordResetEmailInput = {
   expiresAt: string;
 };
 
+export type WorkspaceAlertEmailInput = {
+  to: string;
+  organizationName: string;
+  title: string;
+  body: string;
+  actionUrl?: string;
+};
+
 type EmailConfig =
   | {
       transport: "noop";
@@ -199,6 +207,54 @@ export async function sendPasswordResetEmail(
   }
 }
 
+export async function sendWorkspaceAlertEmail(
+  input: WorkspaceAlertEmailInput
+): Promise<EmailDeliveryStatus> {
+  const config = resolveEmailConfig();
+  const message = composeWorkspaceAlertEmail(input);
+
+  if (config.transport === "noop") {
+    return {
+      provider: "noop",
+      status: "skipped",
+      reason: "Email transport is disabled."
+    };
+  }
+
+  try {
+    const transport = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user
+        ? {
+            user: config.user,
+            pass: config.password ?? ""
+          }
+        : undefined
+    });
+    const info = await transport.sendMail({
+      from: config.from,
+      to: input.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html
+    });
+
+    return {
+      provider: "smtp",
+      status: "sent",
+      messageId: info.messageId
+    };
+  } catch {
+    return {
+      provider: "smtp",
+      status: "failed",
+      reason: "SMTP delivery failed."
+    };
+  }
+}
+
 export function composeInviteEmail(input: InviteEmailInput) {
   const organizationName = input.organizationName.trim() || "SEO Content Control Center";
   const expiresAt = new Intl.DateTimeFormat("en", {
@@ -288,6 +344,29 @@ export function composePasswordResetEmail(input: PasswordResetEmailInput) {
     text,
     html
   };
+}
+
+export function composeWorkspaceAlertEmail(input: WorkspaceAlertEmailInput) {
+  const organizationName = input.organizationName.trim() || "SEO Content Control Center";
+  const subject = `${organizationName}: ${input.title}`;
+  const text = [
+    input.title,
+    "",
+    input.body,
+    input.actionUrl ? `Review workspace: ${input.actionUrl}` : "",
+    "",
+    "You can change alert delivery in workspace settings."
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const html = `
+    <h2>${escapeHtml(input.title)}</h2>
+    <p>${escapeHtml(input.body)}</p>
+    ${input.actionUrl ? `<p><a href="${escapeHtml(input.actionUrl)}">Review workspace</a></p>` : ""}
+    <p>You can change alert delivery in workspace settings.</p>
+  `;
+
+  return { subject, text, html };
 }
 
 export function resolveEmailConfig(env: Environment = process.env): EmailConfig {

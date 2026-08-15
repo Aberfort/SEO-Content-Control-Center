@@ -498,6 +498,102 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.deliverables-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.75fr);
+}
+
+.delivery-preference-form {
+  display: grid;
+  gap: 14px;
+}
+
+.delivery-master-toggle,
+.delivery-preference-form fieldset label {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+
+.delivery-master-toggle {
+  background: var(--success-bg);
+  border: 1px solid #cce8d4;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.delivery-master-toggle input,
+.delivery-preference-form fieldset input {
+  accent-color: var(--accent);
+  margin-top: 3px;
+}
+
+.delivery-master-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.delivery-master-toggle small,
+.client-report-panel small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.delivery-preference-form fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+}
+
+.delivery-preference-form legend {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 4px;
+  text-transform: uppercase;
+}
+
+.delivery-preference-form fieldset span {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.delivery-preference-form .primary-button {
+  justify-self: start;
+}
+
+.client-report-panel {
+  align-content: start;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.client-report-panel strong,
+.client-report-panel p {
+  display: block;
+}
+
+.client-report-panel p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.client-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .button {
   align-items: center;
   background: var(--accent);
@@ -2341,7 +2437,8 @@ th {
 
   .grid,
   .admin-intro,
-  .admin-grid {
+  .admin-grid,
+  .deliverables-grid {
     grid-template-columns: 1fr;
   }
 

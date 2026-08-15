@@ -196,6 +196,8 @@ Scheduled Google Search Console sync additionally requires `DATABASE_URL`, `SCCC
 
 Bulk operation execution and rollback additionally require `DATABASE_URL` and `SCCC_TOKEN_ENCRYPTION_KEY`. When configured, the worker processes the `sccc-bulk-operations` queue and executes `bulk-operation.execute` and `bulk-operation.rollback` jobs by signing requests to the connected WordPress plugin apply endpoint. WordPress connections created before encrypted plugin-token storage must be reconnected before worker apply or rollback can run for that site.
 
+Recurring deliverables require `DATABASE_URL`; SMTP delivery additionally uses the shared `SCCC_EMAIL_TRANSPORT`, `SCCC_EMAIL_FROM`, and `SCCC_SMTP_*` variables. The worker registers `deliverables.schedule` for Monday 08:00 UTC, creates deterministic organization-scoped digest jobs for the previous UTC week, and records generated, delivered, skipped, or failed runs. With email transport disabled, reports and in-app notifications remain available and email runs are recorded as skipped.
+
 TOTP 2FA enrollment in the SaaS app also requires `SCCC_TOKEN_ENCRYPTION_KEY` so pending and active authenticator secrets are encrypted at rest.
 
 ## Health Checks

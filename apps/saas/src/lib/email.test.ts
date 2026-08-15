@@ -4,6 +4,7 @@ import {
   composeEmailVerificationEmail,
   composeInviteEmail,
   composePasswordResetEmail,
+  composeWorkspaceAlertEmail,
   resolveEmailConfig,
   sendInviteEmail
 } from "./email";
@@ -84,5 +85,20 @@ describe("email delivery", () => {
     expect(message.subject).toBe("Reset your SEO Content Control Center password");
     expect(message.html).toContain("&lt;Owner&gt;");
     expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
+  });
+
+  it("composes an escaped workspace alert with a settings hint", () => {
+    const message = composeWorkspaceAlertEmail({
+      to: "owner@example.com",
+      organizationName: "Agency <North>",
+      title: "2 critical findings",
+      body: "Review <unsafe> evidence.",
+      actionUrl: 'https://app.example.com/audits?site="one"'
+    });
+
+    expect(message.subject).toBe("Agency <North>: 2 critical findings");
+    expect(message.html).toContain("Review &lt;unsafe&gt; evidence.");
+    expect(message.html).toContain("&quot;one&quot;");
+    expect(message.text).toContain("change alert delivery in workspace settings");
   });
 });

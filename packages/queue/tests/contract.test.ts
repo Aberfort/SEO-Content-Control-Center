@@ -10,6 +10,7 @@ import {
   maintenancePingJobDataSchema,
   queueNames,
   tenantJobDataSchema,
+  workspaceWeeklyDigestJobDataSchema,
   workerHeartbeatSchema,
   workerHeartbeatTtlSeconds
 } from "../src/contract";
@@ -95,6 +96,23 @@ describe("queue contract", () => {
     ).toThrow();
   });
 
+  it("validates organization-scoped weekly digest windows", () => {
+    expect(
+      workspaceWeeklyDigestJobDataSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        startDate: "2026-08-03",
+        endDate: "2026-08-09"
+      })
+    ).toMatchObject({ startDate: "2026-08-03", endDate: "2026-08-09" });
+    expect(() =>
+      workspaceWeeklyDigestJobDataSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        startDate: "not-a-date",
+        endDate: "2026-08-09"
+      })
+    ).toThrow();
+  });
+
   it("keeps retry defaults bounded", () => {
     expect(defaultJobOptions.attempts).toBeGreaterThanOrEqual(2);
     expect(defaultJobOptions.backoff.type).toBe("exponential");
@@ -133,5 +151,6 @@ describe("queue contract", () => {
     expect(jobNames.gscDailyMetricsSync).toBe("gsc.daily-metrics.sync");
     expect(jobNames.bulkOperationExecute).toBe("bulk-operation.execute");
     expect(jobNames.bulkOperationRollback).toBe("bulk-operation.rollback");
+    expect(jobNames.workspaceWeeklyDigest).toBe("deliverables.workspace-weekly-digest");
   });
 });
