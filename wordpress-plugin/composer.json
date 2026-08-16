@@ -15,7 +15,7 @@
     "wp-coding-standards/wpcs": "^3.1"
   },
   "extra": {
-    "sccc-plugin-version": "0.7.1"
+    "sccc-plugin-version": "0.7.2"
   },
   "scripts": {
     "lint": "find . -name '*.php' -print0 | xargs -0 -n1 php -l",
