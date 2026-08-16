@@ -4,7 +4,7 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,12 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.6.0 =
+
+* Rebuilt the plugin admin as a branded, responsive control surface with compact navigation and clear local/platform states.
+* Reworked audit summaries, filters, findings, connection setup, sync activity, controls, and feedback states for faster scanning.
+* Added a consistent accessible color system, keyboard focus treatment, responsive layouts, and reduced-motion support.
 
 = 0.5.0 =
 

@@ -64,25 +64,43 @@ final class AdminPage
             $this->readQueryValue('sccc_status'),
             $this->readQueryValue('sccc_error')
         );
+        $isConnected = null !== $this->connectionStore()->get();
         ?>
         <div class="wrap sccc-wrap">
-            <h1><?php echo esc_html__('SEO Content Control Center', 'seo-content-control-center'); ?></h1>
-            <nav class="nav-tab-wrapper" aria-label="<?php echo esc_attr__('Plugin sections', 'seo-content-control-center'); ?>">
-                <a class="nav-tab <?php echo 'health' === $tab ? 'nav-tab-active' : ''; ?>" href="<?php echo esc_url(admin_url('admin.php?page=sccc')); ?>">
-                    <?php echo esc_html__('Content Health', 'seo-content-control-center'); ?>
-                </a>
-                <a class="nav-tab <?php echo 'platform' === $tab ? 'nav-tab-active' : ''; ?>" href="<?php echo esc_url(admin_url('admin.php?page=sccc&tab=platform')); ?>">
-                    <?php echo esc_html__('Platform', 'seo-content-control-center'); ?>
-                </a>
-            </nav>
+            <div class="sccc-app-shell">
+                <header class="sccc-app-header">
+                    <div class="sccc-brand-lockup">
+                        <span class="sccc-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <div>
+                            <h1><?php echo esc_html__('SEO Content Control Center', 'seo-content-control-center'); ?></h1>
+                            <p><?php echo esc_html__('Local SEO health and review-first operations for WordPress.', 'seo-content-control-center'); ?></p>
+                        </div>
+                    </div>
+                    <span class="sccc-connection-state <?php echo $isConnected ? 'is-connected' : 'is-local'; ?>">
+                        <span aria-hidden="true"></span>
+                        <?php echo $isConnected ? esc_html__('Platform connected', 'seo-content-control-center') : esc_html__('Local mode', 'seo-content-control-center'); ?>
+                    </span>
+                </header>
 
-            <?php if (null !== $notice) : ?>
-                <div class="notice notice-<?php echo esc_attr($notice['type']); ?> is-dismissible">
-                    <p><?php echo esc_html($notice['message']); ?></p>
-                </div>
-            <?php endif; ?>
+                <nav class="sccc-tabs" aria-label="<?php echo esc_attr__('Plugin sections', 'seo-content-control-center'); ?>">
+                    <a class="sccc-tab <?php echo 'health' === $tab ? 'is-active' : ''; ?>" <?php echo 'health' === $tab ? 'aria-current="page"' : ''; ?> href="<?php echo esc_url(admin_url('admin.php?page=sccc')); ?>">
+                        <?php echo esc_html__('Content health', 'seo-content-control-center'); ?>
+                    </a>
+                    <a class="sccc-tab <?php echo 'platform' === $tab ? 'is-active' : ''; ?>" <?php echo 'platform' === $tab ? 'aria-current="page"' : ''; ?> href="<?php echo esc_url(admin_url('admin.php?page=sccc&tab=platform')); ?>">
+                        <?php echo esc_html__('Platform connection', 'seo-content-control-center'); ?>
+                    </a>
+                </nav>
 
-            <?php 'platform' === $tab ? $this->renderPlatform() : $this->renderHealth(); ?>
+                <main class="sccc-workspace">
+                    <?php if (null !== $notice) : ?>
+                        <div class="notice notice-<?php echo esc_attr($notice['type']); ?> is-dismissible sccc-feedback sccc-feedback-<?php echo esc_attr($notice['type']); ?>">
+                            <p><?php echo esc_html($notice['message']); ?></p>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php 'platform' === $tab ? $this->renderPlatform() : $this->renderHealth(); ?>
+                </main>
+            </div>
         </div>
         <?php
     }
@@ -317,7 +335,7 @@ final class AdminPage
         $schedule = $this->runner()->getRecurringStatus();
         $connection = $this->connectionStore()->get();
         ?>
-        <section class="sccc-section" aria-labelledby="sccc-health-title">
+        <section class="sccc-section sccc-health-section" aria-labelledby="sccc-health-title">
             <div class="sccc-section-header">
                 <div>
                     <h2 id="sccc-health-title"><?php echo esc_html__('WordPress Content Health Audit', 'seo-content-control-center'); ?></h2>
@@ -434,7 +452,7 @@ final class AdminPage
             ['label' => __('Checks complete', 'seo-content-control-center'), 'value' => (int) ($summary['complete'] ?? 0), 'tone' => 'success'],
         ];
         ?>
-        <div class="sccc-summary-grid">
+        <div class="sccc-summary-grid" aria-label="<?php echo esc_attr__('Audit summary', 'seo-content-control-center'); ?>">
             <?php foreach ($cards as $card) : ?>
                 <div class="sccc-summary-card sccc-summary-<?php echo esc_attr($card['tone']); ?>">
                     <span><?php echo esc_html($card['label']); ?></span>
@@ -644,7 +662,7 @@ final class AdminPage
         );
         $recurringSync = $scheduler->getRecurringSyncStatus();
         ?>
-        <section class="sccc-section" aria-labelledby="sccc-platform-title">
+        <section class="sccc-section sccc-platform-section" aria-labelledby="sccc-platform-title">
             <div class="sccc-section-header">
                 <div>
                     <h2 id="sccc-platform-title"><?php echo esc_html__('SEO operations platform', 'seo-content-control-center'); ?></h2>
@@ -652,38 +670,64 @@ final class AdminPage
                 </div>
             </div>
             <?php if (null === $connection) : ?>
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <input type="hidden" name="action" value="sccc_exchange_connection" />
-                    <?php wp_nonce_field('sccc_exchange_connection'); ?>
-                    <table class="form-table" role="presentation">
-                        <tr>
-                            <th scope="row"><label for="sccc_endpoint"><?php echo esc_html__('SaaS endpoint', 'seo-content-control-center'); ?></label></th>
-                            <td><input class="regular-text" id="sccc_endpoint" name="sccc_endpoint" type="url" required /></td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><label for="sccc_challenge"><?php echo esc_html__('Connection challenge', 'seo-content-control-center'); ?></label></th>
-                            <td><input class="regular-text" id="sccc_challenge" name="sccc_challenge" type="password" required /></td>
-                        </tr>
-                    </table>
-                    <?php submit_button(__('Connect platform', 'seo-content-control-center')); ?>
-                </form>
-            <?php else : ?>
-                <p><?php echo esc_html(sprintf(__('Connected to site %s.', 'seo-content-control-center'), $connection['site_id'])); ?></p>
-                <p><?php echo esc_html($this->formatRecurringSyncStatus($recurringSync)); ?></p>
-                <div class="sccc-inline-actions">
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <input type="hidden" name="action" value="sccc_manual_sync" />
-                        <?php wp_nonce_field('sccc_manual_sync'); ?>
-                        <?php submit_button(__('Queue manual sync', 'seo-content-control-center'), 'primary', 'submit', false); ?>
+                <div class="sccc-connect-layout">
+                    <form class="sccc-connect-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <input type="hidden" name="action" value="sccc_exchange_connection" />
+                        <?php wp_nonce_field('sccc_exchange_connection'); ?>
+                        <div class="sccc-field-group">
+                            <label for="sccc_endpoint"><?php echo esc_html__('Platform URL', 'seo-content-control-center'); ?></label>
+                            <input id="sccc_endpoint" name="sccc_endpoint" type="url" placeholder="https://app.example.com" autocomplete="url" required />
+                            <p><?php echo esc_html__('Use the URL of your SEO Content Control Center workspace.', 'seo-content-control-center'); ?></p>
+                        </div>
+                        <div class="sccc-field-group">
+                            <label for="sccc_challenge"><?php echo esc_html__('Connection challenge', 'seo-content-control-center'); ?></label>
+                            <input id="sccc_challenge" name="sccc_challenge" type="password" autocomplete="one-time-code" required />
+                            <p><?php echo esc_html__('Generate this one-time challenge from the Sites page in the platform.', 'seo-content-control-center'); ?></p>
+                        </div>
+                        <?php submit_button(__('Connect platform', 'seo-content-control-center'), 'primary', 'submit', false); ?>
                     </form>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <input type="hidden" name="action" value="sccc_disconnect" />
-                        <?php wp_nonce_field('sccc_disconnect'); ?>
-                        <?php submit_button(__('Disconnect', 'seo-content-control-center'), 'delete', 'submit', false); ?>
-                    </form>
+                    <aside class="sccc-connect-benefits" aria-label="<?php echo esc_attr__('Platform capabilities', 'seo-content-control-center'); ?>">
+                        <strong><?php echo esc_html__('What the connection adds', 'seo-content-control-center'); ?></strong>
+                        <ul>
+                            <li><?php echo esc_html__('Search Console evidence and traffic context', 'seo-content-control-center'); ?></li>
+                            <li><?php echo esc_html__('Prioritized team backlog and audit history', 'seo-content-control-center'); ?></li>
+                            <li><?php echo esc_html__('Preview and approval before metadata changes', 'seo-content-control-center'); ?></li>
+                        </ul>
+                        <p><?php echo esc_html__('The local audit remains available without an account.', 'seo-content-control-center'); ?></p>
+                    </aside>
                 </div>
-                <h3><?php echo esc_html__('Sync log', 'seo-content-control-center'); ?></h3>
-                <?php $this->renderSyncLogs($syncLogs); ?>
+            <?php else : ?>
+                <div class="sccc-connected-panel">
+                    <div class="sccc-connected-copy">
+                        <span class="sccc-status-dot" aria-hidden="true"></span>
+                        <div>
+                            <strong><?php echo esc_html__('Connection active', 'seo-content-control-center'); ?></strong>
+                            <p><?php echo esc_html(sprintf(__('Site ID: %s', 'seo-content-control-center'), $connection['site_id'])); ?></p>
+                            <p><?php echo esc_html($this->formatRecurringSyncStatus($recurringSync)); ?></p>
+                        </div>
+                    </div>
+                    <div class="sccc-inline-actions">
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <input type="hidden" name="action" value="sccc_manual_sync" />
+                            <?php wp_nonce_field('sccc_manual_sync'); ?>
+                            <?php submit_button(__('Queue manual sync', 'seo-content-control-center'), 'primary', 'submit', false); ?>
+                        </form>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <input type="hidden" name="action" value="sccc_disconnect" />
+                            <?php wp_nonce_field('sccc_disconnect'); ?>
+                            <?php submit_button(__('Disconnect', 'seo-content-control-center'), 'delete', 'submit', false); ?>
+                        </form>
+                    </div>
+                </div>
+                <div class="sccc-sync-log">
+                    <div class="sccc-results-header">
+                        <div>
+                            <h3><?php echo esc_html__('Sync activity', 'seo-content-control-center'); ?></h3>
+                            <p><?php echo esc_html__('Recent transfers between WordPress and the platform.', 'seo-content-control-center'); ?></p>
+                        </div>
+                    </div>
+                    <?php $this->renderSyncLogs($syncLogs); ?>
+                </div>
             <?php endif; ?>
         </section>
         <?php
@@ -705,7 +749,7 @@ final class AdminPage
                 <?php foreach ($syncLogs as $entry) : ?>
                     <tr>
                         <td><?php echo esc_html($this->formatTimestamp($entry['created_at'])); ?></td>
-                        <td><?php echo esc_html(ucfirst($entry['status'])); ?></td>
+                        <td><span class="sccc-sync-status sccc-sync-status-<?php echo esc_attr(sanitize_key($entry['status'])); ?>"><?php echo esc_html(ucfirst($entry['status'])); ?></span></td>
                         <td><?php echo esc_html(null === $entry['item_count'] ? __('n/a', 'seo-content-control-center') : (string) $entry['item_count']); ?></td>
                         <td><?php echo esc_html($entry['message']); ?></td>
                     </tr>
