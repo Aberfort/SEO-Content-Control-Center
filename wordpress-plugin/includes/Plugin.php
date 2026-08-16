@@ -21,7 +21,8 @@ final class Plugin
         private readonly SyncScheduler $syncScheduler,
         private readonly LocalAuditRunner $localAuditRunner,
         private readonly ApiClient $apiClient,
-        private readonly SafeOperationEndpoint $safeOperationEndpoint
+        private readonly SafeOperationEndpoint $safeOperationEndpoint,
+        private readonly Updater $updater
     ) {
     }
 
@@ -45,6 +46,7 @@ final class Plugin
         add_action('rest_api_init', [$this->safeOperationEndpoint, 'registerRoutes']);
         add_action('wp_dashboard_setup', [$this->adminPage, 'registerDashboardWidget']);
         add_filter('site_status_tests', [$this->adminPage, 'registerSiteHealthTests']);
+        $this->updater->register();
     }
 
     public function exchangeConnection(): void

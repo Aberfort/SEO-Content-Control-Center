@@ -3,7 +3,7 @@
  * Plugin Name: SEO Content Control Center
  * Plugin URI: https://seo-content-control-center-marketin.vercel.app/download
  * Description: Audits WordPress content health locally and optionally connects it to evidence-backed SEO workflows.
- * Version: 0.6.0
+ * Version: 0.7.0
  * Requires PHP: 8.1
  * Requires at least: 6.4
  * Author: Serhii Vasyliev
@@ -23,7 +23,7 @@ if (! defined('ABSPATH')) {
 
 define('SCCC_PLUGIN_FILE', __FILE__);
 define('SCCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('SCCC_PLUGIN_VERSION', '0.6.0');
+define('SCCC_PLUGIN_VERSION', '0.7.0');
 
 $autoload = SCCC_PLUGIN_DIR . 'vendor/autoload.php';
 
@@ -45,6 +45,7 @@ if (file_exists($autoload)) {
     require_once SCCC_PLUGIN_DIR . 'includes/LocalAuditStore.php';
     require_once SCCC_PLUGIN_DIR . 'includes/LocalAuditRunner.php';
     require_once SCCC_PLUGIN_DIR . 'includes/PlatformConversion.php';
+    require_once SCCC_PLUGIN_DIR . 'includes/Updater.php';
 }
 
 add_action(
@@ -83,7 +84,8 @@ add_action(
             ),
             $localAuditRunner,
             $apiClient,
-            new SCCC\Plugin\SafeOperationEndpoint($connectionStore, $requestSigner)
+            new SCCC\Plugin\SafeOperationEndpoint($connectionStore, $requestSigner),
+            new SCCC\Plugin\Updater()
         );
         $plugin->register();
     }
