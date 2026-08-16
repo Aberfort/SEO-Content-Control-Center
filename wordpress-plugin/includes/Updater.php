@@ -18,7 +18,7 @@ if (! defined('ABSPATH')) {
 
 final class Updater
 {
-    private const GITHUB_OWNER        = 'serhiivasyliev';
+    private const GITHUB_OWNER        = 'Aberfort';
     private const GITHUB_REPO         = 'SEO-Content-Control-Center';
     private const GITHUB_API_BASE     = 'https://api.github.com';
     private const ASSET_PREFIX        = 'seo-content-control-center-';
