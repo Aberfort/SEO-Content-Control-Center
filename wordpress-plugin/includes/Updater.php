@@ -150,6 +150,10 @@ final class Updater
      */
     private function fetchLatestRelease(): ?array
     {
+        if (! empty($_GET['force-check'])) {
+            delete_site_transient(self::TRANSIENT_KEY);
+        }
+
         $cached = get_site_transient(self::TRANSIENT_KEY);
 
         if (is_array($cached)) {
@@ -169,8 +173,8 @@ final class Updater
         );
 
         if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
-            // Cache a negative result for 1 hour to avoid hammering the API.
-            set_site_transient(self::TRANSIENT_KEY, null, HOUR_IN_SECONDS);
+            // Cache a negative result for 60 seconds to avoid hammering the API.
+            set_site_transient(self::TRANSIENT_KEY, null, 60);
             return null;
         }
 
