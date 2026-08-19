@@ -70,15 +70,15 @@ export default function DownloadPage() {
           <div className="plugin-download-info">
             <strong>Content Signal</strong>
             <div className="plugin-meta-row">
-              <span className="plugin-meta">Version 0.1.0</span>
+              <span className="plugin-meta">Version 0.8.0</span>
               <span className="plugin-meta">WordPress 6.4+</span>
               <span className="plugin-meta">PHP 8.1+</span>
-              <span className="plugin-meta">29 KB</span>
+              <span className="plugin-meta">54 KB</span>
             </div>
           </div>
           <a
             className="button button-dark"
-            href="/downloads/seo-content-control-center-0.1.0.zip"
+            href="/downloads/seo-content-control-center-0.8.0.zip"
             download
           >
             Download plugin
@@ -86,8 +86,8 @@ export default function DownloadPage() {
           </a>
         </div>
         <p className="plugin-download-note">
-          Manual install only for now &mdash; the plugin is not yet listed in the WordPress.org
-          directory, so install it by uploading the archive directly.
+          Manual install only for now &mdash; the plugin is under review for the WordPress.org
+          directory, so install it by uploading the archive directly until it&apos;s listed.
         </p>
       </section>
 
