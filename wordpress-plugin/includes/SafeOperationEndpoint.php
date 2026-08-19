@@ -647,7 +647,7 @@ final class SafeOperationEndpoint {
 		}
 
 		$text = (string) $value;
-		$text = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $text ) : strip_tags( $text );
+		$text = wp_strip_all_tags( $text );
 		$text = trim( preg_replace( '/\s+/', ' ', $text ) ?? '' );
 
 		if ( '' === $text ) {

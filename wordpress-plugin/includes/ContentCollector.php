@@ -242,7 +242,7 @@ final class ContentCollector {
 		}
 
 		$content = (string) $post->post_content;
-		$text    = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $content ) : strip_tags( $content );
+		$text    = wp_strip_all_tags( $content );
 		$text    = trim( preg_replace( '/\s+/', ' ', $text ) ?? '' );
 
 		if ( '' === $text ) {
@@ -471,7 +471,7 @@ final class ContentCollector {
 		}
 
 		$text = (string) $value;
-		$text = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $text ) : strip_tags( $text );
+		$text = wp_strip_all_tags( $text );
 		$text = trim( preg_replace( '/\s+/', ' ', $text ) ?? '' );
 
 		if ( '' === $text ) {

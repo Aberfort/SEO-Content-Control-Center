@@ -69,7 +69,7 @@ final class AdminPage {
 					<div class="sccc-brand-lockup">
 						<span class="sccc-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
 						<div>
-							<h1><?php echo esc_html__( 'SEO Content Control Center', 'seo-content-control-center' ); ?></h1>
+							<h1><?php echo esc_html__( 'Content Signal', 'seo-content-control-center' ); ?></h1>
 							<p><?php echo esc_html__( 'Local SEO health and review-first operations for WordPress.', 'seo-content-control-center' ); ?></p>
 						</div>
 					</div>
@@ -120,7 +120,7 @@ final class AdminPage {
 			wp_die( esc_html__( 'Could not create the CSV export.', 'seo-content-control-center' ) );
 		}
 
-		fwrite( $output, "\xEF\xBB\xBF" );
+		echo "\xEF\xBB\xBF";
 		fputcsv( $output, array( 'Post ID', 'Type', 'Title', 'URL', 'Modified', 'Inbound links', 'Severity', 'Issue', 'Evidence', 'State' ) );
 
 		foreach ( $items as $item ) {
@@ -151,7 +151,6 @@ final class AdminPage {
 			}
 		}
 
-		fclose( $output );
 		exit;
 	}
 
@@ -712,7 +711,7 @@ final class AdminPage {
 						<div class="sccc-field-group">
 							<label for="sccc_endpoint"><?php echo esc_html__( 'Platform URL', 'seo-content-control-center' ); ?></label>
 							<input id="sccc_endpoint" name="sccc_endpoint" type="url" placeholder="https://app.example.com" autocomplete="url" required />
-							<p><?php echo esc_html__( 'Use the URL of your SEO Content Control Center workspace.', 'seo-content-control-center' ); ?></p>
+							<p><?php echo esc_html__( 'Use the URL of your Content Signal workspace.', 'seo-content-control-center' ); ?></p>
 						</div>
 						<div class="sccc-field-group">
 							<label for="sccc_challenge"><?php echo esc_html__( 'Connection challenge', 'seo-content-control-center' ); ?></label>
