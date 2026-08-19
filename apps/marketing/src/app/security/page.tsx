@@ -19,7 +19,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Security",
   description:
-    "Review the tenant isolation, access controls, encrypted credentials, TOTP two-factor authentication, audit logs, and safe-operation controls behind SEO Content Control Center.",
+    "Review the tenant isolation, access controls, encrypted credentials, TOTP two-factor authentication, audit logs, and safe-operation controls behind Content Signal.",
   path: "/security"
 });
 
@@ -72,7 +72,7 @@ export default function SecurityPage() {
       <PageIntro
         eyebrow="Security and trust"
         title="Controls designed for teams that can change production websites."
-        body="SEO Content Control Center treats tenant boundaries, credentials, approvals, and audit history as product requirements, not deployment footnotes."
+        body="Content Signal treats tenant boundaries, credentials, approvals, and audit history as product requirements, not deployment footnotes."
         actions={
           <Link className="button" href="/demo">
             Discuss your requirements <ArrowRight size={17} />

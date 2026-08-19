@@ -98,7 +98,7 @@ export function DemoForm({ defaultTopic }: DemoFormProps) {
       <label className="consent-field">
         <input name="consent" type="checkbox" required />
         <span>
-          I agree that SEO Content Control Center may contact me about this request. See the{" "}
+          I agree that Content Signal may contact me about this request. See the{" "}
           <a href="/privacy">privacy policy</a>.
         </span>
       </label>

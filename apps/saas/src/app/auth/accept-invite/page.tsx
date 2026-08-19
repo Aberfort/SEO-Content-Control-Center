@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AcceptInviteForm } from "@/components/accept-invite-form";
 import { getCurrentUser } from "@/lib/auth";
+import { siteName } from "@/lib/brand";
 
 type AcceptInvitePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -18,7 +19,7 @@ export default async function AcceptInvitePage({ searchParams }: AcceptInvitePag
     <main className="auth-page">
       <section className="auth-panel">
         <Link className="auth-brand" href="/">
-          SEO Content Control Center
+          {siteName}
         </Link>
         <h1>Accept workspace invite.</h1>
         <p>Use the invited email address to join the organization.</p>

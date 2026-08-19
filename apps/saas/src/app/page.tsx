@@ -53,6 +53,7 @@ import { PluginChallengeForm } from "@/components/plugin-challenge-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
+import { siteName } from "@/lib/brand";
 import { buildContentTrustBacklogCandidates } from "@/lib/content-trust-evidence";
 import {
   buildSyncedContentBacklogCandidates,
@@ -442,7 +443,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
       </a>
       <aside className="sidebar">
         <div className="sidebar-header">
-          <div className="brand">SEO Content Control Center</div>
+          <div className="brand">{siteName}</div>
           <div className="sidebar-account">
             <p className="sidebar-note">{user.email}</p>
             <LogoutButton />

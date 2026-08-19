@@ -14,16 +14,16 @@ SEO agencies, content teams, and WordPress publishers. Users need to connect Wor
 
 ## Product Purpose
 
-SEO Content Control Center connects WordPress, Google Search Console, and your SEO workflow so teams can find traffic leaks, prioritize fixes, and prove the impact of their work. Success is measured by weekly resolved high-impact SEO tasks per active organization.
+Content Signal connects WordPress, Google Search Console, and your SEO workflow so teams can find traffic leaks, prioritize fixes, and prove the impact of their work. Success is measured by weekly resolved high-impact SEO tasks per active organization.
 
 ## Positioning
 
-SEO Content Control Center connects WordPress, Google Search Console, and your SEO workflow so teams can find traffic leaks, prioritize fixes, and prove the impact of their work.
+Content Signal connects WordPress, Google Search Console, and your SEO workflow so teams can find traffic leaks, prioritize fixes, and prove the impact of their work.
 
 ## Conversion & proof
 
 - Primary and secondary CTA: Primary CTA is "Request Demo / Start Trial" (integrated with the validated lead webhook flow).
-- The line a visitor remembers after 10 seconds: SEO Content Control Center: Find traffic leaks, prioritize fixes, and prove the impact of your work.
+- The line a visitor remembers after 10 seconds: Content Signal: Find traffic leaks, prioritize fixes, and prove the impact of your work.
 - Belief ladder:
   1. Managing SEO in spreadsheets and scattered tools (Ahrefs, GSC, WordPress, sheets) is chaotic and causes traffic leaks.
   2. Connecting WordPress and GSC directly into one dashboard creates a single, reliable SEO backlog.

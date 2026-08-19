@@ -69,7 +69,7 @@ describe("email delivery", () => {
       expiresAt: new Date("2026-07-01T10:00:00.000Z").toISOString()
     });
 
-    expect(message.subject).toBe("Verify your SEO Content Control Center email");
+    expect(message.subject).toBe("Verify your Content Signal email");
     expect(message.html).toContain("&lt;Owner&gt;");
     expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
   });
@@ -82,7 +82,7 @@ describe("email delivery", () => {
       expiresAt: new Date("2026-07-01T10:00:00.000Z").toISOString()
     });
 
-    expect(message.subject).toBe("Reset your SEO Content Control Center password");
+    expect(message.subject).toBe("Reset your Content Signal password");
     expect(message.html).toContain("&lt;Owner&gt;");
     expect(message.html).toContain("&quot;&lt;token&gt;&quot;");
   });

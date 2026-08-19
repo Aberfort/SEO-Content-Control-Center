@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const siteName = "SEO Content Control Center";
+export const siteName = "Content Signal";
 
 export const marketingOrigin = readPublicUrl(
   process.env.NEXT_PUBLIC_MARKETING_URL,

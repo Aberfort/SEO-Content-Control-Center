@@ -33,7 +33,7 @@ final class AdminPage {
 			'manage_options',
 			'sccc',
 			array( $this, 'render' ),
-			'dashicons-chart-area',
+			'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCI+CiAgPHJlY3QgeD0iNS42IiB5PSIxMSIgd2lkdGg9IjIuMyIgaGVpZ2h0PSI0LjUiIHJ4PSIwLjYiIGZpbGw9ImJsYWNrIi8+CiAgPHJlY3QgeD0iOS4xIiB5PSI3LjgiIHdpZHRoPSIyLjMiIGhlaWdodD0iNy43IiByeD0iMC42IiBmaWxsPSJibGFjayIvPgogIDxyZWN0IHg9IjEyLjYiIHk9IjQuNSIgd2lkdGg9IjIuMyIgaGVpZ2h0PSIxMSIgcng9IjAuNiIgZmlsbD0iYmxhY2siLz4KPC9zdmc+Cg==',
 			65
 		);
 	}
@@ -67,7 +67,12 @@ final class AdminPage {
 			<div class="sccc-app-shell">
 				<header class="sccc-app-header">
 					<div class="sccc-brand-lockup">
-						<span class="sccc-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+						<svg class="sccc-brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+						<rect width="100" height="100" rx="14" fill="#050505" />
+						<rect x="30" y="51" width="10" height="22" rx="2.5" fill="#fbfbfa" />
+						<rect x="45" y="39" width="10" height="34" rx="2.5" fill="#fbfbfa" />
+						<rect x="60" y="27" width="10" height="46" rx="2.5" fill="#fbfbfa" />
+					</svg>
 						<div>
 							<h1><?php echo esc_html__( 'Content Signal', 'seo-content-control-center' ); ?></h1>
 							<p><?php echo esc_html__( 'Local SEO health and review-first operations for WordPress.', 'seo-content-control-center' ); ?></p>

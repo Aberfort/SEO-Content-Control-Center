@@ -8,7 +8,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Service Information",
   description:
-    "Read the public service information and operational visibility scope for SEO Content Control Center.",
+    "Read the public service information and operational visibility scope for Content Signal.",
   path: "/status"
 });
 

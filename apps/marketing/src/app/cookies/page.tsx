@@ -6,7 +6,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Cookie Policy",
   description:
-    "How SEO Content Control Center uses essential session storage and optional analytics technologies on its marketing site and SaaS application.",
+    "How Content Signal uses essential session storage and optional analytics technologies on its marketing site and SaaS application.",
   path: "/cookies"
 });
 

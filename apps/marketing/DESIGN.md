@@ -1,5 +1,5 @@
 ---
-name: SEO Content Control Center (Marketing)
+name: Content Signal (Marketing)
 description: The Swiss Grid Ledger visual identity for SEO operations
 colors:
   primary: "#050505"
@@ -56,7 +56,7 @@ components:
     backgroundColor: "#f5f5f5"
 ---
 
-# Design System: SEO Content Control Center (Marketing)
+# Design System: Content Signal (Marketing)
 
 ## 1. Overview
 

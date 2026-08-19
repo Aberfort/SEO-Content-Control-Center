@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(marketingOrigin),
   title: {
-    default: "SEO Content Control Center for WordPress",
+    default: "Content Signal for WordPress",
     template: `%s | ${siteName}`
   },
   description:
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "SEO Content Control Center for WordPress",
+    title: "Content Signal for WordPress",
     description:
       "Connect WordPress and Google Search Console to prioritize SEO fixes and prove impact.",
     siteName,
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SEO Content Control Center for WordPress",
+    title: "Content Signal for WordPress",
     description:
       "Connect WordPress and Google Search Console to prioritize SEO fixes and prove impact."
   },

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/components/auth-form";
 import { getCurrentUser } from "@/lib/auth";
+import { siteName } from "@/lib/brand";
 
 type AuthPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -21,7 +22,7 @@ export default async function LoginPage({ searchParams }: AuthPageProps) {
     <main className="auth-page">
       <section className="auth-panel">
         <Link className="auth-brand" href="/">
-          SEO Content Control Center
+          {siteName}
         </Link>
         <h1>Sign in to your workspace.</h1>
         <p>Use your account to manage organizations, sites, audits, and backlog work.</p>

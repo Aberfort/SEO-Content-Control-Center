@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { siteName } from "@/lib/brand";
 import { verifyEmailToken } from "@/lib/email-verification";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
     <main className="auth-page">
       <section className="auth-panel">
         <Link className="auth-brand" href="/">
-          SEO Content Control Center
+          {siteName}
         </Link>
         <h1>{result?.ok ? "Email verified." : "Email verification failed."}</h1>
         <p>{result?.message ?? "The verification link is missing a token."}</p>

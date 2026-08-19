@@ -6,7 +6,7 @@ import { appUrl, pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Start a 14-Day Trial",
   description:
-    "Start a 14-day SEO Content Control Center trial for one WordPress site, up to 500 URLs, and two team members.",
+    "Start a 14-day Content Signal trial for one WordPress site, up to 500 URLs, and two team members.",
   path: "/trial"
 });
 

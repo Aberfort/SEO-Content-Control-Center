@@ -6,7 +6,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Privacy Policy",
   description:
-    "How SEO Content Control Center collects, uses, protects, and retains account, WordPress, Search Console, and marketing data.",
+    "How Content Signal collects, uses, protects, and retains account, WordPress, Search Console, and marketing data.",
   path: "/privacy"
 });
 
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
     <LegalPage
       eyebrow="Legal"
       title="Privacy Policy"
-      summary="This policy explains the categories of information processed by SEO Content Control Center and the choices available to account holders and website visitors."
+      summary="This policy explains the categories of information processed by Content Signal and the choices available to account holders and website visitors."
       sections={[
         {
           title: "1. Information we collect",
