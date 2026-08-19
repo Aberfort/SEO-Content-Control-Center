@@ -171,7 +171,7 @@ final class LocalAuditEngine {
 	}
 
 	private function normalizeUrl( string $value ): string {
-		$parts = parse_url( trim( $value ) );
+		$parts = wp_parse_url( trim( $value ) );
 
 		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
 			return rtrim( trim( $value ), '/' );

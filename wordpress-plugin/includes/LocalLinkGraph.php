@@ -91,19 +91,19 @@ final class LocalLinkGraph {
 		}
 
 		if ( str_starts_with( $target, '//' ) ) {
-			$scheme = (string) ( parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
+			$scheme = (string) ( wp_parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
 			return $this->normalizeUrl( $scheme . ':' . $target );
 		}
 
-		$targetScheme = parse_url( $target, PHP_URL_SCHEME );
+		$targetScheme = wp_parse_url( $target, PHP_URL_SCHEME );
 
 		if ( is_string( $targetScheme ) && '' !== $targetScheme ) {
 			return $this->normalizeUrl( $target );
 		}
 
-		$scheme = (string) ( parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
-		$host   = (string) parse_url( $sourceUrl, PHP_URL_HOST );
-		$port   = parse_url( $sourceUrl, PHP_URL_PORT );
+		$scheme = (string) ( wp_parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
+		$host   = (string) wp_parse_url( $sourceUrl, PHP_URL_HOST );
+		$port   = wp_parse_url( $sourceUrl, PHP_URL_PORT );
 
 		if ( '' === $host ) {
 			return '';
@@ -115,7 +115,7 @@ final class LocalLinkGraph {
 			return $this->normalizeUrl( $authority . $target );
 		}
 
-		$sourcePath = (string) ( parse_url( $sourceUrl, PHP_URL_PATH ) ?: '/' );
+		$sourcePath = (string) ( wp_parse_url( $sourceUrl, PHP_URL_PATH ) ?: '/' );
 		$basePath   = str_ends_with( $sourcePath, '/' )
 			? rtrim( $sourcePath, '/' )
 			: rtrim( str_replace( '\\', '/', dirname( $sourcePath ) ), '/' );
@@ -124,7 +124,7 @@ final class LocalLinkGraph {
 	}
 
 	private function normalizeUrl( string $value ): string {
-		$parts = parse_url( trim( $value ) );
+		$parts = wp_parse_url( trim( $value ) );
 
 		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
 			return '';

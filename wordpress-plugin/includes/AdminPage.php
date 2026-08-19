@@ -534,7 +534,12 @@ final class AdminPage {
 		<div class="sccc-results-header">
 			<div>
 				<h3><?php echo esc_html__( 'Findings', 'seo-content-control-center' ); ?></h3>
-				<p><?php echo esc_html( sprintf( _n( '%d matching finding', '%d matching findings', count( $rows ), 'seo-content-control-center' ), count( $rows ) ) ); ?></p>
+				<p>
+				<?php
+				/* translators: %d: number of matching findings. */
+				echo esc_html( sprintf( _n( '%d matching finding', '%d matching findings', count( $rows ), 'seo-content-control-center' ), count( $rows ) ) );
+				?>
+				</p>
 			</div>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="sccc_export_local_audit" />
@@ -732,7 +737,12 @@ final class AdminPage {
 						<span class="sccc-status-dot" aria-hidden="true"></span>
 						<div>
 							<strong><?php echo esc_html__( 'Connection active', 'seo-content-control-center' ); ?></strong>
-							<p><?php echo esc_html( sprintf( __( 'Site ID: %s', 'seo-content-control-center' ), $connection['site_id'] ) ); ?></p>
+							<p>
+							<?php
+							/* translators: %s: connected site ID. */
+							echo esc_html( sprintf( __( 'Site ID: %s', 'seo-content-control-center' ), $connection['site_id'] ) );
+							?>
+							</p>
 							<p><?php echo esc_html( $this->formatRecurringSyncStatus( $recurringSync ) ); ?></p>
 						</div>
 					</div>
@@ -1008,6 +1018,7 @@ final class AdminPage {
 		}
 
 		return sprintf(
+			/* translators: 1: scheduler name, 2: next run date. */
 			__( 'Automatic sync runs via %1$s. Next run: %2$s.', 'seo-content-control-center' ),
 			$status['scheduler'],
 			$this->formatTimestamp( $status['next_run_at'] )

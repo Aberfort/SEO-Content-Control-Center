@@ -628,7 +628,7 @@ final class SafeOperationEndpoint {
 			return array( 'error' => 'invalid_canonicalUrl' );
 		}
 
-		$scheme = strtolower( (string) parse_url( $url, PHP_URL_SCHEME ) );
+		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
 
 		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
 			return array( 'error' => 'invalid_canonicalUrl' );

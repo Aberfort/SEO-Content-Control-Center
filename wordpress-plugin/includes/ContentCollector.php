@@ -348,15 +348,15 @@ final class ContentCollector {
 			return null;
 		}
 
-		$scheme = strtolower( (string) parse_url( $href, PHP_URL_SCHEME ) );
+		$scheme = strtolower( (string) wp_parse_url( $href, PHP_URL_SCHEME ) );
 
 		if ( in_array( $scheme, array( 'mailto', 'tel', 'javascript' ), true ) ) {
 			return null;
 		}
 
 		if ( str_starts_with( $href, '//' ) ) {
-			$currentHost = $this->normalizeHost( (string) parse_url( $currentUrl, PHP_URL_HOST ) );
-			$linkHost    = $this->normalizeHost( (string) parse_url( $href, PHP_URL_HOST ) );
+			$currentHost = $this->normalizeHost( (string) wp_parse_url( $currentUrl, PHP_URL_HOST ) );
+			$linkHost    = $this->normalizeHost( (string) wp_parse_url( $href, PHP_URL_HOST ) );
 
 			if ( '' === $currentHost || '' === $linkHost ) {
 				return null;
@@ -373,8 +373,8 @@ final class ContentCollector {
 			return null;
 		}
 
-		$currentHost = $this->normalizeHost( (string) parse_url( $currentUrl, PHP_URL_HOST ) );
-		$linkHost    = $this->normalizeHost( (string) parse_url( $href, PHP_URL_HOST ) );
+		$currentHost = $this->normalizeHost( (string) wp_parse_url( $currentUrl, PHP_URL_HOST ) );
+		$linkHost    = $this->normalizeHost( (string) wp_parse_url( $href, PHP_URL_HOST ) );
 
 		if ( '' === $currentHost || '' === $linkHost ) {
 			return null;
