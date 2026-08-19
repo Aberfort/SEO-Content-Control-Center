@@ -85,6 +85,10 @@ Recurring and queued local sync jobs are removed. Disconnect the site from the s
 
 WordPress removes the plugin's local audit results, sync log, stored connection token, and scheduled jobs. Disconnect first when you also need to invalidate the connection remotely on the platform.
 
+== Screenshots ==
+
+1. Content Health dashboard: audit summary, findings list with severity, evidence, and edit/view/ignore actions.
+
 == External services ==
 
 This plugin connects your WordPress site to the Content Signal SaaS workspace, an account-based service you sign up for separately. No SaaS endpoint is contacted until an administrator enters one on the settings screen and completes the one-time connection exchange.
