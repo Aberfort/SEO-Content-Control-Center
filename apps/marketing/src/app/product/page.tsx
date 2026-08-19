@@ -10,7 +10,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Product Overview",
   description:
-    "See how SEO Content Control Center connects WordPress metadata and Search Console evidence to a review-first SEO workflow.",
+    "See how Content Signal connects WordPress metadata and Search Console evidence to a review-first SEO workflow.",
   path: "/product"
 });
 
@@ -47,7 +47,7 @@ export default function ProductPage() {
       <PageIntro
         eyebrow="The product"
         title="An operating system for WordPress SEO work, not another disconnected audit."
-        body="SEO Content Control Center holds the context around a page, turns evidence into accountable work, and keeps supported changes inside a review-first process."
+        body="Content Signal holds the context around a page, turns evidence into accountable work, and keeps supported changes inside a review-first process."
         actions={
           <>
             <Link className="button" href="/trial">

@@ -1,4 +1,3 @@
-import { ScanSearch } from "lucide-react";
 import Link from "next/link";
 
 import { appUrl } from "../lib/site";
@@ -10,11 +9,15 @@ export function SiteFooter() {
         <div className="footer-brand">
           <Link className="brand" href="/">
             <span className="brand-mark" aria-hidden="true">
-              <ScanSearch size={20} />
+              <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
+                <rect x="5.6" y="11" width="2.3" height="4.5" rx="0.6" fill="currentColor" />
+                <rect x="9.1" y="7.8" width="2.3" height="7.7" rx="0.6" fill="currentColor" />
+                <rect x="12.6" y="4.5" width="2.3" height="11" rx="0.6" fill="currentColor" />
+              </svg>
             </span>
             <span className="brand-text">
-              <span>SEO Content</span>
-              <span>Control Center</span>
+              <span>Content</span>
+              <span>Signal</span>
             </span>
           </Link>
           <p>Evidence, backlog, review, and safe WordPress execution in one calm workflow.</p>
@@ -58,7 +61,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="footer-meta">
-        <span>&copy; {new Date().getFullYear()} SEO Content Control Center</span>
+        <span>&copy; {new Date().getFullYear()} Content Signal</span>
         <span>Built for review-first SEO operations.</span>
       </div>
     </footer>

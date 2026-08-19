@@ -8,7 +8,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Product Changelog",
   description:
-    "Follow implemented SEO Content Control Center product updates across WordPress integration, security, operations, and public website releases.",
+    "Follow implemented Content Signal product updates across WordPress integration, security, operations, and public website releases.",
   path: "/changelog"
 });
 

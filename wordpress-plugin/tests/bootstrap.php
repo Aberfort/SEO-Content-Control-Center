@@ -16,6 +16,26 @@ if (! defined('DAY_IN_SECONDS')) {
     define('WEEK_IN_SECONDS', 604800);
 }
 
+if (! function_exists('wp_parse_url')) {
+    function wp_parse_url(string $url, int $component = -1): mixed
+    {
+        return parse_url($url, $component);
+    }
+}
+
+if (! function_exists('wp_strip_all_tags')) {
+    function wp_strip_all_tags(string $text, bool $remove_breaks = false): string
+    {
+        $text = strip_tags($text);
+
+        if ($remove_breaks) {
+            $text = preg_replace('/[\r\n\t ]+/', ' ', $text) ?? $text;
+        }
+
+        return trim($text);
+    }
+}
+
 if (! function_exists('get_option')) {
     $GLOBALS['sccc_test_options'] = [];
     $GLOBALS['sccc_test_option_autoload'] = [];

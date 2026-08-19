@@ -66,36 +66,10 @@
 }
 
 .sccc-brand-mark {
-  align-items: flex-end;
-  background: var(--sccc-green-900);
-  border-radius: 8px;
-  display: flex;
-  flex: 0 0 42px;
-  gap: 3px;
-  height: 42px;
-  justify-content: center;
-  padding: 10px;
-}
-
-.sccc-brand-mark i {
-  background: #fff;
-  border-radius: 1px;
   display: block;
-  width: 5px;
-}
-
-.sccc-brand-mark i:nth-child(1) {
-  height: 10px;
-  opacity: 0.65;
-}
-
-.sccc-brand-mark i:nth-child(2) {
-  height: 16px;
-  opacity: 0.82;
-}
-
-.sccc-brand-mark i:nth-child(3) {
-  height: 22px;
+  flex: 0 0 42px;
+  height: 42px;
+  width: 42px;
 }
 
 .sccc-app-header h1 {

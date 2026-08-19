@@ -253,7 +253,7 @@ Invite emails use `noop` delivery by default. To send invites to local Mailpit:
 SCCC_EMAIL_TRANSPORT=smtp
 SCCC_SMTP_HOST=localhost
 SCCC_SMTP_PORT=1025
-SCCC_EMAIL_FROM="SEO Content Control Center <no-reply@localhost>"
+SCCC_EMAIL_FROM="Content Signal <no-reply@localhost>"
 ```
 
 Mailpit's inbox is available at `http://localhost:8025`.

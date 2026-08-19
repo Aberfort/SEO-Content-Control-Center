@@ -8,7 +8,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Knowledge Base",
   description:
-    "Learn the operating model behind SEO Content Control Center: integrations, review-first changes, permissions, and evidence-backed SEO workflow design.",
+    "Learn the operating model behind Content Signal: integrations, review-first changes, permissions, and evidence-backed SEO workflow design.",
   path: "/knowledge-base"
 });
 

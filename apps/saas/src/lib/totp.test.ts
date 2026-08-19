@@ -11,7 +11,7 @@ describe("totp", () => {
   it("generates base32 secrets and provisioning URIs", () => {
     const secret = generateTotpSecret();
     const uri = buildTotpProvisioningUri({
-      issuer: "SEO Content Control Center",
+      issuer: "Content Signal",
       accountName: "owner@example.com",
       secret
     });
@@ -19,7 +19,7 @@ describe("totp", () => {
     expect(secret).toMatch(/^[A-Z2-7]+$/);
     expect(uri).toContain("otpauth://totp/");
     expect(uri).toContain(`secret=${secret}`);
-    expect(uri).toContain("issuer=SEO+Content+Control+Center");
+    expect(uri).toContain("issuer=Content+Signal");
   });
 
   it("verifies the current time window and rejects replayed counters", () => {

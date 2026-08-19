@@ -1,18 +1,18 @@
-=== SEO Content Control Center ===
+=== Content Signal — SEO Content Audit ===
 Contributors: serhiivasyliev
 Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.7.3
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Audit WordPress posts and pages for missing SEO metadata, risky index settings, thin or stale content, and internal-link gaps. Runs locally. No account required.
+Audit posts and pages for missing SEO metadata, noindex risk, thin or stale content, and internal-link gaps. Runs locally, no account required.
 
 == Description ==
 
-SEO Content Control Center is a read-only WordPress content health audit that works alongside Yoast SEO and Rank Math. Run it locally without an account, API key, URL quota, or external request.
+Content Signal is a read-only WordPress content health audit that works alongside Yoast SEO and Rank Math. Run it locally without an account, API key, URL quota, or external request.
 
 The free local audit can:
 
@@ -30,7 +30,7 @@ The free local audit can:
 * export the complete latest audit to CSV;
 * show critical content health status in the WordPress Dashboard and Site Health.
 
-The optional SEO Content Control Center platform connection can:
+The optional Content Signal platform connection can:
 
 * exchange a one-time connection challenge for a site-scoped connection;
 * sync bounded content metadata and active findings from the latest completed local audit in paginated batches;
@@ -48,7 +48,7 @@ The local audit does not contact an external service or change content. When the
 
 1. Download the `seo-content-control-center-<version>.zip` release artifact.
 2. In WordPress, go to Plugins > Add New > Upload Plugin and select the archive.
-3. Activate SEO Content Control Center.
+3. Activate Content Signal.
 4. Open Content Health in the WordPress admin menu.
 5. Select Run content audit.
 6. Review or export the local findings.
@@ -59,7 +59,7 @@ No platform connection is required for the local audit. To add Search Console ev
 
 = Does this replace my SEO plugin? =
 
-No. SEO Content Control Center is an operations layer that connects WordPress metadata, Search Console evidence, audits, and a trackable backlog. It works with supported Yoast and Rank Math metadata fields for bounded operations.
+No. Content Signal is an operations layer that connects WordPress metadata, Search Console evidence, audits, and a trackable backlog. It works with supported Yoast and Rank Math metadata fields for bounded operations.
 
 = Does the free audit require an account or send data elsewhere? =
 
@@ -85,9 +85,13 @@ Recurring and queued local sync jobs are removed. Disconnect the site from the s
 
 WordPress removes the plugin's local audit results, sync log, stored connection token, and scheduled jobs. Disconnect first when you also need to invalidate the connection remotely on the platform.
 
+== Screenshots ==
+
+1. Content Health dashboard: audit summary, findings list with severity, evidence, and edit/view/ignore actions.
+
 == External services ==
 
-This plugin connects your WordPress site to the SEO Content Control Center SaaS workspace, an account-based service you sign up for separately. No SaaS endpoint is contacted until an administrator enters one on the settings screen and completes the one-time connection exchange.
+This plugin connects your WordPress site to the Content Signal SaaS workspace, an account-based service you sign up for separately. No SaaS endpoint is contacted until an administrator enters one on the settings screen and completes the one-time connection exchange.
 
 Once connected, the plugin sends requests to the SaaS endpoint you configured in these cases:
 
@@ -98,9 +102,14 @@ Once connected, the plugin sends requests to the SaaS endpoint you configured in
 
 Every outbound request is signed with a per-site secret and rejected by the SaaS if tampered with. No data is sent to any third party besides the SaaS endpoint you explicitly configure.
 
-See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
+See the [Content Signal Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.8.0 =
+
+* Renamed the plugin to Content Signal — SEO Content Audit ahead of WordPress.org submission.
+* Removed the self-hosted GitHub updater. The plugin now receives updates through the WordPress.org plugin directory.
 
 = 0.6.0 =
 

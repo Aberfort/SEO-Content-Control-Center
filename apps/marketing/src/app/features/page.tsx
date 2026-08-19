@@ -116,7 +116,7 @@ export default function FeaturesPage() {
       <PageIntro
         eyebrow="Product capabilities"
         title="From traffic signal to verified SEO work."
-        body="SEO Content Control Center joins analysis, prioritization, collaboration, and controlled WordPress execution without hiding the evidence or skipping human approval."
+        body="Content Signal joins analysis, prioritization, collaboration, and controlled WordPress execution without hiding the evidence or skipping human approval."
         actions={
           <>
             <Link className="button" href="/trial">

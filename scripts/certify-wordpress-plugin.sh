@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Certifies the packaged WordPress plugin zip against a real WordPress
-# container: activation, version contract, standalone and recurring local audit, REST route
+# container: activation, version contract, the official WordPress.org Plugin
+# Check tool, standalone and recurring local audit, REST route
 # registration, connection storage, WP-Cron sync scheduling, signed
 # safe-operation apply, signature rejection, deactivation cleanup, and clean
 # deletion.
@@ -164,6 +165,34 @@ if [ "${installed_version}" != "${plugin_version}" ]; then
   fail "Installed plugin version ${installed_version} does not match VERSION ${plugin_version}."
 fi
 log "Plugin ${plugin_version} is active."
+
+log "Installing the WordPress.org Plugin Check tool."
+wp_cli plugin install plugin-check --activate >/dev/null
+
+plugin_check_report="${dist_dir}/plugin-check-${plugin_version}-$(basename "${wp_image}" | tr ':' '-').json"
+log "Running Plugin Check against the packaged plugin (report: ${plugin_check_report})."
+
+set +e
+plugin_check_output="$(wp_cli plugin check "${plugin_slug}" \
+  --format=json \
+  --exclude-directories=.git,tests,certification 2>&1)"
+plugin_check_status=$?
+set -e
+
+printf '%s\n' "${plugin_check_output}" > "${plugin_check_report}"
+
+if [ "${plugin_check_status}" -ne 0 ] && ! printf '%s' "${plugin_check_output}" | grep -q '^\['; then
+  fail "Plugin Check did not run successfully: ${plugin_check_output}"
+fi
+
+error_count="$(printf '%s' "${plugin_check_output}" | grep -o '"type":"ERROR"' | wc -l | tr -d ' ')" || true
+warning_count="$(printf '%s' "${plugin_check_output}" | grep -o '"type":"WARNING"' | wc -l | tr -d ' ')" || true
+log "Plugin Check found ${error_count} error(s) and ${warning_count} warning(s)."
+
+if [ "${error_count}" != "0" ]; then
+  printf '%s\n' "${plugin_check_output}" >&2
+  fail "Plugin Check reported ${error_count} error(s). Full report: ${plugin_check_report}"
+fi
 
 log "Checking the signed apply route before a connection exists."
 pre_connection_response="$(curl -s -X POST "${rest_url}" \

@@ -24,7 +24,7 @@ if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 header_version="$(sed -n 's/^ \* Version: //p' "${plugin_file}")"
-runtime_version="$(sed -n "s/^define('SCCC_PLUGIN_VERSION', '\([^']*\)');$/\1/p" "${plugin_file}")"
+runtime_version="$(sed -n "s/^define( *'SCCC_PLUGIN_VERSION', *'\([^']*\)' *);$/\1/p" "${plugin_file}")"
 stable_tag="$(sed -n 's/^Stable tag: //p' "${readme_file}")"
 composer_version="$(php -r '$manifest = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR); echo $manifest["extra"]["sccc-plugin-version"] ?? "";' "${composer_file}")"
 

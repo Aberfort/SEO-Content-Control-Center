@@ -969,7 +969,7 @@ https://app.example.com/api/integrations/gsc/callback
 Plugin artifact вже сертифікований у проекті:
 
 ```text
-dist/seo-content-control-center-0.1.0.zip
+dist/seo-content-control-center-0.8.0.zip
 ```
 
 Перед production install можна локально або на сервері перезібрати:
@@ -984,7 +984,7 @@ npm run plugin:release:certify
 2. Перейди **Plugins -> Add New Plugin**.
 3. Натисни **Upload Plugin**.
 4. Натисни **Choose File**.
-5. Обери `seo-content-control-center-0.1.0.zip`.
+5. Обери `seo-content-control-center-0.8.0.zip`.
 6. Натисни **Install Now**.
 7. Натисни **Activate Plugin**.
 

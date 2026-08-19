@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ResetPasswordForm } from "@/components/reset-password-form";
+import { siteName } from "@/lib/brand";
 
 type ResetPasswordPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -14,7 +15,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
     <main className="auth-page">
       <section className="auth-panel">
         <Link className="auth-brand" href="/">
-          SEO Content Control Center
+          {siteName}
         </Link>
         <h1>Choose a new password.</h1>
         {token ? (

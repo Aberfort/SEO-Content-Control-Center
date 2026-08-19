@@ -9,7 +9,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Download the WordPress Plugin",
   description:
-    "Download and install the SEO Content Control Center WordPress plugin to sync bounded content metadata and receive signed, review-first SEO operations.",
+    "Download and install the Content Signal WordPress plugin to sync bounded content metadata and receive signed, review-first SEO operations.",
   path: "/download"
 });
 
@@ -32,7 +32,7 @@ const installSteps = [
     icon: Power,
     marker: "2",
     title: "Activate the plugin",
-    body: "Activate SEO Content Control Center from your Plugins list, then open Settings > SEO Content Control Center."
+    body: "Activate Content Signal from your Plugins list, then open Content Health in the WordPress admin menu."
   },
   {
     icon: KeyRound,
@@ -54,7 +54,7 @@ export default function DownloadPage() {
       <PageIntro
         eyebrow="WordPress plugin"
         title="Connect your WordPress site in minutes."
-        body="Install the SEO Content Control Center plugin to sync bounded content metadata, schedule recurring sync, and receive signed, review-first SEO operations."
+        body="Install the Content Signal plugin to sync bounded content metadata, schedule recurring sync, and receive signed, review-first SEO operations."
         actions={
           <Link className="button button-secondary" href="/demo">
             Talk to us first
@@ -68,17 +68,17 @@ export default function DownloadPage() {
             <Puzzle size={26} />
           </span>
           <div className="plugin-download-info">
-            <strong>SEO Content Control Center</strong>
+            <strong>Content Signal</strong>
             <div className="plugin-meta-row">
-              <span className="plugin-meta">Version 0.1.0</span>
+              <span className="plugin-meta">Version 0.8.0</span>
               <span className="plugin-meta">WordPress 6.4+</span>
               <span className="plugin-meta">PHP 8.1+</span>
-              <span className="plugin-meta">29 KB</span>
+              <span className="plugin-meta">54 KB</span>
             </div>
           </div>
           <a
             className="button button-dark"
-            href="/downloads/seo-content-control-center-0.1.0.zip"
+            href="/downloads/seo-content-control-center-0.8.0.zip"
             download
           >
             Download plugin
@@ -86,8 +86,8 @@ export default function DownloadPage() {
           </a>
         </div>
         <p className="plugin-download-note">
-          Manual install only for now &mdash; the plugin is not yet listed in the WordPress.org
-          directory, so install it by uploading the archive directly.
+          Manual install only for now &mdash; the plugin is under review for the WordPress.org
+          directory, so install it by uploading the archive directly until it&apos;s listed.
         </p>
       </section>
 

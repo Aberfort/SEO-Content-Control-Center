@@ -3,7 +3,7 @@ import { prisma } from "@sccc/database";
 import { decryptSecret, encryptSecret } from "./token-encryption";
 import { buildTotpProvisioningUri, generateTotpSecret, verifyTotpCode } from "./totp";
 
-const issuer = "SEO Content Control Center";
+const issuer = "Content Signal";
 
 export type TwoFactorStatus = {
   enabled: boolean;

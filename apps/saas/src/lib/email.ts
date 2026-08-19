@@ -256,7 +256,7 @@ export async function sendWorkspaceAlertEmail(
 }
 
 export function composeInviteEmail(input: InviteEmailInput) {
-  const organizationName = input.organizationName.trim() || "SEO Content Control Center";
+  const organizationName = input.organizationName.trim() || "Content Signal";
   const expiresAt = new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short"
@@ -290,11 +290,11 @@ export function composeEmailVerificationEmail(input: EmailVerificationInput) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(input.expiresAt));
-  const subject = "Verify your SEO Content Control Center email";
+  const subject = "Verify your Content Signal email";
   const text = [
     `Hi ${name},`,
     "",
-    "Verify your email address to finish securing your SEO Content Control Center account.",
+    "Verify your email address to finish securing your Content Signal account.",
     "",
     `Verify email: ${input.verificationUrl}`,
     "",
@@ -302,7 +302,7 @@ export function composeEmailVerificationEmail(input: EmailVerificationInput) {
   ].join("\n");
   const html = `
     <p>Hi ${escapeHtml(name)},</p>
-    <p>Verify your email address to finish securing your SEO Content Control Center account.</p>
+    <p>Verify your email address to finish securing your Content Signal account.</p>
     <p><a href="${escapeHtml(input.verificationUrl)}">Verify email</a></p>
     <p>This verification link expires ${escapeHtml(expiresAt)}.</p>
   `;
@@ -320,11 +320,11 @@ export function composePasswordResetEmail(input: PasswordResetEmailInput) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(input.expiresAt));
-  const subject = "Reset your SEO Content Control Center password";
+  const subject = "Reset your Content Signal password";
   const text = [
     `Hi ${name},`,
     "",
-    "Use this link to reset your SEO Content Control Center password.",
+    "Use this link to reset your Content Signal password.",
     "",
     `Reset password: ${input.resetUrl}`,
     "",
@@ -332,7 +332,7 @@ export function composePasswordResetEmail(input: PasswordResetEmailInput) {
   ].join("\n");
   const html = `
     <p>Hi ${escapeHtml(name)},</p>
-    <p>Use this link to reset your SEO Content Control Center password.</p>
+    <p>Use this link to reset your Content Signal password.</p>
     <p><a href="${escapeHtml(input.resetUrl)}">Reset password</a></p>
     <p>This reset link expires ${escapeHtml(
       expiresAt
@@ -347,7 +347,7 @@ export function composePasswordResetEmail(input: PasswordResetEmailInput) {
 }
 
 export function composeWorkspaceAlertEmail(input: WorkspaceAlertEmailInput) {
-  const organizationName = input.organizationName.trim() || "SEO Content Control Center";
+  const organizationName = input.organizationName.trim() || "Content Signal";
   const subject = `${organizationName}: ${input.title}`;
   const text = [
     input.title,
@@ -371,7 +371,7 @@ export function composeWorkspaceAlertEmail(input: WorkspaceAlertEmailInput) {
 
 export function resolveEmailConfig(env: Environment = process.env): EmailConfig {
   const transport = env.SCCC_EMAIL_TRANSPORT === "smtp" ? "smtp" : "noop";
-  const from = env.SCCC_EMAIL_FROM ?? "SEO Content Control Center <no-reply@localhost>";
+  const from = env.SCCC_EMAIL_FROM ?? "Content Signal <no-reply@localhost>";
 
   if (transport === "noop") {
     return {

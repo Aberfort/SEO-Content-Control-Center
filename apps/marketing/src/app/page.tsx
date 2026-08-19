@@ -6,7 +6,7 @@ import { HomeReveals } from "../components/home-reveals";
 import { pageMetadata } from "../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "SEO Content Control Center for WordPress",
+  title: "Content Signal for WordPress",
   description:
     "Find WordPress pages losing organic traffic, prioritize fixes with Search Console evidence, and run review-first SEO operations.",
   path: "/"

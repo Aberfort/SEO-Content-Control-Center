@@ -6,7 +6,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Terms of Service",
   description:
-    "Terms governing access to SEO Content Control Center, connected WordPress sites, subscriptions, acceptable use, and review-first operations.",
+    "Terms governing access to Content Signal, connected WordPress sites, subscriptions, acceptable use, and review-first operations.",
   path: "/terms"
 });
 
@@ -15,7 +15,7 @@ export default function TermsPage() {
     <LegalPage
       eyebrow="Legal"
       title="Terms of Service"
-      summary="These terms govern access to SEO Content Control Center. A signed order form or customer agreement may add to or replace portions of these terms."
+      summary="These terms govern access to Content Signal. A signed order form or customer agreement may add to or replace portions of these terms."
       sections={[
         {
           title: "1. Accounts and authority",

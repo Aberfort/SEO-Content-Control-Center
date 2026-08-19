@@ -8,7 +8,7 @@ import { pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "Contact",
   description:
-    "Choose the right conversation for a SEO Content Control Center demo, workflow evaluation, or security review.",
+    "Choose the right conversation for a Content Signal demo, workflow evaluation, or security review.",
   path: "/contact"
 });
 

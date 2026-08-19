@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
+import { siteName } from "../lib/brand";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SEO Content Control Center",
+  title: siteName,
   description: "A WordPress SEO operations hub for audits, backlog, teams, and safe fixes."
 };
 

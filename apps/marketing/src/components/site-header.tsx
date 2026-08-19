@@ -7,7 +7,6 @@ import {
   Layers3,
   Menu,
   PlugZap,
-  ScanSearch,
   ShieldCheck,
   Sparkles,
   UsersRound
@@ -112,13 +111,17 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <Link className="brand" href="/" aria-label="SEO Content Control Center home">
+        <Link className="brand" href="/" aria-label="Content Signal home">
           <span className="brand-mark" aria-hidden="true">
-            <ScanSearch size={21} strokeWidth={2.2} />
+            <svg fill="none" height="21" viewBox="0 0 20 20" width="21">
+              <rect x="5.6" y="11" width="2.3" height="4.5" rx="0.6" fill="currentColor" />
+              <rect x="9.1" y="7.8" width="2.3" height="7.7" rx="0.6" fill="currentColor" />
+              <rect x="12.6" y="4.5" width="2.3" height="11" rx="0.6" fill="currentColor" />
+            </svg>
           </span>
           <span className="brand-text">
-            <span>SEO Content</span>
-            <span>Control Center</span>
+            <span>Content</span>
+            <span>Signal</span>
           </span>
         </Link>
 
