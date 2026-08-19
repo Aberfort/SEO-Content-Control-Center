@@ -9,379 +9,370 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-final class LocalAuditStore
-{
-    private const OPTION = 'sccc_local_audit';
-    private const MAX_SYNC_FINDINGS = 32;
-    private const SYNC_FINDING_CODES = [
-        'published-noindex',
-        'seo-title-missing',
-        'meta-description-missing',
-        'canonical-different',
-        'thin-content',
-        'internal-links-missing',
-        'orphan-content',
-        'weakly-linked-content',
-        'content-stale',
-    ];
+final class LocalAuditStore {
 
-    /**
-     * @return array<string,mixed>|null
-     */
-    public function get(): ?array
-    {
-        $value = get_option(self::OPTION);
+	private const OPTION             = 'sccc_local_audit';
+	private const MAX_SYNC_FINDINGS  = 32;
+	private const SYNC_FINDING_CODES = array(
+		'published-noindex',
+		'seo-title-missing',
+		'meta-description-missing',
+		'canonical-different',
+		'thin-content',
+		'internal-links-missing',
+		'orphan-content',
+		'weakly-linked-content',
+		'content-stale',
+	);
 
-        return is_array($value) ? $value : null;
-    }
+	/**
+	 * @return array<string,mixed>|null
+	 */
+	public function get(): ?array {
+		$value = get_option( self::OPTION );
 
-    public function start(): void
-    {
-        $current = $this->get();
+		return is_array( $value ) ? $value : null;
+	}
 
-        update_option(
-            self::OPTION,
-            [
-                'status' => 'queued',
-                'started_at' => time(),
-                'completed_at' => is_array($current) ? ($current['completed_at'] ?? null) : null,
-                'error' => null,
-                'summary' => is_array($current) && is_array($current['summary'] ?? null) ? $current['summary'] : $this->emptySummary(),
-                'items' => is_array($current) && is_array($current['items'] ?? null) ? $current['items'] : [],
-                'changes' => is_array($current) && is_array($current['changes'] ?? null) ? $current['changes'] : $this->emptyChanges(),
-            ],
-            false
-        );
-    }
+	public function start(): void {
+		$current = $this->get();
 
-    /**
-     * @param array<int,array<string,mixed>> $items
-     * @param array<string,int> $summary
-     */
-    public function complete(array $items, array $summary): void
-    {
-        $current = $this->get();
-        $comparison = $this->compareFindings(
-            is_array($current) && is_array($current['items'] ?? null) ? $current['items'] : [],
-            $items
-        );
-        $items = $comparison['items'];
-        $summary['new_findings'] = $comparison['changes']['new_count'];
-        $summary['resolved_findings'] = $comparison['changes']['resolved_count'];
-        $summary['unchanged_findings'] = $comparison['changes']['unchanged_count'];
+		update_option(
+			self::OPTION,
+			array(
+				'status'       => 'queued',
+				'started_at'   => time(),
+				'completed_at' => is_array( $current ) ? ( $current['completed_at'] ?? null ) : null,
+				'error'        => null,
+				'summary'      => is_array( $current ) && is_array( $current['summary'] ?? null ) ? $current['summary'] : $this->emptySummary(),
+				'items'        => is_array( $current ) && is_array( $current['items'] ?? null ) ? $current['items'] : array(),
+				'changes'      => is_array( $current ) && is_array( $current['changes'] ?? null ) ? $current['changes'] : $this->emptyChanges(),
+			),
+			false
+		);
+	}
 
-        update_option(
-            self::OPTION,
-            [
-                'status' => 'complete',
-                'started_at' => is_array($current) && isset($current['started_at']) ? (int) $current['started_at'] : time(),
-                'completed_at' => time(),
-                'error' => null,
-                'summary' => $summary,
-                'items' => $items,
-                'changes' => $comparison['changes'],
-            ],
-            false
-        );
-    }
+	/**
+	 * @param array<int,array<string,mixed>> $items
+	 * @param array<string,int>              $summary
+	 */
+	public function complete( array $items, array $summary ): void {
+		$current                       = $this->get();
+		$comparison                    = $this->compareFindings(
+			is_array( $current ) && is_array( $current['items'] ?? null ) ? $current['items'] : array(),
+			$items
+		);
+		$items                         = $comparison['items'];
+		$summary['new_findings']       = $comparison['changes']['new_count'];
+		$summary['resolved_findings']  = $comparison['changes']['resolved_count'];
+		$summary['unchanged_findings'] = $comparison['changes']['unchanged_count'];
 
-    public function fail(string $message): void
-    {
-        $current = $this->get();
+		update_option(
+			self::OPTION,
+			array(
+				'status'       => 'complete',
+				'started_at'   => is_array( $current ) && isset( $current['started_at'] ) ? (int) $current['started_at'] : time(),
+				'completed_at' => time(),
+				'error'        => null,
+				'summary'      => $summary,
+				'items'        => $items,
+				'changes'      => $comparison['changes'],
+			),
+			false
+		);
+	}
 
-        update_option(
-            self::OPTION,
-            [
-                'status' => 'error',
-                'started_at' => is_array($current) && isset($current['started_at']) ? (int) $current['started_at'] : time(),
-                'completed_at' => time(),
-                'error' => $this->sanitizeError($message),
-                'summary' => $this->emptySummary(),
-                'items' => [],
-                'changes' => $this->emptyChanges(),
-            ],
-            false
-        );
-    }
+	public function fail( string $message ): void {
+		$current = $this->get();
 
-    public function setIgnored(string $fingerprint, bool $ignored): void
-    {
-        $audit = $this->get();
+		update_option(
+			self::OPTION,
+			array(
+				'status'       => 'error',
+				'started_at'   => is_array( $current ) && isset( $current['started_at'] ) ? (int) $current['started_at'] : time(),
+				'completed_at' => time(),
+				'error'        => $this->sanitizeError( $message ),
+				'summary'      => $this->emptySummary(),
+				'items'        => array(),
+				'changes'      => $this->emptyChanges(),
+			),
+			false
+		);
+	}
 
-        if (! is_array($audit) || ! isset($audit['items']) || ! is_array($audit['items'])) {
-            return;
-        }
+	public function setIgnored( string $fingerprint, bool $ignored ): void {
+		$audit = $this->get();
 
-        foreach ($audit['items'] as &$item) {
-            if (! is_array($item) || ! isset($item['findings']) || ! is_array($item['findings'])) {
-                continue;
-            }
+		if ( ! is_array( $audit ) || ! isset( $audit['items'] ) || ! is_array( $audit['items'] ) ) {
+			return;
+		}
 
-            foreach ($item['findings'] as &$finding) {
-                if (is_array($finding) && $fingerprint === ($finding['fingerprint'] ?? null)) {
-                    $finding['ignored'] = $ignored;
+		foreach ( $audit['items'] as &$item ) {
+			if ( ! is_array( $item ) || ! isset( $item['findings'] ) || ! is_array( $item['findings'] ) ) {
+				continue;
+			}
 
-                    if ($ignored) {
-                        if ('ignored' !== ($finding['change'] ?? null)) {
-                            $finding['previous_change'] = in_array($finding['change'] ?? null, ['new', 'unchanged'], true)
-                                ? $finding['change']
-                                : 'unchanged';
-                        }
+			foreach ( $item['findings'] as &$finding ) {
+				if ( is_array( $finding ) && $fingerprint === ( $finding['fingerprint'] ?? null ) ) {
+					$finding['ignored'] = $ignored;
 
-                        $finding['change'] = 'ignored';
-                    } else {
-                        $finding['change'] = in_array($finding['previous_change'] ?? null, ['new', 'unchanged'], true)
-                            ? $finding['previous_change']
-                            : 'unchanged';
-                        unset($finding['previous_change']);
-                    }
-                }
-            }
-            unset($finding);
-        }
-        unset($item);
+					if ( $ignored ) {
+						if ( 'ignored' !== ( $finding['change'] ?? null ) ) {
+							$finding['previous_change'] = in_array( $finding['change'] ?? null, array( 'new', 'unchanged' ), true )
+								? $finding['change']
+								: 'unchanged';
+						}
 
-        $summary = (new LocalAuditEngine())->summarize($audit['items']);
-        $changes = is_array($audit['changes'] ?? null) ? $audit['changes'] : $this->emptyChanges();
-        $summary['new_findings'] = $this->countChange($audit['items'], 'new');
-        $summary['resolved_findings'] = (int) ($changes['resolved_count'] ?? 0);
-        $summary['unchanged_findings'] = $this->countChange($audit['items'], 'unchanged');
-        $audit['summary'] = $summary;
-        $changes['new_count'] = $summary['new_findings'];
-        $changes['unchanged_count'] = $summary['unchanged_findings'];
-        $audit['changes'] = $changes;
+						$finding['change'] = 'ignored';
+					} else {
+						$finding['change'] = in_array( $finding['previous_change'] ?? null, array( 'new', 'unchanged' ), true )
+							? $finding['previous_change']
+							: 'unchanged';
+						unset( $finding['previous_change'] );
+					}
+				}
+			}
+			unset( $finding );
+		}
+		unset( $item );
 
-        update_option(self::OPTION, $audit, false);
-    }
+		$summary                       = ( new LocalAuditEngine() )->summarize( $audit['items'] );
+		$changes                       = is_array( $audit['changes'] ?? null ) ? $audit['changes'] : $this->emptyChanges();
+		$summary['new_findings']       = $this->countChange( $audit['items'], 'new' );
+		$summary['resolved_findings']  = (int) ( $changes['resolved_count'] ?? 0 );
+		$summary['unchanged_findings'] = $this->countChange( $audit['items'], 'unchanged' );
+		$audit['summary']              = $summary;
+		$changes['new_count']          = $summary['new_findings'];
+		$changes['unchanged_count']    = $summary['unchanged_findings'];
+		$audit['changes']              = $changes;
 
-    /**
-     * Returns only active findings from a completed audit, keyed by content external ID.
-     * A null result means there is no complete snapshot and existing SaaS evidence must
-     * not be replaced. Empty finding arrays intentionally clear resolved evidence.
-     *
-     * @return array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null
-     */
-    public function findingsForSync(): ?array
-    {
-        $audit = $this->get();
+		update_option( self::OPTION, $audit, false );
+	}
 
-        if (! is_array($audit) || 'complete' !== ($audit['status'] ?? null) || ! is_array($audit['items'] ?? null)) {
-            return null;
-        }
+	/**
+	 * Returns only active findings from a completed audit, keyed by content external ID.
+	 * A null result means there is no complete snapshot and existing SaaS evidence must
+	 * not be replaced. Empty finding arrays intentionally clear resolved evidence.
+	 *
+	 * @return array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null
+	 */
+	public function findingsForSync(): ?array {
+		$audit = $this->get();
 
-        $byExternalId = [];
+		if ( ! is_array( $audit ) || 'complete' !== ( $audit['status'] ?? null ) || ! is_array( $audit['items'] ?? null ) ) {
+			return null;
+		}
 
-        foreach ($audit['items'] as $item) {
-            if (! is_array($item)) {
-                continue;
-            }
+		$byExternalId = array();
 
-            $externalId = substr(trim((string) ($item['external_id'] ?? '')), 0, 191);
+		foreach ( $audit['items'] as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
 
-            if ('' === $externalId) {
-                continue;
-            }
+			$externalId = substr( trim( (string) ( $item['external_id'] ?? '' ) ), 0, 191 );
 
-            $byExternalId[$externalId] = [];
-            $findings = is_array($item['findings'] ?? null) ? $item['findings'] : [];
+			if ( '' === $externalId ) {
+				continue;
+			}
 
-            foreach ($findings as $finding) {
-                if (! is_array($finding) || true === ($finding['ignored'] ?? false)) {
-                    continue;
-                }
+			$byExternalId[ $externalId ] = array();
+			$findings                    = is_array( $item['findings'] ?? null ) ? $item['findings'] : array();
 
-                $code = (string) ($finding['code'] ?? '');
-                $severity = (string) ($finding['severity'] ?? '');
-                $fingerprint = (string) ($finding['fingerprint'] ?? LocalAuditSettings::fingerprint($externalId, $code));
+			foreach ( $findings as $finding ) {
+				if ( ! is_array( $finding ) || true === ( $finding['ignored'] ?? false ) ) {
+					continue;
+				}
 
-                if (
-                    ! in_array($code, self::SYNC_FINDING_CODES, true)
-                    || ! in_array($severity, ['critical', 'warning', 'opportunity', 'maintenance'], true)
-                    || 1 !== preg_match('/^[a-f0-9]{64}$/', $fingerprint)
-                ) {
-                    continue;
-                }
+				$code        = (string) ( $finding['code'] ?? '' );
+				$severity    = (string) ( $finding['severity'] ?? '' );
+				$fingerprint = (string) ( $finding['fingerprint'] ?? LocalAuditSettings::fingerprint( $externalId, $code ) );
 
-                $label = substr(trim((string) ($finding['label'] ?? '')), 0, 160);
-                $evidence = substr(trim((string) ($finding['evidence'] ?? '')), 0, 1024);
+				if (
+					! in_array( $code, self::SYNC_FINDING_CODES, true )
+					|| ! in_array( $severity, array( 'critical', 'warning', 'opportunity', 'maintenance' ), true )
+					|| 1 !== preg_match( '/^[a-f0-9]{64}$/', $fingerprint )
+				) {
+					continue;
+				}
 
-                if ('' === $label || '' === $evidence) {
-                    continue;
-                }
+				$label    = substr( trim( (string) ( $finding['label'] ?? '' ) ), 0, 160 );
+				$evidence = substr( trim( (string) ( $finding['evidence'] ?? '' ) ), 0, 1024 );
 
-                $byExternalId[$externalId][] = compact('code', 'label', 'severity', 'evidence', 'fingerprint');
+				if ( '' === $label || '' === $evidence ) {
+					continue;
+				}
 
-                if (self::MAX_SYNC_FINDINGS === count($byExternalId[$externalId])) {
-                    break;
-                }
-            }
-        }
+				$byExternalId[ $externalId ][] = compact( 'code', 'label', 'severity', 'evidence', 'fingerprint' );
 
-        return $byExternalId;
-    }
+				if ( self::MAX_SYNC_FINDINGS === count( $byExternalId[ $externalId ] ) ) {
+					break;
+				}
+			}
+		}
 
-    /**
-     * @return array{total_urls:int,affected_urls:int,issue_count:int,ignored_findings:int,critical:int,attention:int,opportunity:int,maintenance:int,complete:int,new_findings:int,resolved_findings:int,unchanged_findings:int}
-     */
-    private function emptySummary(): array
-    {
-        return [
-            'total_urls' => 0,
-            'affected_urls' => 0,
-            'issue_count' => 0,
-            'ignored_findings' => 0,
-            'critical' => 0,
-            'attention' => 0,
-            'opportunity' => 0,
-            'maintenance' => 0,
-            'complete' => 0,
-            'new_findings' => 0,
-            'resolved_findings' => 0,
-            'unchanged_findings' => 0,
-        ];
-    }
+		return $byExternalId;
+	}
 
-    /**
-     * @param array<int,mixed> $previousItems
-     * @param array<int,array<string,mixed>> $items
-     * @return array{items:array<int,array<string,mixed>>,changes:array{new_count:int,resolved_count:int,unchanged_count:int,resolved:array<int,array<string,string>>}}
-     */
-    private function compareFindings(array $previousItems, array $items): array
-    {
-        $previous = $this->findingMap($previousItems);
-        $current = [];
-        $newCount = 0;
-        $unchangedCount = 0;
+	/**
+	 * @return array{total_urls:int,affected_urls:int,issue_count:int,ignored_findings:int,critical:int,attention:int,opportunity:int,maintenance:int,complete:int,new_findings:int,resolved_findings:int,unchanged_findings:int}
+	 */
+	private function emptySummary(): array {
+		return array(
+			'total_urls'         => 0,
+			'affected_urls'      => 0,
+			'issue_count'        => 0,
+			'ignored_findings'   => 0,
+			'critical'           => 0,
+			'attention'          => 0,
+			'opportunity'        => 0,
+			'maintenance'        => 0,
+			'complete'           => 0,
+			'new_findings'       => 0,
+			'resolved_findings'  => 0,
+			'unchanged_findings' => 0,
+		);
+	}
 
-        foreach ($items as &$item) {
-            $externalId = (string) ($item['external_id'] ?? '');
-            $findings = isset($item['findings']) && is_array($item['findings']) ? $item['findings'] : [];
+	/**
+	 * @param array<int,mixed>               $previousItems
+	 * @param array<int,array<string,mixed>> $items
+	 * @return array{items:array<int,array<string,mixed>>,changes:array{new_count:int,resolved_count:int,unchanged_count:int,resolved:array<int,array<string,string>>}}
+	 */
+	private function compareFindings( array $previousItems, array $items ): array {
+		$previous       = $this->findingMap( $previousItems );
+		$current        = array();
+		$newCount       = 0;
+		$unchangedCount = 0;
 
-            foreach ($findings as &$finding) {
-                $code = (string) ($finding['code'] ?? '');
-                $fingerprint = LocalAuditSettings::fingerprint($externalId, $code);
-                $finding['fingerprint'] = $fingerprint;
+		foreach ( $items as &$item ) {
+			$externalId = (string) ( $item['external_id'] ?? '' );
+			$findings   = isset( $item['findings'] ) && is_array( $item['findings'] ) ? $item['findings'] : array();
 
-                if (true === ($finding['ignored'] ?? false)) {
-                    $finding['change'] = 'ignored';
-                    continue;
-                }
+			foreach ( $findings as &$finding ) {
+				$code                   = (string) ( $finding['code'] ?? '' );
+				$fingerprint            = LocalAuditSettings::fingerprint( $externalId, $code );
+				$finding['fingerprint'] = $fingerprint;
 
-                $current[$fingerprint] = true;
-                $finding['change'] = isset($previous[$fingerprint]) ? 'unchanged' : 'new';
+				if ( true === ( $finding['ignored'] ?? false ) ) {
+					$finding['change'] = 'ignored';
+					continue;
+				}
 
-                if ('new' === $finding['change']) {
-                    $newCount++;
-                } else {
-                    $unchangedCount++;
-                }
-            }
-            unset($finding);
+				$current[ $fingerprint ] = true;
+				$finding['change']       = isset( $previous[ $fingerprint ] ) ? 'unchanged' : 'new';
 
-            $item['findings'] = $findings;
-        }
-        unset($item);
+				if ( 'new' === $finding['change'] ) {
+					++$newCount;
+				} else {
+					++$unchangedCount;
+				}
+			}
+			unset( $finding );
 
-        $resolved = [];
+			$item['findings'] = $findings;
+		}
+		unset( $item );
 
-        foreach ($previous as $fingerprint => $finding) {
-            if (! isset($current[$fingerprint])) {
-                $resolved[] = [
-                    'fingerprint' => $fingerprint,
-                    'title' => (string) ($finding['title'] ?? ''),
-                    'label' => (string) ($finding['label'] ?? ''),
-                    'url' => (string) ($finding['url'] ?? ''),
-                ];
-            }
-        }
+		$resolved = array();
 
-        return [
-            'items' => $items,
-            'changes' => [
-                'new_count' => $newCount,
-                'resolved_count' => count($resolved),
-                'unchanged_count' => $unchangedCount,
-                'resolved' => array_slice($resolved, 0, 100),
-            ],
-        ];
-    }
+		foreach ( $previous as $fingerprint => $finding ) {
+			if ( ! isset( $current[ $fingerprint ] ) ) {
+				$resolved[] = array(
+					'fingerprint' => $fingerprint,
+					'title'       => (string) ( $finding['title'] ?? '' ),
+					'label'       => (string) ( $finding['label'] ?? '' ),
+					'url'         => (string) ( $finding['url'] ?? '' ),
+				);
+			}
+		}
 
-    /**
-     * @param array<int,mixed> $items
-     * @return array<string,array<string,mixed>>
-     */
-    private function findingMap(array $items): array
-    {
-        $map = [];
+		return array(
+			'items'   => $items,
+			'changes' => array(
+				'new_count'       => $newCount,
+				'resolved_count'  => count( $resolved ),
+				'unchanged_count' => $unchangedCount,
+				'resolved'        => array_slice( $resolved, 0, 100 ),
+			),
+		);
+	}
 
-        foreach ($items as $item) {
-            if (! is_array($item) || ! isset($item['findings']) || ! is_array($item['findings'])) {
-                continue;
-            }
+	/**
+	 * @param array<int,mixed> $items
+	 * @return array<string,array<string,mixed>>
+	 */
+	private function findingMap( array $items ): array {
+		$map = array();
 
-            $externalId = (string) ($item['external_id'] ?? '');
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) || ! isset( $item['findings'] ) || ! is_array( $item['findings'] ) ) {
+				continue;
+			}
 
-            foreach ($item['findings'] as $finding) {
-                if (! is_array($finding) || true === ($finding['ignored'] ?? false)) {
-                    continue;
-                }
+			$externalId = (string) ( $item['external_id'] ?? '' );
 
-                $fingerprint = LocalAuditSettings::fingerprint($externalId, (string) ($finding['code'] ?? ''));
-                $map[$fingerprint] = array_merge($finding, [
-                    'title' => (string) ($item['title'] ?? ''),
-                    'url' => (string) ($item['url'] ?? ''),
-                ]);
-            }
-        }
+			foreach ( $item['findings'] as $finding ) {
+				if ( ! is_array( $finding ) || true === ( $finding['ignored'] ?? false ) ) {
+					continue;
+				}
 
-        return $map;
-    }
+				$fingerprint         = LocalAuditSettings::fingerprint( $externalId, (string) ( $finding['code'] ?? '' ) );
+				$map[ $fingerprint ] = array_merge(
+					$finding,
+					array(
+						'title' => (string) ( $item['title'] ?? '' ),
+						'url'   => (string) ( $item['url'] ?? '' ),
+					)
+				);
+			}
+		}
 
-    /**
-     * @return array{new_count:int,resolved_count:int,unchanged_count:int,resolved:array<int,array<string,string>>}
-     */
-    private function emptyChanges(): array
-    {
-        return [
-            'new_count' => 0,
-            'resolved_count' => 0,
-            'unchanged_count' => 0,
-            'resolved' => [],
-        ];
-    }
+		return $map;
+	}
 
-    /**
-     * @param array<int,mixed> $items
-     */
-    private function countChange(array $items, string $change): int
-    {
-        $count = 0;
+	/**
+	 * @return array{new_count:int,resolved_count:int,unchanged_count:int,resolved:array<int,array<string,string>>}
+	 */
+	private function emptyChanges(): array {
+		return array(
+			'new_count'       => 0,
+			'resolved_count'  => 0,
+			'unchanged_count' => 0,
+			'resolved'        => array(),
+		);
+	}
 
-        foreach ($items as $item) {
-            if (! is_array($item) || ! isset($item['findings']) || ! is_array($item['findings'])) {
-                continue;
-            }
+	/**
+	 * @param array<int,mixed> $items
+	 */
+	private function countChange( array $items, string $change ): int {
+		$count = 0;
 
-            foreach ($item['findings'] as $finding) {
-                if (is_array($finding) && $change === ($finding['change'] ?? null) && true !== ($finding['ignored'] ?? false)) {
-                    $count++;
-                }
-            }
-        }
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) || ! isset( $item['findings'] ) || ! is_array( $item['findings'] ) ) {
+				continue;
+			}
 
-        return $count;
-    }
+			foreach ( $item['findings'] as $finding ) {
+				if ( is_array( $finding ) && $change === ( $finding['change'] ?? null ) && true !== ( $finding['ignored'] ?? false ) ) {
+					++$count;
+				}
+			}
+		}
 
-    private function sanitizeError(string $message): string
-    {
-        $clean = preg_replace('/https?:\/\/[^\s]+/i', '[redacted-url]', $message) ?? $message;
-        $clean = preg_replace('/[^A-Za-z0-9_.:,;\-\s\[\]]/', '', $clean) ?? $clean;
-        $clean = trim($clean);
+		return $count;
+	}
 
-        return substr('' === $clean ? 'local_audit_failed' : $clean, 0, 160);
-    }
+	private function sanitizeError( string $message ): string {
+		$clean = preg_replace( '/https?:\/\/[^\s]+/i', '[redacted-url]', $message ) ?? $message;
+		$clean = preg_replace( '/[^A-Za-z0-9_.:,;\-\s\[\]]/', '', $clean ) ?? $clean;
+		$clean = trim( $clean );
+
+		return substr( '' === $clean ? 'local_audit_failed' : $clean, 0, 160 );
+	}
 }

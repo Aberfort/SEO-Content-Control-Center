@@ -4,11 +4,11 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.7.3
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Audit WordPress posts and pages for missing SEO metadata, risky index settings, thin or stale content, and internal-link gaps. Runs locally. No account required.
+Audit posts and pages for missing SEO metadata, noindex risk, thin or stale content, and internal-link gaps. Runs locally, no account required.
 
 == Description ==
 
@@ -101,6 +101,10 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [SEO Content Control Center Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.8.0 =
+
+* Removed the self-hosted GitHub updater. The plugin now receives updates through the WordPress.org plugin directory.
 
 = 0.6.0 =
 

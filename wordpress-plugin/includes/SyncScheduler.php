@@ -9,210 +9,201 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-final class SyncScheduler
-{
-    private const RECURRING_ACTION = 'sccc_run_incremental_sync';
-    private const MANUAL_ACTION = 'sccc_run_manual_sync';
-    private const GROUP = 'seo-content-control-center';
-    private const INTERVAL_SECONDS = 3600;
-    private const MAX_SYNC_BATCHES = 50;
+final class SyncScheduler {
 
-    public function __construct(
-        private readonly ConnectionStore $connectionStore,
-        private readonly ApiClient $apiClient,
-        private readonly ContentCollector $contentCollector,
-        private readonly SyncLogStore $syncLogStore,
-        private readonly int $syncBatchSize = ContentCollector::BATCH_SIZE,
-        private readonly ?LocalAuditStore $localAuditStore = null
-    ) {
-    }
+	private const RECURRING_ACTION = 'sccc_run_incremental_sync';
+	private const MANUAL_ACTION    = 'sccc_run_manual_sync';
+	private const GROUP            = 'seo-content-control-center';
+	private const INTERVAL_SECONDS = 3600;
+	private const MAX_SYNC_BATCHES = 50;
 
-    public function handleManualSync(): void
-    {
-        if (! current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to sync this site.', 'seo-content-control-center'));
-        }
+	public function __construct(
+		private readonly ConnectionStore $connectionStore,
+		private readonly ApiClient $apiClient,
+		private readonly ContentCollector $contentCollector,
+		private readonly SyncLogStore $syncLogStore,
+		private readonly int $syncBatchSize = ContentCollector::BATCH_SIZE,
+		private readonly ?LocalAuditStore $localAuditStore = null
+	) {
+	}
 
-        check_admin_referer('sccc_manual_sync');
-        $scheduler = $this->queueSync();
-        $this->syncLogStore->recordQueued($scheduler);
+	public function handleManualSync(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to sync this site.', 'seo-content-control-center' ) );
+		}
 
-        wp_safe_redirect(add_query_arg('sccc_status', 'sync_queued', admin_url('admin.php?page=sccc&tab=platform')));
-        exit;
-    }
+		check_admin_referer( 'sccc_manual_sync' );
+		$scheduler = $this->queueSync();
+		$this->syncLogStore->recordQueued( $scheduler );
 
-    public function runSync(): void
-    {
-        $connection = $this->connectionStore->get();
+		wp_safe_redirect( add_query_arg( 'sccc_status', 'sync_queued', admin_url( 'admin.php?page=sccc&tab=platform' ) ) );
+		exit;
+	}
 
-        if (null === $connection) {
-            $this->cancelScheduledSyncs();
-            return;
-        }
+	public function runSync(): void {
+		$connection = $this->connectionStore->get();
 
-        try {
-            $offset = 0;
-            $batches = 0;
-            $totalItems = 0;
-            $localFindings = ($this->localAuditStore ?? new LocalAuditStore())->findingsForSync();
+		if ( null === $connection ) {
+			$this->cancelScheduledSyncs();
+			return;
+		}
 
-            do {
-                $batch = $this->contentCollector->collectBatch($offset, $this->syncBatchSize);
-                $items = $this->attachLocalFindings($batch['items'], $localFindings);
+		try {
+			$offset        = 0;
+			$batches       = 0;
+			$totalItems    = 0;
+			$localFindings = ( $this->localAuditStore ?? new LocalAuditStore() )->findingsForSync();
 
-                if ([] !== $items) {
-                    $this->apiClient->sendSync($connection, $items, (string) $offset);
-                    $totalItems += count($items);
-                }
+			do {
+				$batch = $this->contentCollector->collectBatch( $offset, $this->syncBatchSize );
+				$items = $this->attachLocalFindings( $batch['items'], $localFindings );
 
-                $offset += $this->syncBatchSize;
-                $batches++;
-            } while ($batch['hasMore'] && $batches < self::MAX_SYNC_BATCHES);
+				if ( array() !== $items ) {
+					$this->apiClient->sendSync( $connection, $items, (string) $offset );
+					$totalItems += count( $items );
+				}
 
-            $this->syncLogStore->recordSuccess($totalItems);
-        } catch (\RuntimeException $error) {
-            $this->syncLogStore->recordFailure($error->getMessage());
-            return;
-        }
-    }
+				$offset += $this->syncBatchSize;
+				++$batches;
+			} while ( $batch['hasMore'] && $batches < self::MAX_SYNC_BATCHES );
 
-    /**
-     * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}> $items
-     * @param array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null $localFindings
-     * @return array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}>
-     */
-    private function attachLocalFindings(array $items, ?array $localFindings): array
-    {
-        if (null === $localFindings) {
-            return $items;
-        }
+			$this->syncLogStore->recordSuccess( $totalItems );
+		} catch ( \RuntimeException $error ) {
+			$this->syncLogStore->recordFailure( $error->getMessage() );
+			return;
+		}
+	}
 
-        foreach ($items as &$item) {
-            if (array_key_exists($item['externalId'], $localFindings)) {
-                $item['metadata']['localFindings'] = $localFindings[$item['externalId']];
-            }
-        }
-        unset($item);
+	/**
+	 * @param array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}> $items
+	 * @param array<string,array<int,array{code:string,label:string,severity:string,evidence:string,fingerprint:string}>>|null                          $localFindings
+	 * @return array<int,array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}>
+	 */
+	private function attachLocalFindings( array $items, ?array $localFindings ): array {
+		if ( null === $localFindings ) {
+			return $items;
+		}
 
-        return $items;
-    }
+		foreach ( $items as &$item ) {
+			if ( array_key_exists( $item['externalId'], $localFindings ) ) {
+				$item['metadata']['localFindings'] = $localFindings[ $item['externalId'] ];
+			}
+		}
+		unset( $item );
 
-    public function queueSync(): string
-    {
-        if (function_exists('as_enqueue_async_action')) {
-            as_enqueue_async_action(self::MANUAL_ACTION, [], self::GROUP);
-            return 'Action Scheduler';
-        }
+		return $items;
+	}
 
-        if (! wp_next_scheduled(self::MANUAL_ACTION)) {
-            wp_schedule_single_event(time() + 60, self::MANUAL_ACTION);
-            return 'WP-Cron';
-        }
+	public function queueSync(): string {
+		if ( function_exists( 'as_enqueue_async_action' ) ) {
+			as_enqueue_async_action( self::MANUAL_ACTION, array(), self::GROUP );
+			return 'Action Scheduler';
+		}
 
-        return 'existing WP-Cron event';
-    }
+		if ( ! wp_next_scheduled( self::MANUAL_ACTION ) ) {
+			wp_schedule_single_event( time() + 60, self::MANUAL_ACTION );
+			return 'WP-Cron';
+		}
 
-    public function ensureRecurringSync(): string
-    {
-        if (! $this->connectionStore->isConnected()) {
-            $this->cancelScheduledSyncs();
-            return 'not connected';
-        }
+		return 'existing WP-Cron event';
+	}
 
-        if (function_exists('as_next_scheduled_action') && function_exists('as_schedule_recurring_action')) {
-            $next = as_next_scheduled_action(self::RECURRING_ACTION, [], self::GROUP);
+	public function ensureRecurringSync(): string {
+		if ( ! $this->connectionStore->isConnected() ) {
+			$this->cancelScheduledSyncs();
+			return 'not connected';
+		}
 
-            if (false === $next) {
-                as_schedule_recurring_action(
-                    time() + self::INTERVAL_SECONDS,
-                    self::INTERVAL_SECONDS,
-                    self::RECURRING_ACTION,
-                    [],
-                    self::GROUP
-                );
-            }
+		if ( function_exists( 'as_next_scheduled_action' ) && function_exists( 'as_schedule_recurring_action' ) ) {
+			$next = as_next_scheduled_action( self::RECURRING_ACTION, array(), self::GROUP );
 
-            return 'Action Scheduler';
-        }
+			if ( false === $next ) {
+				as_schedule_recurring_action(
+					time() + self::INTERVAL_SECONDS,
+					self::INTERVAL_SECONDS,
+					self::RECURRING_ACTION,
+					array(),
+					self::GROUP
+				);
+			}
 
-        if (! wp_next_scheduled(self::RECURRING_ACTION)) {
-            wp_schedule_event(time() + self::INTERVAL_SECONDS, 'hourly', self::RECURRING_ACTION);
-        }
+			return 'Action Scheduler';
+		}
 
-        return 'WP-Cron';
-    }
+		if ( ! wp_next_scheduled( self::RECURRING_ACTION ) ) {
+			wp_schedule_event( time() + self::INTERVAL_SECONDS, 'hourly', self::RECURRING_ACTION );
+		}
 
-    public function cancelRecurringSync(): void
-    {
-        $this->cancelScheduledAction(self::RECURRING_ACTION);
-    }
+		return 'WP-Cron';
+	}
 
-    public function cancelScheduledSyncs(): void
-    {
-        $this->cancelScheduledAction(self::RECURRING_ACTION);
-        $this->cancelScheduledAction(self::MANUAL_ACTION);
-    }
+	public function cancelRecurringSync(): void {
+		$this->cancelScheduledAction( self::RECURRING_ACTION );
+	}
 
-    private function cancelScheduledAction(string $action): void
-    {
-        if (function_exists('as_unschedule_all_actions')) {
-            as_unschedule_all_actions($action, [], self::GROUP);
-        }
+	public function cancelScheduledSyncs(): void {
+		$this->cancelScheduledAction( self::RECURRING_ACTION );
+		$this->cancelScheduledAction( self::MANUAL_ACTION );
+	}
 
-        while (true) {
-            $next = wp_next_scheduled($action);
+	private function cancelScheduledAction( string $action ): void {
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( $action, array(), self::GROUP );
+		}
 
-            if (false === $next) {
-                return;
-            }
+		while ( true ) {
+			$next = wp_next_scheduled( $action );
 
-            wp_unschedule_event($next, $action);
-        }
-    }
+			if ( false === $next ) {
+				return;
+			}
 
-    /**
-     * @return array{enabled:bool,scheduler:string|null,next_run_at:int|null}
-     */
-    public function getRecurringSyncStatus(): array
-    {
-        if (! $this->connectionStore->isConnected()) {
-            return [
-                'enabled' => false,
-                'scheduler' => null,
-                'next_run_at' => null,
-            ];
-        }
+			wp_unschedule_event( $next, $action );
+		}
+	}
 
-        if (function_exists('as_next_scheduled_action')) {
-            $next = as_next_scheduled_action(self::RECURRING_ACTION, [], self::GROUP);
+	/**
+	 * @return array{enabled:bool,scheduler:string|null,next_run_at:int|null}
+	 */
+	public function getRecurringSyncStatus(): array {
+		if ( ! $this->connectionStore->isConnected() ) {
+			return array(
+				'enabled'     => false,
+				'scheduler'   => null,
+				'next_run_at' => null,
+			);
+		}
 
-            if (false !== $next) {
-                return [
-                    'enabled' => true,
-                    'scheduler' => 'Action Scheduler',
-                    'next_run_at' => (int) $next,
-                ];
-            }
-        }
+		if ( function_exists( 'as_next_scheduled_action' ) ) {
+			$next = as_next_scheduled_action( self::RECURRING_ACTION, array(), self::GROUP );
 
-        $next = wp_next_scheduled(self::RECURRING_ACTION);
+			if ( false !== $next ) {
+				return array(
+					'enabled'     => true,
+					'scheduler'   => 'Action Scheduler',
+					'next_run_at' => (int) $next,
+				);
+			}
+		}
 
-        if (false === $next) {
-            return [
-                'enabled' => false,
-                'scheduler' => null,
-                'next_run_at' => null,
-            ];
-        }
+		$next = wp_next_scheduled( self::RECURRING_ACTION );
 
-        return [
-            'enabled' => true,
-            'scheduler' => 'WP-Cron',
-            'next_run_at' => (int) $next,
-        ];
-    }
+		if ( false === $next ) {
+			return array(
+				'enabled'     => false,
+				'scheduler'   => null,
+				'next_run_at' => null,
+			);
+		}
+
+		return array(
+			'enabled'     => true,
+			'scheduler'   => 'WP-Cron',
+			'next_run_at' => (int) $next,
+		);
+	}
 }

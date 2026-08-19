@@ -9,35 +9,33 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-final class RequestSigner
-{
-    public function sign(string $method, string $path, int $timestamp, string $body, string $secret): string
-    {
-        $payload = strtoupper($method) . "\n" . $path . "\n" . $timestamp . "\n" . hash('sha256', $body);
+final class RequestSigner {
 
-        return hash_hmac('sha256', $payload, $secret);
-    }
+	public function sign( string $method, string $path, int $timestamp, string $body, string $secret ): string {
+		$payload = strtoupper( $method ) . "\n" . $path . "\n" . $timestamp . "\n" . hash( 'sha256', $body );
 
-    public function verify(
-        string $method,
-        string $path,
-        int $timestamp,
-        string $body,
-        string $secret,
-        string $signature,
-        int $toleranceSeconds = 300
-    ): bool {
-        if (abs(time() - $timestamp) > $toleranceSeconds) {
-            return false;
-        }
+		return hash_hmac( 'sha256', $payload, $secret );
+	}
 
-        $expected = $this->sign($method, $path, $timestamp, $body, $secret);
+	public function verify(
+		string $method,
+		string $path,
+		int $timestamp,
+		string $body,
+		string $secret,
+		string $signature,
+		int $toleranceSeconds = 300
+	): bool {
+		if ( abs( time() - $timestamp ) > $toleranceSeconds ) {
+			return false;
+		}
 
-        return hash_equals($expected, $signature);
-    }
+		$expected = $this->sign( $method, $path, $timestamp, $body, $secret );
+
+		return hash_equals( $expected, $signature );
+	}
 }
-

@@ -9,149 +9,146 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-final class LocalLinkGraph
-{
-    /**
-     * @param array<int,array<string,mixed>> $items
-     * @return array<int,array<string,mixed>>
-     */
-    public function analyze(array $items): array
-    {
-        $urlIndex = [];
-        $inboundSources = [];
+final class LocalLinkGraph {
 
-        foreach ($items as $index => $item) {
-            $key = $this->normalizeUrl((string) ($item['url'] ?? ''));
+	/**
+	 * @param array<int,array<string,mixed>> $items
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function analyze( array $items ): array {
+		$urlIndex       = array();
+		$inboundSources = array();
 
-            if ('' !== $key) {
-                $urlIndex[$key] = $index;
-                $inboundSources[$index] = [];
-            }
-        }
+		foreach ( $items as $index => $item ) {
+			$key = $this->normalizeUrl( (string) ( $item['url'] ?? '' ) );
 
-        foreach ($items as $sourceIndex => $item) {
-            $sourceUrl = (string) ($item['url'] ?? '');
-            $targets = isset($item['outbound_urls']) && is_array($item['outbound_urls']) ? $item['outbound_urls'] : [];
+			if ( '' !== $key ) {
+				$urlIndex[ $key ]         = $index;
+				$inboundSources[ $index ] = array();
+			}
+		}
 
-            foreach ($targets as $target) {
-                if (! is_string($target)) {
-                    continue;
-                }
+		foreach ( $items as $sourceIndex => $item ) {
+			$sourceUrl = (string) ( $item['url'] ?? '' );
+			$targets   = isset( $item['outbound_urls'] ) && is_array( $item['outbound_urls'] ) ? $item['outbound_urls'] : array();
 
-                $targetKey = $this->normalizeTarget($target, $sourceUrl);
-                $targetIndex = '' !== $targetKey && isset($urlIndex[$targetKey]) ? $urlIndex[$targetKey] : null;
+			foreach ( $targets as $target ) {
+				if ( ! is_string( $target ) ) {
+					continue;
+				}
 
-                if (null === $targetIndex || $targetIndex === $sourceIndex) {
-                    continue;
-                }
+				$targetKey   = $this->normalizeTarget( $target, $sourceUrl );
+				$targetIndex = '' !== $targetKey && isset( $urlIndex[ $targetKey ] ) ? $urlIndex[ $targetKey ] : null;
 
-                $sourceId = (string) ($item['external_id'] ?? $sourceIndex);
-                $inboundSources[$targetIndex][$sourceId] = true;
-            }
-        }
+				if ( null === $targetIndex || $targetIndex === $sourceIndex ) {
+					continue;
+				}
 
-        foreach ($items as $index => &$item) {
-            $count = isset($inboundSources[$index]) ? count($inboundSources[$index]) : 0;
-            $item['inbound_link_count'] = $count;
-            unset($item['outbound_urls']);
+				$sourceId                                    = (string) ( $item['external_id'] ?? $sourceIndex );
+				$inboundSources[ $targetIndex ][ $sourceId ] = true;
+			}
+		}
 
-            if (! isset($item['findings']) || ! is_array($item['findings'])) {
-                $item['findings'] = [];
-            }
+		foreach ( $items as $index => &$item ) {
+			$count                      = isset( $inboundSources[ $index ] ) ? count( $inboundSources[ $index ] ) : 0;
+			$item['inbound_link_count'] = $count;
+			unset( $item['outbound_urls'] );
 
-            if (0 === $count) {
-                $item['findings'][] = [
-                    'code' => 'orphan-content',
-                    'label' => 'No inbound internal links',
-                    'severity' => 'warning',
-                    'evidence' => 'No other audited post or page links to this URL.',
-                ];
-            } elseif (1 === $count) {
-                $item['findings'][] = [
-                    'code' => 'weakly-linked-content',
-                    'label' => 'Only one inbound internal link',
-                    'severity' => 'opportunity',
-                    'evidence' => 'Only one audited post or page links to this URL.',
-                ];
-            }
-        }
-        unset($item);
+			if ( ! isset( $item['findings'] ) || ! is_array( $item['findings'] ) ) {
+				$item['findings'] = array();
+			}
 
-        return $items;
-    }
+			if ( 0 === $count ) {
+				$item['findings'][] = array(
+					'code'     => 'orphan-content',
+					'label'    => 'No inbound internal links',
+					'severity' => 'warning',
+					'evidence' => 'No other audited post or page links to this URL.',
+				);
+			} elseif ( 1 === $count ) {
+				$item['findings'][] = array(
+					'code'     => 'weakly-linked-content',
+					'label'    => 'Only one inbound internal link',
+					'severity' => 'opportunity',
+					'evidence' => 'Only one audited post or page links to this URL.',
+				);
+			}
+		}
+		unset( $item );
 
-    private function normalizeTarget(string $target, string $sourceUrl): string
-    {
-        $target = trim($target);
+		return $items;
+	}
 
-        if ('' === $target || str_starts_with($target, '#')) {
-            return '';
-        }
+	private function normalizeTarget( string $target, string $sourceUrl ): string {
+		$target = trim( $target );
 
-        if (str_starts_with($target, '//')) {
-            $scheme = (string) (parse_url($sourceUrl, PHP_URL_SCHEME) ?: 'https');
-            return $this->normalizeUrl($scheme . ':' . $target);
-        }
+		if ( '' === $target || str_starts_with( $target, '#' ) ) {
+			return '';
+		}
 
-        $targetScheme = parse_url($target, PHP_URL_SCHEME);
+		if ( str_starts_with( $target, '//' ) ) {
+			$scheme = (string) ( parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
+			return $this->normalizeUrl( $scheme . ':' . $target );
+		}
 
-        if (is_string($targetScheme) && '' !== $targetScheme) {
-            return $this->normalizeUrl($target);
-        }
+		$targetScheme = parse_url( $target, PHP_URL_SCHEME );
 
-        $scheme = (string) (parse_url($sourceUrl, PHP_URL_SCHEME) ?: 'https');
-        $host = (string) parse_url($sourceUrl, PHP_URL_HOST);
-        $port = parse_url($sourceUrl, PHP_URL_PORT);
+		if ( is_string( $targetScheme ) && '' !== $targetScheme ) {
+			return $this->normalizeUrl( $target );
+		}
 
-        if ('' === $host) {
-            return '';
-        }
+		$scheme = (string) ( parse_url( $sourceUrl, PHP_URL_SCHEME ) ?: 'https' );
+		$host   = (string) parse_url( $sourceUrl, PHP_URL_HOST );
+		$port   = parse_url( $sourceUrl, PHP_URL_PORT );
 
-        $authority = $scheme . '://' . $host . (is_int($port) ? ':' . $port : '');
+		if ( '' === $host ) {
+			return '';
+		}
 
-        if (str_starts_with($target, '/')) {
-            return $this->normalizeUrl($authority . $target);
-        }
+		$authority = $scheme . '://' . $host . ( is_int( $port ) ? ':' . $port : '' );
 
-        $sourcePath = (string) (parse_url($sourceUrl, PHP_URL_PATH) ?: '/');
-        $basePath = str_ends_with($sourcePath, '/')
-            ? rtrim($sourcePath, '/')
-            : rtrim(str_replace('\\', '/', dirname($sourcePath)), '/');
+		if ( str_starts_with( $target, '/' ) ) {
+			return $this->normalizeUrl( $authority . $target );
+		}
 
-        return $this->normalizeUrl($authority . ($basePath ? $basePath : '') . '/' . $target);
-    }
+		$sourcePath = (string) ( parse_url( $sourceUrl, PHP_URL_PATH ) ?: '/' );
+		$basePath   = str_ends_with( $sourcePath, '/' )
+			? rtrim( $sourcePath, '/' )
+			: rtrim( str_replace( '\\', '/', dirname( $sourcePath ) ), '/' );
 
-    private function normalizeUrl(string $value): string
-    {
-        $parts = parse_url(trim($value));
+		return $this->normalizeUrl( $authority . ( $basePath ? $basePath : '' ) . '/' . $target );
+	}
 
-        if (! is_array($parts) || empty($parts['host'])) {
-            return '';
-        }
+	private function normalizeUrl( string $value ): string {
+		$parts = parse_url( trim( $value ) );
 
-        $host = strtolower((string) $parts['host']);
-        $host = str_starts_with($host, 'www.') ? substr($host, 4) : $host;
-        $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
-        $path = isset($parts['path']) ? '/' . ltrim((string) $parts['path'], '/') : '/';
-        $segments = [];
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			return '';
+		}
 
-        foreach (explode('/', $path) as $segment) {
-            if ('' === $segment || '.' === $segment) {
-                continue;
-            }
+		$host     = strtolower( (string) $parts['host'] );
+		$host     = str_starts_with( $host, 'www.' ) ? substr( $host, 4 ) : $host;
+		$port     = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+		$path     = isset( $parts['path'] ) ? '/' . ltrim( (string) $parts['path'], '/' ) : '/';
+		$segments = array();
 
-            if ('..' === $segment) {
-                array_pop($segments);
-                continue;
-            }
+		foreach ( explode( '/', $path ) as $segment ) {
+			if ( '' === $segment || '.' === $segment ) {
+				continue;
+			}
 
-            $segments[] = rawurldecode($segment);
-        }
+			if ( '..' === $segment ) {
+				array_pop( $segments );
+				continue;
+			}
 
-        return $host . $port . '/' . implode('/', $segments);
-    }
+			$segments[] = rawurldecode( $segment );
+		}
+
+		return $host . $port . '/' . implode( '/', $segments );
+	}
 }

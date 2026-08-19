@@ -9,126 +9,119 @@ declare(strict_types=1);
 
 namespace SCCC\Plugin;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-final class SyncLogStore
-{
-    private const OPTION = 'sccc_sync_log';
-    private const MAX_ENTRIES = 10;
+final class SyncLogStore {
 
-    /**
-     * @return array<int,array{id:string,status:string,message:string,item_count:int|null,created_at:int}>
-     */
-    public function all(): array
-    {
-        $value = get_option(self::OPTION);
+	private const OPTION      = 'sccc_sync_log';
+	private const MAX_ENTRIES = 10;
 
-        if (! is_array($value)) {
-            return [];
-        }
+	/**
+	 * @return array<int,array{id:string,status:string,message:string,item_count:int|null,created_at:int}>
+	 */
+	public function all(): array {
+		$value = get_option( self::OPTION );
 
-        $entries = [];
+		if ( ! is_array( $value ) ) {
+			return array();
+		}
 
-        foreach ($value as $entry) {
-            if (! is_array($entry)) {
-                continue;
-            }
+		$entries = array();
 
-            $normalized = $this->normalizeEntry($entry);
+		foreach ( $value as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
 
-            if (null !== $normalized) {
-                $entries[] = $normalized;
-            }
-        }
+			$normalized = $this->normalizeEntry( $entry );
 
-        return $entries;
-    }
+			if ( null !== $normalized ) {
+				$entries[] = $normalized;
+			}
+		}
 
-    public function recordQueued(string $scheduler): void
-    {
-        $this->add(
-            'queued',
-            sprintf('Manual sync queued via %s.', $this->sanitizeReason($scheduler)),
-            null
-        );
-    }
+		return $entries;
+	}
 
-    public function recordSuccess(int $itemCount): void
-    {
-        $this->add(
-            'success',
-            sprintf('Sync completed and sent %d content item%s.', $itemCount, 1 === $itemCount ? '' : 's'),
-            $itemCount
-        );
-    }
+	public function recordQueued( string $scheduler ): void {
+		$this->add(
+			'queued',
+			sprintf( 'Manual sync queued via %s.', $this->sanitizeReason( $scheduler ) ),
+			null
+		);
+	}
 
-    public function recordFailure(string $reason, ?int $itemCount = null): void
-    {
-        $this->add(
-            'error',
-            sprintf('Sync failed: %s.', $this->sanitizeReason($reason)),
-            $itemCount
-        );
-    }
+	public function recordSuccess( int $itemCount ): void {
+		$this->add(
+			'success',
+			sprintf( 'Sync completed and sent %d content item%s.', $itemCount, 1 === $itemCount ? '' : 's' ),
+			$itemCount
+		);
+	}
 
-    private function add(string $status, string $message, ?int $itemCount): void
-    {
-        $entry = [
-            'id' => uniqid('sync_', true),
-            'status' => $status,
-            'message' => $message,
-            'item_count' => $itemCount,
-            'created_at' => time(),
-        ];
-        $entries = array_slice(array_merge([$entry], $this->all()), 0, self::MAX_ENTRIES);
+	public function recordFailure( string $reason, ?int $itemCount = null ): void {
+		$this->add(
+			'error',
+			sprintf( 'Sync failed: %s.', $this->sanitizeReason( $reason ) ),
+			$itemCount
+		);
+	}
 
-        update_option(self::OPTION, $entries, false);
-    }
+	private function add( string $status, string $message, ?int $itemCount ): void {
+		$entry   = array(
+			'id'         => uniqid( 'sync_', true ),
+			'status'     => $status,
+			'message'    => $message,
+			'item_count' => $itemCount,
+			'created_at' => time(),
+		);
+		$entries = array_slice( array_merge( array( $entry ), $this->all() ), 0, self::MAX_ENTRIES );
 
-    /**
-     * @param array<string,mixed> $entry
-     * @return array{id:string,status:string,message:string,item_count:int|null,created_at:int}|null
-     */
-    private function normalizeEntry(array $entry): ?array
-    {
-        $status = isset($entry['status']) ? (string) $entry['status'] : '';
+		update_option( self::OPTION, $entries, false );
+	}
 
-        if (! in_array($status, ['queued', 'success', 'error'], true)) {
-            return null;
-        }
+	/**
+	 * @param array<string,mixed> $entry
+	 * @return array{id:string,status:string,message:string,item_count:int|null,created_at:int}|null
+	 */
+	private function normalizeEntry( array $entry ): ?array {
+		$status = isset( $entry['status'] ) ? (string) $entry['status'] : '';
 
-        $message = isset($entry['message']) ? $this->sanitizeReason((string) $entry['message']) : '';
+		if ( ! in_array( $status, array( 'queued', 'success', 'error' ), true ) ) {
+			return null;
+		}
 
-        return [
-            'id' => isset($entry['id']) ? $this->sanitizeReason((string) $entry['id']) : uniqid('sync_', true),
-            'status' => $status,
-            'message' => '' === $message ? 'Sync status updated.' : $message,
-            'item_count' => isset($entry['item_count']) && is_numeric($entry['item_count'])
-                ? max(0, (int) $entry['item_count'])
-                : null,
-            'created_at' => isset($entry['created_at']) && is_numeric($entry['created_at'])
-                ? max(0, (int) $entry['created_at'])
-                : time(),
-        ];
-    }
+		$message = isset( $entry['message'] ) ? $this->sanitizeReason( (string) $entry['message'] ) : '';
 
-    private function sanitizeReason(string $reason): string
-    {
-        $clean = preg_replace('/https?:\/\/[^\s]+/i', '[redacted-url]', $reason) ?? $reason;
-        $clean = preg_replace(
-            '/\b(token|secret|signature|authorization)\b\s*[:=]\s*[^\s,;]+/i',
-            '$1=[redacted]',
-            $clean
-        ) ?? $clean;
-        $clean = preg_replace('/[^A-Za-z0-9_.:;,\-\s\[\]=]/', '', $clean) ?? $clean;
-        $clean = trim($clean);
+		return array(
+			'id'         => isset( $entry['id'] ) ? $this->sanitizeReason( (string) $entry['id'] ) : uniqid( 'sync_', true ),
+			'status'     => $status,
+			'message'    => '' === $message ? 'Sync status updated.' : $message,
+			'item_count' => isset( $entry['item_count'] ) && is_numeric( $entry['item_count'] )
+				? max( 0, (int) $entry['item_count'] )
+				: null,
+			'created_at' => isset( $entry['created_at'] ) && is_numeric( $entry['created_at'] )
+				? max( 0, (int) $entry['created_at'] )
+				: time(),
+		);
+	}
 
-        if ('' === $clean) {
-            return 'unknown_error';
-        }
+	private function sanitizeReason( string $reason ): string {
+		$clean = preg_replace( '/https?:\/\/[^\s]+/i', '[redacted-url]', $reason ) ?? $reason;
+		$clean = preg_replace(
+			'/\b(token|secret|signature|authorization)\b\s*[:=]\s*[^\s,;]+/i',
+			'$1=[redacted]',
+			$clean
+		) ?? $clean;
+		$clean = preg_replace( '/[^A-Za-z0-9_.:;,\-\s\[\]=]/', '', $clean ) ?? $clean;
+		$clean = trim( $clean );
 
-        return substr($clean, 0, 160);
-    }
+		if ( '' === $clean ) {
+			return 'unknown_error';
+		}
+
+		return substr( $clean, 0, 160 );
+	}
 }
