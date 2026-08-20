@@ -1,4 +1,4 @@
-# SEO Content Control Center for WordPress
+# Content Signal
 
 Find the WordPress pages costing you traffic and turn them into an actionable SEO backlog.
 
@@ -75,121 +75,30 @@ After production deployment, use `npm run deploy:server:smoke` with [docs/SERVER
 
 The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets. Rebuild when `NEXT_PUBLIC_APP_URL` or `NEXT_PUBLIC_MARKETING_URL` changes because those values are used by Next.js public metadata and handoff URLs at build time.
 
-## Current Iteration
+## Features
 
-This repository currently contains the Phase 0 foundation and the first SaaS MVP slice:
+**WordPress plugin**
 
-- product and architecture documents;
-- monorepo package boundaries;
-- Prisma data model draft for multi-tenant SaaS;
-- initial database migration and plan seed script;
-- health endpoint;
-- shared RBAC/plan utilities with tests;
-- DB-backed credentials auth and hashed session cookies;
-- password reset emails with hashed one-time tokens and session invalidation after reset;
-- email verification emails with hashed one-time tokens and a browser confirmation page;
-- computed SaaS onboarding checklist for workspace, site, plugin sync, audit, and backlog setup;
-- local no-charge Trial subscriptions for new workspaces with expiry enforcement;
-- tenant-scoped organization and site access layer backed by Prisma/PostgreSQL when configured;
-- organization bootstrap UI/API;
-- site creation UI/API;
-- member invite UI/API with hashed invite tokens, accept, resend, and cancel flows;
-- SMTP invite email delivery with local Mailpit support;
-- same-origin CSRF guard and rate limits for auth, invite, safe content operation, WordPress plugin, and billing webhook endpoints, backed by Redis when `REDIS_URL` is configured with a process-local in-memory fallback;
-- WordPress plugin challenge/exchange and signed sync API foundation;
-- dedicated WordPress plugin API documentation for connection, signing, sync, disconnect, and metadata contracts;
-- WordPress plugin admin challenge exchange and signed manual sync request;
-- WordPress plugin admin feedback notices for connection, manual sync, and disconnect outcomes;
-- WordPress plugin recurring sync through Action Scheduler with hourly WP-Cron fallback;
-- WordPress plugin and SaaS dashboard disconnect flow with server-side token invalidation;
-- WordPress plugin posts/pages inventory payload for signed sync;
-- WordPress plugin paginated inventory sync in ID-ordered batches of 200 with offset cursors and a per-run batch safety bound;
-- WordPress plugin content metadata sync for author, publish date, featured image, taxonomies, word count, and internal/outbound link counts;
-- WordPress plugin SEO metadata sync for Yoast, Rank Math, and fallback title/canonical/robots signals;
-- bounded active local-finding sync from completed WordPress audits, with strict validation and no post bodies, full link graph, or ignored findings;
-- WordPress plugin sync logs for queued, successful, and failed sync attempts with sanitized failure details;
-- WordPress local audit deep links into connected Content/Audit views with Search Console enrichment context and bounded safe-preview eligibility hints;
-- WordPress plugin signed safe operation apply endpoint for bounded Yoast/Rank Math SEO metadata batches;
-- SaaS persistence and dashboard inventory for synced WordPress content;
-- Google Search Console connection overview scaffold with tenant-scoped property state and OAuth readiness guardrails;
-- Google Search Console OAuth start/callback with signed state and encrypted refresh token storage;
-- Google Search Console property discovery with automatic URL-prefix or domain-property matching;
-- Google Search Console manual property picker for connected accounts;
-- Google Search Console daily metric sync for property-level clicks, impressions, CTR, and average position;
-- Google Search Console page/query insight sync for top Search Analytics rows;
-- deterministic Search Console traffic loss detection with site-level window comparison, page-level baseline snapshot comparison, severity thresholds, a dashboard panel, and a scoped read-only API endpoint;
-- normalized URL matching between Search Console traffic loss pages and synced WordPress content items in the traffic loss API and dashboard;
-- audit runs materialize matched Search Console traffic loss drops as deduplicated `gsc.traffic-loss` audit issues with detection-derived severity and comparison evidence;
-- matched audit issues carry transparent Search Console impact bands, current/comparison metrics, and tracked follow-up outcomes from a fixed first-observed baseline; Audits and audit-derived backlog work sort by impact, while issue CSV exports preserve the evidence;
-- tenant-scoped recurring deliverables with per-member alert preferences, immediate critical/traffic/failed-operation email alerts, weekly overdue checks and workspace digests, persisted idempotent delivery runs, and site/workspace client reports in print-ready HTML or CSV;
-- deterministic Search Console opportunity detection (CTR below a position benchmark, striking distance positions 5-15) with a read-only endpoint, a dashboard panel, and one-click conversion of matched pages into backlog tasks through the existing candidate mechanism;
-- assistant recommendations sourced from Search Console traffic loss and opportunity evidence with metric details, read-only safeguards, and safe-preview controls enabled only for backlog-sourced recommendations;
-- optional env-configured Anthropic AI provider (`SCCC_AI_PROVIDER`, `SCCC_AI_API_KEY`, `SCCC_AI_MODEL`) that adds an AI summary to assistant responses, meters one `ai_credits` usage metric per successful summary, blocks calls once plan credits are exhausted with a deduplicated notification, and falls back to deterministic responses without charging on provider failures;
-- env-gated observability: Sentry error reporting for SaaS request errors and worker job failures, PostHog server analytics with tenant context from the shared event taxonomy, and a worker `GET /healthz` endpoint with BullMQ queue counts and oldest-waiting lag;
-- SaaS synced content inventory with search, filters, and cursor pagination;
-- SaaS synced content detail panel and tenant-scoped detail API;
-- computed synced content health signals from WordPress sync metadata, including thin content, missing SEO title/meta description, noindex/nofollow, canonical mismatch, and link-count signals;
-- computed backlog candidate tasks from synced content health signals;
-- tenant-scoped metadata audit run creation, completion, listing, and issue summaries with synced-content issue materialization from existing plugin metadata;
-- deduplicated materialization of WordPress local evidence, including orphan and weak-link findings unavailable from per-page metadata alone;
-- SaaS dashboard audit panel with queue action and recent run status;
-- SaaS dashboard audit issue triage with status updates and backlog task creation;
-- SaaS dashboard audit issue summary counts for selected audit runs;
-- SaaS dashboard audit issue search and status/severity filtering;
-- SaaS dashboard audit issue CSV export with current filters;
-- tenant-scoped audit issue listing with status, severity, and text filters;
-- tenant-scoped audit issue CSV export;
-- tenant-scoped audit issue status updates with audit logging;
-- persisted backlog task creation from synced content candidates;
-- persisted backlog task creation from scoped audit issues;
-- bulk backlog task creation from open issues in a scoped audit run;
-- SaaS backlog task listing for persisted candidate-created tasks;
-- backlog text search and status/severity filtering with summary counts;
-- backlog task status updates with audit logging;
-- backlog assignment and due date updates with audit logging;
-- backlog task comments with audit logging;
-- backlog task change history for creation, status, assignment, due date, and comments;
-- backlog CSV export for filtered site tasks;
-- safe content operation previews created from scoped backlog tasks, with executable Yoast/Rank Math SEO title/meta description payloads plus review-scoped self-canonical and individual noindex/nofollow removal payloads when synced content evidence exists;
-- dry run support for previewed safe content operations without WordPress writes;
-- explicit confirmation for dry-run-passed safe content operations;
-- controlled start state for confirmed safe content operations without inline WordPress writes;
-- execution result recording for running safe content operations with per-item outcomes;
-- queued safe content operation execution through the worker for executable signed WordPress apply payloads;
-- queued rollback restore for completed safe content operation items with captured previous WordPress SEO values;
-- queue-backed retry for failed safe content operation execution and rollback restore items;
-- item status summaries and retry-mode visibility for inspecting partial execution and rollback outcomes;
-- activity logs for safe content operation preview, dry run, confirmation, start, result, rollback, and retry transitions;
-- organization notifications for safe content operation lifecycle outcomes;
-- read and unread state management for organization notifications;
-- bulk mark-read support for organization notifications;
-- read-only assistant recommendations with source evidence;
-- assistant AI-credit usage envelopes for recommendation responses;
-- assistant safe-preview controls with manual confirmation guardrails;
-- read-only billing overview with plan catalog, local Trial subscription state, and current plan state;
-- provider-gated billing controls with Stripe checkout and billing portal session creation when billing credentials and subscription linkage are configured;
-- signed and idempotent Stripe webhook reconciliation for local subscription state;
-- billing feature gates for site/user plan limits and expired local Trial access;
-- billing notifications when finite site or user limits are reached;
-- basic activity log writes;
-- BullMQ worker process foundation with maintenance queue processing, Redis heartbeat, job handler registry, tenant job payload validation, and graceful shutdown;
-- shared queue contract package with reserved queue/job names, deterministic job ids, and bounded retry defaults;
-- scheduled daily Google Search Console metric and insight sync through repeatable worker jobs for every active connection;
-- bulk operation execution queue processing with signed WordPress plugin apply calls and per-item result persistence;
-- shared framework-agnostic Google Search Console client package used by both the SaaS app and the worker;
-- WordPress plugin skeleton with secure defaults;
-- standalone WordPress Content Health Audit with no-account local checks for metadata, indexability, freshness, outbound and inbound link health; latest-scan change comparison; bounded ignore rules; optional daily/weekly scheduling; filters, CSV export, Dashboard widget, and Site Health visibility;
-- versioned WordPress plugin release packaging with a checked `readme.txt`, runtime-only zip archive, Composer/npm entrypoints, CI artifact upload, and archive smoke verification;
-- Docker-based WordPress plugin certification (`npm run plugin:certify:matrix`) that installs the packaged zip into real WordPress containers across PHP 8.1/8.2/8.3 and the previous WordPress branch, certifying activation, connection storage, WP-Cron sync scheduling, signed apply writes, tampered-signature rejection, and deactivation cleanup, mirrored as a CI matrix;
-- final WordPress plugin release certification (`npm run plugin:release:certify`) that verifies the exact versioned artifact, emits SHA-256/size metadata, runs the Docker WordPress/PHP matrix against that zip, and links the remaining live staging Action Scheduler evidence checklist;
-- Docker local dependencies;
-- CI workflow with dependency audit and CodeQL SAST, with the current Next.js and ESLint dependency tree passing `npm audit --audit-level=low`;
-- responsive public marketing with product/integrations, audience, knowledge base, SEO briefings, changelog, contact, service-information, pricing, security, demo, trial, and legal routes; sitemap/robots discovery; and a webhook-delivered demo lead flow;
-- release-hygiene format coverage that keeps generated Impeccable skill bundles and live-session artifacts out of the source formatting gate;
-- portable Docker Compose production packaging for SaaS, marketing, worker, and Prisma migrations, plus a deployment smoke script.
-- production environment and secrets matrix with `npm run deploy:env:check` for required origins, data stores, secrets, SMTP, Stripe, GSC OAuth, observability, webhook, and worker-health settings.
-- staging release rehearsal tooling and evidence runbook for real plugin challenge exchange, paginated sync, GSC OAuth/sync, demo webhook, Stripe webhook, and safe-operation worker flow before launch cutover.
-- server smoke and rollback runbook with `npm run deploy:server:smoke` for production env, database migration status, Redis ping, plugin archive verification, HTTP checks, optional restore drill, rollback paths, and monitoring.
+- Standalone, no-account local content health audit: missing SEO metadata, published noindex, canonical mismatches, thin content, stale content, and internal-link health (orphan and weak-link detection).
+- Optional daily/weekly scheduling, latest-run comparison, CSV export, and WordPress Dashboard/Site Health integration.
+- Optional SaaS connection for Search Console evidence, a shared team backlog, and audit history.
+- Signed, review-first metadata operations for Yoast/Rank Math (title, meta description, canonical, noindex/nofollow) with preview, dry run, explicit confirmation, and rollback.
+
+**SaaS platform**
+
+- Multi-tenant organizations with role-based access, invites, and full activity logging.
+- Google Search Console integration: OAuth connection, property discovery, and traffic-loss/opportunity detection.
+- Prioritized backlog generated from content health signals and Search Console evidence.
+- Review-first safe operations: preview, dry run, explicit confirmation, worker-executed WordPress write, and rollback.
+- Stripe billing with checkout, customer portal, webhooks, and plan-based feature gates.
+- Optional AI-assisted recommendation summaries with a deterministic fallback when unconfigured.
+- Email notifications/digests and client-facing HTML/CSV reports.
+
+**Infrastructure**
+
+- Background worker (BullMQ) for scheduled sync, bulk operations, and deliverables.
+- Docker Compose production packaging, an environment/secrets validation gate, and staging rehearsal/smoke-test tooling.
+- CI with lint, test, build, dependency audit, and CodeQL.
 
 No automatic SEO write path is allowed without preview, dry run, explicit confirmation, worker execution, and per-item result capture.
 

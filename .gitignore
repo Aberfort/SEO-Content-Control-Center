@@ -13,3 +13,9 @@ wordpress-plugin/vendor/
 .DS_Store
 .agents/
 .claude/
+.github/skills/
+.impeccable/
+skills-lock.json
+AGENTS.md
+docs/NEXT_ITERATIONS_PROMPT.md
+docs/MARKETING_REDESIGN_PROMPT.md

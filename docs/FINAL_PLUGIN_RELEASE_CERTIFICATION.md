@@ -47,7 +47,7 @@ Record the command output here before publishing:
 | Size bytes         | 51942                                                                                                                                                                                                |
 | Zip entries        | 25                                                                                                                                                                                                   |
 | Matrix result      | PASS on wordpress:php8.1-apache (WP 6.9/PHP 8.1.34), wordpress:php8.2-apache (WP 7.0.4/PHP 8.2.33), wordpress:php8.3-apache (WP 7.0.4/PHP 8.3.33), wordpress:6.8-php8.2-apache (WP 6.8.3/PHP 8.2.29) |
-| Operator           | Codex (automated), reviewed by Serhii Vasyliev                                                                                                                                                       |
+| Operator           | Serhii Vasyliev                                                                                                                                                                                     |
 
 ## Staging Action Scheduler Evidence
 

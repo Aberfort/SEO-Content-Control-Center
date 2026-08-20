@@ -182,7 +182,7 @@ typical site and require zero configuration.
 
 ## Implementation Order
 
-### Release A: standalone value (implemented in Iteration 120)
+### Release A: standalone value
 
 1. Extract a local audit result model from the metadata already collected by `ContentCollector`.
 2. Add deterministic checks and unit coverage.
@@ -191,20 +191,20 @@ typical site and require zero configuration.
 5. Keep platform connection in a secondary tab or section.
 6. Add CSV export, Dashboard widget, and updated WordPress.org copy/screenshots.
 
-### Release B: retention (implemented in Iteration 121)
+### Release B: retention
 
 1. Add inbound-link mapping and orphan/weakly linked content detection.
 2. Add scheduled local scans with an explicit user-controlled interval.
 3. Show changes since the previous scan without turning history into an unlimited local database.
 4. Add dismiss/ignore rules for intentional findings.
 
-### Release C: platform conversion (implemented in Iteration 122)
+### Release C: platform conversion
 
 1. Deep-link local findings into the matching connected content/audit view.
 2. Explain which findings gain Search Console evidence after connection.
 3. Show safe-operation availability only for supported, connected metadata fields.
 
-### Release D: evidence continuity (implemented in Iteration 123)
+### Release D: evidence continuity
 
 1. Sync only active findings from the latest completed local audit through a strict bounded schema.
 2. Materialize those findings as platform audit issues without duplicating metadata-derived issues.
