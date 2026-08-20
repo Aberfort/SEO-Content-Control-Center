@@ -1,4 +1,4 @@
-# Paid Platform Value Iterations
+# Paid Platform Value Roadmap
 
 ## Product Boundary
 
@@ -11,7 +11,7 @@ Console evidence, cross-site operations, team accountability, recurring reportin
 execution. Paid value must come from better decisions and operational leverage, not hiding local
 finding details.
 
-## Iteration 123 - Local Evidence Continuity
+## Local Evidence Continuity
 
 Status: implemented.
 
@@ -20,7 +20,7 @@ Status: implemented.
 - Replace duplicate metadata-derived issues with direct WordPress evidence.
 - Add orphan and weak-link issues without syncing the complete internal-link graph.
 
-## Iteration 124 - Search Impact Prioritization
+## Search Impact Prioritization
 
 Status: implemented.
 
@@ -31,7 +31,7 @@ Status: implemented.
   causality where the evidence only shows correlation.
 - Prioritize the audit and backlog by expected operational value, confidence, and urgency.
 
-## Iteration 125 - Recurring Deliverables
+## Recurring Deliverables
 
 Status: implemented.
 
@@ -43,7 +43,7 @@ Status: implemented.
   methodology.
 - Provide tenant-scoped delivery preferences and unsubscribe controls.
 
-## Iteration 126 - Operations Workflow
+## Operations Workflow
 
 Status: implemented.
 
@@ -52,7 +52,7 @@ Status: implemented.
 - Improve partial-failure and non-restorable guidance, retry eligibility, and rollback visibility.
 - Record outcome state after work is completed so reports distinguish activity from verified change.
 
-## Iteration 127 - Content Trust Evidence
+## Content Trust Evidence
 
 Status: implemented.
 
@@ -88,7 +88,7 @@ Implemented behavior:
 - Trust review includes secure delivery, dates, canonical identity, source transparency,
   ownership/contact clarity, and heightened-risk topic review.
 
-## Iteration 128 - Commercial Enforcement
+## Commercial Enforcement
 
 - Define named entitlements for GSC impact, recurring reports, Content Trust Evidence, AI summaries,
   safe operations, API access, sites, users, and synced URL limits.
