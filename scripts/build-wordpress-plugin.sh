@@ -5,7 +5,7 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_dir="${repository_root}/wordpress-plugin"
 output_dir="${SCCC_PLUGIN_DIST_DIR:-${repository_root}/dist}"
-archive_root="seo-content-control-center"
+archive_root="content-signal-seo-content-audit"
 
 if ! command -v zip >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
   echo "Plugin packaging requires both zip and unzip commands." >&2
@@ -33,7 +33,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "${release_dir}" "${output_dir}"
-cp "${plugin_dir}/seo-content-control-center.php" "${release_dir}/"
+cp "${plugin_dir}/content-signal-seo-content-audit.php" "${release_dir}/"
 cp "${plugin_dir}/uninstall.php" "${release_dir}/"
 cp "${plugin_dir}/readme.txt" "${release_dir}/"
 cp "${plugin_dir}/LICENSE.txt" "${release_dir}/"

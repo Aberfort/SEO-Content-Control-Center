@@ -14,7 +14,7 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_dir="${repository_root}/wordpress-plugin"
 version="$(tr -d '\r\n' < "${plugin_dir}/VERSION")"
 dist_dir="${SCCC_PLUGIN_DIST_DIR:-${repository_root}/dist}"
-archive="${dist_dir}/seo-content-control-center-${version}.zip"
+archive="${dist_dir}/content-signal-seo-content-audit-${version}.zip"
 skip_package="${SCCC_FINAL_PLUGIN_SKIP_PACKAGE:-0}"
 skip_matrix="${SCCC_FINAL_PLUGIN_SKIP_MATRIX:-0}"
 

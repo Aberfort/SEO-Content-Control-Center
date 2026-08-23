@@ -92,7 +92,7 @@ if [[ "${skip_plugin_check}" == "true" ]]; then
   log "SKIP plugin archive verification: SCCC_SERVER_SKIP_PLUGIN_CHECK=true"
 else
   plugin_version="$(tr -d '\r\n' < wordpress-plugin/VERSION)"
-  plugin_archive="${SCCC_SERVER_PLUGIN_ARCHIVE:-dist/seo-content-control-center-${plugin_version}.zip}"
+  plugin_archive="${SCCC_SERVER_PLUGIN_ARCHIVE:-dist/content-signal-seo-content-audit-${plugin_version}.zip}"
 
   log "checking WordPress plugin archive ${plugin_archive}"
   scripts/verify-wordpress-plugin-package.sh "${plugin_archive}"

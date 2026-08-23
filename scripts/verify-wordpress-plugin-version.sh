@@ -5,7 +5,7 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_dir="${repository_root}/wordpress-plugin"
 version_file="${plugin_dir}/VERSION"
-plugin_file="${plugin_dir}/seo-content-control-center.php"
+plugin_file="${plugin_dir}/content-signal-seo-content-audit.php"
 readme_file="${plugin_dir}/readme.txt"
 composer_file="${plugin_dir}/composer.json"
 

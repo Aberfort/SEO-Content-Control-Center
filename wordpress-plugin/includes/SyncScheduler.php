@@ -17,7 +17,7 @@ final class SyncScheduler {
 
 	private const RECURRING_ACTION = 'sccc_run_incremental_sync';
 	private const MANUAL_ACTION    = 'sccc_run_manual_sync';
-	private const GROUP            = 'seo-content-control-center';
+	private const GROUP            = 'content-signal-seo-content-audit';
 	private const INTERVAL_SECONDS = 3600;
 	private const MAX_SYNC_BATCHES = 50;
 
@@ -33,7 +33,7 @@ final class SyncScheduler {
 
 	public function handleManualSync(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to sync this site.', 'seo-content-control-center' ) );
+			wp_die( esc_html__( 'You do not have permission to sync this site.', 'content-signal-seo-content-audit' ) );
 		}
 
 		check_admin_referer( 'sccc_manual_sync' );

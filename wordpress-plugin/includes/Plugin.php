@@ -48,7 +48,7 @@ final class Plugin {
 
 	public function exchangeConnection(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to connect this site.', 'seo-content-control-center' ) );
+			wp_die( esc_html__( 'You do not have permission to connect this site.', 'content-signal-seo-content-audit' ) );
 		}
 
 		check_admin_referer( 'sccc_exchange_connection' );
@@ -82,7 +82,7 @@ final class Plugin {
 
 	public function disconnect(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to disconnect this site.', 'seo-content-control-center' ) );
+			wp_die( esc_html__( 'You do not have permission to disconnect this site.', 'content-signal-seo-content-audit' ) );
 		}
 
 		check_admin_referer( 'sccc_disconnect' );
