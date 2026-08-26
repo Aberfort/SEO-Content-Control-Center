@@ -729,3 +729,27 @@ export type EventListOptions = {
   severity?: TimelineEvent["severity"];
   limit?: number;
 };
+
+export type Regression = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrlLabel: string | null;
+  fingerprint: string;
+  status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "DISMISSED";
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  summary: string;
+  metrics: unknown;
+  eventIds: string[];
+  detectedAt: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RegressionListOptions = {
+  status?: Regression["status"];
+  limit?: number;
+};

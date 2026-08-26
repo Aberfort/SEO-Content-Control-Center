@@ -90,7 +90,7 @@ The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets
 - Multi-tenant organizations with role-based access, invites, and full activity logging.
 - Google Search Console integration: OAuth connection, property discovery, and traffic-loss/opportunity detection.
 - Prioritized backlog generated from content health signals and Search Console evidence.
-- URL monitoring with SSRF-guarded baseline/rescan crawls and a normalized change-event timeline (title, canonical, robots, GA4/GTM, HTTP status, content, and response-time changes).
+- URL monitoring with SSRF-guarded baseline/rescan crawls, a normalized change-event timeline (title, canonical, robots, GA4/GTM, HTTP status, content, and response-time changes), and a deterministic regression engine that correlates those changes with Search Console traffic drops into "possible cause" alerts.
 - Review-first safe operations: preview, dry run, explicit confirmation, worker-executed WordPress write, and rollback.
 - Stripe billing with checkout, customer portal, webhooks, and plan-based feature gates.
 - Optional AI-assisted recommendation summaries with a deterministic fallback when unconfigured.

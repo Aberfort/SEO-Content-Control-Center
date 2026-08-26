@@ -29,6 +29,7 @@ import {
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  regressionListQuerySchema,
   rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
   resolveCommercialAccess,
@@ -64,6 +65,7 @@ import {
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RegressionListQuery,
   type RequestOperationApprovalInput,
   type RescanMonitoredUrlInput,
   type RespondToOperationApprovalInput,
@@ -74,7 +76,14 @@ import {
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput
 } from "@sccc/shared";
-import { crawlUrl, diffSnapshots, extractSignals } from "@sccc/monitoring";
+import {
+  computeTrafficSignal,
+  crawlUrl,
+  detectRegressions,
+  diffSnapshots,
+  extractSignals,
+  type DailyMetricPoint
+} from "@sccc/monitoring";
 
 import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -133,6 +142,8 @@ import type {
   OperationApprovalStatus,
   OperationApprovalSummary,
   PublicOperationApproval,
+  Regression,
+  RegressionListOptions,
   Site,
   SyncedContentItem,
   SyncedContentList,
@@ -203,6 +214,7 @@ type DevStoreState = {
   monitoredUrls: MonitoredUrl[];
   urlSnapshots: UrlSnapshot[];
   events: TimelineEvent[];
+  regressions: Regression[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -335,7 +347,8 @@ function initialState(): DevStoreState {
     gscSearchInsights: [],
     monitoredUrls: [],
     urlSnapshots: [],
-    events: []
+    events: [],
+    regressions: []
   };
 }
 
@@ -1815,25 +1828,102 @@ async function captureDevSnapshot(input: {
   });
 
   const detectedEvents = diffSnapshots(previousSnapshot, fields);
+  const persistedEvents: TimelineEvent[] = detectedEvents.map((detected) => ({
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    siteId: input.siteId,
+    monitoredUrlId: input.monitoredUrlId,
+    monitoredUrlLabel: null,
+    source: "CRAWLER",
+    type: detected.type,
+    severity: detected.severity,
+    title: detected.title,
+    oldValue: detected.oldValue,
+    newValue: detected.newValue,
+    metadata: detected.metadata ?? null,
+    occurredAt: timestamp,
+    detectedAt: timestamp
+  }));
 
-  for (const detected of detectedEvents) {
-    store.events.push({
-      id: randomUUID(),
+  store.events.push(...persistedEvents);
+
+  if (persistedEvents.length === 0) {
+    return;
+  }
+
+  const candidates = detectRegressions({
+    monitoredUrlId: input.monitoredUrlId,
+    events: persistedEvents,
+    siteTraffic: buildDevSiteTrafficSignal(store, input.siteId)
+  });
+
+  for (const candidate of candidates) {
+    const alreadyExists = store.regressions.some(
+      (regression) =>
+        regression.organizationId === input.organizationId &&
+        regression.siteId === input.siteId &&
+        regression.fingerprint === candidate.fingerprint
+    );
+
+    if (alreadyExists) {
+      continue;
+    }
+
+    const regressionId = randomUUID();
+    store.regressions.push({
+      id: regressionId,
       organizationId: input.organizationId,
       siteId: input.siteId,
       monitoredUrlId: input.monitoredUrlId,
       monitoredUrlLabel: null,
-      source: "CRAWLER",
-      type: detected.type,
-      severity: detected.severity,
-      title: detected.title,
-      oldValue: detected.oldValue,
-      newValue: detected.newValue,
-      metadata: detected.metadata ?? null,
-      occurredAt: timestamp,
-      detectedAt: timestamp
+      fingerprint: candidate.fingerprint,
+      status: "OPEN",
+      severity: candidate.severity,
+      title: candidate.title,
+      summary: candidate.summary,
+      metrics: candidate.metrics ?? null,
+      eventIds: candidate.eventIds,
+      detectedAt: timestamp,
+      resolvedAt: null,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    store.notifications.push({
+      id: randomUUID(),
+      organizationId: input.organizationId,
+      type: "regression.detected",
+      title: candidate.title,
+      body: candidate.summary,
+      readAt: null,
+      createdAt: timestamp
     });
   }
+}
+
+function buildDevSiteTrafficSignal(store: DevStoreState, siteId: string) {
+  const metrics = store.gscDailyMetrics.filter((metric) => metric.siteId === siteId);
+
+  if (metrics.length === 0) {
+    return null;
+  }
+
+  const byDate = new Map<string, { clicks: number; positionSum: number; positionCount: number }>();
+
+  for (const metric of metrics) {
+    const entry = byDate.get(metric.date) ?? { clicks: 0, positionSum: 0, positionCount: 0 };
+    entry.clicks += metric.clicks;
+    entry.positionSum += metric.position;
+    entry.positionCount += 1;
+    byDate.set(metric.date, entry);
+  }
+
+  const points: DailyMetricPoint[] = [...byDate.entries()].map(([date, entry]) => ({
+    date,
+    clicks: entry.clicks,
+    position: entry.positionCount > 0 ? entry.positionSum / entry.positionCount : null
+  }));
+
+  return computeTrafficSignal(points);
 }
 
 export function listMonitoredUrlsForSite(
@@ -2000,6 +2090,41 @@ export function listEventsForSite(
       monitoredUrlLabel: event.monitoredUrlId
         ? (monitoredUrlsById.get(event.monitoredUrlId)?.label ??
           monitoredUrlsById.get(event.monitoredUrlId)?.url ??
+          null)
+        : null
+    }));
+}
+
+export function listRegressionsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: RegressionListOptions
+): Regression[] {
+  const parsed: RegressionListQuery = regressionListQuerySchema.parse(options ?? {});
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+  const monitoredUrlsById = new Map(store.monitoredUrls.map((monitoredUrl) => [monitoredUrl.id, monitoredUrl]));
+
+  return store.regressions
+    .filter((regression) => {
+      if (regression.organizationId !== organizationId || regression.siteId !== siteId) return false;
+      if (parsed.status && regression.status !== parsed.status) return false;
+      return true;
+    })
+    .sort((left, right) => right.detectedAt.localeCompare(left.detectedAt))
+    .slice(0, parsed.limit ?? 50)
+    .map((regression) => ({
+      ...regression,
+      monitoredUrlLabel: regression.monitoredUrlId
+        ? (monitoredUrlsById.get(regression.monitoredUrlId)?.label ??
+          monitoredUrlsById.get(regression.monitoredUrlId)?.url ??
           null)
         : null
     }));

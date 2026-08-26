@@ -541,3 +541,12 @@ export const eventListQuerySchema = z.object({
 });
 
 export type EventListQuery = z.infer<typeof eventListQuerySchema>;
+
+export const regressionStatusSchema = z.enum(["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"]);
+
+export const regressionListQuerySchema = z.object({
+  status: regressionStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional()
+});
+
+export type RegressionListQuery = z.infer<typeof regressionListQuerySchema>;

@@ -1521,6 +1521,82 @@ describe("app repository", () => {
     );
     expect(systemOnlyTimeline.map((event) => event.type)).toEqual(["plugin_updated"]);
   });
+
+  it("lists site regressions scoped by organization, site, and status", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Regression Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Regression Site",
+      url: "https://regression.repository.example.com"
+    });
+    const monitoredUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: "http://127.0.0.1:9/blocked-by-ssrf-guard"
+    });
+    const detectedAt = "2026-08-26T12:00:00.000Z";
+
+    getDevStore().regressions.push(
+      {
+        id: "00000000-0000-4000-8000-000000000901",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        monitoredUrlLabel: null,
+        fingerprint: `${monitoredUrl.id}:not_found:evt-1`,
+        status: "OPEN",
+        severity: "CRITICAL",
+        title: "Page started returning HTTP 404",
+        summary: "The monitored URL stopped responding with a successful status code.",
+        metrics: null,
+        eventIds: ["evt-1"],
+        detectedAt,
+        resolvedAt: null,
+        createdAt: detectedAt,
+        updatedAt: detectedAt
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000902",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: null,
+        monitoredUrlLabel: null,
+        fingerprint: "site:tracking_lost:evt-2",
+        status: "RESOLVED",
+        severity: "CRITICAL",
+        title: "Tracking regression: GA4 disappeared",
+        summary: "GA4 tracking is no longer detected on this page.",
+        metrics: null,
+        eventIds: ["evt-2"],
+        detectedAt,
+        resolvedAt: detectedAt,
+        createdAt: detectedAt,
+        updatedAt: detectedAt
+      }
+    );
+
+    const allRegressions = await repository.listRegressionsForSite(user.id, organization.id, site.id);
+    expect(allRegressions.map((regression) => regression.title)).toEqual([
+      "Page started returning HTTP 404",
+      "Tracking regression: GA4 disappeared"
+    ]);
+    expect(allRegressions[0]).toMatchObject({
+      monitoredUrlId: monitoredUrl.id,
+      monitoredUrlLabel: monitoredUrl.url
+    });
+
+    const openOnly = await repository.listRegressionsForSite(user.id, organization.id, site.id, {
+      status: "OPEN"
+    });
+    expect(openOnly).toHaveLength(1);
+    expect(openOnly[0]?.status).toBe("OPEN");
+  });
 });
 
 function configureGscEnv(): void {

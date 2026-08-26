@@ -89,6 +89,7 @@ import type {
   GscDailyMetric,
   GscSearchInsight,
   MonitoredUrl,
+  Regression,
   Site,
   SyncedContentMetadata,
   TimelineEvent
@@ -406,6 +407,12 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     activeOrganization && activeSite
       ? await repository.listEventsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 50
+        })
+      : [];
+  const openRegressions: Regression[] =
+    activeOrganization && activeSite
+      ? await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
+          status: "OPEN"
         })
       : [];
   const selectedContentItem =
@@ -2093,6 +2100,67 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 ) : (
                   <p className="empty-copy">No monitored URLs yet for this site.</p>
                 )}
+
+                {openRegressions.length > 0 ? (
+                  <div className="audit-issue-panel" aria-labelledby="monitoring-regressions-title">
+                    <div className="section-heading">
+                      <div>
+                        <h3 id="monitoring-regressions-title">Possible regressions</h3>
+                        <p>
+                          Correlation, not proof — review the linked evidence before treating this
+                          as confirmed.
+                        </p>
+                      </div>
+                      <span className="metric-pill">{openRegressions.length} open</span>
+                    </div>
+
+                    <div className="table-wrap">
+                      <table className="audit-table">
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Regression</th>
+                            <th>URL</th>
+                            <th>Detected</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {openRegressions.map((regression) => (
+                            <tr key={regression.id}>
+                              <td>
+                                <span
+                                  className={`severity-pill severity-${
+                                    regression.severity === "INFO"
+                                      ? "low"
+                                      : regression.severity === "WARNING"
+                                        ? "medium"
+                                        : "critical"
+                                  }`}
+                                >
+                                  {regression.severity.toLowerCase()}
+                                </span>
+                              </td>
+                              <td>
+                                <strong>{regression.title}</strong>
+                                <span className="stacked-meta">{regression.summary}</span>
+                              </td>
+                              <td>
+                                {regression.monitoredUrlLabel ?? (
+                                  <span className="muted-text">Site-wide</span>
+                                )}
+                              </td>
+                              <td>
+                                <time dateTime={regression.detectedAt}>
+                                  {formatDateTime(regression.detectedAt)}
+                                </time>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="audit-issue-panel" aria-labelledby="monitoring-timeline-title">
                   <div className="section-heading">

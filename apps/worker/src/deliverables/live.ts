@@ -280,7 +280,7 @@ async function deliverDigestEmail(input: {
 export async function deliverWorkspaceAlert(input: {
   env?: NodeJS.ProcessEnv;
   organizationId: string;
-  preference: "failedOperationAlerts";
+  preference: "failedOperationAlerts" | "trafficDropAlerts";
   title: string;
   body: string;
   actionPath: string;
@@ -299,7 +299,11 @@ export async function deliverWorkspaceAlert(input: {
               email: true,
               deliveryPreferences: {
                 where: { organizationId: input.organizationId },
-                select: { emailEnabled: true, failedOperationAlerts: true }
+                select: {
+                  emailEnabled: true,
+                  failedOperationAlerts: true,
+                  trafficDropAlerts: true
+                }
               }
             }
           }

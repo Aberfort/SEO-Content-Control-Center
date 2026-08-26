@@ -9,6 +9,8 @@ import {
   gscScheduleCronPattern,
   gscScheduleJobId,
   jobNames,
+  monitoringScheduleCronPattern,
+  monitoringScheduleJobId,
   queueNames,
   type QueueName
 } from "@sccc/queue";
@@ -38,8 +40,15 @@ import {
   createGscSearchInsightsSyncHandler
 } from "./gsc/handlers";
 import { buildLiveGscScheduleDeps, buildLiveGscSyncDeps, isGscWorkerConfigured } from "./gsc/live";
-import { createMonitoringCreateSnapshotHandler } from "./monitoring/handlers";
-import { buildLiveMonitoringSnapshotDeps, isMonitoringWorkerConfigured } from "./monitoring/live";
+import {
+  createMonitoringCreateSnapshotHandler,
+  createMonitoringScheduleScanHandler
+} from "./monitoring/handlers";
+import {
+  buildLiveMonitoringScheduleDeps,
+  buildLiveMonitoringSnapshotDeps,
+  isMonitoringWorkerConfigured
+} from "./monitoring/live";
 import {
   buildWorkerHealthSnapshot,
   collectQueueMetrics,
@@ -313,11 +322,31 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
   const monitoringEnabled = isMonitoringWorkerConfigured(env);
 
   if (monitoringEnabled) {
+    const monitoringQueue = createQueueProducer(queueNames.monitoring, connection);
+    closers.push(() => monitoringQueue.close());
+
     registry.register(
       jobNames.monitoringCreateSnapshot,
       createMonitoringCreateSnapshotHandler(buildLiveMonitoringSnapshotDeps())
     );
+    registry.register(
+      jobNames.monitoringScheduleScan,
+      createMonitoringScheduleScanHandler(
+        buildLiveMonitoringScheduleDeps(async (job) => {
+          await monitoringQueue.add(job.name, job.data, { jobId: job.jobId });
+        })
+      )
+    );
     createQueueWorker(queueNames.monitoring);
+    await monitoringQueue.add(
+      jobNames.monitoringScheduleScan,
+      {},
+      {
+        jobId: monitoringScheduleJobId,
+        repeat: { pattern: monitoringScheduleCronPattern },
+        attempts: defaultJobOptions.attempts
+      }
+    );
   } else {
     logWorkerEvent("warn", "worker.monitoring_disabled", {
       workerId,

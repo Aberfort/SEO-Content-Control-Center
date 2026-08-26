@@ -26,7 +26,8 @@ export const jobNames = {
   bulkOperationRollback: "bulk-operation.rollback",
   deliverablesSchedule: "deliverables.schedule",
   workspaceWeeklyDigest: "deliverables.workspace-weekly-digest",
-  monitoringCreateSnapshot: "monitoring.create-snapshot"
+  monitoringCreateSnapshot: "monitoring.create-snapshot",
+  monitoringScheduleScan: "monitoring.schedule-scan"
 } as const;
 
 export type JobName = (typeof jobNames)[keyof typeof jobNames];
@@ -111,6 +112,15 @@ export const gscScheduleJobId = "gsc-schedule-sync";
 
 export const deliverablesScheduleCronPattern = "0 8 * * 1";
 export const deliverablesScheduleJobId = "deliverables-schedule";
+
+/**
+ * Cron pattern for the repeatable monitored-URL rescan scheduler. Every tick
+ * fans out a create-snapshot job for each active monitored URL that has not
+ * been scanned within `monitoringRescanIntervalHours` (see
+ * apps/worker/src/monitoring/plan.ts).
+ */
+export const monitoringScheduleCronPattern = "0 */6 * * *";
+export const monitoringScheduleJobId = "monitoring-schedule-scan";
 
 /**
  * Default retry strategy for queued jobs. Failed jobs stay in the failed set

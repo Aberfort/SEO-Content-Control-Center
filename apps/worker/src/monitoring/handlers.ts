@@ -1,12 +1,35 @@
 import { monitoringCreateSnapshotJobDataSchema } from "@sccc/queue";
-import { diffSnapshots, type CrawlResult, type DetectedEvent, type ExtractedSignals, type SnapshotFields } from "@sccc/monitoring";
+import {
+  detectRegressions,
+  diffSnapshots,
+  type CrawlResult,
+  type DetectedEvent,
+  type EventSeverity,
+  type ExtractedSignals,
+  type RegressionCandidate,
+  type SnapshotFields,
+  type TrafficSignal
+} from "@sccc/monitoring";
 
 import type { JobHandler } from "../job-handlers";
+import {
+  monitoringRescanIntervalHours,
+  planMonitoringScanJobs,
+  type MonitoringScanCandidate,
+  type PlannedMonitoringScanJob
+} from "./plan";
 
 export type MonitoringMonitoredUrl = {
   id: string;
   url: string;
   isActive: boolean;
+};
+
+export type PersistedEvent = {
+  id: string;
+  type: string;
+  severity: EventSeverity;
+  title: string;
 };
 
 export type MonitoringSnapshotDeps = {
@@ -30,13 +53,22 @@ export type MonitoringSnapshotDeps = {
     siteId: string;
     monitoredUrlId: string;
     events: DetectedEvent[];
-  }): Promise<void>;
+  }): Promise<PersistedEvent[]>;
+  getSiteTrafficSignal(siteId: string): Promise<TrafficSignal | null>;
+  saveRegressions(input: {
+    organizationId: string;
+    siteId: string;
+    monitoredUrlId: string;
+    candidates: RegressionCandidate[];
+  }): Promise<number>;
 };
 
 /**
  * Fetches the current state of a monitored URL, stores it as a snapshot, and
  * — when a previous snapshot exists — diffs the two into Event rows. The
  * first snapshot for a URL is always the baseline and never produces events.
+ * Newly persisted events are then run through the deterministic regression
+ * engine, correlated with the site's Search Console traffic trend.
  */
 export function createMonitoringCreateSnapshotHandler(deps: MonitoringSnapshotDeps): JobHandler {
   return async (job) => {
@@ -84,17 +116,64 @@ export function createMonitoringCreateSnapshotHandler(deps: MonitoringSnapshotDe
       fields
     });
 
-    const events = diffSnapshots(previous, fields);
+    const detected = diffSnapshots(previous, fields);
+    let persistedEvents: PersistedEvent[] = [];
 
-    if (events.length > 0) {
-      await deps.saveEvents({
+    if (detected.length > 0) {
+      persistedEvents = await deps.saveEvents({
         organizationId: data.organizationId,
         siteId: data.siteId,
         monitoredUrlId: data.monitoredUrlId,
-        events
+        events: detected
       });
     }
 
-    return { isBaseline, eventCount: events.length };
+    let regressionCount = 0;
+
+    if (persistedEvents.length > 0) {
+      const siteTraffic = await deps.getSiteTrafficSignal(data.siteId);
+      const candidates = detectRegressions({
+        monitoredUrlId: data.monitoredUrlId,
+        events: persistedEvents,
+        siteTraffic
+      });
+
+      if (candidates.length > 0) {
+        regressionCount = await deps.saveRegressions({
+          organizationId: data.organizationId,
+          siteId: data.siteId,
+          monitoredUrlId: data.monitoredUrlId,
+          candidates
+        });
+      }
+    }
+
+    return { isBaseline, eventCount: detected.length, regressionCount };
+  };
+}
+
+export type MonitoringScheduleDeps = {
+  listMonitoredUrlsDueForScan(cutoff: Date): Promise<MonitoringScanCandidate[]>;
+  enqueue(job: PlannedMonitoringScanJob): Promise<void>;
+  now?: () => Date;
+};
+
+/**
+ * Fans out one create-snapshot job for every active monitored URL that has
+ * not been scanned within the rescan interval. Runs on a repeatable BullMQ
+ * schedule so monitored URLs keep getting rescanned without manual clicks.
+ */
+export function createMonitoringScheduleScanHandler(deps: MonitoringScheduleDeps): JobHandler {
+  return async () => {
+    const now = deps.now?.() ?? new Date();
+    const cutoff = new Date(now.getTime() - monitoringRescanIntervalHours * 60 * 60 * 1000);
+    const candidates = await deps.listMonitoredUrlsDueForScan(cutoff);
+    const jobs = planMonitoringScanJobs(candidates, now);
+
+    for (const job of jobs) {
+      await deps.enqueue(job);
+    }
+
+    return { candidates: candidates.length, scheduledJobs: jobs.length };
   };
 }

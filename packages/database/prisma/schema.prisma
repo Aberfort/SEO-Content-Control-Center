@@ -694,6 +694,7 @@ model Regression {
   organizationId String
   siteId         String
   monitoredUrlId String?
+  fingerprint    String
   status         RegressionStatus  @default(OPEN)
   severity       EventSeverity
   title          String
@@ -707,6 +708,7 @@ model Regression {
   monitoredUrl   MonitoredUrl?     @relation(fields: [monitoredUrlId], references: [id], onDelete: Cascade)
   events         RegressionEvent[]
 
+  @@unique([organizationId, siteId, fingerprint])
   @@index([organizationId, siteId, status])
   @@index([siteId, detectedAt])
 }

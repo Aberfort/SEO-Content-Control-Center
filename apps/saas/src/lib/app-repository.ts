@@ -34,6 +34,7 @@ import {
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  regressionListQuerySchema,
   rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
   resolveCommercialAccess,
@@ -72,6 +73,7 @@ import {
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RegressionListQuery,
   type RequestOperationApprovalInput,
   type RescanMonitoredUrlInput,
   type RespondToOperationApprovalInput,
@@ -106,6 +108,7 @@ import {
   createMonitoredUrlForSite as createDevMonitoredUrlForSite,
   listEventsForSite as listDevEventsForSite,
   listMonitoredUrlsForSite as listDevMonitoredUrlsForSite,
+  listRegressionsForSite as listDevRegressionsForSite,
   rescanMonitoredUrl as rescanDevMonitoredUrl,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
@@ -285,6 +288,8 @@ import type {
   OrganizationMemberSummary,
   OrganizationSummary,
   PublicOperationApproval,
+  Regression,
+  RegressionListOptions,
   Site,
   SyncedContentBacklogCandidate,
   SyncedContentList,
@@ -584,6 +589,12 @@ type AppRepository = {
     siteId: string,
     options?: EventListOptions
   ): Promise<TimelineEvent[]>;
+  listRegressionsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: RegressionListOptions
+  ): Promise<Regression[]>;
   getSyncedContentItem(
     userId: string,
     organizationId: string,
@@ -773,6 +784,9 @@ const devStoreRepository: AppRepository = {
   },
   async listEventsForSite(userId, organizationId, siteId, options) {
     return listDevEventsForSite(userId, organizationId, siteId, options);
+  },
+  async listRegressionsForSite(userId, organizationId, siteId, options) {
+    return listDevRegressionsForSite(userId, organizationId, siteId, options);
   },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
@@ -3149,6 +3163,45 @@ const prismaRepository: AppRepository = {
     });
 
     return events.map(mapEvent);
+  },
+
+  async listRegressionsForSite(userId, organizationId, siteId, options) {
+    const parsed: RegressionListQuery = regressionListQuerySchema.parse(options ?? {});
+
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const regressions = await prisma.regression.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(parsed.status ? { status: parsed.status } : {})
+      },
+      orderBy: [{ detectedAt: "desc" }, { id: "desc" }],
+      take: parsed.limit ?? 50,
+      include: {
+        monitoredUrl: {
+          select: { url: true, label: true }
+        },
+        events: {
+          select: { eventId: true }
+        }
+      }
+    });
+
+    return regressions.map(mapRegression);
   },
 
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
@@ -6795,6 +6848,46 @@ function mapEvent(event: {
     metadata: event.metadata,
     occurredAt: event.occurredAt.toISOString(),
     detectedAt: event.detectedAt.toISOString()
+  };
+}
+
+function mapRegression(regression: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrl: { url: string; label: string | null } | null;
+  fingerprint: string;
+  status: Regression["status"];
+  severity: Regression["severity"];
+  title: string;
+  summary: string;
+  metrics: unknown;
+  events: Array<{ eventId: string }>;
+  detectedAt: Date;
+  resolvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): Regression {
+  return {
+    id: regression.id,
+    organizationId: regression.organizationId,
+    siteId: regression.siteId,
+    monitoredUrlId: regression.monitoredUrlId,
+    monitoredUrlLabel: regression.monitoredUrl
+      ? (regression.monitoredUrl.label ?? regression.monitoredUrl.url)
+      : null,
+    fingerprint: regression.fingerprint,
+    status: regression.status,
+    severity: regression.severity,
+    title: regression.title,
+    summary: regression.summary,
+    metrics: regression.metrics,
+    eventIds: regression.events.map((event) => event.eventId),
+    detectedAt: regression.detectedAt.toISOString(),
+    resolvedAt: regression.resolvedAt?.toISOString() ?? null,
+    createdAt: regression.createdAt.toISOString(),
+    updatedAt: regression.updatedAt.toISOString()
   };
 }
 
