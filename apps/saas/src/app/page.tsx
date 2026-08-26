@@ -84,7 +84,7 @@ import type {
   SyncedContentMetadata
 } from "@/lib/types";
 
-const navItems = [
+export const navItems = [
   { label: "Overview", href: "/", view: "overview", icon: Gauge },
   { label: "Sites", href: "/sites", view: "sites", icon: Globe2 },
   { label: "Content", href: "/content", view: "content", icon: ClipboardList },
