@@ -22,8 +22,8 @@ wp_clear_scheduled_hook( 'sccc_run_local_audit' );
 wp_clear_scheduled_hook( 'sccc_run_scheduled_local_audit' );
 
 if ( function_exists( 'as_unschedule_all_actions' ) ) {
-	as_unschedule_all_actions( 'sccc_run_manual_sync', array(), 'seo-content-control-center' );
-	as_unschedule_all_actions( 'sccc_run_incremental_sync', array(), 'seo-content-control-center' );
+	as_unschedule_all_actions( 'sccc_run_manual_sync', array(), 'content-signal-seo-content-audit' );
+	as_unschedule_all_actions( 'sccc_run_incremental_sync', array(), 'content-signal-seo-content-audit' );
 	as_unschedule_all_actions( 'sccc_run_local_audit', array(), 'sccc' );
 	as_unschedule_all_actions( 'sccc_run_scheduled_local_audit', array(), 'sccc' );
 }

@@ -14,7 +14,7 @@ matrix="${SCCC_WP_MATRIX:-${default_matrix}}"
 
 if [[ "${SCCC_SKIP_PACKAGE:-0}" == "1" ]]; then
   version="$(tr -d '\r\n' < "${repository_root}/wordpress-plugin/VERSION")"
-  archive="${SCCC_PLUGIN_DIST_DIR:-${repository_root}/dist}/seo-content-control-center-${version}.zip"
+  archive="${SCCC_PLUGIN_DIST_DIR:-${repository_root}/dist}/content-signal-seo-content-audit-${version}.zip"
 
   echo "[certify-matrix] Reusing existing plugin release zip: ${archive}"
   "${repository_root}/scripts/verify-wordpress-plugin-package.sh" "${archive}" >/dev/null

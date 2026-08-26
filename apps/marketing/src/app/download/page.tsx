@@ -70,15 +70,15 @@ export default function DownloadPage() {
           <div className="plugin-download-info">
             <strong>Content Signal</strong>
             <div className="plugin-meta-row">
-              <span className="plugin-meta">Version 0.8.0</span>
+              <span className="plugin-meta">Version 0.8.1</span>
               <span className="plugin-meta">WordPress 6.4+</span>
               <span className="plugin-meta">PHP 8.1+</span>
-              <span className="plugin-meta">54 KB</span>
+              <span className="plugin-meta">55 KB</span>
             </div>
           </div>
           <a
             className="button button-dark"
-            href="/downloads/seo-content-control-center-0.8.0.zip"
+            href="/downloads/content-signal-seo-content-audit-0.8.1.zip"
             download
           >
             Download plugin

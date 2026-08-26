@@ -5,15 +5,15 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_dir="${repository_root}/wordpress-plugin"
 version="$(tr -d '\r\n' < "${plugin_dir}/VERSION")"
-archive="${1:-${repository_root}/dist/seo-content-control-center-${version}.zip}"
-archive_root="seo-content-control-center/"
+archive="${1:-${repository_root}/dist/content-signal-seo-content-audit-${version}.zip}"
+archive_root="content-signal-seo-content-audit/"
 
 if [[ ! -f "${archive}" ]]; then
   echo "Plugin archive was not found: ${archive}" >&2
   exit 1
 fi
 
-if [[ "$(basename "${archive}")" != "seo-content-control-center-${version}.zip" ]]; then
+if [[ "$(basename "${archive}")" != "content-signal-seo-content-audit-${version}.zip" ]]; then
   echo "Plugin archive name does not match version ${version}: ${archive}" >&2
   exit 1
 fi
@@ -22,7 +22,7 @@ unzip -tqq "${archive}"
 entries="$(unzip -Z1 "${archive}")"
 
 for required_entry in \
-  "${archive_root}seo-content-control-center.php" \
+  "${archive_root}content-signal-seo-content-audit.php" \
   "${archive_root}readme.txt" \
   "${archive_root}LICENSE.txt" \
   "${archive_root}VERSION" \

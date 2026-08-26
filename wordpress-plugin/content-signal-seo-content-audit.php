@@ -3,12 +3,12 @@
  * Plugin Name: Content Signal — SEO Content Audit
  * Plugin URI: https://seo-content-control-center-marketin.vercel.app/download
  * Description: Audits WordPress content health locally and optionally connects it to evidence-backed SEO workflows.
- * Version: 0.8.0
+ * Version: 0.8.1
  * Requires PHP: 8.1
  * Requires at least: 6.4
  * Author: Serhii Vasyliev
  * Author URI: https://seo-content-control-center-marketin.vercel.app
- * Text Domain: seo-content-control-center
+ * Text Domain: content-signal-seo-content-audit
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SCCC_PLUGIN_FILE', __FILE__ );
 define( 'SCCC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'SCCC_PLUGIN_VERSION', '0.8.0' );
+define( 'SCCC_PLUGIN_VERSION', '0.8.1' );
 
 $sccc_autoload = SCCC_PLUGIN_DIR . 'vendor/autoload.php';
 

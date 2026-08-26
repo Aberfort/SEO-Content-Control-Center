@@ -37,7 +37,7 @@ jobs:
 
       - name: Build plugin zip
         run: npm run plugin:package
-        # Produces dist/seo-content-control-center-{version}.zip
+        # Produces dist/content-signal-seo-content-audit-{version}.zip
 
       - name: Run plugin certification
         run: npm run plugin:release:certify
@@ -50,5 +50,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "Plugin ${{ github.ref_name }}"
           generate_release_notes: true
-          files: dist/seo-content-control-center-*.zip
+          files: dist/content-signal-seo-content-audit-*.zip
           fail_on_unmatched_files: true

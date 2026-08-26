@@ -1,3 +1,14 @@
+import {
+  Building2,
+  ClipboardList,
+  Gauge,
+  Globe2,
+  LineChart,
+  ListChecks,
+  Settings2,
+  ShieldCheck,
+  Users
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canUseEntitlement, hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
@@ -30,6 +41,9 @@ import {
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { DashboardCommandCenter } from "@/components/dashboard-command-center";
+import { EmptyState } from "@/components/empty-state";
+import { GscTrendChart } from "@/components/gsc-trend-chart";
+import { SettingsNav } from "@/components/settings-nav";
 import { GscPropertyPicker } from "@/components/gsc-property-picker";
 import { matchTrafficLossPages } from "@/lib/gsc-content-matching";
 import {
@@ -72,13 +86,13 @@ import type {
   SyncedContentMetadata
 } from "@/lib/types";
 
-const navItems = [
-  { label: "Overview", href: "/", view: "overview" },
-  { label: "Sites", href: "/sites", view: "sites" },
-  { label: "Content", href: "/content", view: "content" },
-  { label: "Audits", href: "/audits", view: "audits" },
-  { label: "Backlog", href: "/backlog", view: "backlog" },
-  { label: "Settings", href: "/settings", view: "settings" }
+export const navItems = [
+  { label: "Overview", href: "/", view: "overview", icon: Gauge },
+  { label: "Sites", href: "/sites", view: "sites", icon: Globe2 },
+  { label: "Content", href: "/content", view: "content", icon: ClipboardList },
+  { label: "Audits", href: "/audits", view: "audits", icon: ShieldCheck },
+  { label: "Backlog", href: "/backlog", view: "backlog", icon: ListChecks },
+  { label: "Settings", href: "/settings", view: "settings", icon: Settings2 }
 ] as const;
 
 const pageDetails = {
@@ -456,6 +470,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
               href={buildNavigationHref(item.href, activeSite?.id)}
               aria-current={item.view === view ? "page" : undefined}
             >
+              <item.icon size={17} strokeWidth={2} aria-hidden="true" />
               {item.label}
             </Link>
           ))}
@@ -558,9 +573,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                       <CreateSiteForm organizationId={activeOrganization.id} />
                     </>
                   ) : (
-                    <p className="empty-copy">
+                    <EmptyState icon={Building2}>
                       Create an organization before adding a WordPress site.
-                    </p>
+                    </EmptyState>
                   )}
                 </article>
               </section>
@@ -754,7 +769,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
 
                     {activeGscConnection ? (
                       gscMetrics.length > 0 ? (
-                        <div className="table-wrap">
+                        <>
+                          <GscTrendChart metrics={gscMetrics} />
+                          <div className="table-wrap">
                           <table>
                             <thead>
                               <tr>
@@ -777,7 +794,8 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               ))}
                             </tbody>
                           </table>
-                        </div>
+                          </div>
+                        </>
                       ) : (
                         <p className="empty-copy">
                           Daily Search Console metrics will appear after the first sync.
@@ -1002,7 +1020,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   </p>
                 )
               ) : (
-                <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
+                <EmptyState icon={LineChart}>
+                  Add a WordPress site before connecting Search Console.
+                </EmptyState>
               )}
             </section>
           </>
@@ -1586,7 +1606,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   ) : null}
                 </>
               ) : (
-                <p className="empty-copy">Add a WordPress site before syncing content.</p>
+                <EmptyState icon={ClipboardList}>
+                  Add a WordPress site before syncing content.
+                </EmptyState>
               )}
             </section>
           </>
@@ -1937,7 +1959,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 ) : null}
               </>
             ) : (
-              <p className="empty-copy">Add a WordPress site before queueing audits.</p>
+              <EmptyState icon={ShieldCheck}>
+                Add a WordPress site before queueing audits.
+              </EmptyState>
             )}
           </section>
         ) : null}
@@ -2100,154 +2124,156 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                 />
                               </td>
                               <td>
-                                <strong>{task.title}</strong>
-                                <span>{task.url}</span>
-                                <span>{task.issueType.replaceAll("_", " ")}</span>
-                                <div className="task-workflow" aria-label="Task workflow">
-                                  <span className={task.auditIssueId ? "is-complete" : ""}>
-                                    Issue
-                                  </span>
-                                  <span className="is-current">Task</span>
-                                  <span
-                                    className={
-                                      bulkOperations.some((operation) =>
-                                        operation.items.some(
-                                          (item) => item.backlogTaskId === task.id
+                                <div className="task-cell">
+                                  <div className="task-identity">
+                                    <strong>{task.title}</strong>
+                                    <span>{task.url}</span>
+                                    <span>{task.issueType.replaceAll("_", " ")}</span>
+                                  </div>
+
+                                  <div className="task-workflow" aria-label="Task workflow">
+                                    <span className={task.auditIssueId ? "is-complete" : ""}>
+                                      Issue
+                                    </span>
+                                    <span className="is-current">Task</span>
+                                    <span
+                                      className={
+                                        bulkOperations.some((operation) =>
+                                          operation.items.some(
+                                            (item) => item.backlogTaskId === task.id
+                                          )
                                         )
-                                      )
-                                        ? "is-complete"
-                                        : ""
-                                    }
-                                  >
-                                    Operation
-                                  </span>
-                                  <span className={task.outcomeVerifiedAt ? "is-complete" : ""}>
-                                    Outcome
-                                  </span>
+                                          ? "is-complete"
+                                          : ""
+                                      }
+                                    >
+                                      Operation
+                                    </span>
+                                    <span className={task.outcomeVerifiedAt ? "is-complete" : ""}>
+                                      Outcome
+                                    </span>
+                                  </div>
+
+                                  {task.comments.length > 0 || task.activityLogs?.length ? (
+                                    <details className="task-activity">
+                                      <summary>
+                                        Activity
+                                        <span className="task-activity-count">
+                                          {task.comments.length +
+                                            (task.activityLogs?.length ?? 0)}
+                                        </span>
+                                      </summary>
+                                      <div className="task-activity-body">
+                                        {task.comments.length > 0 ? (
+                                          <div
+                                            className="backlog-comments"
+                                            aria-label="Recent comments"
+                                          >
+                                            <strong>Comments</strong>
+                                            {task.comments.map((comment) => (
+                                              <article key={comment.id}>
+                                                <strong>
+                                                  {comment.authorName ?? comment.authorEmail}
+                                                </strong>
+                                                <p>{comment.body}</p>
+                                                <time dateTime={comment.createdAt}>
+                                                  {formatDateTime(comment.createdAt)}
+                                                </time>
+                                              </article>
+                                            ))}
+                                          </div>
+                                        ) : null}
+                                        {task.activityLogs?.length ? (
+                                          <div
+                                            className="backlog-activity"
+                                            aria-label="Change history"
+                                          >
+                                            <strong>Change history</strong>
+                                            <ul>
+                                              {task.activityLogs.map((log) => (
+                                                <li key={log.id}>
+                                                  <span>{formatBacklogActivity(log)}</span>
+                                                  <time dateTime={log.createdAt}>
+                                                    {formatDateTime(log.createdAt)}
+                                                  </time>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </details>
+                                  ) : null}
+
+                                  <div className="task-actions">
+                                    <form
+                                      className="preview-form"
+                                      action={createBulkOperationPreviewAction}
+                                    >
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={task.organizationId}
+                                      />
+                                      <input name="siteId" type="hidden" value={task.siteId} />
+                                      <input name="taskId" type="hidden" value={task.id} />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({
+                                          site: activeSite.id
+                                        })}
+                                      />
+                                      <button
+                                        className="secondary-button"
+                                        disabled={!safeOperationsAvailable}
+                                        title={
+                                          safeOperationsAvailable
+                                            ? undefined
+                                            : "Safe operations require an active paid plan."
+                                        }
+                                        type="submit"
+                                      >
+                                        Preview
+                                      </button>
+                                    </form>
+                                    <form
+                                      className="comment-form"
+                                      action={createBacklogTaskCommentAction}
+                                    >
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={task.organizationId}
+                                      />
+                                      <input name="siteId" type="hidden" value={task.siteId} />
+                                      <input name="taskId" type="hidden" value={task.id} />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({
+                                          site: activeSite.id
+                                        })}
+                                      />
+                                      <textarea
+                                        aria-label="Comment"
+                                        maxLength={2000}
+                                        name="body"
+                                        required
+                                        rows={2}
+                                      />
+                                      <button className="secondary-button" type="submit">
+                                        Comment
+                                      </button>
+                                    </form>
+                                  </div>
                                 </div>
-                                {task.comments.length > 0 ? (
-                                  <div className="backlog-comments" aria-label="Recent comments">
-                                    {task.comments.map((comment) => (
-                                      <article key={comment.id}>
-                                        <strong>{comment.authorName ?? comment.authorEmail}</strong>
-                                        <p>{comment.body}</p>
-                                        <time dateTime={comment.createdAt}>
-                                          {formatDateTime(comment.createdAt)}
-                                        </time>
-                                      </article>
-                                    ))}
-                                  </div>
-                                ) : null}
-                                {task.activityLogs?.length ? (
-                                  <div className="backlog-activity" aria-label="Change history">
-                                    <strong>Change history</strong>
-                                    <ul>
-                                      {task.activityLogs.map((log) => (
-                                        <li key={log.id}>
-                                          <span>{formatBacklogActivity(log)}</span>
-                                          <time dateTime={log.createdAt}>
-                                            {formatDateTime(log.createdAt)}
-                                          </time>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                                <form
-                                  className="preview-form"
-                                  action={createBulkOperationPreviewAction}
-                                >
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={task.organizationId}
-                                  />
-                                  <input name="siteId" type="hidden" value={task.siteId} />
-                                  <input name="taskId" type="hidden" value={task.id} />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildViewHref({
-                                      site: activeSite.id
-                                    })}
-                                  />
-                                  <button
-                                    className="secondary-button"
-                                    disabled={!safeOperationsAvailable}
-                                    title={
-                                      safeOperationsAvailable
-                                        ? undefined
-                                        : "Safe operations require an active paid plan."
-                                    }
-                                    type="submit"
-                                  >
-                                    Preview
-                                  </button>
-                                </form>
-                                <form
-                                  className="comment-form"
-                                  action={createBacklogTaskCommentAction}
-                                >
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={task.organizationId}
-                                  />
-                                  <input name="siteId" type="hidden" value={task.siteId} />
-                                  <input name="taskId" type="hidden" value={task.id} />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildViewHref({
-                                      site: activeSite.id
-                                    })}
-                                  />
-                                  <textarea
-                                    aria-label="Comment"
-                                    maxLength={2000}
-                                    name="body"
-                                    required
-                                    rows={2}
-                                  />
-                                  <button className="secondary-button" type="submit">
-                                    Comment
-                                  </button>
-                                </form>
                               </td>
                               <td>
-                                <form
-                                  className="status-form"
-                                  action={updateBacklogTaskStatusAction}
-                                >
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={task.organizationId}
-                                  />
-                                  <input name="siteId" type="hidden" value={task.siteId} />
-                                  <input name="taskId" type="hidden" value={task.id} />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildViewHref({
-                                      site: activeSite.id
-                                    })}
-                                  />
-                                  <select name="status" defaultValue={task.status}>
-                                    {backlogStatuses.map((status) => (
-                                      <option key={status} value={status}>
-                                        {status.replaceAll("_", " ")}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button className="secondary-button" type="submit">
-                                    Apply
-                                  </button>
-                                </form>
-                                {task.status === "DONE" ? (
+                                <div className="task-status-group">
                                   <form
-                                    className="outcome-form"
-                                    action={updateBacklogTaskOutcomeAction}
+                                    className="status-form"
+                                    action={updateBacklogTaskStatusAction}
                                   >
                                     <input
                                       name="organizationId"
@@ -2259,34 +2285,65 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                     <input
                                       name="redirectTo"
                                       type="hidden"
-                                      value={buildViewHref({ site: activeSite.id })}
+                                      value={buildViewHref({
+                                        site: activeSite.id
+                                      })}
                                     />
-                                    <label>
-                                      <span>Verified outcome</span>
-                                      <select
-                                        name="outcomeStatus"
-                                        defaultValue={task.outcomeStatus ?? ""}
-                                      >
-                                        <option value="">Awaiting verification</option>
-                                        <option value="IMPROVED">Improved</option>
-                                        <option value="STABLE">Stable</option>
-                                        <option value="DECLINED">Declined</option>
-                                        <option value="INCONCLUSIVE">Inconclusive</option>
-                                      </select>
-                                    </label>
-                                    <input
-                                      aria-label="Outcome evidence note"
-                                      defaultValue={task.outcomeNote ?? ""}
-                                      maxLength={1000}
-                                      name="outcomeNote"
-                                      placeholder="Evidence note"
-                                      type="text"
-                                    />
+                                    <select name="status" defaultValue={task.status}>
+                                      {backlogStatuses.map((status) => (
+                                        <option key={status} value={status}>
+                                          {status.replaceAll("_", " ")}
+                                        </option>
+                                      ))}
+                                    </select>
                                     <button className="secondary-button" type="submit">
-                                      Save outcome
+                                      Apply
                                     </button>
                                   </form>
-                                ) : null}
+                                  {task.status === "DONE" ? (
+                                    <form
+                                      className="outcome-form"
+                                      action={updateBacklogTaskOutcomeAction}
+                                    >
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={task.organizationId}
+                                      />
+                                      <input name="siteId" type="hidden" value={task.siteId} />
+                                      <input name="taskId" type="hidden" value={task.id} />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({ site: activeSite.id })}
+                                      />
+                                      <label>
+                                        <span>Verified outcome</span>
+                                        <select
+                                          name="outcomeStatus"
+                                          defaultValue={task.outcomeStatus ?? ""}
+                                        >
+                                          <option value="">Awaiting verification</option>
+                                          <option value="IMPROVED">Improved</option>
+                                          <option value="STABLE">Stable</option>
+                                          <option value="DECLINED">Declined</option>
+                                          <option value="INCONCLUSIVE">Inconclusive</option>
+                                        </select>
+                                      </label>
+                                      <input
+                                        aria-label="Outcome evidence note"
+                                        defaultValue={task.outcomeNote ?? ""}
+                                        maxLength={1000}
+                                        name="outcomeNote"
+                                        placeholder="Evidence note"
+                                        type="text"
+                                      />
+                                      <button className="secondary-button" type="submit">
+                                        Save outcome
+                                      </button>
+                                    </form>
+                                  ) : null}
+                                </div>
                               </td>
                               <td>
                                 <form
@@ -2575,21 +2632,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 ) : null}
               </>
             ) : (
-              <p className="empty-copy">Add a WordPress site before building a backlog.</p>
+              <EmptyState icon={ListChecks}>
+                Add a WordPress site before building a backlog.
+              </EmptyState>
             )}
           </section>
         ) : null}
 
         {view === "settings" ? (
           <>
-            <nav className="settings-nav" aria-label="Settings sections">
-              <a href="#deliverables-title">Deliverables</a>
-              <a href="#activity-title">Activity</a>
-              <a href="#notifications-title">Notifications</a>
-              <a href="#security-title">Security</a>
-              <a href="#members-title">Members</a>
-              <a href="#billing-title">Billing</a>
-            </nav>
+            <SettingsNav />
             <section id="admin-title" className="admin-intro" aria-labelledby="admin-heading">
               <div>
                 <p className="eyebrow">Administration</p>
@@ -2877,7 +2929,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   </div>
                 </>
               ) : (
-                <p className="empty-copy">Create an organization before inviting members.</p>
+                <EmptyState icon={Users}>Create an organization before inviting members.</EmptyState>
               )}
             </section>
 

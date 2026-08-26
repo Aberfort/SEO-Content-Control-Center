@@ -2,9 +2,9 @@
 Contributors: serhiivasyliev
 Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,13 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [Content Signal Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.8.1 =
+
+* Set the text domain to match the plugin slug (`content-signal-seo-content-audit`).
+* Updated Tested up to 7.1.
+* Added nonce verification to the findings filter form; invalid or missing nonces fall back to the unfiltered view instead of trusting the input.
+* Documented why the tab/status/error redirect-target readers do not use a nonce (server-generated values from this plugin's own already-verified redirects, matched against a fixed allow-list).
 
 = 0.8.0 =
 

@@ -32,7 +32,7 @@ final class LocalAuditRunner {
 
 	public function handleScheduleRequest(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to schedule audits.', 'seo-content-control-center' ) );
+			wp_die( esc_html__( 'You do not have permission to schedule audits.', 'content-signal-seo-content-audit' ) );
 		}
 
 		check_admin_referer( 'sccc_save_local_audit_schedule' );
@@ -49,7 +49,7 @@ final class LocalAuditRunner {
 
 	public function handleRequest(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to run this audit.', 'seo-content-control-center' ) );
+			wp_die( esc_html__( 'You do not have permission to run this audit.', 'content-signal-seo-content-audit' ) );
 		}
 
 		check_admin_referer( 'sccc_run_local_audit' );

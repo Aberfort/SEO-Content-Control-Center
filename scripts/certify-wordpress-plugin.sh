@@ -24,7 +24,7 @@ wp_image="${SCCC_WP_IMAGE:-wordpress:php8.3-apache}"
 cli_image="${SCCC_WP_CLI_IMAGE:-wordpress:cli}"
 db_image="${SCCC_WP_DB_IMAGE:-mariadb:10.11}"
 
-plugin_slug="seo-content-control-center"
+plugin_slug="content-signal-seo-content-audit"
 cert_org_id="cert-org-11111111"
 cert_site_id="cert-site-22222222"
 cert_token="cert-token-0123456789abcdef0123456789abcdef"

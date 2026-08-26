@@ -1,7 +1,9 @@
+import { History } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { createAuditForSiteAction } from "@/app/actions";
+import { EmptyState } from "@/components/empty-state";
 import type {
   ActivityLog,
   Audit,
@@ -200,7 +202,10 @@ export function DashboardCommandCenter({
             ))}
           </ul>
         ) : (
-          <p className="empty-copy">Activity will appear after site and workspace actions.</p>
+          <EmptyState icon={History}>
+            Nothing to show yet. Once you connect a site, sync content, or run an audit, every
+            change lands here.
+          </EmptyState>
         )}
       </section>
     </div>

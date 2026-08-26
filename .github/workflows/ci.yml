@@ -38,8 +38,8 @@ jobs:
       - run: npm run plugin:package
       - uses: actions/upload-artifact@v4
         with:
-          name: seo-content-control-center-plugin
-          path: dist/seo-content-control-center-*.zip
+          name: content-signal-seo-content-audit-plugin
+          path: dist/content-signal-seo-content-audit-*.zip
           if-no-files-found: error
 
   codeql:
