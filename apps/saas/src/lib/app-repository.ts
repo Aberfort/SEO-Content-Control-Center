@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
@@ -23,13 +25,16 @@ import {
   bulkOperationStartSchema,
   buildWorkspaceDeliverableSummary,
   clientReportQuerySchema,
+  createMonitoredUrlSchema,
   deliveryPreferenceUpdateSchema,
+  eventListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
   resolveCommercialAccess,
   respondToOperationApprovalSchema,
@@ -59,13 +64,16 @@ import {
   type ClientReportQuery,
   type CommercialAccess,
   type ContentTrustEvidence,
+  type CreateMonitoredUrlInput,
   type DeliveryPreferenceUpdateInput,
+  type EventListQuery,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
   type RequestOperationApprovalInput,
+  type RescanMonitoredUrlInput,
   type RespondToOperationApprovalInput,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
@@ -95,6 +103,10 @@ import {
   listBacklogTaskActivity as listDevBacklogTaskActivity,
   listAuditIssuesForAudit as listDevAuditIssuesForAudit,
   listAuditsForSite as listDevAuditsForSite,
+  createMonitoredUrlForSite as createDevMonitoredUrlForSite,
+  listEventsForSite as listDevEventsForSite,
+  listMonitoredUrlsForSite as listDevMonitoredUrlsForSite,
+  rescanMonitoredUrl as rescanDevMonitoredUrl,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listBulkOperationsForSite as listDevBulkOperationsForSite,
@@ -215,6 +227,7 @@ import {
   enqueueBulkOperationExecutionJob,
   enqueueBulkOperationRollbackJob
 } from "./bulk-operation-queue";
+import { enqueueMonitoringCreateSnapshotJob } from "./monitored-url-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import { trackAnalyticsEvent } from "./observability";
@@ -253,6 +266,7 @@ import type {
   BulkOperationRetryMode,
   ClientReport,
   DeliveryPreference,
+  EventListOptions,
   GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
@@ -263,6 +277,7 @@ import type {
   GscSearchInsightInput,
   GscSearchInsightSyncResult,
   InviteResult,
+  MonitoredUrl,
   NotificationBulkUpdateResult,
   Notification,
   NotificationListOptions,
@@ -275,7 +290,9 @@ import type {
   SyncedContentList,
   SyncedContentListOptions,
   SyncedContentItem,
-  SyncedContentMetadata
+  SyncedContentMetadata,
+  TimelineEvent,
+  UrlSnapshot
 } from "./types";
 
 type CreateOrganizationInput = {
@@ -294,6 +311,14 @@ type CreateAuditForSiteInput = {
   user: AppUser;
   organizationId: string;
   siteId: string;
+};
+
+type CreateMonitoredUrlForSiteInput = CreateMonitoredUrlInput & {
+  user: AppUser;
+};
+
+type RescanMonitoredUrlInputWithUser = RescanMonitoredUrlInput & {
+  user: AppUser;
 };
 
 type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
@@ -546,6 +571,19 @@ type AppRepository = {
     options?: AuditIssueListOptions
   ): Promise<AuditIssue[]>;
   updateAuditIssueStatus(input: UpdateAuditIssueStatusInputWithUser): Promise<AuditIssue>;
+  listMonitoredUrlsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<MonitoredUrl[]>;
+  createMonitoredUrlForSite(input: CreateMonitoredUrlForSiteInput): Promise<MonitoredUrl>;
+  rescanMonitoredUrl(input: RescanMonitoredUrlInputWithUser): Promise<MonitoredUrl>;
+  listEventsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: EventListOptions
+  ): Promise<TimelineEvent[]>;
   getSyncedContentItem(
     userId: string,
     organizationId: string,
@@ -723,6 +761,18 @@ const devStoreRepository: AppRepository = {
   },
   async updateAuditIssueStatus(input) {
     return updateDevAuditIssueStatus(input);
+  },
+  async listMonitoredUrlsForSite(userId, organizationId, siteId) {
+    return listDevMonitoredUrlsForSite(userId, organizationId, siteId);
+  },
+  async createMonitoredUrlForSite(input) {
+    return createDevMonitoredUrlForSite(input);
+  },
+  async rescanMonitoredUrl(input) {
+    return rescanDevMonitoredUrl(input);
+  },
+  async listEventsForSite(userId, organizationId, siteId, options) {
+    return listDevEventsForSite(userId, organizationId, siteId, options);
   },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
@@ -2919,6 +2969,186 @@ const prismaRepository: AppRepository = {
     });
 
     return mapAuditIssue(updated);
+  },
+
+  async listMonitoredUrlsForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const monitoredUrls = await prisma.monitoredUrl.findMany({
+      where: { organizationId, siteId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        snapshots: {
+          orderBy: { capturedAt: "desc" },
+          take: 1
+        }
+      }
+    });
+
+    return monitoredUrls.map((record) => mapMonitoredUrl(record, record.snapshots[0] ?? null));
+  },
+
+  async createMonitoredUrlForSite(input) {
+    const parsed: CreateMonitoredUrlInput = createMonitoredUrlSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: parsed.siteId, organizationId: parsed.organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const activeCount = await prisma.monitoredUrl.count({
+      where: { organizationId: parsed.organizationId, siteId: parsed.siteId, isActive: true }
+    });
+    const maxMonitoredUrls = Number.parseInt(
+      process.env.SCCC_MAX_MONITORED_URLS_PER_SITE ?? "10",
+      10
+    );
+
+    if (activeCount >= (Number.isFinite(maxMonitoredUrls) ? maxMonitoredUrls : 10)) {
+      throw new Error("MONITORED_URL_LIMIT_REACHED");
+    }
+
+    const urlHash = hashMonitoredUrl(parsed.url);
+    let created;
+
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const record = await tx.monitoredUrl.create({
+          data: {
+            organizationId: parsed.organizationId,
+            siteId: parsed.siteId,
+            url: parsed.url,
+            urlHash,
+            label: parsed.label ?? null
+          }
+        });
+
+        await tx.activityLog.create({
+          data: {
+            organizationId: parsed.organizationId,
+            userId: input.user.id,
+            action: "monitored_url.created",
+            entityType: "MonitoredUrl",
+            entityId: record.id,
+            metadata: { siteId: parsed.siteId, url: parsed.url }
+          }
+        });
+
+        return record;
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new Error("MONITORED_URL_ALREADY_EXISTS");
+      }
+
+      throw error;
+    }
+
+    await enqueueMonitoringCreateSnapshotJob({
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      monitoredUrlId: created.id
+    }).catch(() => undefined);
+
+    return mapMonitoredUrl(created, null);
+  },
+
+  async rescanMonitoredUrl(input) {
+    const parsed: RescanMonitoredUrlInput = rescanMonitoredUrlSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const record = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        snapshots: {
+          orderBy: { capturedAt: "desc" },
+          take: 1
+        }
+      }
+    });
+
+    if (!record) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    await enqueueMonitoringCreateSnapshotJob({
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      monitoredUrlId: record.id
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async listEventsForSite(userId, organizationId, siteId, options) {
+    const parsed: EventListQuery = eventListQuerySchema.parse(options ?? {});
+
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const events = await prisma.event.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(parsed.monitoredUrlId ? { monitoredUrlId: parsed.monitoredUrlId } : {}),
+        ...(parsed.source ? { source: parsed.source } : {}),
+        ...(parsed.severity ? { severity: parsed.severity } : {})
+      },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: parsed.limit ?? 50,
+      include: {
+        monitoredUrl: {
+          select: { url: true, label: true }
+        }
+      }
+    });
+
+    return events.map(mapEvent);
   },
 
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
@@ -6457,6 +6687,114 @@ function mapAudit(
     completedAt: audit.completedAt?.toISOString() ?? null,
     createdAt: audit.createdAt.toISOString(),
     issueSummary
+  };
+}
+
+function hashMonitoredUrl(url: string): string {
+  return createHash("sha256").update(url.trim()).digest("hex");
+}
+
+type DbUrlSnapshot = {
+  id: string;
+  monitoredUrlId: string;
+  isBaseline: boolean;
+  httpStatus: number | null;
+  finalUrl: string | null;
+  responseTimeMs: number | null;
+  title: string | null;
+  metaDescription: string | null;
+  h1: string | null;
+  canonical: string | null;
+  metaRobots: string | null;
+  xRobotsTag: string | null;
+  hasStructuredData: boolean | null;
+  hasGa4: boolean | null;
+  hasGtm: boolean | null;
+  contentHash: string | null;
+  htmlHash: string | null;
+  capturedAt: Date;
+};
+
+function mapUrlSnapshot(snapshot: DbUrlSnapshot): UrlSnapshot {
+  return {
+    id: snapshot.id,
+    monitoredUrlId: snapshot.monitoredUrlId,
+    isBaseline: snapshot.isBaseline,
+    httpStatus: snapshot.httpStatus,
+    finalUrl: snapshot.finalUrl,
+    responseTimeMs: snapshot.responseTimeMs,
+    title: snapshot.title,
+    metaDescription: snapshot.metaDescription,
+    h1: snapshot.h1,
+    canonical: snapshot.canonical,
+    metaRobots: snapshot.metaRobots,
+    xRobotsTag: snapshot.xRobotsTag,
+    hasStructuredData: snapshot.hasStructuredData,
+    hasGa4: snapshot.hasGa4,
+    hasGtm: snapshot.hasGtm,
+    contentHash: snapshot.contentHash,
+    htmlHash: snapshot.htmlHash,
+    capturedAt: snapshot.capturedAt.toISOString()
+  };
+}
+
+function mapMonitoredUrl(
+  monitoredUrl: {
+    id: string;
+    organizationId: string;
+    siteId: string;
+    url: string;
+    label: string | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  latestSnapshot: DbUrlSnapshot | null
+): MonitoredUrl {
+  return {
+    id: monitoredUrl.id,
+    organizationId: monitoredUrl.organizationId,
+    siteId: monitoredUrl.siteId,
+    url: monitoredUrl.url,
+    label: monitoredUrl.label,
+    isActive: monitoredUrl.isActive,
+    createdAt: monitoredUrl.createdAt.toISOString(),
+    updatedAt: monitoredUrl.updatedAt.toISOString(),
+    latestSnapshot: latestSnapshot ? mapUrlSnapshot(latestSnapshot) : null
+  };
+}
+
+function mapEvent(event: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrl: { url: string; label: string | null } | null;
+  source: TimelineEvent["source"];
+  type: string;
+  severity: TimelineEvent["severity"];
+  title: string;
+  oldValue: unknown;
+  newValue: unknown;
+  metadata: unknown;
+  occurredAt: Date;
+  detectedAt: Date;
+}): TimelineEvent {
+  return {
+    id: event.id,
+    organizationId: event.organizationId,
+    siteId: event.siteId,
+    monitoredUrlId: event.monitoredUrlId,
+    monitoredUrlLabel: event.monitoredUrl ? (event.monitoredUrl.label ?? event.monitoredUrl.url) : null,
+    source: event.source,
+    type: event.type,
+    severity: event.severity,
+    title: event.title,
+    oldValue: event.oldValue,
+    newValue: event.newValue,
+    metadata: event.metadata,
+    occurredAt: event.occurredAt.toISOString(),
+    detectedAt: event.detectedAt.toISOString()
   };
 }
 

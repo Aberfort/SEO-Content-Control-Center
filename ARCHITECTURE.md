@@ -23,6 +23,7 @@ The core MVP architecture is implemented, while production cutover and some post
 - Production deployment descriptors now exist for a portable first-server path: one shared multi-target `Dockerfile`, `docker-compose.production.example.yml` for SaaS/marketing/worker/migrations plus local Postgres/Redis, `.env.production.example`, `npm run deploy:env:check`, `docs/PRODUCTION_ENV.md`, `npm run deploy:smoke`, `npm run deploy:server:smoke`, and `docs/SERVER_SMOKE_ROLLBACK.md`. A platform-specific deployment can still replace this with managed services or provider-native configuration.
 - Staging release rehearsal is codified as `npm run deploy:staging:rehearse` plus `docs/STAGING_REHEARSAL.md`, covering automated staging env/package/smoke preflight and manual evidence capture for plugin challenge exchange, paginated sync, GSC OAuth/sync, demo webhook, Stripe webhook, and safe-operation worker execution.
 - S3-compatible storage is provisioned in Docker but unused by application code.
+- A URL monitoring and change-timeline module has been added alongside the existing content-audit/backlog engine (a separate, complementary capability, not a replacement): users can add monitored URLs per site (capped at `SCCC_MAX_MONITORED_URLS_PER_SITE`, default 10), each addition enqueues an SSRF-guarded crawl on the `sccc-monitoring` queue (`packages/monitoring` owns the crawler, HTML signal extraction, and pure snapshot-diff logic; `apps/worker/src/monitoring` owns the job handler), and every crawl beyond the first baseline is diffed against the prior snapshot into normalized `Event` rows (title/H1/meta description/canonical/robots/X-Robots-Tag changes, HTTP status transitions including 200→404, GA4/GTM disappearance, structured-data removal, content changes, response-time degradation). The Monitoring nav view surfaces monitored URLs plus a chronological site timeline. A deterministic regression-correlation engine, WordPress-originated system events (plugin/theme/core updates), and a recurring rescan scheduler are not implemented yet — this iteration is the event-collection and timeline foundation only.
 
 ## Monorepo Boundaries
 
@@ -32,6 +33,7 @@ The core MVP architecture is implemented, while production cutover and some post
 - `packages/shared` owns framework-agnostic types, RBAC, plan limits, event names, and validation contracts.
 - `packages/queue` owns queue names, job contracts, deterministic job ids, and BullMQ connection/producer helpers shared by the SaaS app and the worker.
 - `packages/gsc` owns the framework-agnostic Google Search Console client: OAuth token exchange/refresh, Search Analytics queries, property matching, token encryption, and date-range helpers.
+- `packages/monitoring` owns the framework-agnostic URL monitoring toolkit: the SSRF guard, the HTTP crawler, HTML signal extraction, and the pure snapshot-diff-to-events logic. It has no dependency on Prisma or BullMQ so it can be unit-tested and reused from both the worker and (if ever needed) the SaaS app directly.
 - `packages/database` owns Prisma schema and migrations.
 - `wordpress-plugin` owns all WordPress code.
 

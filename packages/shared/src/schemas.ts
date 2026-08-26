@@ -511,3 +511,33 @@ export type BillingCheckoutCreateInput = z.infer<typeof billingCheckoutCreateSch
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;
+
+export const createMonitoredUrlSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  url: z.string().trim().url().max(2048),
+  label: z.string().trim().min(1).max(160).optional()
+});
+
+export type CreateMonitoredUrlInput = z.infer<typeof createMonitoredUrlSchema>;
+
+export const rescanMonitoredUrlSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid()
+});
+
+export type RescanMonitoredUrlInput = z.infer<typeof rescanMonitoredUrlSchema>;
+
+export const eventSourceSchema = z.enum(["WORDPRESS", "CRAWLER", "GSC", "SYSTEM"]);
+
+export const eventSeveritySchema = z.enum(["INFO", "WARNING", "CRITICAL"]);
+
+export const eventListQuerySchema = z.object({
+  monitoredUrlId: z.string().uuid().optional(),
+  source: eventSourceSchema.optional(),
+  severity: eventSeveritySchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional()
+});
+
+export type EventListQuery = z.infer<typeof eventListQuerySchema>;

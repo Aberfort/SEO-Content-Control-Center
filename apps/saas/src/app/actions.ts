@@ -455,6 +455,47 @@ export async function createAuditForSiteAction(formData: FormData): Promise<void
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function createMonitoredUrlAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await assertServerActionSameOrigin();
+    await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      url: String(formData.get("url") ?? ""),
+      label: String(formData.get("label") ?? "") || undefined
+    });
+  } catch (error) {
+    return actionError(error, "Could not add the monitored URL.");
+  }
+
+  revalidatePath("/");
+  redirect(String(formData.get("redirectTo") ?? "/monitoring"));
+}
+
+export async function rescanMonitoredUrlAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+
+  await assertServerActionSameOrigin();
+  await repository.rescanMonitoredUrl({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    monitoredUrlId: String(formData.get("monitoredUrlId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
 export async function updateAuditIssueStatusAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();
@@ -1082,6 +1123,27 @@ function actionError(error: unknown, fallback: string): ActionState {
     return {
       ok: false,
       message: "Your current plan has reached its site limit."
+    };
+  }
+
+  if (error instanceof Error && error.message === "MONITORED_URL_ALREADY_EXISTS") {
+    return {
+      ok: false,
+      message: "This URL is already monitored."
+    };
+  }
+
+  if (error instanceof Error && error.message === "MONITORED_URL_LIMIT_REACHED") {
+    return {
+      ok: false,
+      message: "This site has reached its monitored URL limit."
+    };
+  }
+
+  if (error instanceof Error && error.message === "MONITORED_URL_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "Monitored URL was not found."
     };
   }
 

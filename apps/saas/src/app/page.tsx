@@ -1,4 +1,5 @@
 import {
+  Activity,
   Building2,
   ClipboardList,
   Gauge,
@@ -25,6 +26,7 @@ import {
   createBulkOperationPreviewAction,
   disconnectPluginConnectionAction,
   markAllNotificationsReadAction,
+  rescanMonitoredUrlAction,
   rollbackBulkOperationAction,
   runBulkOperationDryRunAction,
   retryBulkOperationAction,
@@ -38,6 +40,7 @@ import {
   updateDeliveryPreferenceAction,
   updateNotificationReadStateAction
 } from "@/app/actions";
+import { CreateMonitoredUrlForm } from "@/components/create-monitored-url-form";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { DashboardCommandCenter } from "@/components/dashboard-command-center";
@@ -85,8 +88,10 @@ import type {
   GscConnectionOverview,
   GscDailyMetric,
   GscSearchInsight,
+  MonitoredUrl,
   Site,
-  SyncedContentMetadata
+  SyncedContentMetadata,
+  TimelineEvent
 } from "@/lib/types";
 
 export const navItems = [
@@ -94,6 +99,7 @@ export const navItems = [
   { label: "Sites", href: "/sites", view: "sites", icon: Globe2 },
   { label: "Content", href: "/content", view: "content", icon: ClipboardList },
   { label: "Audits", href: "/audits", view: "audits", icon: ShieldCheck },
+  { label: "Monitoring", href: "/monitoring", view: "monitoring", icon: Activity },
   { label: "Backlog", href: "/backlog", view: "backlog", icon: ListChecks },
   { label: "Settings", href: "/settings", view: "settings", icon: Settings2 }
 ] as const;
@@ -110,6 +116,10 @@ const pageDetails = {
   audits: {
     title: "Audits",
     description: "Run metadata audits and work through site issues."
+  },
+  monitoring: {
+    title: "Monitoring",
+    description: "Track monitored URLs and see what changed on the site, and when."
   },
   backlog: {
     title: "Backlog",
@@ -128,6 +138,7 @@ const workspacePaths: Record<WorkspaceView, string> = {
   sites: "/sites",
   content: "/content",
   audits: "/audits",
+  monitoring: "/monitoring",
   backlog: "/backlog",
   settings: "/settings"
 };
@@ -227,6 +238,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     : false;
   const canReadBilling = activeOrganization
     ? hasPermission(activeOrganization.role, "billing:read")
+    : false;
+  const canManageMonitoring = activeOrganization
+    ? hasPermission(activeOrganization.role, "monitoring:manage")
     : false;
   const billingOverview =
     activeOrganization && canReadBilling
@@ -384,6 +398,16 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
         )
       : [];
   const auditIssueSummary = buildAuditIssueSummary(auditIssueSummaryItems);
+  const monitoredUrls: MonitoredUrl[] =
+    activeOrganization && activeSite
+      ? await repository.listMonitoredUrlsForSite(user.id, activeOrganization.id, activeSite.id)
+      : [];
+  const timelineEvents: TimelineEvent[] =
+    activeOrganization && activeSite
+      ? await repository.listEventsForSite(user.id, activeOrganization.id, activeSite.id, {
+          limit: 50
+        })
+      : [];
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -1965,6 +1989,178 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
               <EmptyState icon={ShieldCheck}>
                 Add a WordPress site before queueing audits.
               </EmptyState>
+            )}
+          </section>
+        ) : null}
+
+        {view === "monitoring" ? (
+          <section className="panel empty-state" aria-labelledby="monitoring-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="monitoring-title">Monitored URLs</h2>
+                <p>
+                  Baseline snapshots and change detection for the URLs that matter most on this
+                  site.
+                </p>
+              </div>
+              <span className="metric-pill">{monitoredUrls.length} monitored</span>
+            </div>
+
+            {activeOrganization && activeSite ? (
+              <>
+                {canManageMonitoring ? (
+                  <CreateMonitoredUrlForm
+                    organizationId={activeOrganization.id}
+                    siteId={activeSite.id}
+                    redirectTo={buildViewHref({ site: activeSite.id })}
+                  />
+                ) : null}
+
+                {monitoredUrls.length > 0 ? (
+                  <div className="table-wrap">
+                    <table className="audit-table">
+                      <thead>
+                        <tr>
+                          <th>URL</th>
+                          <th>HTTP</th>
+                          <th>Title</th>
+                          <th>Canonical</th>
+                          <th>Last checked</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monitoredUrls.map((monitoredUrl) => (
+                          <tr key={monitoredUrl.id}>
+                            <td>
+                              <strong>{monitoredUrl.label ?? monitoredUrl.url}</strong>
+                              <span className="stacked-meta">{monitoredUrl.url}</span>
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.httpStatus ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.title ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.canonical ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot ? (
+                                <time dateTime={monitoredUrl.latestSnapshot.capturedAt}>
+                                  {formatDateTime(monitoredUrl.latestSnapshot.capturedAt)}
+                                </time>
+                              ) : (
+                                <span className="muted-text">Scan queued</span>
+                              )}
+                            </td>
+                            <td>
+                              {canManageMonitoring ? (
+                                <form action={rescanMonitoredUrlAction}>
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={activeOrganization.id}
+                                  />
+                                  <input name="siteId" type="hidden" value={activeSite.id} />
+                                  <input
+                                    name="monitoredUrlId"
+                                    type="hidden"
+                                    value={monitoredUrl.id}
+                                  />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({ site: activeSite.id })}
+                                  />
+                                  <button className="text-button" type="submit">
+                                    Rescan
+                                  </button>
+                                </form>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="empty-copy">No monitored URLs yet for this site.</p>
+                )}
+
+                <div className="audit-issue-panel" aria-labelledby="monitoring-timeline-title">
+                  <div className="section-heading">
+                    <div>
+                      <h3 id="monitoring-timeline-title">Timeline</h3>
+                      <p>What changed on this site, and when.</p>
+                    </div>
+                  </div>
+
+                  {timelineEvents.length > 0 ? (
+                    <div className="table-wrap">
+                      <table className="audit-table">
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Severity</th>
+                            <th>Event</th>
+                            <th>URL</th>
+                            <th>Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {timelineEvents.map((event) => (
+                            <tr key={event.id}>
+                              <td>
+                                <time dateTime={event.occurredAt}>
+                                  {formatDateTime(event.occurredAt)}
+                                </time>
+                              </td>
+                              <td>
+                                <span
+                                  className={`severity-pill severity-${
+                                    event.severity === "INFO"
+                                      ? "low"
+                                      : event.severity === "WARNING"
+                                        ? "medium"
+                                        : "critical"
+                                  }`}
+                                >
+                                  {event.severity.toLowerCase()}
+                                </span>
+                              </td>
+                              <td>{event.title}</td>
+                              <td>
+                                {event.monitoredUrlLabel ?? (
+                                  <span className="muted-text">Site-wide</span>
+                                )}
+                              </td>
+                              <td>
+                                <span className="stacked-meta">
+                                  {formatChangeValue(event.oldValue)} →{" "}
+                                  {formatChangeValue(event.newValue)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-copy">
+                      No changes detected yet. Add a monitored URL to start building a timeline.
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyState icon={Activity}>Add a WordPress site before monitoring URLs.</EmptyState>
             )}
           </section>
         ) : null}
@@ -3642,6 +3838,22 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatChangeValue(value: unknown): string {
+  if (value === null || typeof value === "undefined") {
+    return "—";
+  }
+
+  if (typeof value === "string") {
+    return value.length > 0 ? value : "—";
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
 }
 
 function formatPlanPrice(plan: { code: string; monthlyPrice: number }): string {

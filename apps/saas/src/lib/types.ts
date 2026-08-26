@@ -669,3 +669,63 @@ export type OrganizationSummary = Organization & {
   sites: Site[];
   activityLogs: ActivityLog[];
 };
+
+export type UrlSnapshotFields = {
+  httpStatus: number | null;
+  finalUrl: string | null;
+  responseTimeMs: number | null;
+  title: string | null;
+  metaDescription: string | null;
+  h1: string | null;
+  canonical: string | null;
+  metaRobots: string | null;
+  xRobotsTag: string | null;
+  hasStructuredData: boolean | null;
+  hasGa4: boolean | null;
+  hasGtm: boolean | null;
+  contentHash: string | null;
+  htmlHash: string | null;
+};
+
+export type UrlSnapshot = UrlSnapshotFields & {
+  id: string;
+  monitoredUrlId: string;
+  isBaseline: boolean;
+  capturedAt: string;
+};
+
+export type MonitoredUrl = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  url: string;
+  label: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestSnapshot: UrlSnapshot | null;
+};
+
+export type TimelineEvent = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrlLabel: string | null;
+  source: "WORDPRESS" | "CRAWLER" | "GSC" | "SYSTEM";
+  type: string;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  oldValue: unknown;
+  newValue: unknown;
+  metadata: unknown;
+  occurredAt: string;
+  detectedAt: string;
+};
+
+export type EventListOptions = {
+  monitoredUrlId?: string;
+  source?: TimelineEvent["source"];
+  severity?: TimelineEvent["severity"];
+  limit?: number;
+};

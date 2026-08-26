@@ -33,6 +33,11 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Notification
 - Integration
 - UsageMetric
+- MonitoredUrl
+- UrlSnapshot
+- Event
+- Regression
+- RegressionEvent
 
 ## Tenant Rules
 
@@ -73,6 +78,11 @@ The first migration lives in `packages/database/prisma/migrations/20260630081500
 - Backlog task comments must be created only after resolving the parent task through organization/site scope.
 - Backlog task exports must reuse organization/site-scoped task listing filters.
 - New organizations receive a local `TRIALING` subscription on the Trial plan with `provider = null`; after `trialEndsAt` passes, application reads derive it as `PAST_DUE` for gating without opening a provider billing portal. Provider-backed subscription changes are reconciled separately through billing webhooks.
+- `MonitoredUrl` records a URL a user has chosen to watch on a site; unique by `siteId + urlHash` (a SHA-256 hash of the trimmed URL). MVP enforces a per-site limit (`SCCC_MAX_MONITORED_URLS_PER_SITE`, default 10) on active monitored URLs.
+- `UrlSnapshot` stores one point-in-time crawl result for a `MonitoredUrl` (HTTP status, final URL, response time, title/meta description/H1/canonical/robots/X-Robots-Tag, structured-data/GA4/GTM presence, content and HTML hashes). The first snapshot for a URL is flagged `isBaseline`; later snapshots are compared against the most recent prior snapshot to detect changes. Raw HTML is never persisted — only extracted signals and hashes.
+- `Event` is the single normalized event model for everything that can appear on the site timeline (WordPress changes, crawler-detected changes, GSC signals, system events), discriminated by `source` (`WORDPRESS`, `CRAWLER`, `GSC`, `SYSTEM`) and a free-form `type` string (e.g. `canonical_changed`, `page_became_noindex`, `ga4_missing`) rather than a growing enum, so new event types do not require a migration. `severity` is `INFO` / `WARNING` / `CRITICAL`. `monitoredUrlId` is nullable for site-wide events (e.g. WordPress core/plugin/theme updates) that are not tied to a specific monitored URL.
+- `Regression` and the `RegressionEvent` join table exist in the schema to support the deterministic regression-correlation engine, but are not yet populated by any service in this iteration — only the `Event`/`UrlSnapshot`/`MonitoredUrl` pipeline (URL monitoring → snapshot diff → event) is implemented so far. Regression detection and the unified alerting on top of it are a following iteration.
+- Monitored URL scanning and snapshot/event creation run asynchronously on the `sccc-monitoring` BullMQ queue (`monitoring.create-snapshot` job), consistent with the rule that scanning must not block an HTTP request. The crawler enforces an SSRF guard (blocks loopback, private, link-local/cloud-metadata, and other reserved IP ranges, and re-validates every redirect hop) before fetching any monitored URL.
 
 ## Organization Member Lifecycle
 

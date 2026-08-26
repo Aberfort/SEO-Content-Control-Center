@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   acceptInviteSchema,
@@ -21,12 +21,15 @@ import {
   buildWorkspaceDeliverableSummary,
   canUseEntitlement,
   clientReportQuerySchema,
+  createMonitoredUrlSchema,
   deliveryPreferenceUpdateSchema,
+  eventListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
   resolveCommercialAccess,
   respondToOperationApprovalSchema,
@@ -53,13 +56,16 @@ import {
   type BulkOperationStartInput,
   type ClientReportQuery,
   type ContentTrustEvidence,
+  type CreateMonitoredUrlInput,
   type DeliveryPreferenceUpdateInput,
+  type EventListQuery,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
   type RequestOperationApprovalInput,
+  type RescanMonitoredUrlInput,
   type RespondToOperationApprovalInput,
   type Role,
   type SiteCreateInput,
@@ -68,6 +74,7 @@ import {
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput
 } from "@sccc/shared";
+import { crawlUrl, diffSnapshots, extractSignals } from "@sccc/monitoring";
 
 import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -113,7 +120,9 @@ import type {
   BulkOperationRetryMode,
   ClientReport,
   DeliveryPreference,
+  EventListOptions,
   InviteResult,
+  MonitoredUrl,
   NotificationBulkUpdateResult,
   Notification,
   NotificationListOptions,
@@ -127,7 +136,9 @@ import type {
   Site,
   SyncedContentItem,
   SyncedContentList,
-  SyncedContentListOptions
+  SyncedContentListOptions,
+  TimelineEvent,
+  UrlSnapshot
 } from "./types";
 import {
   buildAssistantRecommendationFromBacklogTask,
@@ -189,6 +200,9 @@ type DevStoreState = {
   gscConnections: StoreGscConnection[];
   gscDailyMetrics: GscDailyMetric[];
   gscSearchInsights: GscSearchInsight[];
+  monitoredUrls: MonitoredUrl[];
+  urlSnapshots: UrlSnapshot[];
+  events: TimelineEvent[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -318,8 +332,17 @@ function initialState(): DevStoreState {
     subscriptions: [],
     gscConnections: [],
     gscDailyMetrics: [],
-    gscSearchInsights: []
+    gscSearchInsights: [],
+    monitoredUrls: [],
+    urlSnapshots: [],
+    events: []
   };
+}
+
+const maxMonitoredUrlsPerSite = 10;
+
+function hashMonitoredUrl(url: string): string {
+  return createHash("sha256").update(url.trim()).digest("hex");
 }
 
 export function getDevStore(): DevStoreState {
@@ -1731,6 +1754,255 @@ export function createAuditForSite(input: {
   });
 
   return withAuditIssueSummary(audit, store.auditIssues);
+}
+
+function withLatestSnapshot(store: DevStoreState, monitoredUrl: MonitoredUrl): MonitoredUrl {
+  const latestSnapshot =
+    store.urlSnapshots
+      .filter((snapshot) => snapshot.monitoredUrlId === monitoredUrl.id)
+      .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0] ?? null;
+
+  return { ...monitoredUrl, latestSnapshot };
+}
+
+async function captureDevSnapshot(input: {
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  url: string;
+}): Promise<void> {
+  const store = getDevStore();
+  const previousSnapshot =
+    store.urlSnapshots
+      .filter((snapshot) => snapshot.monitoredUrlId === input.monitoredUrlId)
+      .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0] ?? null;
+
+  let crawl;
+
+  try {
+    crawl = await crawlUrl(input.url);
+  } catch {
+    // Best-effort in the dev store: leave the monitored URL without a snapshot
+    // rather than failing the whole request. A rescan can retry later.
+    return;
+  }
+
+  const signals = extractSignals(crawl.html);
+  const fields = {
+    httpStatus: crawl.httpStatus,
+    finalUrl: crawl.finalUrl,
+    responseTimeMs: crawl.responseTimeMs,
+    xRobotsTag: crawl.xRobotsTag,
+    title: signals.title,
+    metaDescription: signals.metaDescription,
+    h1: signals.h1,
+    canonical: signals.canonical,
+    metaRobots: signals.metaRobots,
+    hasStructuredData: signals.hasStructuredData,
+    hasGa4: signals.hasGa4,
+    hasGtm: signals.hasGtm,
+    contentHash: signals.contentHash,
+    htmlHash: signals.htmlHash
+  };
+  const timestamp = nowIso();
+
+  store.urlSnapshots.push({
+    id: randomUUID(),
+    monitoredUrlId: input.monitoredUrlId,
+    isBaseline: previousSnapshot === null,
+    capturedAt: timestamp,
+    ...fields
+  });
+
+  const detectedEvents = diffSnapshots(previousSnapshot, fields);
+
+  for (const detected of detectedEvents) {
+    store.events.push({
+      id: randomUUID(),
+      organizationId: input.organizationId,
+      siteId: input.siteId,
+      monitoredUrlId: input.monitoredUrlId,
+      monitoredUrlLabel: null,
+      source: "CRAWLER",
+      type: detected.type,
+      severity: detected.severity,
+      title: detected.title,
+      oldValue: detected.oldValue,
+      newValue: detected.newValue,
+      metadata: detected.metadata ?? null,
+      occurredAt: timestamp,
+      detectedAt: timestamp
+    });
+  }
+}
+
+export function listMonitoredUrlsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): MonitoredUrl[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+
+  return store.monitoredUrls
+    .filter((monitoredUrl) => monitoredUrl.organizationId === organizationId && monitoredUrl.siteId === siteId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((monitoredUrl) => withLatestSnapshot(store, monitoredUrl));
+}
+
+export async function createMonitoredUrlForSite(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  url: string;
+  label?: string;
+}): Promise<MonitoredUrl> {
+  const parsed: CreateMonitoredUrlInput = createMonitoredUrlSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === parsed.siteId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const activeCount = store.monitoredUrls.filter(
+    (candidate) =>
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId &&
+      candidate.isActive
+  ).length;
+
+  if (activeCount >= maxMonitoredUrlsPerSite) {
+    throw new Error("MONITORED_URL_LIMIT_REACHED");
+  }
+
+  const urlHash = hashMonitoredUrl(parsed.url);
+  const existing = store.monitoredUrls.find(
+    (candidate) => candidate.siteId === parsed.siteId && hashMonitoredUrl(candidate.url) === urlHash
+  );
+
+  if (existing) {
+    throw new Error("MONITORED_URL_ALREADY_EXISTS");
+  }
+
+  const timestamp = nowIso();
+  const monitoredUrl: MonitoredUrl = {
+    id: randomUUID(),
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    url: parsed.url,
+    label: parsed.label ?? null,
+    isActive: true,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    latestSnapshot: null
+  };
+
+  store.monitoredUrls.push(monitoredUrl);
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "monitored_url.created",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: parsed.url }
+  });
+
+  await captureDevSnapshot({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    monitoredUrlId: monitoredUrl.id,
+    url: parsed.url
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export async function rescanMonitoredUrl(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+}): Promise<MonitoredUrl> {
+  const parsed: RescanMonitoredUrlInput = rescanMonitoredUrlSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  await captureDevSnapshot({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    monitoredUrlId: monitoredUrl.id,
+    url: monitoredUrl.url
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function listEventsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: EventListOptions
+): TimelineEvent[] {
+  const parsed: EventListQuery = eventListQuerySchema.parse(options ?? {});
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+  const monitoredUrlsById = new Map(store.monitoredUrls.map((monitoredUrl) => [monitoredUrl.id, monitoredUrl]));
+
+  return store.events
+    .filter((event) => {
+      if (event.organizationId !== organizationId || event.siteId !== siteId) return false;
+      if (parsed.monitoredUrlId && event.monitoredUrlId !== parsed.monitoredUrlId) return false;
+      if (parsed.source && event.source !== parsed.source) return false;
+      if (parsed.severity && event.severity !== parsed.severity) return false;
+      return true;
+    })
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+    .slice(0, parsed.limit ?? 50)
+    .map((event) => ({
+      ...event,
+      monitoredUrlLabel: event.monitoredUrlId
+        ? (monitoredUrlsById.get(event.monitoredUrlId)?.label ??
+          monitoredUrlsById.get(event.monitoredUrlId)?.url ??
+          null)
+        : null
+    }));
 }
 
 /**

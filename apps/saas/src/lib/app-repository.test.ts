@@ -1386,6 +1386,141 @@ describe("app repository", () => {
       )
     ).toEqual(expect.arrayContaining(["bulk_operation.completed", "bulk_operation.rolled_back"]));
   });
+
+  it("manages monitored URLs and the site event timeline through the repository contract", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Monitoring Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Monitoring Site",
+      url: "https://monitoring.repository.example.com"
+    });
+
+    // 127.0.0.1 is rejected by the SSRF guard before any real network call is
+    // made (dns.lookup resolves literal IPs without a network round trip),
+    // so this exercises the full creation path deterministically and without
+    // any dependency on the real internet.
+    const blockedUrl = "http://127.0.0.1:9/blocked-by-ssrf-guard";
+    const monitoredUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: blockedUrl,
+      label: "Blocked test URL"
+    });
+
+    expect(monitoredUrl).toMatchObject({
+      organizationId: organization.id,
+      siteId: site.id,
+      url: blockedUrl,
+      label: "Blocked test URL",
+      isActive: true,
+      latestSnapshot: null
+    });
+
+    await expect(
+      repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: blockedUrl
+      })
+    ).rejects.toThrow("MONITORED_URL_ALREADY_EXISTS");
+
+    expect(
+      await repository.listMonitoredUrlsForSite(user.id, organization.id, site.id)
+    ).toEqual([monitoredUrl]);
+
+    for (let index = 0; index < 9; index += 1) {
+      await repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: `http://127.0.0.1:9/blocked-${index}`
+      });
+    }
+
+    await expect(
+      repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: "http://127.0.0.1:9/one-too-many"
+      })
+    ).rejects.toThrow("MONITORED_URL_LIMIT_REACHED");
+
+    const rescanned = await repository.rescanMonitoredUrl({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id
+    });
+
+    expect(rescanned.id).toBe(monitoredUrl.id);
+
+    const occurredAt = "2026-08-26T10:00:00.000Z";
+    getDevStore().events.push(
+      {
+        id: "00000000-0000-4000-8000-000000000801",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        monitoredUrlLabel: null,
+        source: "CRAWLER",
+        type: "canonical_changed",
+        severity: "CRITICAL",
+        title: "Canonical URL changed",
+        oldValue: "https://example.com/a/",
+        newValue: "https://example.com/b/",
+        metadata: null,
+        occurredAt,
+        detectedAt: occurredAt
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000802",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: null,
+        monitoredUrlLabel: null,
+        source: "SYSTEM",
+        type: "plugin_updated",
+        severity: "INFO",
+        title: "Yoast SEO updated",
+        oldValue: "25.1",
+        newValue: "25.2",
+        metadata: null,
+        occurredAt,
+        detectedAt: occurredAt
+      }
+    );
+
+    const timeline = await repository.listEventsForSite(user.id, organization.id, site.id);
+    expect(timeline.map((event) => event.type)).toEqual(["canonical_changed", "plugin_updated"]);
+
+    const urlScopedTimeline = await repository.listEventsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      { monitoredUrlId: monitoredUrl.id }
+    );
+    expect(urlScopedTimeline).toHaveLength(1);
+    expect(urlScopedTimeline[0]).toMatchObject({
+      type: "canonical_changed",
+      monitoredUrlLabel: "Blocked test URL"
+    });
+
+    const systemOnlyTimeline = await repository.listEventsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      { source: "SYSTEM" }
+    );
+    expect(systemOnlyTimeline.map((event) => event.type)).toEqual(["plugin_updated"]);
+  });
 });
 
 function configureGscEnv(): void {

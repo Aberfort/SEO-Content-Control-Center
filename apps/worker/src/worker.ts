@@ -38,6 +38,8 @@ import {
   createGscSearchInsightsSyncHandler
 } from "./gsc/handlers";
 import { buildLiveGscScheduleDeps, buildLiveGscSyncDeps, isGscWorkerConfigured } from "./gsc/live";
+import { createMonitoringCreateSnapshotHandler } from "./monitoring/handlers";
+import { buildLiveMonitoringSnapshotDeps, isMonitoringWorkerConfigured } from "./monitoring/live";
 import {
   buildWorkerHealthSnapshot,
   collectQueueMetrics,
@@ -60,6 +62,7 @@ export type WorkerProcess = {
   gscSyncEnabled: boolean;
   bulkOperationExecutionEnabled: boolean;
   deliverablesEnabled: boolean;
+  monitoringEnabled: boolean;
   sentryEnabled: boolean;
   analyticsEnabled: boolean;
   healthPort: number | null;
@@ -307,6 +310,21 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     });
   }
 
+  const monitoringEnabled = isMonitoringWorkerConfigured(env);
+
+  if (monitoringEnabled) {
+    registry.register(
+      jobNames.monitoringCreateSnapshot,
+      createMonitoringCreateSnapshotHandler(buildLiveMonitoringSnapshotDeps())
+    );
+    createQueueWorker(queueNames.monitoring);
+  } else {
+    logWorkerEvent("warn", "worker.monitoring_disabled", {
+      workerId,
+      hint: "Set DATABASE_URL to enable monitored URL snapshot scanning."
+    });
+  }
+
   const healthPort = parseWorkerHealthPort(env.SCCC_WORKER_HEALTH_PORT);
   let healthServer: Awaited<ReturnType<typeof startWorkerHealthServer>> | null = null;
 
@@ -349,6 +367,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
     deliverablesEnabled,
+    monitoringEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,
@@ -361,6 +380,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
     deliverablesEnabled,
+    monitoringEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,

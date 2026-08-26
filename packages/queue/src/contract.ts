@@ -11,7 +11,8 @@ export const queueNames = {
   gscSync: "sccc-gsc-sync",
   bulkOperations: "sccc-bulk-operations",
   pluginSync: "sccc-plugin-sync",
-  deliverables: "sccc-deliverables"
+  deliverables: "sccc-deliverables",
+  monitoring: "sccc-monitoring"
 } as const;
 
 export type QueueName = (typeof queueNames)[keyof typeof queueNames];
@@ -24,7 +25,8 @@ export const jobNames = {
   bulkOperationExecute: "bulk-operation.execute",
   bulkOperationRollback: "bulk-operation.rollback",
   deliverablesSchedule: "deliverables.schedule",
-  workspaceWeeklyDigest: "deliverables.workspace-weekly-digest"
+  workspaceWeeklyDigest: "deliverables.workspace-weekly-digest",
+  monitoringCreateSnapshot: "monitoring.create-snapshot"
 } as const;
 
 export type JobName = (typeof jobNames)[keyof typeof jobNames];
@@ -88,6 +90,16 @@ export const workspaceWeeklyDigestJobDataSchema = z
   .strict();
 
 export type WorkspaceWeeklyDigestJobData = z.infer<typeof workspaceWeeklyDigestJobDataSchema>;
+
+export const monitoringCreateSnapshotJobDataSchema = z
+  .object({
+    organizationId: z.string().uuid(),
+    siteId: z.string().uuid(),
+    monitoredUrlId: z.string().uuid()
+  })
+  .strict();
+
+export type MonitoringCreateSnapshotJobData = z.infer<typeof monitoringCreateSnapshotJobDataSchema>;
 
 /**
  * Cron pattern for the repeatable GSC sync scheduler job. Search Analytics
