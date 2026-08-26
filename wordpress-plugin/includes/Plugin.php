@@ -21,7 +21,8 @@ final class Plugin {
 		private readonly SyncScheduler $syncScheduler,
 		private readonly LocalAuditRunner $localAuditRunner,
 		private readonly ApiClient $apiClient,
-		private readonly SafeOperationEndpoint $safeOperationEndpoint
+		private readonly SafeOperationEndpoint $safeOperationEndpoint,
+		private readonly SystemEventReporter $systemEventReporter
 	) {
 	}
 
@@ -41,9 +42,17 @@ final class Plugin {
 		add_action( LocalAuditRunner::RECURRING_HOOK, array( $this->localAuditRunner, 'runScheduled' ) );
 		add_action( 'init', array( $this->syncScheduler, 'ensureRecurringSync' ) );
 		add_action( 'init', array( $this->localAuditRunner, 'ensureRecurring' ) );
+		add_action( 'init', array( $this->systemEventReporter, 'ensureBaseline' ) );
 		add_action( 'rest_api_init', array( $this->safeOperationEndpoint, 'registerRoutes' ) );
 		add_action( 'wp_dashboard_setup', array( $this->adminPage, 'registerDashboardWidget' ) );
 		add_filter( 'site_status_tests', array( $this->adminPage, 'registerSiteHealthTests' ) );
+		add_action( 'activated_plugin', array( $this->systemEventReporter, 'onPluginActivated' ), 10, 2 );
+		add_action( 'deactivated_plugin', array( $this->systemEventReporter, 'onPluginDeactivated' ), 10, 2 );
+		add_action( 'deleted_plugin', array( $this->systemEventReporter, 'onPluginDeleted' ), 10, 2 );
+		add_action( 'switch_theme', array( $this->systemEventReporter, 'onThemeSwitched' ), 10, 3 );
+		add_action( 'upgrader_process_complete', array( $this->systemEventReporter, 'onUpgraderProcessComplete' ), 10, 2 );
+		add_action( '_core_updated_successfully', array( $this->systemEventReporter, 'onCoreUpdated' ) );
+		add_action( SystemEventReporter::DELIVER_ACTION, array( $this->systemEventReporter, 'deliver' ) );
 	}
 
 	public function exchangeConnection(): void {

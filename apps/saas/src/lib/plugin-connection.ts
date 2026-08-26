@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
   assertPermission,
@@ -8,13 +8,15 @@ import {
   pluginConnectionDisconnectSchema,
   pluginConnectionExchangeSchema,
   pluginSyncBatchSchema,
+  pluginSystemEventBatchSchema,
   planCodes,
   resolveCommercialAccess,
   signPluginRequest,
   type PluginConnectionChallengeCreateInput,
   type PluginConnectionDisconnectInput,
   type PluginConnectionExchangeInput,
-  type PluginSyncBatch
+  type PluginSyncBatch,
+  type PluginSystemEventBatch
 } from "@sccc/shared";
 
 import { trackAnalyticsEvent } from "./observability";
@@ -433,6 +435,47 @@ export async function acceptPluginSyncBatch(input: {
     accepted: parsed.items.length,
     cursor: parsed.cursor
   };
+}
+
+export async function acceptPluginSystemEventBatch(input: {
+  authentication: PluginSyncAuthentication;
+  body: unknown;
+}): Promise<{ accepted: number }> {
+  const parsed: PluginSystemEventBatch = pluginSystemEventBatchSchema.parse(input.body);
+
+  if (
+    parsed.siteId !== input.authentication.siteId ||
+    parsed.organizationId !== input.authentication.organizationId
+  ) {
+    throw new Error("PLUGIN_SYNC_SCOPE_MISMATCH");
+  }
+
+  await prisma.event.createMany({
+    data: parsed.events.map((event) => ({
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      source: "WORDPRESS" as const,
+      type: event.type,
+      severity: "INFO" as const,
+      title: event.title,
+      oldValue: toNullableJson(event.oldValue),
+      newValue: toNullableJson(event.newValue),
+      metadata: toNullableJson(event.metadata),
+      occurredAt: new Date(event.occurredAt)
+    }))
+  });
+
+  return {
+    accepted: parsed.events.length
+  };
+}
+
+function toNullableJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (value === null || typeof value === "undefined") {
+    return Prisma.JsonNull;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 export function assertSyncedUrlCapacity(input: {

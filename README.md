@@ -84,6 +84,7 @@ The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets
 - Optional daily/weekly scheduling, latest-run comparison, CSV export, and WordPress Dashboard/Site Health integration.
 - Optional SaaS connection for Search Console evidence, a shared team backlog, and audit history.
 - Signed, review-first metadata operations for Yoast/Rank Math (title, meta description, canonical, noindex/nofollow) with preview, dry run, explicit confirmation, and rollback.
+- Reports its own lifecycle changes (plugin installed/activated/deactivated/updated/deleted, theme activated/updated, WordPress core updated) to the connected SaaS site timeline, with a persisted version baseline so the first observed change has a real before/after diff.
 
 **SaaS platform**
 

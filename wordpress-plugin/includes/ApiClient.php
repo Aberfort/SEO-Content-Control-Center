@@ -106,6 +106,52 @@ final class ApiClient {
 
 	/**
 	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 * @param array<string,mixed>                                                                        $event
+	 */
+	public function sendSystemEvent( array $connection, array $event ): void {
+		$path      = '/api/plugin/system-events';
+		$body      = $this->buildSystemEventBody( $connection, $event );
+		$timestamp = time();
+		$headers   = $this->buildSignedHeaders( $connection, $path, $body, $timestamp );
+		$response  = wp_remote_post(
+			$this->buildApiUrl( $connection['endpoint'], $path ),
+			array(
+				'headers' => array_merge(
+					array(
+						'Content-Type' => 'application/json',
+					),
+					$headers
+				),
+				'body'    => $body,
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new RuntimeException( 'system_event_failed' );
+		}
+
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			throw new RuntimeException( 'system_event_failed' );
+		}
+	}
+
+	/**
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 * @param array<string,mixed>                                                                        $event
+	 */
+	public function buildSystemEventBody( array $connection, array $event ): string {
+		return $this->encodeJson(
+			array(
+				'organizationId' => $connection['organization_id'],
+				'siteId'         => $connection['site_id'],
+				'events'         => array( $event ),
+			)
+		);
+	}
+
+	/**
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
 	 */
 	public function sendDisconnect( array $connection ): void {
 		$path      = '/api/plugin/connections/disconnect';

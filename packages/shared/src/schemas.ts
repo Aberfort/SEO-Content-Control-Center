@@ -191,6 +191,25 @@ export const pluginSyncBatchSchema = z.object({
   items: z.array(pluginSyncItemSchema).max(250)
 });
 
+export const pluginSystemEventSchema = z
+  .object({
+    type: z.string().trim().min(1).max(64),
+    title: z.string().trim().min(1).max(200),
+    oldValue: z.unknown().nullable().optional(),
+    newValue: z.unknown().nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+    occurredAt: z.string().datetime()
+  })
+  .strict();
+
+export const pluginSystemEventBatchSchema = z
+  .object({
+    organizationId: organizationIdSchema,
+    siteId: siteIdSchema,
+    events: z.array(pluginSystemEventSchema).min(1).max(50)
+  })
+  .strict();
+
 export const backlogTaskFromCandidateSchema = z.object({
   organizationId: organizationIdSchema,
   siteId: siteIdSchema,
@@ -480,6 +499,8 @@ export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExcha
 export type PluginConnectionDisconnectInput = z.infer<typeof pluginConnectionDisconnectSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
+export type PluginSystemEvent = z.infer<typeof pluginSystemEventSchema>;
+export type PluginSystemEventBatch = z.infer<typeof pluginSystemEventBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
 export type BacklogTaskFromAuditIssueInput = z.infer<typeof backlogTaskFromAuditIssueSchema>;
 export type BacklogTasksFromAuditInput = z.infer<typeof backlogTasksFromAuditSchema>;

@@ -45,6 +45,7 @@ if ( file_exists( $sccc_autoload ) ) {
 	require_once SCCC_PLUGIN_DIR . 'includes/LocalAuditStore.php';
 	require_once SCCC_PLUGIN_DIR . 'includes/LocalAuditRunner.php';
 	require_once SCCC_PLUGIN_DIR . 'includes/PlatformConversion.php';
+	require_once SCCC_PLUGIN_DIR . 'includes/SystemEventReporter.php';
 }
 
 add_action(
@@ -83,7 +84,8 @@ add_action(
 			),
 			$localAuditRunner,
 			$apiClient,
-			new SCCC\Plugin\SafeOperationEndpoint( $connectionStore, $requestSigner )
+			new SCCC\Plugin\SafeOperationEndpoint( $connectionStore, $requestSigner ),
+			new SCCC\Plugin\SystemEventReporter( $connectionStore, $apiClient )
 		);
 		$plugin->register();
 	}

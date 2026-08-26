@@ -94,12 +94,13 @@ if (! function_exists('wp_next_scheduled')) {
         return (int) $matches[0]['timestamp'];
     }
 
-    function wp_schedule_single_event(int $timestamp, string $hook): bool
+    function wp_schedule_single_event(int $timestamp, string $hook, array $args = []): bool
     {
         $GLOBALS['sccc_test_scheduled_events'][] = [
             'hook' => $hook,
             'timestamp' => $timestamp,
             'recurrence' => null,
+            'args' => $args,
         ];
 
         return true;
@@ -126,6 +127,81 @@ if (! function_exists('wp_next_scheduled')) {
         );
 
         return true;
+    }
+}
+
+if (! defined('WP_PLUGIN_DIR')) {
+    define('WP_PLUGIN_DIR', '/tmp/sccc-test-plugins');
+}
+
+if (! function_exists('get_plugin_data')) {
+    $GLOBALS['sccc_test_plugin_data'] = [];
+
+    /**
+     * @return array{Name?:string,Version?:string}
+     */
+    function get_plugin_data(string $file, bool $markup = true, bool $translate = true): array
+    {
+        return $GLOBALS['sccc_test_plugin_data'][$file] ?? [];
+    }
+
+    /**
+     * @return array<string,array{Name?:string,Version?:string}>
+     */
+    function get_plugins(): array
+    {
+        $prefix = WP_PLUGIN_DIR . '/';
+        $plugins = [];
+
+        foreach ($GLOBALS['sccc_test_plugin_data'] as $file => $data) {
+            $basename = str_starts_with($file, $prefix) ? substr($file, strlen($prefix)) : $file;
+            $plugins[$basename] = $data;
+        }
+
+        return $plugins;
+    }
+}
+
+if (! class_exists('WP_Theme')) {
+    class WP_Theme
+    {
+        /**
+         * @param array<string,string> $data
+         */
+        public function __construct(private readonly array $data)
+        {
+        }
+
+        public function get(string $key): ?string
+        {
+            return $this->data[$key] ?? null;
+        }
+    }
+}
+
+if (! function_exists('wp_get_theme')) {
+    $GLOBALS['sccc_test_themes'] = [];
+
+    function wp_get_theme(string $stylesheet = ''): WP_Theme
+    {
+        return $GLOBALS['sccc_test_themes'][$stylesheet] ?? new WP_Theme([]);
+    }
+
+    /**
+     * @return array<string,WP_Theme>
+     */
+    function wp_get_themes(): array
+    {
+        return $GLOBALS['sccc_test_themes'];
+    }
+}
+
+if (! function_exists('get_bloginfo')) {
+    $GLOBALS['sccc_test_bloginfo'] = ['version' => '6.6'];
+
+    function get_bloginfo(string $show = ''): string
+    {
+        return $GLOBALS['sccc_test_bloginfo'][$show] ?? '';
     }
 }
 
@@ -315,6 +391,7 @@ require_once __DIR__ . '/../includes/LocalAuditStore.php';
 require_once __DIR__ . '/../includes/LocalAuditRunner.php';
 require_once __DIR__ . '/../includes/PlatformConversion.php';
 require_once __DIR__ . '/../includes/AdminPage.php';
+require_once __DIR__ . '/../includes/SystemEventReporter.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
 $api_client = new SCCC\Plugin\ApiClient($signer);
@@ -1113,5 +1190,226 @@ if (! $invalid_signature_response instanceof \WP_Error || 'PLUGIN_APPLY_SIGNATUR
 
 $connection_store->disconnect();
 unset($GLOBALS['sccc_test_posts']);
+
+// --- SystemEventReporter -----------------------------------------------
+
+$system_event_reporter = new SCCC\Plugin\SystemEventReporter($connection_store, $api_client);
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->ensureBaseline();
+
+if ([] !== $GLOBALS['sccc_test_scheduled_events']) {
+    fwrite(STDERR, "SystemEventReporter queued an event while disconnected.\n");
+    exit(1);
+}
+
+$connection_store->save(
+    $connection['organization_id'],
+    $connection['site_id'],
+    $connection['token'],
+    $connection['endpoint']
+);
+
+$GLOBALS['sccc_test_plugin_data'] = [
+    WP_PLUGIN_DIR . '/yoast-seo/wp-seo.php' => ['Name' => 'Yoast SEO', 'Version' => '25.1'],
+];
+
+delete_option('sccc_plugin_versions');
+delete_option('sccc_theme_versions');
+delete_option('sccc_core_version');
+$system_event_reporter->ensureBaseline();
+
+$baseline_plugin_versions = get_option('sccc_plugin_versions');
+
+if (! is_array($baseline_plugin_versions) || '25.1' !== ($baseline_plugin_versions['yoast-seo/wp-seo.php'] ?? null)) {
+    fwrite(STDERR, "SystemEventReporter did not seed the plugin version baseline.\n");
+    exit(1);
+}
+
+if ('6.6' !== get_option('sccc_core_version')) {
+    fwrite(STDERR, "SystemEventReporter did not seed the core version baseline.\n");
+    exit(1);
+}
+
+function sccc_last_scheduled_event(): array
+{
+    $events = $GLOBALS['sccc_test_scheduled_events'];
+
+    if ([] === $events) {
+        fwrite(STDERR, "Expected a scheduled system event but none was found.\n");
+        exit(1);
+    }
+
+    $last = $events[count($events) - 1];
+
+    if (SCCC\Plugin\SystemEventReporter::DELIVER_ACTION !== $last['hook']) {
+        fwrite(STDERR, "Last scheduled event was not a system event delivery.\n");
+        exit(1);
+    }
+
+    return $last['args'][0] ?? [];
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onPluginActivated('yoast-seo/wp-seo.php', false);
+$activated_event = sccc_last_scheduled_event();
+
+if (
+    'plugin_activated' !== ($activated_event['type'] ?? null)
+    || '25.1' !== ($activated_event['newValue'] ?? null)
+    || null !== $activated_event['oldValue']
+) {
+    fwrite(STDERR, "SystemEventReporter did not build a plugin_activated event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onPluginDeactivated('yoast-seo/wp-seo.php', false);
+$deactivated_event = sccc_last_scheduled_event();
+
+if ('plugin_deactivated' !== ($deactivated_event['type'] ?? null) || '25.1' !== ($deactivated_event['oldValue'] ?? null)) {
+    fwrite(STDERR, "SystemEventReporter did not build a plugin_deactivated event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_plugin_data'][WP_PLUGIN_DIR . '/yoast-seo/wp-seo.php']['Version'] = '25.2';
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onUpgraderProcessComplete(
+    new stdClass(),
+    ['action' => 'update', 'type' => 'plugin', 'plugins' => ['yoast-seo/wp-seo.php']]
+);
+$updated_event = sccc_last_scheduled_event();
+
+if (
+    'plugin_updated' !== ($updated_event['type'] ?? null)
+    || '25.1' !== ($updated_event['oldValue'] ?? null)
+    || '25.2' !== ($updated_event['newValue'] ?? null)
+    || 'Yoast SEO updated from 25.1 to 25.2' !== ($updated_event['title'] ?? null)
+) {
+    fwrite(STDERR, "SystemEventReporter did not build a correct plugin_updated event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onUpgraderProcessComplete(
+    new stdClass(),
+    ['action' => 'update', 'type' => 'plugin', 'plugins' => ['yoast-seo/wp-seo.php']]
+);
+
+if ([] !== $GLOBALS['sccc_test_scheduled_events']) {
+    fwrite(STDERR, "SystemEventReporter re-reported an unchanged plugin version.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_plugin_data'][WP_PLUGIN_DIR . '/akismet/akismet.php'] = ['Name' => 'Akismet', 'Version' => '5.3'];
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onUpgraderProcessComplete(
+    new stdClass(),
+    ['action' => 'install', 'type' => 'plugin', 'plugin' => 'akismet/akismet.php']
+);
+$installed_event = sccc_last_scheduled_event();
+
+if ('plugin_installed' !== ($installed_event['type'] ?? null) || null !== $installed_event['oldValue']) {
+    fwrite(STDERR, "SystemEventReporter did not build a plugin_installed event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onPluginDeleted('akismet/akismet.php', true);
+$deleted_event = sccc_last_scheduled_event();
+
+if ('plugin_deleted' !== ($deleted_event['type'] ?? null) || '5.3' !== ($deleted_event['oldValue'] ?? null)) {
+    fwrite(STDERR, "SystemEventReporter did not build a plugin_deleted event.\n");
+    exit(1);
+}
+
+$deleted_plugin_versions = get_option('sccc_plugin_versions');
+
+if (array_key_exists('akismet/akismet.php', $deleted_plugin_versions)) {
+    fwrite(STDERR, "SystemEventReporter did not forget a deleted plugin's version.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_themes'] = [
+    'twentytwentyfour' => new WP_Theme(['Name' => 'Twenty Twenty-Four', 'Version' => '1.2']),
+    'twentytwentyfive' => new WP_Theme(['Name' => 'Twenty Twenty-Five', 'Version' => '1.0']),
+];
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onThemeSwitched(
+    'Twenty Twenty-Five',
+    $GLOBALS['sccc_test_themes']['twentytwentyfive'],
+    $GLOBALS['sccc_test_themes']['twentytwentyfour']
+);
+$theme_activated_event = sccc_last_scheduled_event();
+
+if (
+    'theme_activated' !== ($theme_activated_event['type'] ?? null)
+    || 'Twenty Twenty-Four' !== ($theme_activated_event['oldValue']['name'] ?? null)
+    || 'Twenty Twenty-Five' !== ($theme_activated_event['newValue']['name'] ?? null)
+) {
+    fwrite(STDERR, "SystemEventReporter did not build a theme_activated event.\n");
+    exit(1);
+}
+
+update_option('sccc_theme_versions', ['twentytwentyfive' => '1.0'], false);
+$GLOBALS['sccc_test_themes']['twentytwentyfive'] = new WP_Theme(['Name' => 'Twenty Twenty-Five', 'Version' => '1.1']);
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onUpgraderProcessComplete(
+    new stdClass(),
+    ['action' => 'update', 'type' => 'theme', 'themes' => ['twentytwentyfive']]
+);
+$theme_updated_event = sccc_last_scheduled_event();
+
+if (
+    'theme_updated' !== ($theme_updated_event['type'] ?? null)
+    || '1.0' !== ($theme_updated_event['oldValue'] ?? null)
+    || '1.1' !== ($theme_updated_event['newValue'] ?? null)
+) {
+    fwrite(STDERR, "SystemEventReporter did not build a theme_updated event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onCoreUpdated('6.7');
+$core_updated_event = sccc_last_scheduled_event();
+
+if (
+    'wordpress_core_updated' !== ($core_updated_event['type'] ?? null)
+    || '6.6' !== ($core_updated_event['oldValue'] ?? null)
+    || '6.7' !== ($core_updated_event['newValue'] ?? null)
+) {
+    fwrite(STDERR, "SystemEventReporter did not build a wordpress_core_updated event.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_scheduled_events'] = [];
+$system_event_reporter->onCoreUpdated('6.7');
+
+if ([] !== $GLOBALS['sccc_test_scheduled_events']) {
+    fwrite(STDERR, "SystemEventReporter re-reported an unchanged core version.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_remote_posts'] = [];
+$system_event_reporter->deliver($core_updated_event);
+$delivered_requests = $GLOBALS['sccc_test_remote_posts'];
+
+if (
+    1 !== count($delivered_requests)
+    || ! str_ends_with((string) $delivered_requests[0]['url'], '/api/plugin/system-events')
+    || ! str_contains((string) $delivered_requests[0]['body'], 'wordpress_core_updated')
+) {
+    fwrite(STDERR, "SystemEventReporter did not deliver the queued event over the signed channel.\n");
+    exit(1);
+}
+
+$connection_store->disconnect();
+$GLOBALS['sccc_test_remote_posts'] = [];
+$system_event_reporter->deliver($core_updated_event);
+
+if ([] !== $GLOBALS['sccc_test_remote_posts']) {
+    fwrite(STDERR, "SystemEventReporter delivered an event while disconnected.\n");
+    exit(1);
+}
 
 echo "WordPress plugin smoke tests passed.\n";

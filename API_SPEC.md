@@ -916,6 +916,43 @@ Signature input:
 METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + SHA256(BODY)
 ```
 
+`POST /api/plugin/system-events`
+
+Receives signed WordPress system-lifecycle events (plugin installed/activated/deactivated/updated/deleted, theme activated/updated, WordPress core updated) from the plugin and writes each one as a normalized `Event` row with `source: "WORDPRESS"` and `severity: "INFO"`, visible on the site's unified timeline alongside crawler-detected changes and (in future) Google Search Console events. Authentication and signing are identical to `/api/plugin/sync` (same headers, same signature input, same `WordPressConnection` lookup). The plugin sends one event per request today but the endpoint accepts a bounded batch (up to 50) for forward compatibility.
+
+Request:
+
+```json
+{
+  "organizationId": "11111111-1111-4111-8111-111111111111",
+  "siteId": "22222222-2222-4222-8222-222222222222",
+  "events": [
+    {
+      "type": "plugin_updated",
+      "title": "Yoast SEO updated from 25.1 to 25.2",
+      "oldValue": "25.1",
+      "newValue": "25.2",
+      "metadata": { "plugin": "wordpress-seo/wp-seo.php", "name": "Yoast SEO" },
+      "occurredAt": "2026-08-26T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "accepted": 1
+  }
+}
+```
+
+Event `type` values emitted by the plugin today: `plugin_installed`, `plugin_activated`, `plugin_deactivated`, `plugin_updated`, `plugin_deleted`, `theme_activated`, `theme_updated`, `wordpress_core_updated`. The plugin tracks a version baseline locally (seeded once on first connect) so the first observed change after connecting always has a meaningful `oldValue`; `oldValue`/`newValue`/`metadata` accept arbitrary JSON and are stored as-is.
+
+Required headers and signature input: identical to `/api/plugin/sync` above.
+
 `GET /api/organizations/:organizationId/sites/:siteId/content`
 
 Lists synced WordPress content items for a tenant-scoped site.
@@ -1822,6 +1859,141 @@ Response:
   }
 }
 ```
+
+## Monitoring & Timeline
+
+`GET /api/organizations/:organizationId/sites/:siteId/monitored-urls`
+
+Lists monitored URLs for a tenant-scoped site when the member has `monitoring:read`, each with its latest snapshot (or `null` while the baseline scan is still queued).
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "url": "https://example.com/best-online-casinos/",
+      "label": "Best casinos landing page",
+      "isActive": true,
+      "createdAt": "2026-08-26T08:00:00.000Z",
+      "updatedAt": "2026-08-26T08:00:00.000Z",
+      "latestSnapshot": {
+        "id": "55555555-5555-4555-8555-555555555555",
+        "isBaseline": true,
+        "httpStatus": 200,
+        "finalUrl": "https://example.com/best-online-casinos/",
+        "responseTimeMs": 320,
+        "title": "Best Online Casinos 2026",
+        "canonical": "https://example.com/best-online-casinos/",
+        "metaRobots": "index,follow",
+        "hasStructuredData": true,
+        "hasGa4": true,
+        "hasGtm": true,
+        "capturedAt": "2026-08-26T08:01:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/monitored-urls`
+
+Adds a monitored URL when the member has `monitoring:manage`. Enforces a per-site limit (`SCCC_MAX_MONITORED_URLS_PER_SITE`, default 10 active URLs) and rejects a duplicate URL for the same site. Creating the row enqueues an SSRF-guarded baseline crawl on the `sccc-monitoring` queue; the response's `latestSnapshot` is `null` until that crawl completes.
+
+Request:
+
+```json
+{
+  "url": "https://example.com/best-online-casinos/",
+  "label": "Best casinos landing page"
+}
+```
+
+`POST /api/organizations/:organizationId/sites/:siteId/monitored-urls/:monitoredUrlId/rescan`
+
+Enqueues an immediate rescan of one monitored URL when the member has `monitoring:manage`. Monitored URLs are also rescanned automatically every 6 hours by the `monitoring.schedule-scan` background job, so this endpoint is for on-demand checks.
+
+`GET /api/organizations/:organizationId/sites/:siteId/events`
+
+Returns the unified change timeline for a site when the member has `monitoring:read` — normalized `Event` rows from every source (`WORDPRESS`, `CRAWLER`, `GSC`, `SYSTEM`), newest first.
+
+Query parameters:
+
+- `monitoredUrlId` - optional, scope to one monitored URL.
+- `source` - optional, one of `WORDPRESS`, `CRAWLER`, `GSC`, `SYSTEM`.
+- `severity` - optional, one of `INFO`, `WARNING`, `CRITICAL`.
+- `limit` - optional page size from 1 to 200 (default 50).
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "monitoredUrlId": "44444444-4444-4444-8444-444444444444",
+      "monitoredUrlLabel": "Best casinos landing page",
+      "source": "CRAWLER",
+      "type": "canonical_changed",
+      "severity": "CRITICAL",
+      "title": "Canonical URL changed",
+      "oldValue": "https://example.com/best-online-casinos/",
+      "newValue": "https://example.com/casino/",
+      "metadata": null,
+      "occurredAt": "2026-08-26T09:00:00.000Z",
+      "detectedAt": "2026-08-26T09:00:05.000Z"
+    }
+  ]
+}
+```
+
+`GET /api/organizations/:organizationId/sites/:siteId/regressions`
+
+Returns deterministic regression correlations for a site when the member has `monitoring:read`. A regression links one or more `Event` rows that a rule matched (a page becoming noindex, an HTTP 200→404 transition, GA4/GTM disappearing, or a canonical change correlated with a Search Console click-drop on the site) and always states the cause as a possibility, not a proven one.
+
+Query parameters:
+
+- `status` - optional, one of `OPEN`, `ACKNOWLEDGED`, `RESOLVED`, `DISMISSED`.
+- `limit` - optional page size from 1 to 200 (default 50).
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "77777777-7777-4777-8777-777777777777",
+      "organizationId": "11111111-1111-4111-8111-111111111111",
+      "siteId": "22222222-2222-4222-8222-222222222222",
+      "monitoredUrlId": "44444444-4444-4444-8444-444444444444",
+      "monitoredUrlLabel": "Best casinos landing page",
+      "fingerprint": "44444444-4444-4444-8444-444444444444:canonical_traffic:66666666-6666-4666-8666-666666666666",
+      "status": "OPEN",
+      "severity": "CRITICAL",
+      "title": "Possible SEO regression",
+      "summary": "The canonical URL changed while site-wide Search Console clicks dropped 62%. The canonical change may have contributed to the decline — this is a possible cause, not confirmed causation.",
+      "metrics": {
+        "clicksDelta": -320,
+        "clicksDropRatio": 0.62,
+        "positionBefore": 4.3,
+        "positionAfter": 8.1
+      },
+      "eventIds": ["66666666-6666-4666-8666-666666666666"],
+      "detectedAt": "2026-08-26T09:05:00.000Z",
+      "resolvedAt": null,
+      "createdAt": "2026-08-26T09:05:00.000Z",
+      "updatedAt": "2026-08-26T09:05:00.000Z"
+    }
+  ]
+}
+```
+
+There is no endpoint yet to acknowledge, resolve, or dismiss a regression; every regression currently stays `OPEN` once detected.
 
 ## Backlog
 

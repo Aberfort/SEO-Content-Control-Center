@@ -10,6 +10,7 @@ import {
   pluginConnectionChallengeCreateSchema,
   pluginConnectionExchangeSchema,
   pluginSyncItemSchema,
+  pluginSystemEventBatchSchema,
   registerSchema,
   siteCreateSchema,
   updateMemberRoleSchema
@@ -198,6 +199,53 @@ describe("shared schemas", () => {
         metadata: {
           token: "not-allowed"
         }
+      })
+    ).toThrow();
+  });
+
+  it("validates a WordPress plugin system-event batch", () => {
+    const valid = pluginSystemEventBatchSchema.parse({
+      organizationId: "11111111-1111-4111-8111-111111111111",
+      siteId: "22222222-2222-4222-8222-222222222222",
+      events: [
+        {
+          type: "plugin_updated",
+          title: "Yoast SEO updated from 25.1 to 25.2",
+          oldValue: "25.1",
+          newValue: "25.2",
+          metadata: { plugin: "wordpress-seo/wp-seo.php", name: "Yoast SEO" },
+          occurredAt: "2026-08-26T08:00:00.000Z"
+        }
+      ]
+    });
+
+    expect(valid.events).toHaveLength(1);
+    expect(valid.events[0]).toMatchObject({
+      type: "plugin_updated",
+      oldValue: "25.1",
+      newValue: "25.2"
+    });
+
+    expect(() =>
+      pluginSystemEventBatchSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        siteId: "22222222-2222-4222-8222-222222222222",
+        events: []
+      })
+    ).toThrow();
+
+    expect(() =>
+      pluginSystemEventBatchSchema.parse({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        siteId: "22222222-2222-4222-8222-222222222222",
+        events: [
+          {
+            type: "plugin_updated",
+            title: "Yoast SEO updated",
+            occurredAt: "2026-08-26T08:00:00.000Z",
+            unexpectedField: true
+          }
+        ]
       })
     ).toThrow();
   });
