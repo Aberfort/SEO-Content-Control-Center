@@ -25,6 +25,7 @@ export type OrganizationMember = {
   userId: string;
   role: Role;
   status: "ACTIVE" | "INVITED" | "SUSPENDED" | "CANCELED";
+  siteScope: string[];
   invitedEmail?: string | null;
   inviteExpiresAt?: string | null;
   inviteAcceptedAt?: string | null;
@@ -639,6 +640,7 @@ export type BulkOperationListOptions = {
 
 export type OrganizationSummary = Organization & {
   role: Role;
+  siteScope: string[];
   sites: Site[];
   activityLogs: ActivityLog[];
 };

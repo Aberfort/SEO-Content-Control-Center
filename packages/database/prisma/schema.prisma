@@ -174,6 +174,7 @@ model OrganizationMember {
   userId             String
   role               Role
   status             MemberStatus @default(ACTIVE)
+  siteScope          String[]     @default([])
   invitedEmail       String?
   inviteTokenHash    String?      @unique
   inviteExpiresAt    DateTime?

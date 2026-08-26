@@ -32,6 +32,7 @@ import {
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
+  updateMemberSiteScopeSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -60,7 +61,8 @@ import {
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
-  type UpdateMemberRoleInput
+  type UpdateMemberRoleInput,
+  type UpdateMemberSiteScopeInput
 } from "@sccc/shared";
 
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
@@ -200,6 +202,7 @@ type InviteMemberInputWithUser = {
   organizationId: string;
   email: string;
   role: Role;
+  siteScope?: string[];
 };
 
 type UpdateMemberRoleInputWithUser = {
@@ -207,6 +210,13 @@ type UpdateMemberRoleInputWithUser = {
   organizationId: string;
   memberId: string;
   role: Role;
+};
+
+type UpdateMemberSiteScopeInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  siteScope: string[];
 };
 
 type MemberMutationInputWithUser = {
@@ -380,6 +390,7 @@ export function listOrganizationSummariesForUser(user: AppUser): OrganizationSum
       return {
         ...organization,
         role: member.role,
+        siteScope: member.siteScope,
         sites: listSitesForOrganization(user.id, organization.id),
         activityLogs: listActivityLogsForOrganization(user.id, organization.id)
       };
@@ -428,7 +439,8 @@ export function createOrganization(input: CreateOrganizationInput): Organization
     organizationId: organization.id,
     userId: input.user.id,
     role: "OWNER",
-    status: "ACTIVE"
+    status: "ACTIVE",
+    siteScope: []
   };
 
   store.organizations.push(organization);
@@ -460,6 +472,7 @@ export function createOrganization(input: CreateOrganizationInput): Organization
   return {
     ...organization,
     role: member.role,
+    siteScope: member.siteScope,
     sites: [],
     activityLogs: listActivityLogsForOrganization(input.user.id, organization.id)
   };
@@ -517,6 +530,7 @@ export function getOrganizationSummary(
   return {
     ...organization,
     role: member.role,
+    siteScope: member.siteScope,
     sites: listSitesForOrganization(userId, organizationId),
     activityLogs: listActivityLogsForOrganization(userId, organizationId)
   };
@@ -3278,6 +3292,7 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
     userId: invitedUser.id,
     role: parsed.role,
     status: "INVITED",
+    siteScope: parsed.siteScope ?? [],
     invitedEmail: parsed.email,
     inviteExpiresAt: invite.expiresAt.toISOString()
   };
@@ -3500,6 +3515,47 @@ export function updateMemberRole(input: UpdateMemberRoleInputWithUser): Organiza
   return mapMemberSummary(member, user);
 }
 
+export function updateMemberSiteScope(
+  input: UpdateMemberSiteScopeInputWithUser
+): OrganizationMemberSummary {
+  const parsed: UpdateMemberSiteScopeInput = updateMemberSiteScopeSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "members:manage"
+  });
+
+  const member = store.members.find(
+    (candidate) =>
+      candidate.id === parsed.memberId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!member) {
+    throw new Error("MEMBER_NOT_FOUND");
+  }
+
+  if (member.role === "OWNER") {
+    throw new Error("OWNER_ROLE_IS_PROTECTED");
+  }
+
+  member.siteScope = parsed.siteScope;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "member.site_scope_updated",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      siteCount: parsed.siteScope.length
+    }
+  });
+
+  const user = store.users.find((candidate) => candidate.id === member.userId);
+
+  return mapMemberSummary(member, user);
+}
+
 export function addMemberForTest(input: {
   organizationId: string;
   userId: string;
@@ -3510,7 +3566,8 @@ export function addMemberForTest(input: {
     organizationId: input.organizationId,
     userId: input.userId,
     role: input.role,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    siteScope: []
   };
 
   getDevStore().members.push(member);
@@ -3647,6 +3704,7 @@ function mapMemberSummary(
     userId: member.userId,
     role: member.role,
     status: member.status,
+    siteScope: member.siteScope,
     email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
     name: user?.name ?? null,
     invitedEmail: member.invitedEmail ?? null,

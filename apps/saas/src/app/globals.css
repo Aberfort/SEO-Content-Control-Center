@@ -2618,6 +2618,110 @@ th {
   margin-top: 3px;
 }
 
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-button:hover {
+  color: var(--accent);
+}
+
+.site-scope-fields {
+  border: none;
+  display: grid;
+  gap: var(--space-2xs);
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+}
+
+.site-scope-fields legend {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.site-scope-fields .site-scope-option {
+  align-items: center;
+  color: var(--foreground);
+  display: flex;
+  font-size: 13px;
+  font-weight: 400;
+  gap: var(--space-2xs);
+}
+
+.site-scope-fields .site-scope-option input {
+  accent-color: var(--accent);
+  flex: none;
+  height: 16px;
+  margin: 0;
+  min-height: 0;
+  width: 16px;
+}
+
+.site-scope-fields .site-scope-option span,
+.site-scope-fields .site-scope-item span {
+  font-weight: 400;
+}
+
+.invite-member-extra {
+  display: grid;
+  gap: var(--space-xs);
+  grid-column: 1 / -1;
+}
+
+.site-scope-list {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-3xs);
+  margin-left: 22px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: var(--space-xs);
+}
+
+.site-scope-fields .site-scope-item {
+  align-items: center;
+  color: var(--foreground);
+  display: flex;
+  font-size: 13px;
+  font-weight: 400;
+  gap: var(--space-2xs);
+}
+
+.site-scope-fields .site-scope-item input {
+  accent-color: var(--accent);
+  flex: none;
+  height: 16px;
+  margin: 0;
+  min-height: 0;
+  width: 16px;
+}
+
+.member-site-scope-form {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 220px;
+}
+
+.member-site-scope-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+}
+
 .checklist {
   display: grid;
   gap: 12px;

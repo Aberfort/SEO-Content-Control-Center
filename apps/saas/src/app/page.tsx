@@ -62,6 +62,7 @@ import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
+import { MemberSiteScopeForm } from "@/components/member-site-scope-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { PluginChallengeForm } from "@/components/plugin-challenge-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
@@ -2888,7 +2889,10 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
 
               {activeOrganization ? (
                 <>
-                  <InviteMemberForm organizationId={activeOrganization.id} />
+                  <InviteMemberForm
+                    organizationId={activeOrganization.id}
+                    sites={activeOrganization.sites}
+                  />
                   <div className="table-wrap members-table">
                     <table>
                       <thead>
@@ -2896,6 +2900,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                           <th>Member</th>
                           <th>Status</th>
                           <th>Role</th>
+                          <th>Site access</th>
                           <th>Invite</th>
                         </tr>
                       </thead>
@@ -2914,6 +2919,13 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                 organizationId={activeOrganization.id}
                                 member={member}
                                 currentUserId={user.id}
+                              />
+                            </td>
+                            <td>
+                              <MemberSiteScopeForm
+                                organizationId={activeOrganization.id}
+                                member={member}
+                                sites={activeOrganization.sites}
                               />
                             </td>
                             <td>

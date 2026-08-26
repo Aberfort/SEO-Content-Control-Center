@@ -800,6 +800,43 @@ describe("app repository", () => {
     ).rejects.toThrow("PLAN_USER_LIMIT_REACHED");
   });
 
+  it("invites a member scoped to specific sites and lets an admin adjust that scope", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Scoped Member Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Client A",
+      url: "https://client-a.example.com"
+    });
+
+    const invite = await repository.inviteMember({
+      user,
+      organizationId: organization.id,
+      email: "contractor@example.com",
+      role: "EDITOR",
+      siteScope: [site.id]
+    });
+
+    expect(invite.member.siteScope).toEqual([site.id]);
+
+    const members = await repository.listMembersForOrganization(user.id, organization.id);
+    const scopedMember = members.find((member) => member.email === "contractor@example.com");
+    expect(scopedMember?.siteScope).toEqual([site.id]);
+
+    const widened = await repository.updateMemberSiteScope({
+      user,
+      organizationId: organization.id,
+      memberId: invite.member.id,
+      siteScope: []
+    });
+
+    expect(widened.siteScope).toEqual([]);
+  });
+
   it("accepts, resends, and cancels pending invites through the repository contract", async () => {
     const repository = getAppRepository();
     const organization = await repository.createOrganization({

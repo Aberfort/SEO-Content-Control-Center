@@ -74,16 +74,25 @@ export const assignableMemberRoleSchema = z.enum([
   "BILLING_MANAGER"
 ]);
 
+export const memberSiteScopeSchema = z.array(siteIdSchema).max(200);
+
 export const inviteMemberSchema = z.object({
   organizationId: organizationIdSchema,
   email: authEmailSchema,
-  role: assignableMemberRoleSchema
+  role: assignableMemberRoleSchema,
+  siteScope: memberSiteScopeSchema.optional()
 });
 
 export const updateMemberRoleSchema = z.object({
   organizationId: organizationIdSchema,
   memberId: z.string().uuid(),
   role: assignableMemberRoleSchema
+});
+
+export const updateMemberSiteScopeSchema = z.object({
+  organizationId: organizationIdSchema,
+  memberId: z.string().uuid(),
+  siteScope: memberSiteScopeSchema
 });
 
 export const inviteTokenSchema = z.string().trim().min(32).max(256);
@@ -447,6 +456,7 @@ export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchem
 export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type UpdateMemberSiteScopeInput = z.infer<typeof updateMemberSiteScopeSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 export type EmailVerificationConfirmInput = z.infer<typeof emailVerificationConfirmSchema>;
 export type PluginConnectionChallengeCreateInput = z.infer<

@@ -36,6 +36,7 @@ import {
   updateBacklogTaskAssignmentSchema,
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
+  updateMemberSiteScopeSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -66,7 +67,8 @@ import {
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
   type UpdateBacklogTaskStatusInput,
-  type UpdateMemberRoleInput
+  type UpdateMemberRoleInput,
+  type UpdateMemberSiteScopeInput
 } from "@sccc/shared";
 
 import {
@@ -123,6 +125,7 @@ import {
   updateNotificationReadState as updateDevNotificationReadState,
   updateDeliveryPreference as updateDevDeliveryPreference,
   updateMemberRole as updateDevMemberRole,
+  updateMemberSiteScope as updateDevMemberSiteScope,
   selectGscConnectionProperty as selectDevGscConnectionProperty,
   replaceGscSearchInsights as replaceDevGscSearchInsights,
   upsertGscDailyMetrics as upsertDevGscDailyMetrics,
@@ -344,6 +347,7 @@ type InviteMemberInputWithUser = {
   organizationId: string;
   email: string;
   role: InviteMemberInput["role"];
+  siteScope?: string[];
 };
 
 type UpdateMemberRoleInputWithUser = {
@@ -351,6 +355,13 @@ type UpdateMemberRoleInputWithUser = {
   organizationId: string;
   memberId: string;
   role: UpdateMemberRoleInput["role"];
+};
+
+type UpdateMemberSiteScopeInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  siteScope: string[];
 };
 
 type MemberMutationInputWithUser = {
@@ -582,6 +593,9 @@ type AppRepository = {
   cancelInvite(input: MemberMutationInputWithUser): Promise<OrganizationMemberSummary>;
   acceptInvite(input: AcceptInviteInputWithUser): Promise<OrganizationMemberSummary>;
   updateMemberRole(input: UpdateMemberRoleInputWithUser): Promise<OrganizationMemberSummary>;
+  updateMemberSiteScope(
+    input: UpdateMemberSiteScopeInputWithUser
+  ): Promise<OrganizationMemberSummary>;
 };
 
 export function getAppRepository(): AppRepository {
@@ -761,6 +775,9 @@ const devStoreRepository: AppRepository = {
   },
   async updateMemberRole(input) {
     return updateDevMemberRole(input);
+  },
+  async updateMemberSiteScope(input) {
+    return updateDevMemberSiteScope(input);
   }
 };
 
@@ -801,7 +818,11 @@ const prismaRepository: AppRepository = {
       slug: membership.organization.slug,
       createdAt: membership.organization.createdAt.toISOString(),
       role: membership.role,
-      sites: membership.organization.sites.map(mapSite),
+      siteScope: membership.siteScope,
+      sites: (membership.siteScope.length > 0
+        ? membership.organization.sites.filter((site) => membership.siteScope.includes(site.id))
+        : membership.organization.sites
+      ).map(mapSite),
       activityLogs: membership.organization.activityLogs.map(mapActivityLog)
     }));
   },
@@ -918,6 +939,8 @@ const prismaRepository: AppRepository = {
       },
       include: {
         sites: {
+          where:
+            membership.siteScope.length > 0 ? { id: { in: membership.siteScope } } : undefined,
           orderBy: {
             createdAt: "desc"
           }
@@ -941,6 +964,7 @@ const prismaRepository: AppRepository = {
       slug: organization.slug,
       createdAt: organization.createdAt.toISOString(),
       role: membership.role,
+      siteScope: membership.siteScope,
       sites: organization.sites.map(mapSite),
       activityLogs: organization.activityLogs.map(mapActivityLog)
     };
@@ -1030,7 +1054,7 @@ const prismaRepository: AppRepository = {
   },
 
   async listSitesForOrganization(userId, organizationId) {
-    await requireDbOrganizationAccess({
+    const membership = await requireDbOrganizationAccess({
       userId,
       organizationId,
       permission: "site:read"
@@ -1038,7 +1062,8 @@ const prismaRepository: AppRepository = {
 
     const sites = await prisma.site.findMany({
       where: {
-        organizationId
+        organizationId,
+        ...(membership.siteScope.length > 0 ? { id: { in: membership.siteScope } } : {})
       },
       orderBy: {
         createdAt: "desc"
@@ -1697,6 +1722,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1790,6 +1816,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1827,6 +1854,7 @@ const prismaRepository: AppRepository = {
     const membership = await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1875,6 +1903,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -1938,6 +1967,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -1994,6 +2024,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "integration:manage"
     });
 
@@ -2025,6 +2056,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2056,6 +2088,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -2142,6 +2175,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2202,6 +2236,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -2298,6 +2333,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -2480,6 +2516,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "audit:read"
     });
 
@@ -2519,6 +2556,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "audit:run"
     });
 
@@ -2715,6 +2753,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "audit:read"
     });
 
@@ -2795,6 +2834,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "audit:run"
     });
 
@@ -2850,6 +2890,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2871,6 +2912,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2916,6 +2958,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3044,6 +3087,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
     const existing = await prisma.backlogTask.findFirst({
@@ -3093,6 +3137,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3169,6 +3214,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3327,6 +3373,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3437,6 +3484,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3495,6 +3543,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3589,6 +3638,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3624,6 +3674,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3655,6 +3706,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3707,6 +3759,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "content_operation:preview"
     });
 
@@ -3819,6 +3872,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:preview"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -3923,6 +3977,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:preview"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4005,6 +4060,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4082,6 +4138,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4193,6 +4250,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
 
@@ -4315,6 +4373,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4429,6 +4488,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4652,6 +4712,7 @@ const prismaRepository: AppRepository = {
             userId: invitedUser.id,
             role: parsed.role,
             status: "INVITED",
+            siteScope: parsed.siteScope ?? [],
             invitedEmail: parsed.email,
             inviteTokenHash: invite.tokenHash,
             inviteExpiresAt: invite.expiresAt
@@ -4955,6 +5016,74 @@ const prismaRepository: AppRepository = {
     });
 
     return mapMember(member);
+  },
+
+  async updateMemberSiteScope(input) {
+    const parsed: UpdateMemberSiteScopeInput = updateMemberSiteScopeSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "members:manage"
+    });
+
+    const existing = await prisma.organizationMember.findFirst({
+      where: {
+        id: parsed.memberId,
+        organizationId: parsed.organizationId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MEMBER_NOT_FOUND");
+    }
+
+    if (existing.role === "OWNER") {
+      throw new Error("OWNER_ROLE_IS_PROTECTED");
+    }
+
+    if (parsed.siteScope.length > 0) {
+      const validSiteCount = await prisma.site.count({
+        where: {
+          organizationId: parsed.organizationId,
+          id: { in: parsed.siteScope }
+        }
+      });
+
+      if (validSiteCount !== new Set(parsed.siteScope).size) {
+        throw new Error("SITE_NOT_FOUND");
+      }
+    }
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: parsed.memberId
+        },
+        data: {
+          siteScope: parsed.siteScope
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "member.site_scope_updated",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            siteCount: parsed.siteScope.length
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMember(member);
   }
 };
 
@@ -4979,6 +5108,7 @@ async function requireDbOrganizationAccess(input: {
   userId: string;
   organizationId: string;
   permission: Permission;
+  siteId?: string;
 }) {
   const membership = await prisma.organizationMember.findFirst({
     where: {
@@ -4993,13 +5123,19 @@ async function requireDbOrganizationAccess(input: {
   }
 
   assertPermission(membership.role, input.permission);
+
+  if (input.siteId && membership.siteScope.length > 0 && !membership.siteScope.includes(input.siteId)) {
+    throw new Error("SITE_ACCESS_DENIED");
+  }
+
   return membership;
 }
 
 export async function canAccessOrganization(
   userId: string,
   organizationId: string,
-  permission: Permission
+  permission: Permission,
+  siteId?: string
 ): Promise<boolean> {
   const membership = await prisma.organizationMember.findFirst({
     where: {
@@ -5009,7 +5145,15 @@ export async function canAccessOrganization(
     }
   });
 
-  return membership ? hasPermission(membership.role, permission) : false;
+  if (!membership || !hasPermission(membership.role, permission)) {
+    return false;
+  }
+
+  if (siteId && membership.siteScope.length > 0 && !membership.siteScope.includes(siteId)) {
+    return false;
+  }
+
+  return true;
 }
 
 async function uniqueSlug(baseSlug: string): Promise<string> {
@@ -6540,6 +6684,7 @@ function mapMember(member: {
   userId: string;
   role: OrganizationMemberSummary["role"];
   status: OrganizationMemberSummary["status"];
+  siteScope: string[];
   invitedEmail: string | null;
   inviteExpiresAt?: Date | null;
   inviteAcceptedAt?: Date | null;
@@ -6556,6 +6701,7 @@ function mapMember(member: {
     userId: member.userId,
     role: member.role,
     status: member.status,
+    siteScope: member.siteScope,
     email: member.user.email,
     name: member.user.name,
     invitedEmail: member.invitedEmail,

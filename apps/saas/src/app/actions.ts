@@ -269,11 +269,13 @@ export async function inviteMemberAction(
       "invite-send",
       `${user.id}:${String(formData.get("organizationId") ?? "")}:${String(formData.get("email") ?? "")}`
     );
+    const siteScope = formData.getAll("siteIds").map((value) => String(value));
     const invite = await repository.inviteMember({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
       email: String(formData.get("email") ?? ""),
-      role: String(formData.get("role") ?? "VIEWER") as never
+      role: String(formData.get("role") ?? "VIEWER") as never,
+      siteScope: siteScope.length > 0 ? siteScope : undefined
     });
     const organization = await repository.getOrganizationSummary(
       user.id,
@@ -408,6 +410,29 @@ export async function updateMemberRoleAction(
     });
   } catch (error) {
     return actionError(error, "Could not update member role.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function updateMemberSiteScopeAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await assertServerActionSameOrigin();
+    await repository.updateMemberSiteScope({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      memberId: String(formData.get("memberId") ?? ""),
+      siteScope: formData.getAll("siteIds").map((value) => String(value))
+    });
+  } catch (error) {
+    return actionError(error, "Could not update site access.");
   }
 
   revalidatePath("/");
