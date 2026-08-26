@@ -1,4 +1,11 @@
-import { computeTrafficSignal, crawlUrl, extractSignals, type DailyMetricPoint, type RegressionCandidate } from "@sccc/monitoring";
+import {
+  computeTrafficSignal,
+  crawlUrl,
+  extractSignals,
+  type DailyMetricPoint,
+  type RegressionCandidate,
+  type RegressionEngineEvent
+} from "@sccc/monitoring";
 import { Prisma } from "@prisma/client";
 
 import { deliverWorkspaceAlert } from "../deliverables/live";
@@ -144,11 +151,31 @@ export function buildLiveMonitoringSnapshotDeps(): MonitoringSnapshotDeps {
           id: created.id,
           type: created.type,
           severity: created.severity,
-          title: created.title
+          title: created.title,
+          occurredAt: created.occurredAt.toISOString()
         });
       }
 
       return persisted;
+    },
+    async getRecentWordPressEvents(siteId, since): Promise<RegressionEngineEvent[]> {
+      const prisma = await getPrisma();
+      const events = await prisma.event.findMany({
+        where: {
+          siteId,
+          source: "WORDPRESS",
+          occurredAt: { gte: since }
+        },
+        orderBy: { occurredAt: "desc" }
+      });
+
+      return events.map((event) => ({
+        id: event.id,
+        type: event.type,
+        severity: event.severity,
+        title: event.title,
+        occurredAt: event.occurredAt.toISOString()
+      }));
     },
     async getSiteTrafficSignal(siteId) {
       const prisma = await getPrisma();

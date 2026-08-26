@@ -1854,7 +1854,8 @@ async function captureDevSnapshot(input: {
   const candidates = detectRegressions({
     monitoredUrlId: input.monitoredUrlId,
     events: persistedEvents,
-    siteTraffic: buildDevSiteTrafficSignal(store, input.siteId)
+    siteTraffic: buildDevSiteTrafficSignal(store, input.siteId),
+    recentWordPressEvents: buildDevRecentWordPressEvents(store, input.siteId, timestamp)
   });
 
   for (const candidate of candidates) {
@@ -1924,6 +1925,34 @@ function buildDevSiteTrafficSignal(store: DevStoreState, siteId: string) {
   }));
 
   return computeTrafficSignal(points);
+}
+
+const devWordPressChangeLookbackDays = 3;
+
+function buildDevRecentWordPressEvents(
+  store: DevStoreState,
+  siteId: string,
+  before: string
+): Array<{ id: string; type: string; severity: TimelineEvent["severity"]; title: string; occurredAt: string }> {
+  const since = new Date(
+    new Date(before).getTime() - devWordPressChangeLookbackDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  return store.events
+    .filter(
+      (event) =>
+        event.siteId === siteId &&
+        event.source === "WORDPRESS" &&
+        event.occurredAt >= since &&
+        event.occurredAt <= before
+    )
+    .map((event) => ({
+      id: event.id,
+      type: event.type,
+      severity: event.severity,
+      title: event.title,
+      occurredAt: event.occurredAt
+    }));
 }
 
 export function listMonitoredUrlsForSite(

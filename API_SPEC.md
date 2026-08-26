@@ -1954,7 +1954,7 @@ Response:
 
 `GET /api/organizations/:organizationId/sites/:siteId/regressions`
 
-Returns deterministic regression correlations for a site when the member has `monitoring:read`. A regression links one or more `Event` rows that a rule matched (a page becoming noindex, an HTTP 200→404 transition, GA4/GTM disappearing, or a canonical change correlated with a Search Console click-drop on the site) and always states the cause as a possibility, not a proven one.
+Returns deterministic regression correlations for a site when the member has `monitoring:read`. A regression links one or more `Event` rows that a rule matched (a page becoming noindex, an HTTP 200→404 transition, GA4/GTM disappearing, a canonical change correlated with a Search Console click-drop on the site, or a WordPress plugin/theme/core change within the preceding 3 days of any of the other regression-worthy events) and always states the cause as a possibility, not a proven one.
 
 Query parameters:
 

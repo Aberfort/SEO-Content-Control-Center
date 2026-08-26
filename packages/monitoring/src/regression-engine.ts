@@ -6,12 +6,21 @@ export type RegressionEngineEvent = {
   type: string;
   severity: EventSeverity;
   title: string;
+  occurredAt: string;
 };
 
 export type RegressionEngineInput = {
   monitoredUrlId: string | null;
   events: RegressionEngineEvent[];
   siteTraffic: TrafficSignal | null;
+  /**
+   * WordPress-originated events (plugin/theme/core changes) on the same site
+   * within the lookback window before now, sorted or unsorted — used to
+   * correlate a preceding WordPress change with a following crawler-detected
+   * regression (brief rule: "plugin/theme update followed shortly by a
+   * regression").
+   */
+  recentWordPressEvents: RegressionEngineEvent[];
 };
 
 export type RegressionCandidate = {
@@ -112,12 +121,72 @@ const canonicalTrafficRule: RegressionRule = (input) => {
   };
 };
 
+const regressionEventTypes = new Set([
+  "canonical_changed",
+  "robots_changed",
+  "page_became_noindex",
+  "http_status_changed",
+  "page_became_404",
+  "ga4_missing",
+  "gtm_missing"
+]);
+
+const wordPressChangeEventTypes = new Set([
+  "plugin_installed",
+  "plugin_activated",
+  "plugin_updated",
+  "theme_activated",
+  "theme_updated",
+  "wordpress_core_updated"
+]);
+
+const wordPressChangeRule: RegressionRule = (input) => {
+  const regressionEvent = input.events.find((candidate) => regressionEventTypes.has(candidate.type));
+
+  if (!regressionEvent) {
+    return null;
+  }
+
+  const precedingWordPressEvents = input.recentWordPressEvents
+    .filter(
+      (candidate) =>
+        wordPressChangeEventTypes.has(candidate.type) &&
+        candidate.occurredAt <= regressionEvent.occurredAt
+    )
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+  const wordPressEvent = precedingWordPressEvents[0];
+
+  if (!wordPressEvent) {
+    return null;
+  }
+
+  return {
+    fingerprint: fingerprintFor(
+      input.monitoredUrlId,
+      "wordpress_change",
+      `${wordPressEvent.id}:${regressionEvent.id}`
+    ),
+    severity: regressionEvent.severity === "CRITICAL" ? "CRITICAL" : "WARNING",
+    title: "Possible SEO regression",
+    summary: `${wordPressEvent.title} shortly before "${regressionEvent.title}". This may be related — a possible cause, not confirmed causation.`,
+    eventIds: [wordPressEvent.id, regressionEvent.id],
+    metrics: null
+  };
+};
+
 /**
  * Ordered list of deterministic regression rules. Add new rules here — each
  * rule is a pure function of the newly detected events (plus an optional
- * site traffic signal) and returns at most one candidate.
+ * site traffic signal and recent WordPress events) and returns at most one
+ * candidate.
  */
-const rules: RegressionRule[] = [noindexRule, notFoundRule, trackingLostRule, canonicalTrafficRule];
+const rules: RegressionRule[] = [
+  noindexRule,
+  notFoundRule,
+  trackingLostRule,
+  canonicalTrafficRule,
+  wordPressChangeRule
+];
 
 export function detectRegressions(input: RegressionEngineInput): RegressionCandidate[] {
   return rules

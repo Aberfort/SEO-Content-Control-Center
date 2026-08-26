@@ -57,11 +57,15 @@ function createDeps(overrides: Partial<MonitoringSnapshotDeps> = {}): {
         id: randomUUID(),
         type: event.type,
         severity: event.severity,
-        title: event.title
+        title: event.title,
+        occurredAt: "2026-08-26T12:00:00.000Z"
       }));
     },
     async getSiteTrafficSignal() {
       return null;
+    },
+    async getRecentWordPressEvents() {
+      return [];
     },
     async saveRegressions(input) {
       calls.savedRegressions.push(input);
@@ -173,6 +177,74 @@ describe("createMonitoringCreateSnapshotHandler", () => {
     };
     expect(regressionCall.monitoredUrlId).toBe(jobData.monitoredUrlId);
     expect(regressionCall.candidates[0]?.title).toBe("Page started returning HTTP 404");
+  });
+
+  it("links a recent WordPress plugin update to a newly detected regression", async () => {
+    const { deps, calls } = createDeps({
+      async getLatestSnapshot() {
+        return {
+          httpStatus: 200,
+          finalUrl: "https://example.com/page/",
+          responseTimeMs: 250,
+          title: "Hello",
+          metaDescription: null,
+          h1: null,
+          canonical: "https://example.com/page/",
+          metaRobots: "index,follow",
+          xRobotsTag: null,
+          hasStructuredData: false,
+          hasGa4: true,
+          hasGtm: true,
+          contentHash: "hash-1",
+          htmlHash: "html-0"
+        };
+      },
+      async crawl() {
+        return {
+          finalUrl: "https://example.com/page/",
+          httpStatus: 200,
+          responseTimeMs: 250,
+          xRobotsTag: null,
+          html: '<html><head><title>Hello</title><link rel="canonical" href="https://example.com/other/"></head><body>Hi</body></html>'
+        };
+      },
+      extract() {
+        return {
+          title: "Hello",
+          metaDescription: null,
+          h1: null,
+          canonical: "https://example.com/other/",
+          metaRobots: "index,follow",
+          hasStructuredData: false,
+          hasGa4: true,
+          hasGtm: true,
+          contentHash: "hash-1",
+          htmlHash: "html-1"
+        };
+      },
+      async getRecentWordPressEvents() {
+        return [
+          {
+            id: "wp-evt-1",
+            type: "plugin_updated",
+            severity: "INFO",
+            title: "Yoast SEO updated from 25.1 to 25.2",
+            occurredAt: "2026-08-24T08:00:00.000Z"
+          }
+        ];
+      }
+    });
+    const handler = createMonitoringCreateSnapshotHandler(deps);
+
+    const result = await handler({ id: "job-11", name: "monitoring.create-snapshot", data: jobData });
+
+    expect(result).toEqual({ isBaseline: false, eventCount: 1, regressionCount: 1 });
+    const regressionCall = calls.savedRegressions[0] as {
+      candidates: Array<{ fingerprint: string; eventIds: string[] }>;
+    };
+    expect(
+      regressionCall.candidates.some((candidate) => candidate.fingerprint.includes("wordpress_change"))
+    ).toBe(true);
   });
 
   it("does not call the traffic signal or regression save when no events were detected", async () => {

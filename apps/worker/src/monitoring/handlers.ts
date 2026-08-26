@@ -7,6 +7,7 @@ import {
   type EventSeverity,
   type ExtractedSignals,
   type RegressionCandidate,
+  type RegressionEngineEvent,
   type SnapshotFields,
   type TrafficSignal
 } from "@sccc/monitoring";
@@ -30,7 +31,16 @@ export type PersistedEvent = {
   type: string;
   severity: EventSeverity;
   title: string;
+  occurredAt: string;
 };
+
+/**
+ * How far back to look for a WordPress plugin/theme/core change that might
+ * explain a following crawler-detected regression (brief rule: "plugin/theme
+ * update followed shortly by a regression" — matches the brief's own 2-3 day
+ * example window).
+ */
+export const wordPressChangeLookbackDays = 3;
 
 export type MonitoringSnapshotDeps = {
   loadMonitoredUrl(
@@ -55,6 +65,7 @@ export type MonitoringSnapshotDeps = {
     events: DetectedEvent[];
   }): Promise<PersistedEvent[]>;
   getSiteTrafficSignal(siteId: string): Promise<TrafficSignal | null>;
+  getRecentWordPressEvents(siteId: string, since: Date): Promise<RegressionEngineEvent[]>;
   saveRegressions(input: {
     organizationId: string;
     siteId: string;
@@ -131,11 +142,16 @@ export function createMonitoringCreateSnapshotHandler(deps: MonitoringSnapshotDe
     let regressionCount = 0;
 
     if (persistedEvents.length > 0) {
-      const siteTraffic = await deps.getSiteTrafficSignal(data.siteId);
+      const since = new Date(Date.now() - wordPressChangeLookbackDays * 24 * 60 * 60 * 1000);
+      const [siteTraffic, recentWordPressEvents] = await Promise.all([
+        deps.getSiteTrafficSignal(data.siteId),
+        deps.getRecentWordPressEvents(data.siteId, since)
+      ]);
       const candidates = detectRegressions({
         monitoredUrlId: data.monitoredUrlId,
         events: persistedEvents,
-        siteTraffic
+        siteTraffic,
+        recentWordPressEvents
       });
 
       if (candidates.length > 0) {
