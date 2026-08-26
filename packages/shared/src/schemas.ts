@@ -365,6 +365,20 @@ export const bulkOperationStartSchema = z.object({
   operationId: z.string().uuid()
 });
 
+export const requestOperationApprovalSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  approverEmail: authEmailSchema
+});
+
+export const operationApprovalTokenSchema = z.string().trim().min(32).max(256);
+
+export const respondToOperationApprovalSchema = z.object({
+  token: operationApprovalTokenSchema,
+  decision: z.enum(["APPROVED", "DECLINED"])
+});
+
 export const bulkOperationResultStatusSchema = z.enum(["COMPLETED", "FAILED"]);
 
 export const bulkOperationResultItemSchema = z.object({
@@ -479,6 +493,8 @@ export type BacklogTaskOutcomeUpdateInput = z.infer<typeof backlogTaskOutcomeUpd
 export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
+export type RequestOperationApprovalInput = z.infer<typeof requestOperationApprovalSchema>;
+export type RespondToOperationApprovalInput = z.infer<typeof respondToOperationApprovalSchema>;
 export type BulkOperationResultInput = z.infer<typeof bulkOperationResultSchema>;
 export type BulkOperationRollbackInput = z.infer<typeof bulkOperationRollbackSchema>;
 export type BulkOperationRetryInput = z.infer<typeof bulkOperationRetrySchema>;

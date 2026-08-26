@@ -1143,6 +1143,148 @@ describe("app repository", () => {
     });
   });
 
+  it("requests, approves, and declines a client operation approval without a login", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Client Approval Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Client Approval Site",
+      url: "https://client-approval.example.com"
+    });
+    const now = new Date().toISOString();
+
+    const makeTask = (id: string, title: string) => ({
+      id,
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: null,
+      title,
+      url: "https://client-approval.example.com/page",
+      issueType: "missing_meta_title",
+      status: "TODO" as const,
+      severity: "HIGH" as const,
+      potentialImpact: "Search snippets can underperform.",
+      effortEstimate: 2,
+      assigneeId: null,
+      dueDate: null,
+      tags: ["test"],
+      createdAt: now,
+      updatedAt: now,
+      comments: [],
+      activityLogs: []
+    });
+
+    const taskA = makeTask("00000000-0000-4000-8000-000000000501", "Approve me");
+    getDevStore().backlogTasks.push(taskA);
+
+    const previewA = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: taskA.id
+    });
+    const dryRunA = await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: previewA.id
+    });
+
+    expect(dryRunA.status).toBe("DRY_RUN_PASSED");
+
+    const { approval, emailDelivery } = await repository.requestOperationApproval({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: dryRunA.id,
+      approverEmail: "client@example.com"
+    });
+
+    expect(approval.status).toBe("PENDING");
+    expect(approval.approverEmail).toBe("client@example.com");
+    expect(approval.approveUrl).toContain("/approve/");
+    expect(emailDelivery.status).toBe("skipped");
+
+    const token = approval.approveUrl!.split("/approve/")[1]!;
+    const publicView = await repository.getPublicOperationApproval(token);
+
+    expect(publicView).toMatchObject({
+      status: "PENDING",
+      siteName: "Client Approval Site",
+      siteUrl: "https://client-approval.example.com/",
+      itemCount: 1
+    });
+
+    const approved = await repository.respondToOperationApproval({
+      token,
+      decision: "APPROVED"
+    });
+
+    expect(approved.status).toBe("APPROVED");
+
+    const confirmedOperation = (
+      await repository.listBulkOperationsForSite(user.id, organization.id, site.id, { limit: 5 })
+    ).find((operation) => operation.id === dryRunA.id);
+
+    expect(confirmedOperation?.status).toBe("CONFIRMED");
+    expect(confirmedOperation?.approval).toMatchObject({
+      status: "APPROVED",
+      approverEmail: "client@example.com"
+    });
+
+    await expect(
+      repository.respondToOperationApproval({ token, decision: "APPROVED" })
+    ).rejects.toThrow("OPERATION_APPROVAL_ALREADY_RESOLVED");
+
+    const activityActions = (
+      await repository.listActivityLogsForOrganization(user.id, organization.id)
+    ).map((log) => log.action);
+    expect(activityActions).toEqual(
+      expect.arrayContaining(["bulk_operation.approval_requested", "bulk_operation.confirmed"])
+    );
+
+    const taskB = makeTask("00000000-0000-4000-8000-000000000502", "Decline me");
+    getDevStore().backlogTasks.push(taskB);
+
+    const previewB = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: taskB.id
+    });
+    const dryRunB = await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: previewB.id
+    });
+    const declineRequest = await repository.requestOperationApproval({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: dryRunB.id,
+      approverEmail: "client@example.com"
+    });
+    const declineToken = declineRequest.approval.approveUrl!.split("/approve/")[1]!;
+
+    const declined = await repository.respondToOperationApproval({
+      token: declineToken,
+      decision: "DECLINED"
+    });
+
+    expect(declined.status).toBe("DECLINED");
+
+    const stillPendingOperation = (
+      await repository.listBulkOperationsForSite(user.id, organization.id, site.id, { limit: 5 })
+    ).find((operation) => operation.id === dryRunB.id);
+
+    expect(stillPendingOperation?.status).toBe("DRY_RUN_PASSED");
+  });
+
   it("rolls back a finished bulk operation without inline writes", async () => {
     const repository = getAppRepository();
     const organization = await repository.createOrganization({

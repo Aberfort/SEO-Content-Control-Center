@@ -27,7 +27,9 @@ import {
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  requestOperationApprovalSchema,
   resolveCommercialAccess,
+  respondToOperationApprovalSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
@@ -57,6 +59,8 @@ import {
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RequestOperationApprovalInput,
+  type RespondToOperationApprovalInput,
   type Role,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
@@ -65,7 +69,13 @@ import {
   type UpdateMemberSiteScopeInput
 } from "@sccc/shared";
 
+import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
+import {
+  buildOperationApprovalUrl,
+  createOperationApprovalToken,
+  hashOperationApprovalToken
+} from "./operation-approval-token";
 import type {
   ActivityLog,
   AppUser,
@@ -111,6 +121,9 @@ import type {
   OrganizationMember,
   OrganizationMemberSummary,
   OrganizationSummary,
+  OperationApprovalStatus,
+  OperationApprovalSummary,
+  PublicOperationApproval,
   Site,
   SyncedContentItem,
   SyncedContentList,
@@ -168,6 +181,7 @@ type DevStoreState = {
   backlogComments: BacklogTaskComment[];
   bulkOperations: BulkOperation[];
   bulkOperationItems: BulkOperationItem[];
+  operationApprovals: StoreOperationApproval[];
   activityLogs: ActivityLog[];
   notifications: Notification[];
   deliveryPreferences: DeliveryPreference[];
@@ -183,6 +197,19 @@ type StoreOrganizationMember = OrganizationMember & {
 
 type StoreGscConnection = GscConnectionSummary & {
   encryptedRefreshToken: string;
+};
+
+type StoreOperationApproval = {
+  id: string;
+  bulkOperationId: string;
+  organizationId: string;
+  tokenHash: string;
+  status: OperationApprovalStatus;
+  approverEmail: string;
+  requestedByUserId: string;
+  expiresAt: string;
+  respondedAt: string | null;
+  createdAt: string;
 };
 
 type CreateOrganizationInput = {
@@ -284,6 +311,7 @@ function initialState(): DevStoreState {
     backlogComments: [],
     bulkOperations: [],
     bulkOperationItems: [],
+    operationApprovals: [],
     activityLogs: [],
     notifications: [],
     deliveryPreferences: [],
@@ -3015,6 +3043,260 @@ export function retryBulkOperation(
   return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
+export async function requestOperationApproval(
+  input: RequestOperationApprovalInput & { user: AppUser }
+): Promise<{ approval: OperationApprovalSummary; emailDelivery: EmailDeliveryStatus }> {
+  const parsed = requestOperationApprovalSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "DRY_RUN_PASSED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const site = store.sites.find((candidate) => candidate.id === parsed.siteId);
+  const organization = store.organizations.find(
+    (candidate) => candidate.id === parsed.organizationId
+  );
+
+  if (!site || !organization) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  for (const existing of store.operationApprovals) {
+    if (existing.bulkOperationId === operation.id && existing.status === "PENDING") {
+      existing.status = "EXPIRED";
+    }
+  }
+
+  const issued = createOperationApprovalToken();
+  const timestamp = nowIso();
+  const record: StoreOperationApproval = {
+    id: randomUUID(),
+    bulkOperationId: operation.id,
+    organizationId: parsed.organizationId,
+    tokenHash: issued.tokenHash,
+    status: "PENDING",
+    approverEmail: parsed.approverEmail,
+    requestedByUserId: input.user.id,
+    expiresAt: issued.expiresAt.toISOString(),
+    respondedAt: null,
+    createdAt: timestamp
+  };
+  store.operationApprovals.push(record);
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.approval_requested",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      approverEmail: parsed.approverEmail
+    }
+  });
+
+  const approveUrl = buildOperationApprovalUrl(issued.token);
+  const emailDelivery = await sendWorkspaceAlertEmail({
+    to: parsed.approverEmail,
+    organizationName: organization.name,
+    title: `Review requested: ${operation.type.replaceAll("_", " ").toLowerCase()}`,
+    body: `${input.user.email} is requesting your approval to apply a safe operation on ${site.name} (${site.url}). Review the details and approve or decline before anything changes.`,
+    actionUrl: approveUrl
+  });
+
+  return { approval: mapOperationApprovalSummary(record, approveUrl), emailDelivery };
+}
+
+export function getPublicOperationApproval(token: string): PublicOperationApproval | null {
+  const store = getDevStore();
+  const tokenHash = hashOperationApprovalToken(token);
+  const approval = store.operationApprovals.find((candidate) => candidate.tokenHash === tokenHash);
+
+  if (!approval) {
+    return null;
+  }
+
+  const effectiveStatus =
+    approval.status === "PENDING" && new Date(approval.expiresAt).getTime() < Date.now()
+      ? "EXPIRED"
+      : approval.status;
+
+  return buildPublicOperationApproval(approval, effectiveStatus, store);
+}
+
+export function respondToOperationApproval(
+  input: RespondToOperationApprovalInput
+): PublicOperationApproval {
+  const parsed = respondToOperationApprovalSchema.parse(input);
+  const store = getDevStore();
+  const tokenHash = hashOperationApprovalToken(parsed.token);
+  const approval = store.operationApprovals.find((candidate) => candidate.tokenHash === tokenHash);
+
+  if (!approval) {
+    throw new Error("OPERATION_APPROVAL_NOT_FOUND");
+  }
+
+  if (approval.status !== "PENDING") {
+    throw new Error("OPERATION_APPROVAL_ALREADY_RESOLVED");
+  }
+
+  if (new Date(approval.expiresAt).getTime() < Date.now()) {
+    approval.status = "EXPIRED";
+    throw new Error("OPERATION_APPROVAL_EXPIRED");
+  }
+
+  const operation = store.bulkOperations.find(
+    (candidate) => candidate.id === approval.bulkOperationId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "DRY_RUN_PASSED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const timestamp = nowIso();
+
+  if (parsed.decision === "APPROVED") {
+    const items = store.bulkOperationItems.filter(
+      (item) => item.bulkOperationId === operation.id
+    );
+
+    operation.status = "CONFIRMED";
+    operation.confirmedAt = timestamp;
+    operation.updatedAt = timestamp;
+
+    for (const item of items) {
+      item.status = "CONFIRMED";
+      item.error = null;
+      item.updatedAt = timestamp;
+    }
+
+    operation.items = items;
+    writeActivityLog({
+      organizationId: operation.organizationId,
+      userId: null,
+      action: "bulk_operation.confirmed",
+      entityType: "BulkOperation",
+      entityId: operation.id,
+      metadata: {
+        siteId: operation.siteId,
+        type: operation.type,
+        itemCount: items.length,
+        noMutation: true,
+        viaClientApproval: true,
+        approvalId: approval.id
+      }
+    });
+  } else {
+    writeActivityLog({
+      organizationId: operation.organizationId,
+      userId: null,
+      action: "bulk_operation.approval_declined",
+      entityType: "BulkOperation",
+      entityId: operation.id,
+      metadata: {
+        siteId: operation.siteId,
+        approvalId: approval.id
+      }
+    });
+  }
+
+  approval.status = parsed.decision;
+  approval.respondedAt = timestamp;
+
+  return buildPublicOperationApproval(approval, approval.status, store);
+}
+
+function mapOperationApprovalSummary(
+  approval: StoreOperationApproval,
+  approveUrl: string | null
+): OperationApprovalSummary {
+  return {
+    id: approval.id,
+    status: approval.status,
+    approverEmail: approval.approverEmail,
+    approveUrl,
+    expiresAt: approval.expiresAt,
+    respondedAt: approval.respondedAt,
+    createdAt: approval.createdAt
+  };
+}
+
+function buildPublicOperationApproval(
+  approval: StoreOperationApproval,
+  status: OperationApprovalStatus,
+  store: DevStoreState
+): PublicOperationApproval {
+  const operation = store.bulkOperations.find(
+    (candidate) => candidate.id === approval.bulkOperationId
+  );
+  const site = operation ? store.sites.find((candidate) => candidate.id === operation.siteId) : undefined;
+  const organization = store.organizations.find(
+    (candidate) => candidate.id === approval.organizationId
+  );
+
+  return {
+    status,
+    expiresAt: approval.expiresAt,
+    organizationName: organization?.name ?? "",
+    siteName: site?.name ?? "",
+    siteUrl: site?.url ?? "",
+    operationType: operation?.type ?? "",
+    itemCount: operation?.items.length ?? 0,
+    previewSummary: summarizePreviewForApprovalDev(operation?.preview),
+    dryRunSummary: summarizeDryRunForApprovalDev(operation?.dryRunResult)
+  };
+}
+
+function summarizePreviewForApprovalDev(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const summary = (value as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary : null;
+}
+
+function summarizeDryRunForApprovalDev(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const result = value as {
+    status?: unknown;
+    passedItems?: unknown;
+    failedItems?: unknown;
+    noMutation?: unknown;
+  };
+  const status = typeof result.status === "string" ? result.status : "passed";
+  const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
+  const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
+  const writeState =
+    result.noMutation === true ? "no WordPress writes" : "WordPress writes deferred";
+
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
+}
+
 function withBulkOperationDerivedFields(
   operation: BulkOperation,
   activityLogs: ActivityLog[]
@@ -3033,6 +3315,11 @@ function withBulkOperationDerivedFields(
     .map((log) => readBulkOperationRetryModeFromMetadata(log.metadata))
     .find((retryMode): retryMode is BulkOperationRetryMode => retryMode !== null);
 
+  const store = getDevStore();
+  const latestApproval = store.operationApprovals
+    .filter((approval) => approval.bulkOperationId === operation.id)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+
   return {
     ...operation,
     retryMode: inferBulkOperationRetryMode({
@@ -3041,7 +3328,20 @@ function withBulkOperationDerivedFields(
       latestRetryMode,
       items: operation.items
     }),
-    itemStatusSummary: summarizeBulkOperationItemStatuses(operation.items)
+    itemStatusSummary: summarizeBulkOperationItemStatuses(operation.items),
+    approval: latestApproval
+      ? mapOperationApprovalSummary(
+          {
+            ...latestApproval,
+            status:
+              latestApproval.status === "PENDING" &&
+              new Date(latestApproval.expiresAt).getTime() < Date.now()
+                ? "EXPIRED"
+                : latestApproval.status
+          },
+          null
+        )
+      : null
   };
 }
 

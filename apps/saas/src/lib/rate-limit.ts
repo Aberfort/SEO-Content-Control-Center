@@ -6,6 +6,8 @@ export type RateLimitPolicy =
   | "invite-accept"
   | "invite-send"
   | "bulk-operation"
+  | "operation-approval-request"
+  | "operation-approval-respond"
   | "plugin-challenge"
   | "plugin-exchange"
   | "plugin-sync"
@@ -65,6 +67,14 @@ const rateLimitPolicies = {
   },
   "bulk-operation": {
     limit: 120,
+    windowMs: 1000 * 60 * 15
+  },
+  "operation-approval-request": {
+    limit: 30,
+    windowMs: 1000 * 60 * 60
+  },
+  "operation-approval-respond": {
+    limit: 20,
     windowMs: 1000 * 60 * 15
   },
   "plugin-challenge": {

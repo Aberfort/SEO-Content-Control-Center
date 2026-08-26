@@ -109,6 +109,7 @@ model User {
   assignedTasks  BacklogTask[]        @relation("AssignedTasks")
   activityLogs   ActivityLog[]
   deliveryPreferences DeliveryPreference[]
+  requestedOperationApprovals OperationApproval[]
 }
 
 model Session {
@@ -445,8 +446,32 @@ model BulkOperation {
   updatedAt      DateTime            @updatedAt
   site           Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
   items          BulkOperationItem[]
+  approvals      OperationApproval[]
 
   @@index([organizationId, siteId, status])
+}
+
+enum OperationApprovalStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  EXPIRED
+}
+
+model OperationApproval {
+  id                String                   @id @default(uuid())
+  bulkOperationId   String
+  tokenHash         String                   @unique
+  status            OperationApprovalStatus  @default(PENDING)
+  approverEmail     String?
+  requestedByUserId String?
+  respondedAt       DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime                 @default(now())
+  bulkOperation     BulkOperation            @relation(fields: [bulkOperationId], references: [id], onDelete: Cascade)
+  requestedBy       User?                    @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([bulkOperationId])
 }
 
 model BulkOperationItem {

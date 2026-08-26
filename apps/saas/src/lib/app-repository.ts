@@ -30,7 +30,9 @@ import {
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  requestOperationApprovalSchema,
   resolveCommercialAccess,
+  respondToOperationApprovalSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
@@ -63,6 +65,8 @@ import {
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RequestOperationApprovalInput,
+  type RespondToOperationApprovalInput,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
@@ -97,6 +101,9 @@ import {
   confirmBulkOperation as confirmDevBulkOperation,
   finishBulkOperation as finishDevBulkOperation,
   retryBulkOperation as retryDevBulkOperation,
+  requestOperationApproval as requestDevOperationApproval,
+  getPublicOperationApproval as getDevPublicOperationApproval,
+  respondToOperationApproval as respondToDevOperationApproval,
   rollbackBulkOperation as rollbackDevBulkOperation,
   runBulkOperationDryRun as runDevBulkOperationDryRun,
   startBulkOperation as startDevBulkOperation,
@@ -177,7 +184,7 @@ import {
   sortBillingPlans
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
-import { sendWorkspaceAlertEmail } from "./email";
+import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import {
   aiCreditLimitNotificationType,
@@ -211,6 +218,11 @@ import {
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import { trackAnalyticsEvent } from "./observability";
+import {
+  buildOperationApprovalUrl,
+  createOperationApprovalToken,
+  hashOperationApprovalToken
+} from "./operation-approval-token";
 import type {
   ActivityLog,
   AppUser,
@@ -254,8 +266,10 @@ import type {
   NotificationBulkUpdateResult,
   Notification,
   NotificationListOptions,
+  OperationApprovalSummary,
   OrganizationMemberSummary,
   OrganizationSummary,
+  PublicOperationApproval,
   Site,
   SyncedContentBacklogCandidate,
   SyncedContentList,
@@ -339,6 +353,10 @@ type RollbackBulkOperationInput = BulkOperationRollbackInput & {
 };
 
 type RetryBulkOperationInput = BulkOperationRetryInput & {
+  user: AppUser;
+};
+
+type RequestOperationApprovalInputWithUser = RequestOperationApprovalInput & {
   user: AppUser;
 };
 
@@ -584,6 +602,14 @@ type AppRepository = {
   finishBulkOperation(input: FinishBulkOperationInput): Promise<BulkOperation>;
   rollbackBulkOperation(input: RollbackBulkOperationInput): Promise<BulkOperation>;
   retryBulkOperation(input: RetryBulkOperationInput): Promise<BulkOperation>;
+  requestOperationApproval(input: RequestOperationApprovalInputWithUser): Promise<{
+    approval: OperationApprovalSummary;
+    emailDelivery: EmailDeliveryStatus;
+  }>;
+  getPublicOperationApproval(token: string): Promise<PublicOperationApproval | null>;
+  respondToOperationApproval(
+    input: RespondToOperationApprovalInput
+  ): Promise<PublicOperationApproval>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -757,6 +783,15 @@ const devStoreRepository: AppRepository = {
   },
   async retryBulkOperation(input) {
     return retryDevBulkOperation(input);
+  },
+  async requestOperationApproval(input) {
+    return requestDevOperationApproval(input);
+  },
+  async getPublicOperationApproval(token) {
+    return getDevPublicOperationApproval(token);
+  },
+  async respondToOperationApproval(input) {
+    return respondToDevOperationApproval(input);
   },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
@@ -3854,17 +3889,50 @@ const prismaRepository: AppRepository = {
       }
     }
 
-    return operations.map((operation) =>
-      mapBulkOperation(
+    const approvals =
+      operationIds.length > 0
+        ? await prisma.operationApproval.findMany({
+            where: {
+              bulkOperationId: { in: operationIds }
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          })
+        : [];
+    const latestApprovalByOperationId = new Map<string, (typeof approvals)[number]>();
+
+    for (const approval of approvals) {
+      if (!latestApprovalByOperationId.has(approval.bulkOperationId)) {
+        latestApprovalByOperationId.set(approval.bulkOperationId, approval);
+      }
+    }
+
+    return operations.map((operation) => {
+      const approval = latestApprovalByOperationId.get(operation.id);
+
+      return mapBulkOperation(
         operation,
         inferBulkOperationRetryMode({
           status: operation.status,
           hasRollbackLifecycle: rollbackOperationIds.has(operation.id),
           latestRetryMode: retryModeByOperationId.get(operation.id),
           items: operation.items
-        })
-      )
-    );
+        }),
+        approval
+          ? mapOperationApproval(
+              {
+                ...approval,
+                status:
+                  approval.status === "PENDING" && approval.expiresAt.getTime() < Date.now()
+                    ? "EXPIRED"
+                    : approval.status
+              },
+              null
+            )
+          : null
+      );
+    });
   },
 
   async createBulkOperationPreview(input) {
@@ -4084,50 +4152,8 @@ const prismaRepository: AppRepository = {
       throw new Error("BULK_OPERATION_NOT_READY");
     }
 
-    const operation = await prisma.$transaction(async (tx) => {
-      await tx.bulkOperationItem.updateMany({
-        where: {
-          bulkOperationId: existing.id
-        },
-        data: {
-          status: "CONFIRMED",
-          error: null
-        }
-      });
-      const updated = await tx.bulkOperation.update({
-        where: {
-          id: existing.id
-        },
-        data: {
-          status: "CONFIRMED",
-          confirmedAt: new Date()
-        },
-        include: {
-          items: {
-            orderBy: {
-              createdAt: "asc"
-            }
-          }
-        }
-      });
-
-      await tx.activityLog.create({
-        data: {
-          organizationId: parsed.organizationId,
-          userId: input.user.id,
-          action: "bulk_operation.confirmed",
-          entityType: "BulkOperation",
-          entityId: updated.id,
-          metadata: {
-            siteId: parsed.siteId,
-            type: updated.type,
-            itemCount: updated.items.length,
-            noMutation: true
-          }
-        }
-      });
-
-      return updated;
+    const operation = await applyBulkOperationConfirmedTransition(existing, input.user.id, {
+      siteId: parsed.siteId
     });
 
     return mapBulkOperation(operation);
@@ -4629,6 +4655,201 @@ const prismaRepository: AppRepository = {
     return mapBulkOperation(operation, retryMode);
   },
 
+  async requestOperationApproval(input) {
+    const parsed: RequestOperationApprovalInput = requestOperationApprovalSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "content_operation:confirm"
+    });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
+
+    const operation = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        site: true
+      }
+    });
+
+    if (!operation) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (operation.status !== "DRY_RUN_PASSED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const organization = await prisma.organization.findUnique({
+      where: { id: parsed.organizationId }
+    });
+
+    if (!organization) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
+
+    const issued = createOperationApprovalToken();
+
+    const approval = await prisma.$transaction(async (tx) => {
+      await tx.operationApproval.updateMany({
+        where: {
+          bulkOperationId: operation.id,
+          status: "PENDING"
+        },
+        data: {
+          status: "EXPIRED"
+        }
+      });
+
+      const created = await tx.operationApproval.create({
+        data: {
+          bulkOperationId: operation.id,
+          tokenHash: issued.tokenHash,
+          approverEmail: parsed.approverEmail ?? null,
+          requestedByUserId: input.user.id,
+          expiresAt: issued.expiresAt
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.approval_requested",
+          entityType: "BulkOperation",
+          entityId: operation.id,
+          metadata: {
+            siteId: parsed.siteId,
+            approverEmail: parsed.approverEmail ?? null
+          }
+        }
+      });
+
+      return created;
+    });
+
+    const approveUrl = buildOperationApprovalUrl(issued.token);
+    const emailDelivery = await sendWorkspaceAlertEmail({
+      to: parsed.approverEmail,
+      organizationName: organization.name,
+      title: `Review requested: ${operation.type.replaceAll("_", " ").toLowerCase()}`,
+      body: `${input.user.email} is requesting your approval to apply a safe operation on ${operation.site.name} (${operation.site.url}). Review the details and approve or decline before anything changes.`,
+      actionUrl: approveUrl
+    });
+
+    return { approval: mapOperationApproval(approval, approveUrl), emailDelivery };
+  },
+
+  async getPublicOperationApproval(token) {
+    const tokenHash = hashOperationApprovalToken(token);
+    const approval = await prisma.operationApproval.findUnique({
+      where: { tokenHash },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    if (!approval) {
+      return null;
+    }
+
+    const effectiveStatus =
+      approval.status === "PENDING" && approval.expiresAt.getTime() < Date.now()
+        ? "EXPIRED"
+        : approval.status;
+
+    return mapPublicOperationApproval(approval, effectiveStatus);
+  },
+
+  async respondToOperationApproval(input) {
+    const parsed: RespondToOperationApprovalInput =
+      respondToOperationApprovalSchema.parse(input);
+    const tokenHash = hashOperationApprovalToken(parsed.token);
+
+    const approval = await prisma.operationApproval.findUnique({
+      where: { tokenHash },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    if (!approval) {
+      throw new Error("OPERATION_APPROVAL_NOT_FOUND");
+    }
+
+    if (approval.status !== "PENDING") {
+      throw new Error("OPERATION_APPROVAL_ALREADY_RESOLVED");
+    }
+
+    if (approval.expiresAt.getTime() < Date.now()) {
+      await prisma.operationApproval.update({
+        where: { id: approval.id },
+        data: { status: "EXPIRED" }
+      });
+      throw new Error("OPERATION_APPROVAL_EXPIRED");
+    }
+
+    if (approval.bulkOperation.status !== "DRY_RUN_PASSED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const respondedAt = new Date();
+
+    if (parsed.decision === "APPROVED") {
+      await applyBulkOperationConfirmedTransition(approval.bulkOperation, null, {
+        siteId: approval.bulkOperation.siteId,
+        viaClientApproval: true,
+        approvalId: approval.id
+      });
+    } else {
+      await prisma.activityLog.create({
+        data: {
+          organizationId: approval.bulkOperation.organizationId,
+          userId: null,
+          action: "bulk_operation.approval_declined",
+          entityType: "BulkOperation",
+          entityId: approval.bulkOperation.id,
+          metadata: {
+            siteId: approval.bulkOperation.siteId,
+            approvalId: approval.id
+          }
+        }
+      });
+    }
+
+    const updatedApproval = await prisma.operationApproval.update({
+      where: { id: approval.id },
+      data: {
+        status: parsed.decision,
+        respondedAt
+      },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    return mapPublicOperationApproval(updatedApproval, updatedApproval.status);
+  },
+
   async listMembersForOrganization(userId, organizationId) {
     await requireDbOrganizationAccess({
       userId,
@@ -5086,6 +5307,58 @@ const prismaRepository: AppRepository = {
     return mapMember(member);
   }
 };
+
+async function applyBulkOperationConfirmedTransition(
+  existing: { id: string; organizationId: string; type: string },
+  activityUserId: string | null,
+  activityMetadata: Record<string, unknown>
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.bulkOperationItem.updateMany({
+      where: {
+        bulkOperationId: existing.id
+      },
+      data: {
+        status: "CONFIRMED",
+        error: null
+      }
+    });
+    const updated = await tx.bulkOperation.update({
+      where: {
+        id: existing.id
+      },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date()
+      },
+      include: {
+        items: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        organizationId: existing.organizationId,
+        userId: activityUserId,
+        action: "bulk_operation.confirmed",
+        entityType: "BulkOperation",
+        entityId: updated.id,
+        metadata: {
+          type: updated.type,
+          itemCount: updated.items.length,
+          noMutation: true,
+          ...activityMetadata
+        }
+      }
+    });
+
+    return updated;
+  });
+}
 
 async function ensureDbUser(user: AppUser): Promise<void> {
   await prisma.user.upsert({
@@ -6508,7 +6781,8 @@ function mapBulkOperation(
       backlogTask?: { title: string; url: string } | null;
     }>;
   },
-  retryMode?: BulkOperationRetryMode | null
+  retryMode?: BulkOperationRetryMode | null,
+  approval?: OperationApprovalSummary | null
 ): BulkOperation {
   const items = operation.items?.map(mapBulkOperationItem) ?? [];
 
@@ -6530,8 +6804,90 @@ function mapBulkOperation(
         status: operation.status,
         items
       }),
-    itemStatusSummary: summarizeBulkOperationItemStatuses(items)
+    itemStatusSummary: summarizeBulkOperationItemStatuses(items),
+    approval: approval ?? null
   };
+}
+
+function mapOperationApproval(
+  approval: {
+    id: string;
+    status: OperationApprovalSummary["status"];
+    approverEmail: string | null;
+    expiresAt: Date;
+    respondedAt: Date | null;
+    createdAt: Date;
+  },
+  approveUrl: string | null
+): OperationApprovalSummary {
+  return {
+    id: approval.id,
+    status: approval.status,
+    approverEmail: approval.approverEmail,
+    approveUrl,
+    expiresAt: approval.expiresAt.toISOString(),
+    respondedAt: approval.respondedAt?.toISOString() ?? null,
+    createdAt: approval.createdAt.toISOString()
+  };
+}
+
+function mapPublicOperationApproval(
+  approval: {
+    expiresAt: Date;
+    bulkOperation: {
+      type: string;
+      preview: unknown;
+      dryRunResult: unknown;
+      items: Array<{ id: string }>;
+      site: {
+        name: string;
+        url: string;
+        organization: { name: string };
+      };
+    };
+  },
+  status: PublicOperationApproval["status"]
+): PublicOperationApproval {
+  return {
+    status,
+    expiresAt: approval.expiresAt.toISOString(),
+    organizationName: approval.bulkOperation.site.organization.name,
+    siteName: approval.bulkOperation.site.name,
+    siteUrl: approval.bulkOperation.site.url,
+    operationType: approval.bulkOperation.type,
+    itemCount: approval.bulkOperation.items.length,
+    previewSummary: summarizePreviewForApproval(approval.bulkOperation.preview),
+    dryRunSummary: summarizeDryRunForApproval(approval.bulkOperation.dryRunResult)
+  };
+}
+
+function summarizePreviewForApproval(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const summary = (value as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary : null;
+}
+
+function summarizeDryRunForApproval(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const result = value as {
+    status?: unknown;
+    passedItems?: unknown;
+    failedItems?: unknown;
+    noMutation?: unknown;
+  };
+  const status = typeof result.status === "string" ? result.status : "passed";
+  const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
+  const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
+  const writeState =
+    result.noMutation === true ? "no WordPress writes" : "WordPress writes deferred";
+
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
 }
 
 function summarizeBulkOperationItemStatuses(

@@ -687,6 +687,65 @@ export async function startBulkOperationAction(formData: FormData): Promise<void
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
+export async function requestClientApprovalAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit(
+      "operation-approval-request",
+      `${user.id}:${String(formData.get("operationId") ?? "")}`
+    );
+    const { emailDelivery } = await repository.requestOperationApproval({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      operationId: String(formData.get("operationId") ?? ""),
+      approverEmail: String(formData.get("approverEmail") ?? "")
+    });
+
+    if (emailDelivery.status === "failed") {
+      return {
+        ok: false,
+        message: "Approval was requested, but the email could not be sent."
+      };
+    }
+  } catch (error) {
+    return actionError(error, "Could not request client approval.");
+  }
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function respondToClientApprovalAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const repository = getAppRepository();
+  const token = String(formData.get("token") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("operation-approval-respond", token);
+    await repository.respondToOperationApproval({
+      token,
+      decision: decision as never
+    });
+  } catch (error) {
+    return actionError(error, "Could not record your response.");
+  }
+
+  revalidatePath(`/approve/${token}`);
+  redirect(`/approve/${token}`);
+}
+
 export async function finishBulkOperationAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();
@@ -1262,6 +1321,41 @@ function actionError(error: unknown, fallback: string): ActionState {
     return {
       ok: false,
       message: "Please sign in before continuing."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BULK_OPERATION_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This operation was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BULK_OPERATION_NOT_READY") {
+    return {
+      ok: false,
+      message: "This operation is no longer ready for that action."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This approval link is invalid."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_ALREADY_RESOLVED") {
+    return {
+      ok: false,
+      message: "This request has already been responded to."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_EXPIRED") {
+    return {
+      ok: false,
+      message: "This approval link has expired."
     };
   }
 

@@ -65,6 +65,7 @@ import { MemberRoleForm } from "@/components/member-role-form";
 import { MemberSiteScopeForm } from "@/components/member-site-scope-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { PluginChallengeForm } from "@/components/plugin-challenge-form";
+import { RequestClientApprovalForm } from "@/components/request-client-approval-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
@@ -78,6 +79,7 @@ import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
 import { getTwoFactorStatusForUser } from "@/lib/two-factor";
 import type {
   BillingSubscription,
+  BulkOperation,
   BulkOperationItem,
   BulkOperationStatus,
   GscConnectionOverview,
@@ -2547,6 +2549,20 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               </button>
                             </form>
                           ) : null}
+                          {operation.status === "DRY_RUN_PASSED" &&
+                          (!operation.approval || operation.approval.status !== "PENDING") ? (
+                            <RequestClientApprovalForm
+                              operationId={operation.id}
+                              organizationId={operation.organizationId}
+                              redirectTo={buildViewHref({ site: activeSite.id })}
+                              siteId={operation.siteId}
+                            />
+                          ) : null}
+                          {operation.approval ? (
+                            <p className="client-approval-status">
+                              {formatOperationApprovalStatus(operation.approval)}
+                            </p>
+                          ) : null}
                           {operation.status === "CONFIRMED" ? (
                             <form action={startBulkOperationAction}>
                               <input
@@ -3370,6 +3386,23 @@ function formatBulkOperationRetryMode(retryMode: unknown, status: string): strin
   }
 
   return "";
+}
+
+function formatOperationApprovalStatus(approval: NonNullable<BulkOperation["approval"]>): string {
+  const email = approval.approverEmail ?? "the client";
+
+  switch (approval.status) {
+    case "PENDING":
+      return `Awaiting client approval — sent to ${email}, expires ${formatDateTime(approval.expiresAt)}.`;
+    case "APPROVED":
+      return `Approved by ${email} on ${formatDateTime(approval.respondedAt ?? approval.expiresAt)}.`;
+    case "DECLINED":
+      return `Declined by ${email} on ${formatDateTime(approval.respondedAt ?? approval.expiresAt)}.`;
+    case "EXPIRED":
+      return `Approval link sent to ${email} expired without a response.`;
+    default:
+      return "";
+  }
 }
 
 function buildBulkOperationSteps(status: BulkOperationStatus) {

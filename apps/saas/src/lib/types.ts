@@ -617,6 +617,30 @@ export type BulkOperationItemStatusSummary = {
   other: number;
 };
 
+export type OperationApprovalStatus = "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED";
+
+export type OperationApprovalSummary = {
+  id: string;
+  status: OperationApprovalStatus;
+  approverEmail: string | null;
+  approveUrl: string | null;
+  expiresAt: string;
+  respondedAt: string | null;
+  createdAt: string;
+};
+
+export type PublicOperationApproval = {
+  status: OperationApprovalStatus;
+  expiresAt: string;
+  organizationName: string;
+  siteName: string;
+  siteUrl: string;
+  operationType: string;
+  itemCount: number;
+  previewSummary: string | null;
+  dryRunSummary: string | null;
+};
+
 export type BulkOperation = {
   id: string;
   organizationId: string;
@@ -631,6 +655,7 @@ export type BulkOperation = {
   items: BulkOperationItem[];
   retryMode?: BulkOperationRetryMode | null;
   itemStatusSummary?: BulkOperationItemStatusSummary;
+  approval?: OperationApprovalSummary | null;
 };
 
 export type BulkOperationListOptions = {
