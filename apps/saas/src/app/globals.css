@@ -487,25 +487,28 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.overview-empty {
+.empty-hint {
   align-items: flex-start;
   color: var(--muted);
   display: flex;
   gap: 12px;
-  padding: 4px 20px 20px;
 }
 
-.overview-empty svg {
+.empty-hint svg {
   color: var(--border-strong);
   flex: 0 0 auto;
   margin-top: 1px;
 }
 
-.overview-empty p {
+.empty-hint p {
   font-size: 13px;
   line-height: 1.55;
   margin: 0;
   max-width: 46ch;
+}
+
+.overview-activity .empty-hint {
+  padding: 4px 20px 20px;
 }
 
 @keyframes overview-row-in {

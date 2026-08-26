@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { createAuditForSiteAction } from "@/app/actions";
+import { EmptyState } from "@/components/empty-state";
 import type {
   ActivityLog,
   Audit,
@@ -201,13 +202,10 @@ export function DashboardCommandCenter({
             ))}
           </ul>
         ) : (
-          <div className="overview-empty">
-            <History size={18} strokeWidth={1.75} aria-hidden="true" />
-            <p>
-              Nothing to show yet. Once you connect a site, sync content, or run an audit, every
-              change lands here.
-            </p>
-          </div>
+          <EmptyState icon={History}>
+            Nothing to show yet. Once you connect a site, sync content, or run an audit, every
+            change lands here.
+          </EmptyState>
         )}
       </section>
     </div>

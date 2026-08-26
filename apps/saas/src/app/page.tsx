@@ -1,4 +1,14 @@
-import { ClipboardList, Gauge, Globe2, ListChecks, Settings2, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  ClipboardList,
+  Gauge,
+  Globe2,
+  LineChart,
+  ListChecks,
+  Settings2,
+  ShieldCheck,
+  Users
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canUseEntitlement, hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
@@ -31,6 +41,7 @@ import {
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { DashboardCommandCenter } from "@/components/dashboard-command-center";
+import { EmptyState } from "@/components/empty-state";
 import { GscPropertyPicker } from "@/components/gsc-property-picker";
 import { matchTrafficLossPages } from "@/lib/gsc-content-matching";
 import {
@@ -560,9 +571,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                       <CreateSiteForm organizationId={activeOrganization.id} />
                     </>
                   ) : (
-                    <p className="empty-copy">
+                    <EmptyState icon={Building2}>
                       Create an organization before adding a WordPress site.
-                    </p>
+                    </EmptyState>
                   )}
                 </article>
               </section>
@@ -1004,7 +1015,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   </p>
                 )
               ) : (
-                <p className="empty-copy">Add a WordPress site before connecting Search Console.</p>
+                <EmptyState icon={LineChart}>
+                  Add a WordPress site before connecting Search Console.
+                </EmptyState>
               )}
             </section>
           </>
@@ -1588,7 +1601,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   ) : null}
                 </>
               ) : (
-                <p className="empty-copy">Add a WordPress site before syncing content.</p>
+                <EmptyState icon={ClipboardList}>
+                  Add a WordPress site before syncing content.
+                </EmptyState>
               )}
             </section>
           </>
@@ -1939,7 +1954,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 ) : null}
               </>
             ) : (
-              <p className="empty-copy">Add a WordPress site before queueing audits.</p>
+              <EmptyState icon={ShieldCheck}>
+                Add a WordPress site before queueing audits.
+              </EmptyState>
             )}
           </section>
         ) : null}
@@ -2577,7 +2594,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                 ) : null}
               </>
             ) : (
-              <p className="empty-copy">Add a WordPress site before building a backlog.</p>
+              <EmptyState icon={ListChecks}>
+                Add a WordPress site before building a backlog.
+              </EmptyState>
             )}
           </section>
         ) : null}
@@ -2879,7 +2898,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   </div>
                 </>
               ) : (
-                <p className="empty-copy">Create an organization before inviting members.</p>
+                <EmptyState icon={Users}>Create an organization before inviting members.</EmptyState>
               )}
             </section>
 
