@@ -1,3 +1,4 @@
+import { ClipboardList, Gauge, Globe2, ListChecks, Settings2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canUseEntitlement, hasPermission, type ContentTrustEvidenceStatus } from "@sccc/shared";
@@ -73,12 +74,12 @@ import type {
 } from "@/lib/types";
 
 const navItems = [
-  { label: "Overview", href: "/", view: "overview" },
-  { label: "Sites", href: "/sites", view: "sites" },
-  { label: "Content", href: "/content", view: "content" },
-  { label: "Audits", href: "/audits", view: "audits" },
-  { label: "Backlog", href: "/backlog", view: "backlog" },
-  { label: "Settings", href: "/settings", view: "settings" }
+  { label: "Overview", href: "/", view: "overview", icon: Gauge },
+  { label: "Sites", href: "/sites", view: "sites", icon: Globe2 },
+  { label: "Content", href: "/content", view: "content", icon: ClipboardList },
+  { label: "Audits", href: "/audits", view: "audits", icon: ShieldCheck },
+  { label: "Backlog", href: "/backlog", view: "backlog", icon: ListChecks },
+  { label: "Settings", href: "/settings", view: "settings", icon: Settings2 }
 ] as const;
 
 const pageDetails = {
@@ -456,6 +457,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
               href={buildNavigationHref(item.href, activeSite?.id)}
               aria-current={item.view === view ? "page" : undefined}
             >
+              <item.icon size={17} strokeWidth={2} aria-hidden="true" />
               {item.label}
             </Link>
           ))}

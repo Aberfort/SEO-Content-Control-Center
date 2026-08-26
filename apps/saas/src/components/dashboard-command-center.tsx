@@ -1,3 +1,4 @@
+import { History } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -200,7 +201,13 @@ export function DashboardCommandCenter({
             ))}
           </ul>
         ) : (
-          <p className="empty-copy">Activity will appear after site and workspace actions.</p>
+          <div className="overview-empty">
+            <History size={18} strokeWidth={1.75} aria-hidden="true" />
+            <p>
+              Nothing to show yet. Once you connect a site, sync content, or run an audit, every
+              change lands here.
+            </p>
+          </div>
         )}
       </section>
     </div>
