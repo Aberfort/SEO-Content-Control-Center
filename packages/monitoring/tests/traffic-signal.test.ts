@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { computeTrafficSignal, type DailyMetricPoint } from "../src/traffic-signal";
+import {
+  computePageTrafficSignal,
+  computeTrafficSignal,
+  type DailyMetricPoint,
+  type PageInsightRow
+} from "../src/traffic-signal";
 
 function buildPoints(clicksByDay: number[], position = 5): DailyMetricPoint[] {
   return clicksByDay.map((clicks, index) => ({
@@ -18,7 +23,8 @@ describe("computeTrafficSignal", () => {
       clicksDelta: 0,
       clicksDropRatio: 0,
       positionBefore: null,
-      positionAfter: null
+      positionAfter: null,
+      scope: "site"
     });
   });
 
@@ -37,6 +43,7 @@ describe("computeTrafficSignal", () => {
     expect(signal.severity).toBe("medium");
     expect(signal.clicksDelta).toBe(-35);
     expect(signal.clicksDropRatio).toBeCloseTo(0.25, 2);
+    expect(signal.scope).toBe("site");
   });
 
   it("detects a high severity click drop", () => {
@@ -73,5 +80,69 @@ describe("computeTrafficSignal", () => {
 
     expect(signal.positionBefore).toBeCloseTo(4, 5);
     expect(signal.positionAfter).toBeCloseTo(8, 5);
+  });
+});
+
+function rows(entries: Array<[clicks: number, position: number]>): PageInsightRow[] {
+  return entries.map(([clicks, position]) => ({ clicks, position }));
+}
+
+describe("computePageTrafficSignal", () => {
+  it("is scoped to \"page\" and returns no signal below the minimum baseline clicks", () => {
+    const signal = computePageTrafficSignal(rows([[5, 4]]), rows([[10, 4]]), {
+      minPreviousClicks: 20
+    });
+
+    expect(signal).toEqual({
+      severity: "none",
+      clicksDelta: 0,
+      clicksDropRatio: 0,
+      positionBefore: null,
+      positionAfter: null,
+      scope: "page"
+    });
+  });
+
+  it("sums clicks across multiple query rows for the same page", () => {
+    const baseline = rows([
+      [30, 3],
+      [20, 5]
+    ]); // 50 clicks total
+    const current = rows([
+      [10, 6],
+      [5, 9]
+    ]); // 15 clicks total, 70% drop
+
+    const signal = computePageTrafficSignal(current, baseline);
+
+    expect(signal.severity).toBe("high");
+    expect(signal.clicksDelta).toBe(-35);
+    expect(signal.clicksDropRatio).toBeCloseTo(0.7, 2);
+    expect(signal.scope).toBe("page");
+  });
+
+  it("weights the average position by clicks per query row", () => {
+    const baseline = rows([
+      [30, 2],
+      [10, 10]
+    ]); // weighted: (30*2 + 10*10) / 40 = 4
+    const current = rows([
+      [5, 8],
+      [5, 12]
+    ]); // weighted: (5*8 + 5*12) / 10 = 10
+
+    const signal = computePageTrafficSignal(current, baseline, { minPreviousClicks: 20 });
+
+    expect(signal.positionBefore).toBeCloseTo(4, 5);
+    expect(signal.positionAfter).toBeCloseTo(10, 5);
+  });
+
+  it("does not flag a page whose clicks improved", () => {
+    const signal = computePageTrafficSignal(rows([[40, 3]]), rows([[20, 5]]), {
+      minPreviousClicks: 10
+    });
+
+    expect(signal.severity).toBe("none");
+    expect(signal.clicksDropRatio).toBe(0);
   });
 });

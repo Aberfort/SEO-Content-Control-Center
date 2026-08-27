@@ -1,10 +1,14 @@
 import {
+  computePageTrafficSignal,
   computeTrafficSignal,
   crawlUrl,
   extractSignals,
+  normalizeUrl,
   type DailyMetricPoint,
+  type PageInsightRow,
   type RegressionCandidate,
-  type RegressionEngineEvent
+  type RegressionEngineEvent,
+  type TrafficSignal
 } from "@sccc/monitoring";
 import { Prisma } from "@prisma/client";
 
@@ -177,35 +181,14 @@ export function buildLiveMonitoringSnapshotDeps(): MonitoringSnapshotDeps {
         occurredAt: event.occurredAt.toISOString()
       }));
     },
-    async getSiteTrafficSignal(siteId) {
-      const prisma = await getPrisma();
-      const metrics = await prisma.gscDailyMetric.findMany({
-        where: { siteId },
-        select: { date: true, clicks: true, position: true }
-      });
+    async getTrafficSignal(url, siteId) {
+      const pageSignal = await getPageTrafficSignal(url, siteId);
 
-      if (metrics.length === 0) {
-        return null;
+      if (pageSignal) {
+        return pageSignal;
       }
 
-      const byDate = new Map<string, { clicks: number; positionSum: number; positionCount: number }>();
-
-      for (const metric of metrics) {
-        const dateKey = metric.date.toISOString().slice(0, 10);
-        const entry = byDate.get(dateKey) ?? { clicks: 0, positionSum: 0, positionCount: 0 };
-        entry.clicks += metric.clicks;
-        entry.positionSum += metric.position;
-        entry.positionCount += 1;
-        byDate.set(dateKey, entry);
-      }
-
-      const points: DailyMetricPoint[] = [...byDate.entries()].map(([date, entry]) => ({
-        date,
-        clicks: entry.clicks,
-        position: entry.positionCount > 0 ? entry.positionSum / entry.positionCount : null
-      }));
-
-      return computeTrafficSignal(points);
+      return getSiteTrafficSignal(siteId);
     },
     async saveRegressions(input) {
       let createdCount = 0;
@@ -225,6 +208,118 @@ export function buildLiveMonitoringSnapshotDeps(): MonitoringSnapshotDeps {
       return createdCount;
     }
   };
+}
+
+/**
+ * How many days back to compare against for page-level correlation. Matches
+ * the SaaS dashboard's own page-traffic-loss comparison window
+ * (apps/saas/src/lib/gsc-traffic-loss.ts) and the daily GSC insight sync
+ * cadence, so a matching baseline range reliably exists once a site has been
+ * connected for at least this long.
+ */
+const trafficSignalWindowDays = 7;
+
+/**
+ * Correlates the monitored URL's own Search Console page-level insights
+ * (current vs. `trafficSignalWindowDays` earlier) when a matching baseline
+ * range exists. Returns null — not a "none" signal — when there is no
+ * page-level history to compare yet, so the caller can fall back to the
+ * less precise site-wide signal instead of silently reporting no decline.
+ */
+async function getPageTrafficSignal(url: string, siteId: string): Promise<TrafficSignal | null> {
+  const normalizedTarget = normalizeUrl(url);
+
+  if (!normalizedTarget) {
+    return null;
+  }
+
+  const prisma = await getPrisma();
+  const latestRange = await prisma.gscSearchInsight.findFirst({
+    where: { siteId },
+    orderBy: { startDate: "desc" },
+    select: { propertyUrl: true, startDate: true, endDate: true }
+  });
+
+  if (!latestRange) {
+    return null;
+  }
+
+  const baselineStart = shiftDate(latestRange.startDate, -trafficSignalWindowDays);
+  const baselineEnd = shiftDate(latestRange.endDate, -trafficSignalWindowDays);
+
+  const [currentRowsRaw, baselineRowsRaw] = await Promise.all([
+    prisma.gscSearchInsight.findMany({
+      where: {
+        siteId,
+        propertyUrl: latestRange.propertyUrl,
+        startDate: latestRange.startDate,
+        endDate: latestRange.endDate
+      },
+      select: { page: true, clicks: true, position: true }
+    }),
+    prisma.gscSearchInsight.findMany({
+      where: {
+        siteId,
+        propertyUrl: latestRange.propertyUrl,
+        startDate: baselineStart,
+        endDate: baselineEnd
+      },
+      select: { page: true, clicks: true, position: true }
+    })
+  ]);
+
+  const baselineRows: PageInsightRow[] = baselineRowsRaw
+    .filter((row) => normalizeUrl(row.page) === normalizedTarget)
+    .map((row) => ({ clicks: row.clicks, position: row.position }));
+
+  if (baselineRows.length === 0) {
+    return null;
+  }
+
+  const currentRows: PageInsightRow[] = currentRowsRaw
+    .filter((row) => normalizeUrl(row.page) === normalizedTarget)
+    .map((row) => ({ clicks: row.clicks, position: row.position }));
+
+  return computePageTrafficSignal(currentRows, baselineRows);
+}
+
+function shiftDate(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Site-wide fallback used only when no page-level Search Console history is
+ * available yet for the monitored URL (see getPageTrafficSignal).
+ */
+async function getSiteTrafficSignal(siteId: string): Promise<TrafficSignal | null> {
+  const prisma = await getPrisma();
+  const metrics = await prisma.gscDailyMetric.findMany({
+    where: { siteId },
+    select: { date: true, clicks: true, position: true }
+  });
+
+  if (metrics.length === 0) {
+    return null;
+  }
+
+  const byDate = new Map<string, { clicks: number; positionSum: number; positionCount: number }>();
+
+  for (const metric of metrics) {
+    const dateKey = metric.date.toISOString().slice(0, 10);
+    const entry = byDate.get(dateKey) ?? { clicks: 0, positionSum: 0, positionCount: 0 };
+    entry.clicks += metric.clicks;
+    entry.positionSum += metric.position;
+    entry.positionCount += 1;
+    byDate.set(dateKey, entry);
+  }
+
+  const points: DailyMetricPoint[] = [...byDate.entries()].map(([date, entry]) => ({
+    date,
+    clicks: entry.clicks,
+    position: entry.positionCount > 0 ? entry.positionSum / entry.positionCount : null
+  }));
+
+  return computeTrafficSignal(points);
 }
 
 async function persistRegressionCandidate(

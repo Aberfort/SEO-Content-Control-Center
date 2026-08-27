@@ -61,7 +61,7 @@ function createDeps(overrides: Partial<MonitoringSnapshotDeps> = {}): {
         occurredAt: "2026-08-26T12:00:00.000Z"
       }));
     },
-    async getSiteTrafficSignal() {
+    async getTrafficSignal() {
       return null;
     },
     async getRecentWordPressEvents() {
@@ -250,7 +250,7 @@ describe("createMonitoringCreateSnapshotHandler", () => {
   it("does not call the traffic signal or regression save when no events were detected", async () => {
     let trafficSignalCalls = 0;
     const { deps, calls } = createDeps({
-      async getSiteTrafficSignal() {
+      async getTrafficSignal() {
         trafficSignalCalls += 1;
         return null;
       }

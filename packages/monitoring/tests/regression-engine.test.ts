@@ -12,7 +12,8 @@ const noTraffic: TrafficSignal = {
   clicksDelta: 0,
   clicksDropRatio: 0,
   positionBefore: null,
-  positionAfter: null
+  positionAfter: null,
+  scope: "site"
 };
 
 function event(overrides: Partial<RegressionEngineEvent> = {}): RegressionEngineEvent {
@@ -95,7 +96,8 @@ describe("detectRegressions", () => {
       clicksDelta: -320,
       clicksDropRatio: 0.62,
       positionBefore: 4.3,
-      positionAfter: 8.1
+      positionAfter: 8.1,
+      scope: "site"
     };
 
     const result = detect({
@@ -118,6 +120,28 @@ describe("detectRegressions", () => {
       })
     ]);
     expect(result[0]?.summary).toContain("possible cause, not confirmed causation");
+    expect(result[0]?.summary).toContain("site-wide Search Console clicks");
+  });
+
+  it("describes the traffic decline as page-specific when the signal is page-scoped", () => {
+    const canonicalEvent = event({ id: "evt-canonical", type: "canonical_changed", severity: "CRITICAL" });
+    const pageTraffic: TrafficSignal = {
+      severity: "high",
+      clicksDelta: -80,
+      clicksDropRatio: 0.55,
+      positionBefore: 3.1,
+      positionAfter: 7.4,
+      scope: "page"
+    };
+
+    const result = detect({
+      monitoredUrlId: "url-1",
+      events: [canonicalEvent],
+      siteTraffic: pageTraffic
+    });
+
+    expect(result[0]?.summary).toContain("this page's Search Console clicks");
+    expect(result[0]?.summary).not.toContain("site-wide");
   });
 
   it("uses WARNING severity for a medium traffic decline and CRITICAL for a high one", () => {

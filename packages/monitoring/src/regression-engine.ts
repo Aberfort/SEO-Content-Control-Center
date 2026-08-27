@@ -12,6 +12,13 @@ export type RegressionEngineEvent = {
 export type RegressionEngineInput = {
   monitoredUrlId: string | null;
   events: RegressionEngineEvent[];
+  /**
+   * The traffic trend to correlate against. `scope: "page"` when it was
+   * computed from the monitored URL's own Search Console page-level
+   * insights (precise); `scope: "site"` when it fell back to the site's
+   * aggregate daily metrics because no page-level history was available yet
+   * (a less precise proxy — kept as a fallback, not the target state).
+   */
   siteTraffic: TrafficSignal | null;
   /**
    * WordPress-originated events (plugin/theme/core changes) on the same site
@@ -106,11 +113,16 @@ const canonicalTrafficRule: RegressionRule = (input) => {
     return null;
   }
 
+  const trafficDescription =
+    input.siteTraffic.scope === "page"
+      ? "this page's Search Console clicks"
+      : "site-wide Search Console clicks";
+
   return {
     fingerprint: fingerprintFor(input.monitoredUrlId, "canonical_traffic", event.id),
     severity: input.siteTraffic.severity === "high" ? "CRITICAL" : "WARNING",
     title: "Possible SEO regression",
-    summary: `The canonical URL changed while site-wide Search Console clicks dropped ${formatPercent(input.siteTraffic.clicksDropRatio)}. The canonical change may have contributed to the decline — this is a possible cause, not confirmed causation.`,
+    summary: `The canonical URL changed while ${trafficDescription} dropped ${formatPercent(input.siteTraffic.clicksDropRatio)}. The canonical change may have contributed to the decline — this is a possible cause, not confirmed causation.`,
     eventIds: [event.id],
     metrics: {
       clicksDelta: input.siteTraffic.clicksDelta,

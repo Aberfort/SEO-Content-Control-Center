@@ -64,7 +64,7 @@ export type MonitoringSnapshotDeps = {
     monitoredUrlId: string;
     events: DetectedEvent[];
   }): Promise<PersistedEvent[]>;
-  getSiteTrafficSignal(siteId: string): Promise<TrafficSignal | null>;
+  getTrafficSignal(url: string, siteId: string): Promise<TrafficSignal | null>;
   getRecentWordPressEvents(siteId: string, since: Date): Promise<RegressionEngineEvent[]>;
   saveRegressions(input: {
     organizationId: string;
@@ -144,7 +144,7 @@ export function createMonitoringCreateSnapshotHandler(deps: MonitoringSnapshotDe
     if (persistedEvents.length > 0) {
       const since = new Date(Date.now() - wordPressChangeLookbackDays * 24 * 60 * 60 * 1000);
       const [siteTraffic, recentWordPressEvents] = await Promise.all([
-        deps.getSiteTrafficSignal(data.siteId),
+        deps.getTrafficSignal(monitoredUrl.url, data.siteId),
         deps.getRecentWordPressEvents(data.siteId, since)
       ]);
       const candidates = detectRegressions({

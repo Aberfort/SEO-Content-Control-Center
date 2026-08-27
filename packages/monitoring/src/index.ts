@@ -3,12 +3,15 @@ export { extractSignals, type ExtractedSignals } from "./extract";
 export { diffSnapshots } from "./diff";
 export type { SnapshotFields, DetectedEvent, EventSeverity } from "./types";
 export {
+  computePageTrafficSignal,
   computeTrafficSignal,
   type DailyMetricPoint,
+  type PageInsightRow,
   type TrafficSignal,
   type TrafficSignalOptions,
   type TrafficSignalSeverity
 } from "./traffic-signal";
+export { normalizeUrl } from "./url-matching";
 export {
   detectRegressions,
   type RegressionCandidate,
