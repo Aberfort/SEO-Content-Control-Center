@@ -176,6 +176,7 @@ const contentStatuses = [
 
 const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+const regressionStatuses = ["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
 const gscStatuses = [
@@ -217,6 +218,8 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     status: readEnumQueryParam(params, "backlogStatus", backlogStatuses),
     severity: readEnumQueryParam(params, "backlogSeverity", backlogSeverities)
   };
+  const regressionStatusFilter =
+    readEnumQueryParam(params, "regressionStatus", regressionStatuses) ?? "OPEN";
   const auditIssueFilters = {
     query: readQueryParam(params, "auditIssueQ"),
     status: readEnumQueryParam(params, "auditIssueStatus", auditIssueStatuses),
@@ -410,10 +413,10 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           limit: 50
         })
       : [];
-  const openRegressions: Regression[] =
+  const regressions: Regression[] =
     activeOrganization && activeSite
       ? await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
-          status: "OPEN"
+          status: regressionStatusFilter
         })
       : [];
   const selectedContentItem =
@@ -2102,19 +2105,38 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                   <p className="empty-copy">No monitored URLs yet for this site.</p>
                 )}
 
-                {openRegressions.length > 0 ? (
-                  <div className="audit-issue-panel" aria-labelledby="monitoring-regressions-title">
-                    <div className="section-heading">
-                      <div>
-                        <h3 id="monitoring-regressions-title">Possible regressions</h3>
-                        <p>
-                          Correlation, not proof — review the linked evidence before treating this
-                          as confirmed.
-                        </p>
-                      </div>
-                      <span className="metric-pill">{openRegressions.length} open</span>
+                <div className="audit-issue-panel" aria-labelledby="monitoring-regressions-title">
+                  <div className="section-heading">
+                    <div>
+                      <h3 id="monitoring-regressions-title">Regressions</h3>
+                      <p>
+                        Correlation, not proof — review the linked evidence before treating this as
+                        confirmed.
+                      </p>
                     </div>
+                    <span className="metric-pill">
+                      {regressions.length} {regressionStatusFilter.toLowerCase()}
+                    </span>
+                  </div>
 
+                  <form action={routePath} method="get">
+                    <input name="site" type="hidden" value={activeSite.id} />
+                    <label>
+                      <span>Status</span>
+                      <select name="regressionStatus" defaultValue={regressionStatusFilter}>
+                        {regressionStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="secondary-button" type="submit">
+                      Filter
+                    </button>
+                  </form>
+
+                  {regressions.length > 0 ? (
                     <div className="table-wrap">
                       <table className="audit-table">
                         <thead>
@@ -2127,40 +2149,44 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                           </tr>
                         </thead>
                         <tbody>
-                          {openRegressions.map((regression) => (
-                            <tr key={regression.id}>
-                              <td>
-                                <span
-                                  className={`severity-pill severity-${
-                                    regression.severity === "INFO"
-                                      ? "low"
-                                      : regression.severity === "WARNING"
-                                        ? "medium"
-                                        : "critical"
-                                  }`}
-                                >
-                                  {regression.severity.toLowerCase()}
-                                </span>
-                              </td>
-                              <td>
-                                <strong>{regression.title}</strong>
-                                <span className="stacked-meta">{regression.summary}</span>
-                              </td>
-                              <td>
-                                {regression.monitoredUrlLabel ?? (
-                                  <span className="muted-text">Site-wide</span>
-                                )}
-                              </td>
-                              <td>
-                                <time dateTime={regression.detectedAt}>
-                                  {formatDateTime(regression.detectedAt)}
-                                </time>
-                              </td>
-                              <td>
-                                {canManageMonitoring && activeOrganization && activeSite ? (
-                                  <div className="audit-actions">
-                                    {(["ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const).map(
-                                      (status) => (
+                          {regressions.map((regression) => {
+                            const otherStatuses = (
+                              ["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const
+                            ).filter((status) => status !== regression.status);
+
+                            return (
+                              <tr key={regression.id}>
+                                <td>
+                                  <span
+                                    className={`severity-pill severity-${
+                                      regression.severity === "INFO"
+                                        ? "low"
+                                        : regression.severity === "WARNING"
+                                          ? "medium"
+                                          : "critical"
+                                    }`}
+                                  >
+                                    {regression.severity.toLowerCase()}
+                                  </span>
+                                </td>
+                                <td>
+                                  <strong>{regression.title}</strong>
+                                  <span className="stacked-meta">{regression.summary}</span>
+                                </td>
+                                <td>
+                                  {regression.monitoredUrlLabel ?? (
+                                    <span className="muted-text">Site-wide</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <time dateTime={regression.detectedAt}>
+                                    {formatDateTime(regression.detectedAt)}
+                                  </time>
+                                </td>
+                                <td>
+                                  {canManageMonitoring ? (
+                                    <div className="audit-actions">
+                                      {otherStatuses.map((status) => (
                                         <form key={status} action={updateRegressionStatusAction}>
                                           <input
                                             name="organizationId"
@@ -2177,28 +2203,37 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                           <input
                                             name="redirectTo"
                                             type="hidden"
-                                            value={buildViewHref({ site: activeSite.id })}
+                                            value={buildViewHref({
+                                              site: activeSite.id,
+                                              regressionStatus: regressionStatusFilter
+                                            })}
                                           />
                                           <button className="text-button" type="submit">
-                                            {status === "ACKNOWLEDGED"
-                                              ? "Acknowledge"
-                                              : status === "RESOLVED"
-                                                ? "Resolve"
-                                                : "Dismiss"}
+                                            {status === "OPEN"
+                                              ? "Reopen"
+                                              : status === "ACKNOWLEDGED"
+                                                ? "Acknowledge"
+                                                : status === "RESOLVED"
+                                                  ? "Resolve"
+                                                  : "Dismiss"}
                                           </button>
                                         </form>
-                                      )
-                                    )}
-                                  </div>
-                                ) : null}
-                              </td>
-                            </tr>
-                          ))}
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                ) : null}
+                  ) : (
+                    <p className="empty-copy">
+                      No {regressionStatusFilter.toLowerCase()} regressions for this site.
+                    </p>
+                  )}
+                </div>
 
                 <div className="audit-issue-panel" aria-labelledby="monitoring-timeline-title">
                   <div className="section-heading">
