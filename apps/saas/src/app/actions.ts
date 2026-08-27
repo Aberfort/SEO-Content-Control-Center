@@ -496,6 +496,24 @@ export async function rescanMonitoredUrlAction(formData: FormData): Promise<void
   redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
 }
 
+export async function updateRegressionStatusAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+
+  await assertServerActionSameOrigin();
+  await repository.updateRegressionStatus({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    regressionId: String(formData.get("regressionId") ?? ""),
+    status: String(formData.get("status") ?? "OPEN") as never
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
 export async function updateAuditIssueStatusAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();

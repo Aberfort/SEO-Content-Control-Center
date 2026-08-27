@@ -39,6 +39,7 @@ import {
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -74,7 +75,8 @@ import {
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
   type UpdateMemberRoleInput,
-  type UpdateMemberSiteScopeInput
+  type UpdateMemberSiteScopeInput,
+  type UpdateRegressionStatusInput
 } from "@sccc/shared";
 import {
   computeTrafficSignal,
@@ -2157,6 +2159,59 @@ export function listRegressionsForSite(
           null)
         : null
     }));
+}
+
+export function updateRegressionStatus(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  regressionId: string;
+  status: Regression["status"];
+}): Regression {
+  const parsed: UpdateRegressionStatusInput = updateRegressionStatusSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const regression = store.regressions.find(
+    (candidate) =>
+      candidate.id === parsed.regressionId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!regression) {
+    throw new Error("REGRESSION_NOT_FOUND");
+  }
+
+  if (regression.status === parsed.status) {
+    return regression;
+  }
+
+  const timestamp = nowIso();
+  const previousStatus = regression.status;
+  regression.status = parsed.status;
+  regression.resolvedAt = parsed.status === "RESOLVED" ? timestamp : null;
+  regression.updatedAt = timestamp;
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "regression.status_updated",
+    entityType: "Regression",
+    entityId: regression.id,
+    metadata: {
+      siteId: parsed.siteId,
+      previousStatus,
+      status: regression.status
+    }
+  });
+
+  return regression;
 }
 
 /**

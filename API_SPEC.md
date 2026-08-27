@@ -1993,7 +1993,26 @@ Response:
 }
 ```
 
-There is no endpoint yet to acknowledge, resolve, or dismiss a regression; every regression currently stays `OPEN` once detected.
+`PATCH /api/organizations/:organizationId/sites/:siteId/regressions/:regressionId`
+
+Updates a regression's status when the member has `monitoring:manage`. The regression is resolved through the requested organization and site before mutation. Repeating the same status returns the current regression without writing another activity log. Moving to `RESOLVED` sets `resolvedAt`; moving to any other status clears it.
+
+Request:
+
+```json
+{
+  "status": "RESOLVED"
+}
+```
+
+Allowed statuses:
+
+- `OPEN`
+- `ACKNOWLEDGED`
+- `RESOLVED`
+- `DISMISSED`
+
+Response: the updated regression, in the same shape as the `GET` list above.
 
 ## Backlog
 

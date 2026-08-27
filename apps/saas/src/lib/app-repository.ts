@@ -45,6 +45,7 @@ import {
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -80,6 +81,7 @@ import {
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
+  type UpdateRegressionStatusInput,
   type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput
@@ -109,6 +111,7 @@ import {
   listEventsForSite as listDevEventsForSite,
   listMonitoredUrlsForSite as listDevMonitoredUrlsForSite,
   listRegressionsForSite as listDevRegressionsForSite,
+  updateRegressionStatus as updateDevRegressionStatus,
   rescanMonitoredUrl as rescanDevMonitoredUrl,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
@@ -323,6 +326,10 @@ type CreateMonitoredUrlForSiteInput = CreateMonitoredUrlInput & {
 };
 
 type RescanMonitoredUrlInputWithUser = RescanMonitoredUrlInput & {
+  user: AppUser;
+};
+
+type UpdateRegressionStatusInputWithUser = UpdateRegressionStatusInput & {
   user: AppUser;
 };
 
@@ -595,6 +602,7 @@ type AppRepository = {
     siteId: string,
     options?: RegressionListOptions
   ): Promise<Regression[]>;
+  updateRegressionStatus(input: UpdateRegressionStatusInputWithUser): Promise<Regression>;
   getSyncedContentItem(
     userId: string,
     organizationId: string,
@@ -787,6 +795,9 @@ const devStoreRepository: AppRepository = {
   },
   async listRegressionsForSite(userId, organizationId, siteId, options) {
     return listDevRegressionsForSite(userId, organizationId, siteId, options);
+  },
+  async updateRegressionStatus(input) {
+    return updateDevRegressionStatus(input);
   },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
@@ -3202,6 +3213,72 @@ const prismaRepository: AppRepository = {
     });
 
     return regressions.map(mapRegression);
+  },
+
+  async updateRegressionStatus(input) {
+    const parsed: UpdateRegressionStatusInput = updateRegressionStatusSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const regressionInclude = {
+      monitoredUrl: {
+        select: { url: true, label: true }
+      },
+      events: {
+        select: { eventId: true }
+      }
+    } as const;
+    const regression = await prisma.regression.findFirst({
+      where: {
+        id: parsed.regressionId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: regressionInclude
+    });
+
+    if (!regression) {
+      throw new Error("REGRESSION_NOT_FOUND");
+    }
+
+    if (regression.status === parsed.status) {
+      return mapRegression(regression);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.regression.update({
+        where: { id: regression.id },
+        data: {
+          status: parsed.status,
+          resolvedAt: parsed.status === "RESOLVED" ? new Date() : null
+        },
+        include: regressionInclude
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "regression.status_updated",
+          entityType: "Regression",
+          entityId: next.id,
+          metadata: {
+            siteId: parsed.siteId,
+            previousStatus: regression.status,
+            status: next.status
+          }
+        }
+      });
+
+      return next;
+    });
+
+    return mapRegression(updated);
   },
 
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {

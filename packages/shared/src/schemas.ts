@@ -571,3 +571,12 @@ export const regressionListQuerySchema = z.object({
 });
 
 export type RegressionListQuery = z.infer<typeof regressionListQuerySchema>;
+
+export const updateRegressionStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  regressionId: z.string().uuid(),
+  status: regressionStatusSchema
+});
+
+export type UpdateRegressionStatusInput = z.infer<typeof updateRegressionStatusSchema>;

@@ -1597,6 +1597,87 @@ describe("app repository", () => {
     expect(openOnly).toHaveLength(1);
     expect(openOnly[0]?.status).toBe("OPEN");
   });
+
+  it("updates a regression status and records resolvedAt only when resolved", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Regression Status Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Regression Status Site",
+      url: "https://regression-status.repository.example.com"
+    });
+    const now = "2026-08-26T12:00:00.000Z";
+
+    getDevStore().regressions.push({
+      id: "00000000-0000-4000-8000-000000000903",
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: null,
+      monitoredUrlLabel: null,
+      fingerprint: "site:not_found:evt-3",
+      status: "OPEN",
+      severity: "CRITICAL",
+      title: "Page started returning HTTP 404",
+      summary: "The monitored URL stopped responding with a successful status code.",
+      metrics: null,
+      eventIds: ["evt-3"],
+      detectedAt: now,
+      resolvedAt: null,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const acknowledged = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "ACKNOWLEDGED"
+    });
+
+    expect(acknowledged).toMatchObject({ status: "ACKNOWLEDGED", resolvedAt: null });
+
+    const resolved = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "RESOLVED"
+    });
+
+    expect(resolved.status).toBe("RESOLVED");
+    expect(resolved.resolvedAt).toEqual(expect.any(String));
+
+    const reopened = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "OPEN"
+    });
+
+    expect(reopened).toMatchObject({ status: "OPEN", resolvedAt: null });
+
+    expect(
+      (await repository.listActivityLogsForOrganization(user.id, organization.id)).filter(
+        (log) => log.action === "regression.status_updated"
+      )
+    ).toHaveLength(3);
+
+    await expect(
+      repository.updateRegressionStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        regressionId: "00000000-0000-4000-8000-000000000999",
+        status: "DISMISSED"
+      })
+    ).rejects.toThrow("REGRESSION_NOT_FOUND");
+  });
 });
 
 function configureGscEnv(): void {

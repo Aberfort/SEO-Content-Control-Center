@@ -38,7 +38,8 @@ import {
   updateBacklogTaskOutcomeAction,
   updateBacklogTaskStatusAction,
   updateDeliveryPreferenceAction,
-  updateNotificationReadStateAction
+  updateNotificationReadStateAction,
+  updateRegressionStatusAction
 } from "@/app/actions";
 import { CreateMonitoredUrlForm } from "@/components/create-monitored-url-form";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
@@ -2122,6 +2123,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             <th>Regression</th>
                             <th>URL</th>
                             <th>Detected</th>
+                            <th>Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2153,6 +2155,42 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                 <time dateTime={regression.detectedAt}>
                                   {formatDateTime(regression.detectedAt)}
                                 </time>
+                              </td>
+                              <td>
+                                {canManageMonitoring && activeOrganization && activeSite ? (
+                                  <div className="audit-actions">
+                                    {(["ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const).map(
+                                      (status) => (
+                                        <form key={status} action={updateRegressionStatusAction}>
+                                          <input
+                                            name="organizationId"
+                                            type="hidden"
+                                            value={activeOrganization.id}
+                                          />
+                                          <input name="siteId" type="hidden" value={activeSite.id} />
+                                          <input
+                                            name="regressionId"
+                                            type="hidden"
+                                            value={regression.id}
+                                          />
+                                          <input name="status" type="hidden" value={status} />
+                                          <input
+                                            name="redirectTo"
+                                            type="hidden"
+                                            value={buildViewHref({ site: activeSite.id })}
+                                          />
+                                          <button className="text-button" type="submit">
+                                            {status === "ACKNOWLEDGED"
+                                              ? "Acknowledge"
+                                              : status === "RESOLVED"
+                                                ? "Resolve"
+                                                : "Dismiss"}
+                                          </button>
+                                        </form>
+                                      )
+                                    )}
+                                  </div>
+                                ) : null}
                               </td>
                             </tr>
                           ))}
