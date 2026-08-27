@@ -45,6 +45,7 @@ import {
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateMonitoredUrlStatusSchema,
   updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
@@ -84,7 +85,8 @@ import {
   type UpdateRegressionStatusInput,
   type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput,
-  type UpdateMemberSiteScopeInput
+  type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlStatusInput
 } from "@sccc/shared";
 
 import {
@@ -113,6 +115,7 @@ import {
   listRegressionsForSite as listDevRegressionsForSite,
   updateRegressionStatus as updateDevRegressionStatus,
   rescanMonitoredUrl as rescanDevMonitoredUrl,
+  updateMonitoredUrlStatus as updateDevMonitoredUrlStatus,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listBulkOperationsForSite as listDevBulkOperationsForSite,
@@ -326,6 +329,10 @@ type CreateMonitoredUrlForSiteInput = CreateMonitoredUrlInput & {
 };
 
 type RescanMonitoredUrlInputWithUser = RescanMonitoredUrlInput & {
+  user: AppUser;
+};
+
+type UpdateMonitoredUrlStatusInputWithUser = UpdateMonitoredUrlStatusInput & {
   user: AppUser;
 };
 
@@ -590,6 +597,7 @@ type AppRepository = {
   ): Promise<MonitoredUrl[]>;
   createMonitoredUrlForSite(input: CreateMonitoredUrlForSiteInput): Promise<MonitoredUrl>;
   rescanMonitoredUrl(input: RescanMonitoredUrlInputWithUser): Promise<MonitoredUrl>;
+  updateMonitoredUrlStatus(input: UpdateMonitoredUrlStatusInputWithUser): Promise<MonitoredUrl>;
   listEventsForSite(
     userId: string,
     organizationId: string,
@@ -789,6 +797,9 @@ const devStoreRepository: AppRepository = {
   },
   async rescanMonitoredUrl(input) {
     return rescanDevMonitoredUrl(input);
+  },
+  async updateMonitoredUrlStatus(input) {
+    return updateDevMonitoredUrlStatus(input);
   },
   async listEventsForSite(userId, organizationId, siteId, options) {
     return listDevEventsForSite(userId, organizationId, siteId, options);
@@ -3133,6 +3144,71 @@ const prismaRepository: AppRepository = {
       organizationId: parsed.organizationId,
       siteId: parsed.siteId,
       monitoredUrlId: record.id
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async updateMonitoredUrlStatus(input) {
+    const parsed: UpdateMonitoredUrlStatusInput = updateMonitoredUrlStatusSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const existing = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    if (parsed.isActive && !existing.isActive) {
+      const activeCount = await prisma.monitoredUrl.count({
+        where: { organizationId: parsed.organizationId, siteId: parsed.siteId, isActive: true }
+      });
+      const maxMonitoredUrls = Number.parseInt(
+        process.env.SCCC_MAX_MONITORED_URLS_PER_SITE ?? "10",
+        10
+      );
+
+      if (activeCount >= (Number.isFinite(maxMonitoredUrls) ? maxMonitoredUrls : 10)) {
+        throw new Error("MONITORED_URL_LIMIT_REACHED");
+      }
+    }
+
+    const record = await prisma.$transaction(async (tx) => {
+      const updated = await tx.monitoredUrl.update({
+        where: { id: existing.id },
+        data: { isActive: parsed.isActive },
+        include: {
+          snapshots: {
+            orderBy: { capturedAt: "desc" },
+            take: 1
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: parsed.isActive ? "monitored_url.resumed" : "monitored_url.paused",
+          entityType: "MonitoredUrl",
+          entityId: updated.id,
+          metadata: { siteId: parsed.siteId, url: updated.url }
+        }
+      });
+
+      return updated;
     });
 
     return mapMonitoredUrl(record, record.snapshots[0] ?? null);

@@ -1916,6 +1916,18 @@ Request:
 
 Enqueues an immediate rescan of one monitored URL when the member has `monitoring:manage`. Monitored URLs are also rescanned automatically every 6 hours by the `monitoring.schedule-scan` background job, so this endpoint is for on-demand checks.
 
+`PATCH /api/organizations/:organizationId/sites/:siteId/monitored-urls/:monitoredUrlId`
+
+Pauses or resumes a monitored URL when the member has `monitoring:manage`, without deleting it — snapshot/event/regression history is preserved either way. Pausing (`isActive: false`) frees a slot against the per-site cap (`SCCC_MAX_MONITORED_URLS_PER_SITE`) and stops both the scheduled and manual rescan from picking it up. Resuming (`isActive: true`) re-checks that same cap and returns `409 MONITORED_URL_LIMIT_REACHED` if the site is already at its active-URL limit.
+
+Request:
+
+```json
+{
+  "isActive": false
+}
+```
+
 `GET /api/organizations/:organizationId/sites/:siteId/events`
 
 Returns the unified change timeline for a site when the member has `monitoring:read` — normalized `Event` rows from every source (`WORDPRESS`, `CRAWLER`, `GSC`, `SYSTEM`), newest first.

@@ -39,6 +39,7 @@ import {
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateMonitoredUrlStatusSchema,
   updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
@@ -76,6 +77,7 @@ import {
   type UpdateBacklogTaskAssignmentInput,
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlStatusInput,
   type UpdateRegressionStatusInput
 } from "@sccc/shared";
 import {
@@ -2084,6 +2086,61 @@ export async function rescanMonitoredUrl(input: {
     siteId: parsed.siteId,
     monitoredUrlId: monitoredUrl.id,
     url: monitoredUrl.url
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function updateMonitoredUrlStatus(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  isActive: boolean;
+}): MonitoredUrl {
+  const parsed: UpdateMonitoredUrlStatusInput = updateMonitoredUrlStatusSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  if (parsed.isActive && !monitoredUrl.isActive) {
+    const activeCount = store.monitoredUrls.filter(
+      (candidate) =>
+        candidate.organizationId === parsed.organizationId &&
+        candidate.siteId === parsed.siteId &&
+        candidate.isActive
+    ).length;
+
+    if (activeCount >= maxMonitoredUrlsPerSite) {
+      throw new Error("MONITORED_URL_LIMIT_REACHED");
+    }
+  }
+
+  monitoredUrl.isActive = parsed.isActive;
+  monitoredUrl.updatedAt = nowIso();
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: parsed.isActive ? "monitored_url.resumed" : "monitored_url.paused",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: monitoredUrl.url }
   });
 
   return withLatestSnapshot(store, monitoredUrl);

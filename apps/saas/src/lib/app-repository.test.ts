@@ -1462,6 +1462,48 @@ describe("app repository", () => {
 
     expect(rescanned.id).toBe(monitoredUrl.id);
 
+    const paused = await repository.updateMonitoredUrlStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      isActive: false
+    });
+
+    expect(paused.isActive).toBe(false);
+
+    // Pausing frees a slot against the per-site cap, even though it was
+    // already reached (10 active URLs from the block above).
+    const freedSlotUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: "http://127.0.0.1:9/freed-slot"
+    });
+
+    expect(freedSlotUrl.isActive).toBe(true);
+
+    // Resuming the paused URL now would push active count back over the cap.
+    await expect(
+      repository.updateMonitoredUrlStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        isActive: true
+      })
+    ).rejects.toThrow("MONITORED_URL_LIMIT_REACHED");
+
+    await expect(
+      repository.updateMonitoredUrlStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: "00000000-0000-4000-8000-000000000999",
+        isActive: true
+      })
+    ).rejects.toThrow("MONITORED_URL_NOT_FOUND");
+
     const occurredAt = "2026-08-26T10:00:00.000Z";
     getDevStore().events.push(
       {

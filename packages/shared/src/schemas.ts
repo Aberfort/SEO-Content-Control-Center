@@ -550,6 +550,15 @@ export const rescanMonitoredUrlSchema = z.object({
 
 export type RescanMonitoredUrlInput = z.infer<typeof rescanMonitoredUrlSchema>;
 
+export const updateMonitoredUrlStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid(),
+  isActive: z.boolean()
+});
+
+export type UpdateMonitoredUrlStatusInput = z.infer<typeof updateMonitoredUrlStatusSchema>;
+
 export const eventSourceSchema = z.enum(["WORDPRESS", "CRAWLER", "GSC", "SYSTEM"]);
 
 export const eventSeveritySchema = z.enum(["INFO", "WARNING", "CRITICAL"]);

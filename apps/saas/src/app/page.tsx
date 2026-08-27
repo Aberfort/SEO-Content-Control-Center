@@ -38,6 +38,7 @@ import {
   updateBacklogTaskOutcomeAction,
   updateBacklogTaskStatusAction,
   updateDeliveryPreferenceAction,
+  updateMonitoredUrlStatusAction,
   updateNotificationReadStateAction,
   updateRegressionStatusAction
 } from "@/app/actions";
@@ -2049,6 +2050,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                       <thead>
                         <tr>
                           <th>URL</th>
+                          <th>Status</th>
                           <th>HTTP</th>
                           <th>Title</th>
                           <th>Canonical</th>
@@ -2062,6 +2064,11 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             <td>
                               <strong>{monitoredUrl.label ?? monitoredUrl.url}</strong>
                               <span className="stacked-meta">{monitoredUrl.url}</span>
+                            </td>
+                            <td>
+                              <span className="status-pill">
+                                {monitoredUrl.isActive ? "Active" : "Paused"}
+                              </span>
                             </td>
                             <td>
                               {monitoredUrl.latestSnapshot?.httpStatus ?? (
@@ -2089,27 +2096,57 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             </td>
                             <td>
                               {canManageMonitoring ? (
-                                <form action={rescanMonitoredUrlAction}>
-                                  <input
-                                    name="organizationId"
-                                    type="hidden"
-                                    value={activeOrganization.id}
-                                  />
-                                  <input name="siteId" type="hidden" value={activeSite.id} />
-                                  <input
-                                    name="monitoredUrlId"
-                                    type="hidden"
-                                    value={monitoredUrl.id}
-                                  />
-                                  <input
-                                    name="redirectTo"
-                                    type="hidden"
-                                    value={buildViewHref({ site: activeSite.id })}
-                                  />
-                                  <button className="text-button" type="submit">
-                                    Rescan
-                                  </button>
-                                </form>
+                                <div className="audit-actions">
+                                  {monitoredUrl.isActive ? (
+                                    <form action={rescanMonitoredUrlAction}>
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={activeOrganization.id}
+                                      />
+                                      <input name="siteId" type="hidden" value={activeSite.id} />
+                                      <input
+                                        name="monitoredUrlId"
+                                        type="hidden"
+                                        value={monitoredUrl.id}
+                                      />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({ site: activeSite.id })}
+                                      />
+                                      <button className="text-button" type="submit">
+                                        Rescan
+                                      </button>
+                                    </form>
+                                  ) : null}
+                                  <form action={updateMonitoredUrlStatusAction}>
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={activeOrganization.id}
+                                    />
+                                    <input name="siteId" type="hidden" value={activeSite.id} />
+                                    <input
+                                      name="monitoredUrlId"
+                                      type="hidden"
+                                      value={monitoredUrl.id}
+                                    />
+                                    <input
+                                      name="isActive"
+                                      type="hidden"
+                                      value={monitoredUrl.isActive ? "false" : "true"}
+                                    />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({ site: activeSite.id })}
+                                    />
+                                    <button className="text-button" type="submit">
+                                      {monitoredUrl.isActive ? "Pause" : "Resume"}
+                                    </button>
+                                  </form>
+                                </div>
                               ) : null}
                             </td>
                           </tr>
