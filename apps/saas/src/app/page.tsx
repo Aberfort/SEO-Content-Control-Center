@@ -2119,7 +2119,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                     </span>
                   </div>
 
-                  <form action={routePath} method="get">
+                  <form className="regression-filters" action={routePath} method="get">
                     <input name="site" type="hidden" value={activeSite.id} />
                     <label>
                       <span>Status</span>

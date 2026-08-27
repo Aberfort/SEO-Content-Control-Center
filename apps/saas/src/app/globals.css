@@ -1914,6 +1914,42 @@ th {
   margin-bottom: 16px;
 }
 
+.regression-filters {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.regression-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.regression-filters label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.regression-filters select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  min-height: 38px;
+  min-width: 180px;
+  padding: 8px 10px;
+}
+
+.regression-filters select:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
 .audit-table {
   min-width: 760px;
 }
