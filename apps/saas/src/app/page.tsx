@@ -419,6 +419,19 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           status: regressionStatusFilter
         })
       : [];
+  // Dedicated open-regression count for the Overview dashboard, independent
+  // of whatever status filter the Monitoring view happens to be showing.
+  const openRegressionsForDashboard: Regression[] =
+    activeOrganization && activeSite
+      ? regressionStatusFilter === "OPEN"
+        ? regressions
+        : await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
+            status: "OPEN"
+          })
+      : [];
+  const criticalOpenRegressionCount = openRegressionsForDashboard.filter(
+    (regression) => regression.severity === "CRITICAL"
+  ).length;
   const selectedContentItem =
     activeOrganization && activeSite && selectedContentId
       ? await repository.getSyncedContentItem(
@@ -526,6 +539,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
             backlogSummary={backlogTasks.summary}
             gscOverview={gscOverview}
             activity={latestActivity}
+            monitoredUrlCount={monitoredUrls.length}
+            openRegressionCount={openRegressionsForDashboard.length}
+            criticalRegressionCount={criticalOpenRegressionCount}
           />
         ) : (
           <header className="workspace-page-header">

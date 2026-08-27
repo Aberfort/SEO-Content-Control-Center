@@ -22,6 +22,9 @@ type DashboardCommandCenterProps = {
   backlogSummary: BacklogTaskSummary;
   gscOverview: GscConnectionOverview | null;
   activity: ActivityLog[];
+  monitoredUrlCount: number;
+  openRegressionCount: number;
+  criticalRegressionCount: number;
 };
 
 type Signal = {
@@ -39,7 +42,10 @@ export function DashboardCommandCenter({
   latestAudit,
   backlogSummary,
   gscOverview,
-  activity
+  activity,
+  monitoredUrlCount,
+  openRegressionCount,
+  criticalRegressionCount
 }: DashboardCommandCenterProps) {
   const siteQuery = activeSite ? `?site=${encodeURIComponent(activeSite.id)}` : "";
   const signals = buildSignals({
@@ -47,7 +53,9 @@ export function DashboardCommandCenter({
     syncedContentTotal,
     latestAudit,
     backlogSummary,
-    gscOverview
+    gscOverview,
+    monitoredUrlCount,
+    openRegressionCount
   });
 
   return (
@@ -95,6 +103,24 @@ export function DashboardCommandCenter({
             action={
               <Link className="secondary-button" href={`/sites${siteQuery}`}>
                 {activeSite ? "Manage site" : "Add site"}
+              </Link>
+            }
+          />
+
+          <PriorityRow
+            tone={
+              criticalRegressionCount > 0
+                ? "danger"
+                : openRegressionCount > 0
+                  ? "attention"
+                  : "success"
+            }
+            title="Regressions"
+            detail={formatRegressionDetail(openRegressionCount, criticalRegressionCount)}
+            status={`${openRegressionCount.toLocaleString("en")} open`}
+            action={
+              <Link className="secondary-button" href={`/monitoring${siteQuery}`}>
+                Review monitoring
               </Link>
             }
           />
@@ -244,6 +270,8 @@ function buildSignals(input: {
   latestAudit: Audit | null;
   backlogSummary: BacklogTaskSummary;
   gscOverview: GscConnectionOverview | null;
+  monitoredUrlCount: number;
+  openRegressionCount: number;
 }): Signal[] {
   return [
     {
@@ -255,6 +283,16 @@ function buildSignals(input: {
       label: "Search Console",
       value: input.gscOverview?.connected ? "Connected" : "Not connected",
       tone: input.gscOverview?.connected ? "success" : "muted"
+    },
+    {
+      label: "Monitored URLs",
+      value: input.monitoredUrlCount.toLocaleString("en"),
+      tone: input.monitoredUrlCount > 0 ? "success" : "information"
+    },
+    {
+      label: "Open regressions",
+      value: input.openRegressionCount.toLocaleString("en"),
+      tone: input.openRegressionCount > 0 ? "danger" : "success"
     },
     {
       label: "Synced content",
@@ -298,6 +336,18 @@ function formatAuditDetail(audit: Audit | null, syncedContentTotal: number): str
   }
 
   return `${audit.issueSummary.open.toLocaleString("en")} open issues, ${audit.issueSummary.critical.toLocaleString("en")} critical.`;
+}
+
+function formatRegressionDetail(openCount: number, criticalCount: number): string {
+  if (openCount === 0) {
+    return "No open regressions — monitored URLs and Search Console signals look stable.";
+  }
+
+  if (criticalCount > 0) {
+    return `${criticalCount.toLocaleString("en")} critical: a change may be behind a traffic or ranking drop.`;
+  }
+
+  return "Correlation, not proof — review the linked evidence before treating this as confirmed.";
 }
 
 function formatBacklogDetail(summary: BacklogTaskSummary): string {
