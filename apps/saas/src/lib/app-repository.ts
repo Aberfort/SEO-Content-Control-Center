@@ -1787,7 +1787,7 @@ const prismaRepository: AppRepository = {
     const generatedAt = new Date();
     const summaries = await Promise.all(
       sites.map(async (site) => {
-        const [issues, tasks, operations] = await Promise.all([
+        const [issues, tasks, operations, regressions] = await Promise.all([
           prisma.auditIssue.findMany({
             where: { organizationId, siteId: site.id },
             select: {
@@ -1812,6 +1812,10 @@ const prismaRepository: AppRepository = {
           prisma.bulkOperation.findMany({
             where: { organizationId, siteId: site.id },
             select: { status: true, updatedAt: true }
+          }),
+          prisma.regression.findMany({
+            where: { organizationId, siteId: site.id },
+            select: { status: true, detectedAt: true }
           })
         ]);
 
@@ -1824,7 +1828,8 @@ const prismaRepository: AppRepository = {
           generatedAt,
           issues,
           tasks,
-          operations
+          operations,
+          regressions
         });
       })
     );

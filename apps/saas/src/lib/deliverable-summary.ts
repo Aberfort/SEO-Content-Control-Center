@@ -24,6 +24,11 @@ type OperationRecord = {
   updatedAt: Date | string;
 };
 
+type RegressionRecord = {
+  status: string;
+  detectedAt: Date | string;
+};
+
 export function buildSiteDeliverableSummary(input: {
   siteId: string;
   siteName: string;
@@ -34,6 +39,7 @@ export function buildSiteDeliverableSummary(input: {
   issues: IssueRecord[];
   tasks: TaskRecord[];
   operations: OperationRecord[];
+  regressions: RegressionRecord[];
 }): SiteDeliverableSummary {
   const issuesInPeriod = input.issues.filter((issue) =>
     isInsidePeriod(issue.createdAt, input.start, input.endExclusive)
@@ -113,6 +119,10 @@ export function buildSiteDeliverableSummary(input: {
         operation.status === "FAILED" &&
         isInsidePeriod(operation.updatedAt, input.start, input.endExclusive)
     ).length,
+    newRegressions: input.regressions.filter((regression) =>
+      isInsidePeriod(regression.detectedAt, input.start, input.endExclusive)
+    ).length,
+    openRegressions: input.regressions.filter((regression) => regression.status === "OPEN").length,
     outcomes,
     taskOutcomes
   };

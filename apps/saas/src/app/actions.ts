@@ -26,6 +26,7 @@ import { sendEmailVerificationEmail, sendInviteEmail, sendPasswordResetEmail } f
 import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
 import { syncGscSearchInsightsForSite } from "@/lib/gsc-insights";
 import { syncGscDailyMetricsForSite } from "@/lib/gsc-metrics";
+import { buildMonitoringCrawlRateLimitKey } from "@/lib/monitoring-rate-limit";
 import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
 import {
   createPluginConnectionChallenge,
@@ -464,6 +465,7 @@ export async function createMonitoredUrlAction(
 
   try {
     await assertServerActionSameOrigin();
+    await assertMonitoringCrawlServerActionRateLimit(user.id, formData, "create");
     await repository.createMonitoredUrlForSite({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
@@ -485,6 +487,7 @@ export async function rescanMonitoredUrlAction(formData: FormData): Promise<void
   const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
 
   await assertServerActionSameOrigin();
+  await assertMonitoringCrawlServerActionRateLimit(user.id, formData, "rescan");
   await repository.rescanMonitoredUrl({
     user,
     organizationId: String(formData.get("organizationId") ?? ""),
@@ -1511,6 +1514,23 @@ async function assertBulkOperationServerActionRateLimit(
       organizationId: String(formData.get("organizationId") ?? ""),
       siteId: String(formData.get("siteId") ?? ""),
       operationId: String(formData.get("operationId") ?? "") || undefined,
+      action
+    })
+  );
+}
+
+async function assertMonitoringCrawlServerActionRateLimit(
+  userId: string,
+  formData: FormData,
+  action: string
+): Promise<void> {
+  await assertServerActionRateLimit(
+    "monitoring-crawl",
+    buildMonitoringCrawlRateLimitKey({
+      userId,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      monitoredUrlId: String(formData.get("monitoredUrlId") ?? "") || undefined,
       action
     })
   );

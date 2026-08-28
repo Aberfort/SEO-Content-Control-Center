@@ -1464,7 +1464,8 @@ export function getClientReport(
         generatedAt,
         issues: store.auditIssues.filter((issue) => issue.siteId === site.id),
         tasks: store.backlogTasks.filter((task) => task.siteId === site.id),
-        operations: store.bulkOperations.filter((operation) => operation.siteId === site.id)
+        operations: store.bulkOperations.filter((operation) => operation.siteId === site.id),
+        regressions: store.regressions.filter((regression) => regression.siteId === site.id)
       })
     )
   });

@@ -4,6 +4,7 @@ import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
 import { assertRequestSameOrigin } from "@/lib/csrf";
 import { jsonError, securityError, unauthorizedError, validationError } from "@/lib/http";
+import { assertMonitoringCrawlRateLimit } from "@/lib/monitoring-rate-limit";
 
 type RouteContext = {
   params: Promise<{
@@ -62,6 +63,13 @@ export async function POST(request: Request, context: RouteContext) {
   const repository = getAppRepository();
 
   try {
+    await assertMonitoringCrawlRateLimit({
+      request,
+      userId: user.id,
+      organizationId,
+      siteId,
+      action: "create"
+    });
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const monitoredUrl = await repository.createMonitoredUrlForSite({
       user,
@@ -73,6 +81,12 @@ export async function POST(request: Request, context: RouteContext) {
 
     return Response.json({ data: monitoredUrl }, { status: 201 });
   } catch (error) {
+    const response = securityError(error);
+
+    if (response) {
+      return response;
+    }
+
     if (error instanceof ZodError) {
       return validationError(error);
     }
