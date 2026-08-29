@@ -800,6 +800,43 @@ describe("app repository", () => {
     ).rejects.toThrow("PLAN_USER_LIMIT_REACHED");
   });
 
+  it("invites a member scoped to specific sites and lets an admin adjust that scope", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Scoped Member Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Client A",
+      url: "https://client-a.example.com"
+    });
+
+    const invite = await repository.inviteMember({
+      user,
+      organizationId: organization.id,
+      email: "contractor@example.com",
+      role: "EDITOR",
+      siteScope: [site.id]
+    });
+
+    expect(invite.member.siteScope).toEqual([site.id]);
+
+    const members = await repository.listMembersForOrganization(user.id, organization.id);
+    const scopedMember = members.find((member) => member.email === "contractor@example.com");
+    expect(scopedMember?.siteScope).toEqual([site.id]);
+
+    const widened = await repository.updateMemberSiteScope({
+      user,
+      organizationId: organization.id,
+      memberId: invite.member.id,
+      siteScope: []
+    });
+
+    expect(widened.siteScope).toEqual([]);
+  });
+
   it("accepts, resends, and cancels pending invites through the repository contract", async () => {
     const repository = getAppRepository();
     const organization = await repository.createOrganization({
@@ -1106,6 +1143,148 @@ describe("app repository", () => {
     });
   });
 
+  it("requests, approves, and declines a client operation approval without a login", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Client Approval Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Client Approval Site",
+      url: "https://client-approval.example.com"
+    });
+    const now = new Date().toISOString();
+
+    const makeTask = (id: string, title: string) => ({
+      id,
+      organizationId: organization.id,
+      siteId: site.id,
+      auditIssueId: null,
+      title,
+      url: "https://client-approval.example.com/page",
+      issueType: "missing_meta_title",
+      status: "TODO" as const,
+      severity: "HIGH" as const,
+      potentialImpact: "Search snippets can underperform.",
+      effortEstimate: 2,
+      assigneeId: null,
+      dueDate: null,
+      tags: ["test"],
+      createdAt: now,
+      updatedAt: now,
+      comments: [],
+      activityLogs: []
+    });
+
+    const taskA = makeTask("00000000-0000-4000-8000-000000000501", "Approve me");
+    getDevStore().backlogTasks.push(taskA);
+
+    const previewA = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: taskA.id
+    });
+    const dryRunA = await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: previewA.id
+    });
+
+    expect(dryRunA.status).toBe("DRY_RUN_PASSED");
+
+    const { approval, emailDelivery } = await repository.requestOperationApproval({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: dryRunA.id,
+      approverEmail: "client@example.com"
+    });
+
+    expect(approval.status).toBe("PENDING");
+    expect(approval.approverEmail).toBe("client@example.com");
+    expect(approval.approveUrl).toContain("/approve/");
+    expect(emailDelivery.status).toBe("skipped");
+
+    const token = approval.approveUrl!.split("/approve/")[1]!;
+    const publicView = await repository.getPublicOperationApproval(token);
+
+    expect(publicView).toMatchObject({
+      status: "PENDING",
+      siteName: "Client Approval Site",
+      siteUrl: "https://client-approval.example.com/",
+      itemCount: 1
+    });
+
+    const approved = await repository.respondToOperationApproval({
+      token,
+      decision: "APPROVED"
+    });
+
+    expect(approved.status).toBe("APPROVED");
+
+    const confirmedOperation = (
+      await repository.listBulkOperationsForSite(user.id, organization.id, site.id, { limit: 5 })
+    ).find((operation) => operation.id === dryRunA.id);
+
+    expect(confirmedOperation?.status).toBe("CONFIRMED");
+    expect(confirmedOperation?.approval).toMatchObject({
+      status: "APPROVED",
+      approverEmail: "client@example.com"
+    });
+
+    await expect(
+      repository.respondToOperationApproval({ token, decision: "APPROVED" })
+    ).rejects.toThrow("OPERATION_APPROVAL_ALREADY_RESOLVED");
+
+    const activityActions = (
+      await repository.listActivityLogsForOrganization(user.id, organization.id)
+    ).map((log) => log.action);
+    expect(activityActions).toEqual(
+      expect.arrayContaining(["bulk_operation.approval_requested", "bulk_operation.confirmed"])
+    );
+
+    const taskB = makeTask("00000000-0000-4000-8000-000000000502", "Decline me");
+    getDevStore().backlogTasks.push(taskB);
+
+    const previewB = await repository.createBulkOperationPreview({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      taskId: taskB.id
+    });
+    const dryRunB = await repository.runBulkOperationDryRun({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: previewB.id
+    });
+    const declineRequest = await repository.requestOperationApproval({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      operationId: dryRunB.id,
+      approverEmail: "client@example.com"
+    });
+    const declineToken = declineRequest.approval.approveUrl!.split("/approve/")[1]!;
+
+    const declined = await repository.respondToOperationApproval({
+      token: declineToken,
+      decision: "DECLINED"
+    });
+
+    expect(declined.status).toBe("DECLINED");
+
+    const stillPendingOperation = (
+      await repository.listBulkOperationsForSite(user.id, organization.id, site.id, { limit: 5 })
+    ).find((operation) => operation.id === dryRunB.id);
+
+    expect(stillPendingOperation?.status).toBe("DRY_RUN_PASSED");
+  });
+
   it("rolls back a finished bulk operation without inline writes", async () => {
     const repository = getAppRepository();
     const organization = await repository.createOrganization({
@@ -1206,6 +1385,380 @@ describe("app repository", () => {
         (notification) => notification.type
       )
     ).toEqual(expect.arrayContaining(["bulk_operation.completed", "bulk_operation.rolled_back"]));
+  });
+
+  it("manages monitored URLs and the site event timeline through the repository contract", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Monitoring Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Monitoring Site",
+      url: "https://monitoring.repository.example.com"
+    });
+
+    // 127.0.0.1 is rejected by the SSRF guard before any real network call is
+    // made (dns.lookup resolves literal IPs without a network round trip),
+    // so this exercises the full creation path deterministically and without
+    // any dependency on the real internet.
+    const blockedUrl = "http://127.0.0.1:9/blocked-by-ssrf-guard";
+    const monitoredUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: blockedUrl,
+      label: "Blocked test URL"
+    });
+
+    expect(monitoredUrl).toMatchObject({
+      organizationId: organization.id,
+      siteId: site.id,
+      url: blockedUrl,
+      label: "Blocked test URL",
+      isActive: true,
+      latestSnapshot: null
+    });
+
+    await expect(
+      repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: blockedUrl
+      })
+    ).rejects.toThrow("MONITORED_URL_ALREADY_EXISTS");
+
+    expect(
+      await repository.listMonitoredUrlsForSite(user.id, organization.id, site.id)
+    ).toEqual([monitoredUrl]);
+
+    for (let index = 0; index < 9; index += 1) {
+      await repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: `http://127.0.0.1:9/blocked-${index}`
+      });
+    }
+
+    await expect(
+      repository.createMonitoredUrlForSite({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        url: "http://127.0.0.1:9/one-too-many"
+      })
+    ).rejects.toThrow("MONITORED_URL_LIMIT_REACHED");
+
+    const rescanned = await repository.rescanMonitoredUrl({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id
+    });
+
+    expect(rescanned.id).toBe(monitoredUrl.id);
+
+    const paused = await repository.updateMonitoredUrlStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      isActive: false
+    });
+
+    expect(paused.isActive).toBe(false);
+
+    // Pausing frees a slot against the per-site cap, even though it was
+    // already reached (10 active URLs from the block above).
+    const freedSlotUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: "http://127.0.0.1:9/freed-slot"
+    });
+
+    expect(freedSlotUrl.isActive).toBe(true);
+
+    // Resuming the paused URL now would push active count back over the cap.
+    await expect(
+      repository.updateMonitoredUrlStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        isActive: true
+      })
+    ).rejects.toThrow("MONITORED_URL_LIMIT_REACHED");
+
+    await expect(
+      repository.updateMonitoredUrlStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: "00000000-0000-4000-8000-000000000999",
+        isActive: true
+      })
+    ).rejects.toThrow("MONITORED_URL_NOT_FOUND");
+
+    const relabeled = await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      label: "Renamed test URL"
+    });
+
+    expect(relabeled.label).toBe("Renamed test URL");
+
+    const cleared = await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id
+    });
+
+    expect(cleared.label).toBeNull();
+
+    // Restore the original label so later assertions in this test (which
+    // expect the timeline's monitoredUrlLabel to reflect the record created
+    // at the top of the test) still hold.
+    await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      label: "Blocked test URL"
+    });
+
+    await expect(
+      repository.updateMonitoredUrlLabel({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: "00000000-0000-4000-8000-000000000999",
+        label: "Does not matter"
+      })
+    ).rejects.toThrow("MONITORED_URL_NOT_FOUND");
+
+    const occurredAt = "2026-08-26T10:00:00.000Z";
+    getDevStore().events.push(
+      {
+        id: "00000000-0000-4000-8000-000000000801",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        monitoredUrlLabel: null,
+        source: "CRAWLER",
+        type: "canonical_changed",
+        severity: "CRITICAL",
+        title: "Canonical URL changed",
+        oldValue: "https://example.com/a/",
+        newValue: "https://example.com/b/",
+        metadata: null,
+        occurredAt,
+        detectedAt: occurredAt
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000802",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: null,
+        monitoredUrlLabel: null,
+        source: "SYSTEM",
+        type: "plugin_updated",
+        severity: "INFO",
+        title: "Yoast SEO updated",
+        oldValue: "25.1",
+        newValue: "25.2",
+        metadata: null,
+        occurredAt,
+        detectedAt: occurredAt
+      }
+    );
+
+    const timeline = await repository.listEventsForSite(user.id, organization.id, site.id);
+    expect(timeline.map((event) => event.type)).toEqual(["canonical_changed", "plugin_updated"]);
+
+    const urlScopedTimeline = await repository.listEventsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      { monitoredUrlId: monitoredUrl.id }
+    );
+    expect(urlScopedTimeline).toHaveLength(1);
+    expect(urlScopedTimeline[0]).toMatchObject({
+      type: "canonical_changed",
+      monitoredUrlLabel: "Blocked test URL"
+    });
+
+    const systemOnlyTimeline = await repository.listEventsForSite(
+      user.id,
+      organization.id,
+      site.id,
+      { source: "SYSTEM" }
+    );
+    expect(systemOnlyTimeline.map((event) => event.type)).toEqual(["plugin_updated"]);
+  });
+
+  it("lists site regressions scoped by organization, site, and status", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Regression Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Regression Site",
+      url: "https://regression.repository.example.com"
+    });
+    const monitoredUrl = await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      url: "http://127.0.0.1:9/blocked-by-ssrf-guard"
+    });
+    const detectedAt = "2026-08-26T12:00:00.000Z";
+
+    getDevStore().regressions.push(
+      {
+        id: "00000000-0000-4000-8000-000000000901",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: monitoredUrl.id,
+        monitoredUrlLabel: null,
+        fingerprint: `${monitoredUrl.id}:not_found:evt-1`,
+        status: "OPEN",
+        severity: "CRITICAL",
+        title: "Page started returning HTTP 404",
+        summary: "The monitored URL stopped responding with a successful status code.",
+        metrics: null,
+        eventIds: ["evt-1"],
+        detectedAt,
+        resolvedAt: null,
+        createdAt: detectedAt,
+        updatedAt: detectedAt
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000902",
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: null,
+        monitoredUrlLabel: null,
+        fingerprint: "site:tracking_lost:evt-2",
+        status: "RESOLVED",
+        severity: "CRITICAL",
+        title: "Tracking regression: GA4 disappeared",
+        summary: "GA4 tracking is no longer detected on this page.",
+        metrics: null,
+        eventIds: ["evt-2"],
+        detectedAt,
+        resolvedAt: detectedAt,
+        createdAt: detectedAt,
+        updatedAt: detectedAt
+      }
+    );
+
+    const allRegressions = await repository.listRegressionsForSite(user.id, organization.id, site.id);
+    expect(allRegressions.map((regression) => regression.title)).toEqual([
+      "Page started returning HTTP 404",
+      "Tracking regression: GA4 disappeared"
+    ]);
+    expect(allRegressions[0]).toMatchObject({
+      monitoredUrlId: monitoredUrl.id,
+      monitoredUrlLabel: monitoredUrl.url
+    });
+
+    const openOnly = await repository.listRegressionsForSite(user.id, organization.id, site.id, {
+      status: "OPEN"
+    });
+    expect(openOnly).toHaveLength(1);
+    expect(openOnly[0]?.status).toBe("OPEN");
+  });
+
+  it("updates a regression status and records resolvedAt only when resolved", async () => {
+    const repository = getAppRepository();
+    const organization = await repository.createOrganization({
+      user,
+      name: "Regression Status Ops"
+    });
+    const site = await repository.createSite({
+      user,
+      organizationId: organization.id,
+      name: "Regression Status Site",
+      url: "https://regression-status.repository.example.com"
+    });
+    const now = "2026-08-26T12:00:00.000Z";
+
+    getDevStore().regressions.push({
+      id: "00000000-0000-4000-8000-000000000903",
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: null,
+      monitoredUrlLabel: null,
+      fingerprint: "site:not_found:evt-3",
+      status: "OPEN",
+      severity: "CRITICAL",
+      title: "Page started returning HTTP 404",
+      summary: "The monitored URL stopped responding with a successful status code.",
+      metrics: null,
+      eventIds: ["evt-3"],
+      detectedAt: now,
+      resolvedAt: null,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const acknowledged = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "ACKNOWLEDGED"
+    });
+
+    expect(acknowledged).toMatchObject({ status: "ACKNOWLEDGED", resolvedAt: null });
+
+    const resolved = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "RESOLVED"
+    });
+
+    expect(resolved.status).toBe("RESOLVED");
+    expect(resolved.resolvedAt).toEqual(expect.any(String));
+
+    const reopened = await repository.updateRegressionStatus({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      regressionId: "00000000-0000-4000-8000-000000000903",
+      status: "OPEN"
+    });
+
+    expect(reopened).toMatchObject({ status: "OPEN", resolvedAt: null });
+
+    expect(
+      (await repository.listActivityLogsForOrganization(user.id, organization.id)).filter(
+        (log) => log.action === "regression.status_updated"
+      )
+    ).toHaveLength(3);
+
+    await expect(
+      repository.updateRegressionStatus({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        regressionId: "00000000-0000-4000-8000-000000000999",
+        status: "DISMISSED"
+      })
+    ).rejects.toThrow("REGRESSION_NOT_FOUND");
   });
 });
 

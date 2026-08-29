@@ -56,12 +56,13 @@ final class AdminPage {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'content-signal-seo-content-audit' ) );
 		}
 
-		$tab         = 'platform' === $this->readQueryValue( 'tab' ) ? 'platform' : 'health';
-		$notice      = $this->getFeedbackNotice(
+		$requestedTab = $this->readQueryValue( 'tab' );
+		$tab          = in_array( $requestedTab, array( 'platform', 'monitoring' ), true ) ? $requestedTab : 'health';
+		$notice       = $this->getFeedbackNotice(
 			$this->readQueryValue( 'sccc_status' ),
 			$this->readQueryValue( 'sccc_error' )
 		);
-		$isConnected = null !== $this->connectionStore()->get();
+		$isConnected  = null !== $this->connectionStore()->get();
 		?>
 		<div class="wrap sccc-wrap">
 			<div class="sccc-app-shell">
@@ -91,6 +92,9 @@ final class AdminPage {
 					<a class="sccc-tab <?php echo 'platform' === $tab ? 'is-active' : ''; ?>" <?php echo 'platform' === $tab ? 'aria-current="page"' : ''; ?> href="<?php echo esc_url( admin_url( 'admin.php?page=sccc&tab=platform' ) ); ?>">
 						<?php echo esc_html__( 'Platform connection', 'content-signal-seo-content-audit' ); ?>
 					</a>
+					<a class="sccc-tab <?php echo 'monitoring' === $tab ? 'is-active' : ''; ?>" <?php echo 'monitoring' === $tab ? 'aria-current="page"' : ''; ?> href="<?php echo esc_url( admin_url( 'admin.php?page=sccc&tab=monitoring' ) ); ?>">
+						<?php echo esc_html__( 'Monitoring', 'content-signal-seo-content-audit' ); ?>
+					</a>
 				</nav>
 
 				<main class="sccc-workspace">
@@ -100,7 +104,15 @@ final class AdminPage {
 						</div>
 					<?php endif; ?>
 
-					<?php 'platform' === $tab ? $this->renderPlatform() : $this->renderHealth(); ?>
+					<?php
+					if ( 'platform' === $tab ) {
+						$this->renderPlatform();
+					} elseif ( 'monitoring' === $tab ) {
+						$this->renderMonitoring();
+					} else {
+						$this->renderHealth();
+					}
+					?>
 				</main>
 			</div>
 		</div>
@@ -783,6 +795,127 @@ final class AdminPage {
 				</div>
 			<?php endif; ?>
 		</section>
+		<?php
+	}
+
+	private function renderMonitoring(): void {
+		$connection = $this->connectionStore()->get();
+		?>
+		<section class="sccc-section sccc-monitoring-section" aria-labelledby="sccc-monitoring-title">
+			<div class="sccc-section-header">
+				<div>
+					<h2 id="sccc-monitoring-title"><?php echo esc_html__( 'Monitoring & regressions', 'content-signal-seo-content-audit' ); ?></h2>
+					<p><?php echo esc_html__( 'Changes the platform detected on this site, and any possible regressions correlated with them.', 'content-signal-seo-content-audit' ); ?></p>
+				</div>
+			</div>
+			<?php if ( null === $connection ) : ?>
+				<p>
+					<?php
+					$platform_tab_link = '<a href="' . esc_url( admin_url( 'admin.php?page=sccc&tab=platform' ) ) . '">' . esc_html__( 'Platform connection', 'content-signal-seo-content-audit' ) . '</a>';
+					printf(
+						/* translators: %s: link markup to the Platform connection tab, already built from esc_url()/esc_html__(). */
+						esc_html__( 'Connect the platform from the %s tab to see monitoring and regressions here.', 'content-signal-seo-content-audit' ),
+						$platform_tab_link // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $platform_tab_link is assembled above from esc_url() and esc_html__(), not raw input.
+					);
+					?>
+				</p>
+			<?php else : ?>
+				<?php
+				$summary = null;
+
+				try {
+					$summary = ( new ApiClient( new RequestSigner() ) )->fetchMonitoringSummary( $connection );
+				} catch ( \Throwable ) {
+					$summary = null;
+				}
+				?>
+				<?php if ( null === $summary ) : ?>
+					<div class="notice notice-error inline">
+						<p><?php echo esc_html__( 'Could not load monitoring data from the platform right now. Try again shortly.', 'content-signal-seo-content-audit' ); ?></p>
+					</div>
+				<?php else : ?>
+					<?php
+					$cards = array(
+						array(
+							'label' => __( 'Monitored URLs', 'content-signal-seo-content-audit' ),
+							'value' => $summary['monitoredUrlCount'],
+							'tone'  => 'neutral',
+						),
+						array(
+							'label' => __( 'Open regressions', 'content-signal-seo-content-audit' ),
+							'value' => $summary['openRegressionCount'],
+							'tone'  => $summary['openRegressionCount'] > 0 ? 'attention' : 'success',
+						),
+						array(
+							'label' => __( 'Critical', 'content-signal-seo-content-audit' ),
+							'value' => $summary['criticalOpenRegressionCount'],
+							'tone'  => $summary['criticalOpenRegressionCount'] > 0 ? 'critical' : 'success',
+						),
+					);
+					?>
+					<div class="sccc-summary-grid" aria-label="<?php echo esc_attr__( 'Monitoring summary', 'content-signal-seo-content-audit' ); ?>">
+						<?php foreach ( $cards as $card ) : ?>
+							<div class="sccc-summary-card sccc-summary-<?php echo esc_attr( $card['tone'] ); ?>">
+								<span><?php echo esc_html( $card['label'] ); ?></span>
+								<strong><?php echo esc_html( number_format_i18n( $card['value'] ) ); ?></strong>
+							</div>
+						<?php endforeach; ?>
+					</div>
+					<?php $this->renderRecentRegressions( $summary['recentRegressions'], $connection ); ?>
+				<?php endif; ?>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>>                                                            $regressions
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 */
+	private function renderRecentRegressions( array $regressions, array $connection ): void {
+		?>
+		<div class="sccc-sync-log">
+			<div class="sccc-results-header">
+				<div>
+					<h3><?php echo esc_html__( 'Recent regressions', 'content-signal-seo-content-audit' ); ?></h3>
+					<p><?php echo esc_html__( 'Correlation, not proof — review the linked evidence in the platform before treating this as confirmed.', 'content-signal-seo-content-audit' ); ?></p>
+				</div>
+				<a class="button" href="<?php echo esc_url( rtrim( $connection['endpoint'], '/' ) . '/monitoring' ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php echo esc_html__( 'Open in platform', 'content-signal-seo-content-audit' ); ?>
+				</a>
+			</div>
+			<?php if ( array() === $regressions ) : ?>
+				<p><?php echo esc_html__( 'No regressions detected yet.', 'content-signal-seo-content-audit' ); ?></p>
+			<?php else : ?>
+				<table class="widefat striped sccc-sync-table">
+					<thead>
+						<tr>
+							<th><?php echo esc_html__( 'Detected', 'content-signal-seo-content-audit' ); ?></th>
+							<th><?php echo esc_html__( 'Severity', 'content-signal-seo-content-audit' ); ?></th>
+							<th><?php echo esc_html__( 'Status', 'content-signal-seo-content-audit' ); ?></th>
+							<th><?php echo esc_html__( 'Regression', 'content-signal-seo-content-audit' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $regressions as $regression ) : ?>
+							<?php
+							$severity = isset( $regression['severity'] ) ? (string) $regression['severity'] : '';
+							$status   = isset( $regression['status'] ) ? (string) $regression['status'] : '';
+							?>
+							<tr>
+								<td><?php echo esc_html( $this->formatIsoDate( isset( $regression['detectedAt'] ) ? (string) $regression['detectedAt'] : '' ) ); ?></td>
+								<td><span class="sccc-regression-severity sccc-regression-severity-<?php echo esc_attr( sanitize_key( $severity ) ); ?>"><?php echo esc_html( $severity ); ?></span></td>
+								<td><span class="sccc-regression-status sccc-regression-status-<?php echo esc_attr( sanitize_key( $status ) ); ?>"><?php echo esc_html( $status ); ?></span></td>
+								<td>
+									<strong><?php echo esc_html( isset( $regression['title'] ) ? (string) $regression['title'] : '' ); ?></strong>
+									<p class="description"><?php echo esc_html( isset( $regression['summary'] ) ? (string) $regression['summary'] : '' ); ?></p>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
 		<?php
 	}
 

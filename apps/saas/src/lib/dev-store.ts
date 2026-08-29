@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   acceptInviteSchema,
@@ -21,17 +21,27 @@ import {
   buildWorkspaceDeliverableSummary,
   canUseEntitlement,
   clientReportQuerySchema,
+  createMonitoredUrlSchema,
   deliveryPreferenceUpdateSchema,
+  eventListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
+  regressionListQuerySchema,
+  rescanMonitoredUrlSchema,
+  requestOperationApprovalSchema,
   resolveCommercialAccess,
+  respondToOperationApprovalSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
+  updateMemberSiteScopeSchema,
+  updateMonitoredUrlLabelSchema,
+  updateMonitoredUrlStatusSchema,
+  updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -50,20 +60,48 @@ import {
   type BulkOperationStartInput,
   type ClientReportQuery,
   type ContentTrustEvidence,
+  type CreateMonitoredUrlInput,
   type DeliveryPreferenceUpdateInput,
+  type EventListQuery,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RegressionListQuery,
+  type RequestOperationApprovalInput,
+  type RescanMonitoredUrlInput,
+  type RespondToOperationApprovalInput,
   type Role,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
-  type UpdateMemberRoleInput
+  type UpdateMemberRoleInput,
+  type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlLabelInput,
+  type UpdateMonitoredUrlStatusInput,
+  type UpdateRegressionStatusInput
 } from "@sccc/shared";
+import {
+  computePageTrafficSignal,
+  computeTrafficSignal,
+  crawlUrl,
+  detectRegressions,
+  diffSnapshots,
+  extractSignals,
+  normalizeUrl as normalizeMonitoringUrl,
+  type DailyMetricPoint,
+  type PageInsightRow,
+  type TrafficSignal
+} from "@sccc/monitoring";
 
+import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
+import {
+  buildOperationApprovalUrl,
+  createOperationApprovalToken,
+  hashOperationApprovalToken
+} from "./operation-approval-token";
 import type {
   ActivityLog,
   AppUser,
@@ -101,7 +139,9 @@ import type {
   BulkOperationRetryMode,
   ClientReport,
   DeliveryPreference,
+  EventListOptions,
   InviteResult,
+  MonitoredUrl,
   NotificationBulkUpdateResult,
   Notification,
   NotificationListOptions,
@@ -109,10 +149,17 @@ import type {
   OrganizationMember,
   OrganizationMemberSummary,
   OrganizationSummary,
+  OperationApprovalStatus,
+  OperationApprovalSummary,
+  PublicOperationApproval,
+  Regression,
+  RegressionListOptions,
   Site,
   SyncedContentItem,
   SyncedContentList,
-  SyncedContentListOptions
+  SyncedContentListOptions,
+  TimelineEvent,
+  UrlSnapshot
 } from "./types";
 import {
   buildAssistantRecommendationFromBacklogTask,
@@ -166,6 +213,7 @@ type DevStoreState = {
   backlogComments: BacklogTaskComment[];
   bulkOperations: BulkOperation[];
   bulkOperationItems: BulkOperationItem[];
+  operationApprovals: StoreOperationApproval[];
   activityLogs: ActivityLog[];
   notifications: Notification[];
   deliveryPreferences: DeliveryPreference[];
@@ -173,6 +221,10 @@ type DevStoreState = {
   gscConnections: StoreGscConnection[];
   gscDailyMetrics: GscDailyMetric[];
   gscSearchInsights: GscSearchInsight[];
+  monitoredUrls: MonitoredUrl[];
+  urlSnapshots: UrlSnapshot[];
+  events: TimelineEvent[];
+  regressions: Regression[];
 };
 
 type StoreOrganizationMember = OrganizationMember & {
@@ -181,6 +233,19 @@ type StoreOrganizationMember = OrganizationMember & {
 
 type StoreGscConnection = GscConnectionSummary & {
   encryptedRefreshToken: string;
+};
+
+type StoreOperationApproval = {
+  id: string;
+  bulkOperationId: string;
+  organizationId: string;
+  tokenHash: string;
+  status: OperationApprovalStatus;
+  approverEmail: string;
+  requestedByUserId: string;
+  expiresAt: string;
+  respondedAt: string | null;
+  createdAt: string;
 };
 
 type CreateOrganizationInput = {
@@ -200,6 +265,7 @@ type InviteMemberInputWithUser = {
   organizationId: string;
   email: string;
   role: Role;
+  siteScope?: string[];
 };
 
 type UpdateMemberRoleInputWithUser = {
@@ -207,6 +273,13 @@ type UpdateMemberRoleInputWithUser = {
   organizationId: string;
   memberId: string;
   role: Role;
+};
+
+type UpdateMemberSiteScopeInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  siteScope: string[];
 };
 
 type MemberMutationInputWithUser = {
@@ -274,14 +347,25 @@ function initialState(): DevStoreState {
     backlogComments: [],
     bulkOperations: [],
     bulkOperationItems: [],
+    operationApprovals: [],
     activityLogs: [],
     notifications: [],
     deliveryPreferences: [],
     subscriptions: [],
     gscConnections: [],
     gscDailyMetrics: [],
-    gscSearchInsights: []
+    gscSearchInsights: [],
+    monitoredUrls: [],
+    urlSnapshots: [],
+    events: [],
+    regressions: []
   };
+}
+
+const maxMonitoredUrlsPerSite = 10;
+
+function hashMonitoredUrl(url: string): string {
+  return createHash("sha256").update(url.trim()).digest("hex");
 }
 
 export function getDevStore(): DevStoreState {
@@ -380,6 +464,7 @@ export function listOrganizationSummariesForUser(user: AppUser): OrganizationSum
       return {
         ...organization,
         role: member.role,
+        siteScope: member.siteScope,
         sites: listSitesForOrganization(user.id, organization.id),
         activityLogs: listActivityLogsForOrganization(user.id, organization.id)
       };
@@ -428,7 +513,8 @@ export function createOrganization(input: CreateOrganizationInput): Organization
     organizationId: organization.id,
     userId: input.user.id,
     role: "OWNER",
-    status: "ACTIVE"
+    status: "ACTIVE",
+    siteScope: []
   };
 
   store.organizations.push(organization);
@@ -460,6 +546,7 @@ export function createOrganization(input: CreateOrganizationInput): Organization
   return {
     ...organization,
     role: member.role,
+    siteScope: member.siteScope,
     sites: [],
     activityLogs: listActivityLogsForOrganization(input.user.id, organization.id)
   };
@@ -517,6 +604,7 @@ export function getOrganizationSummary(
   return {
     ...organization,
     role: member.role,
+    siteScope: member.siteScope,
     sites: listSitesForOrganization(userId, organizationId),
     activityLogs: listActivityLogsForOrganization(userId, organizationId)
   };
@@ -1382,7 +1470,8 @@ export function getClientReport(
         generatedAt,
         issues: store.auditIssues.filter((issue) => issue.siteId === site.id),
         tasks: store.backlogTasks.filter((task) => task.siteId === site.id),
-        operations: store.bulkOperations.filter((operation) => operation.siteId === site.id)
+        operations: store.bulkOperations.filter((operation) => operation.siteId === site.id),
+        regressions: store.regressions.filter((regression) => regression.siteId === site.id)
       })
     )
   });
@@ -1689,6 +1778,620 @@ export function createAuditForSite(input: {
   });
 
   return withAuditIssueSummary(audit, store.auditIssues);
+}
+
+function withLatestSnapshot(store: DevStoreState, monitoredUrl: MonitoredUrl): MonitoredUrl {
+  const latestSnapshot =
+    store.urlSnapshots
+      .filter((snapshot) => snapshot.monitoredUrlId === monitoredUrl.id)
+      .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0] ?? null;
+
+  return { ...monitoredUrl, latestSnapshot };
+}
+
+async function captureDevSnapshot(input: {
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  url: string;
+}): Promise<void> {
+  const store = getDevStore();
+  const previousSnapshot =
+    store.urlSnapshots
+      .filter((snapshot) => snapshot.monitoredUrlId === input.monitoredUrlId)
+      .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt))[0] ?? null;
+
+  let crawl;
+
+  try {
+    crawl = await crawlUrl(input.url);
+  } catch {
+    // Best-effort in the dev store: leave the monitored URL without a snapshot
+    // rather than failing the whole request. A rescan can retry later.
+    return;
+  }
+
+  const signals = extractSignals(crawl.html);
+  const fields = {
+    httpStatus: crawl.httpStatus,
+    finalUrl: crawl.finalUrl,
+    responseTimeMs: crawl.responseTimeMs,
+    xRobotsTag: crawl.xRobotsTag,
+    title: signals.title,
+    metaDescription: signals.metaDescription,
+    h1: signals.h1,
+    canonical: signals.canonical,
+    metaRobots: signals.metaRobots,
+    hasStructuredData: signals.hasStructuredData,
+    hasGa4: signals.hasGa4,
+    hasGtm: signals.hasGtm,
+    contentHash: signals.contentHash,
+    htmlHash: signals.htmlHash
+  };
+  const timestamp = nowIso();
+
+  store.urlSnapshots.push({
+    id: randomUUID(),
+    monitoredUrlId: input.monitoredUrlId,
+    isBaseline: previousSnapshot === null,
+    capturedAt: timestamp,
+    ...fields
+  });
+
+  const detectedEvents = diffSnapshots(previousSnapshot, fields);
+  const persistedEvents: TimelineEvent[] = detectedEvents.map((detected) => ({
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    siteId: input.siteId,
+    monitoredUrlId: input.monitoredUrlId,
+    monitoredUrlLabel: null,
+    source: "CRAWLER",
+    type: detected.type,
+    severity: detected.severity,
+    title: detected.title,
+    oldValue: detected.oldValue,
+    newValue: detected.newValue,
+    metadata: detected.metadata ?? null,
+    occurredAt: timestamp,
+    detectedAt: timestamp
+  }));
+
+  store.events.push(...persistedEvents);
+
+  if (persistedEvents.length === 0) {
+    return;
+  }
+
+  const candidates = detectRegressions({
+    monitoredUrlId: input.monitoredUrlId,
+    events: persistedEvents,
+    siteTraffic: buildDevTrafficSignal(store, input.siteId, input.url),
+    recentWordPressEvents: buildDevRecentWordPressEvents(store, input.siteId, timestamp)
+  });
+
+  for (const candidate of candidates) {
+    const alreadyExists = store.regressions.some(
+      (regression) =>
+        regression.organizationId === input.organizationId &&
+        regression.siteId === input.siteId &&
+        regression.fingerprint === candidate.fingerprint
+    );
+
+    if (alreadyExists) {
+      continue;
+    }
+
+    const regressionId = randomUUID();
+    store.regressions.push({
+      id: regressionId,
+      organizationId: input.organizationId,
+      siteId: input.siteId,
+      monitoredUrlId: input.monitoredUrlId,
+      monitoredUrlLabel: null,
+      fingerprint: candidate.fingerprint,
+      status: "OPEN",
+      severity: candidate.severity,
+      title: candidate.title,
+      summary: candidate.summary,
+      metrics: candidate.metrics ?? null,
+      eventIds: candidate.eventIds,
+      detectedAt: timestamp,
+      resolvedAt: null,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    store.notifications.push({
+      id: randomUUID(),
+      organizationId: input.organizationId,
+      type: "regression.detected",
+      title: candidate.title,
+      body: candidate.summary,
+      readAt: null,
+      createdAt: timestamp
+    });
+  }
+}
+
+/**
+ * Matches the SaaS dashboard's own page-traffic-loss comparison window
+ * (apps/saas/src/lib/gsc-traffic-loss.ts) and apps/worker/src/monitoring/live.ts's
+ * getPageTrafficSignal, so the dev-store fallback path correlates regressions
+ * the same way the Prisma-backed worker does instead of only ever using the
+ * coarser site-wide signal.
+ */
+const devTrafficSignalWindowDays = 7;
+
+function buildDevTrafficSignal(
+  store: DevStoreState,
+  siteId: string,
+  url: string
+): TrafficSignal | null {
+  return buildDevPageTrafficSignal(store, siteId, url) ?? buildDevSiteTrafficSignal(store, siteId);
+}
+
+/**
+ * Mirrors getPageTrafficSignal in apps/worker/src/monitoring/live.ts: compares
+ * the monitored URL's own Search Console page-level insights (most recent
+ * range vs. the same range shifted back a week) when a matching baseline
+ * exists. Returns null — not a "no signal" result — so the caller falls back
+ * to the site-wide signal instead of silently reporting no decline.
+ */
+function buildDevPageTrafficSignal(
+  store: DevStoreState,
+  siteId: string,
+  url: string
+): TrafficSignal | null {
+  const normalizedTarget = normalizeMonitoringUrl(url);
+
+  if (!normalizedTarget) {
+    return null;
+  }
+
+  const siteInsights = store.gscSearchInsights.filter((insight) => insight.siteId === siteId);
+
+  if (siteInsights.length === 0) {
+    return null;
+  }
+
+  const latestRange = [...siteInsights].sort((left, right) =>
+    right.startDate.localeCompare(left.startDate)
+  )[0]!;
+  const baselineStart = shiftDateOnly(latestRange.startDate, -devTrafficSignalWindowDays);
+  const baselineEnd = shiftDateOnly(latestRange.endDate, -devTrafficSignalWindowDays);
+
+  const baselineRows: PageInsightRow[] = siteInsights
+    .filter(
+      (insight) =>
+        insight.propertyUrl === latestRange.propertyUrl &&
+        insight.startDate === baselineStart &&
+        insight.endDate === baselineEnd &&
+        normalizeMonitoringUrl(insight.page) === normalizedTarget
+    )
+    .map((insight) => ({ clicks: insight.clicks, position: insight.position }));
+
+  if (baselineRows.length === 0) {
+    return null;
+  }
+
+  const currentRows: PageInsightRow[] = siteInsights
+    .filter(
+      (insight) =>
+        insight.propertyUrl === latestRange.propertyUrl &&
+        insight.startDate === latestRange.startDate &&
+        insight.endDate === latestRange.endDate &&
+        normalizeMonitoringUrl(insight.page) === normalizedTarget
+    )
+    .map((insight) => ({ clicks: insight.clicks, position: insight.position }));
+
+  return computePageTrafficSignal(currentRows, baselineRows);
+}
+
+function buildDevSiteTrafficSignal(store: DevStoreState, siteId: string) {
+  const metrics = store.gscDailyMetrics.filter((metric) => metric.siteId === siteId);
+
+  if (metrics.length === 0) {
+    return null;
+  }
+
+  const byDate = new Map<string, { clicks: number; positionSum: number; positionCount: number }>();
+
+  for (const metric of metrics) {
+    const entry = byDate.get(metric.date) ?? { clicks: 0, positionSum: 0, positionCount: 0 };
+    entry.clicks += metric.clicks;
+    entry.positionSum += metric.position;
+    entry.positionCount += 1;
+    byDate.set(metric.date, entry);
+  }
+
+  const points: DailyMetricPoint[] = [...byDate.entries()].map(([date, entry]) => ({
+    date,
+    clicks: entry.clicks,
+    position: entry.positionCount > 0 ? entry.positionSum / entry.positionCount : null
+  }));
+
+  return computeTrafficSignal(points);
+}
+
+const devWordPressChangeLookbackDays = 3;
+
+function buildDevRecentWordPressEvents(
+  store: DevStoreState,
+  siteId: string,
+  before: string
+): Array<{ id: string; type: string; severity: TimelineEvent["severity"]; title: string; occurredAt: string }> {
+  const since = new Date(
+    new Date(before).getTime() - devWordPressChangeLookbackDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  return store.events
+    .filter(
+      (event) =>
+        event.siteId === siteId &&
+        event.source === "WORDPRESS" &&
+        event.occurredAt >= since &&
+        event.occurredAt <= before
+    )
+    .map((event) => ({
+      id: event.id,
+      type: event.type,
+      severity: event.severity,
+      title: event.title,
+      occurredAt: event.occurredAt
+    }));
+}
+
+export function listMonitoredUrlsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string
+): MonitoredUrl[] {
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+
+  return store.monitoredUrls
+    .filter((monitoredUrl) => monitoredUrl.organizationId === organizationId && monitoredUrl.siteId === siteId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((monitoredUrl) => withLatestSnapshot(store, monitoredUrl));
+}
+
+export async function createMonitoredUrlForSite(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  url: string;
+  label?: string;
+}): Promise<MonitoredUrl> {
+  const parsed: CreateMonitoredUrlInput = createMonitoredUrlSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const site = store.sites.find(
+    (candidate) => candidate.id === parsed.siteId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!site) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  const activeCount = store.monitoredUrls.filter(
+    (candidate) =>
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId &&
+      candidate.isActive
+  ).length;
+
+  if (activeCount >= maxMonitoredUrlsPerSite) {
+    throw new Error("MONITORED_URL_LIMIT_REACHED");
+  }
+
+  const urlHash = hashMonitoredUrl(parsed.url);
+  const existing = store.monitoredUrls.find(
+    (candidate) => candidate.siteId === parsed.siteId && hashMonitoredUrl(candidate.url) === urlHash
+  );
+
+  if (existing) {
+    throw new Error("MONITORED_URL_ALREADY_EXISTS");
+  }
+
+  const timestamp = nowIso();
+  const monitoredUrl: MonitoredUrl = {
+    id: randomUUID(),
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    url: parsed.url,
+    label: parsed.label ?? null,
+    isActive: true,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    latestSnapshot: null
+  };
+
+  store.monitoredUrls.push(monitoredUrl);
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "monitored_url.created",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: parsed.url }
+  });
+
+  await captureDevSnapshot({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    monitoredUrlId: monitoredUrl.id,
+    url: parsed.url
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export async function rescanMonitoredUrl(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+}): Promise<MonitoredUrl> {
+  const parsed: RescanMonitoredUrlInput = rescanMonitoredUrlSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  await captureDevSnapshot({
+    organizationId: parsed.organizationId,
+    siteId: parsed.siteId,
+    monitoredUrlId: monitoredUrl.id,
+    url: monitoredUrl.url
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function updateMonitoredUrlStatus(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  isActive: boolean;
+}): MonitoredUrl {
+  const parsed: UpdateMonitoredUrlStatusInput = updateMonitoredUrlStatusSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  if (parsed.isActive && !monitoredUrl.isActive) {
+    const activeCount = store.monitoredUrls.filter(
+      (candidate) =>
+        candidate.organizationId === parsed.organizationId &&
+        candidate.siteId === parsed.siteId &&
+        candidate.isActive
+    ).length;
+
+    if (activeCount >= maxMonitoredUrlsPerSite) {
+      throw new Error("MONITORED_URL_LIMIT_REACHED");
+    }
+  }
+
+  monitoredUrl.isActive = parsed.isActive;
+  monitoredUrl.updatedAt = nowIso();
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: parsed.isActive ? "monitored_url.resumed" : "monitored_url.paused",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: monitoredUrl.url }
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function updateMonitoredUrlLabel(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  label?: string;
+}): MonitoredUrl {
+  const parsed: UpdateMonitoredUrlLabelInput = updateMonitoredUrlLabelSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  monitoredUrl.label = parsed.label ?? null;
+  monitoredUrl.updatedAt = nowIso();
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "monitored_url.label_updated",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: monitoredUrl.url, label: monitoredUrl.label }
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function listEventsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: EventListOptions
+): TimelineEvent[] {
+  const parsed: EventListQuery = eventListQuerySchema.parse(options ?? {});
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+  const monitoredUrlsById = new Map(store.monitoredUrls.map((monitoredUrl) => [monitoredUrl.id, monitoredUrl]));
+
+  return store.events
+    .filter((event) => {
+      if (event.organizationId !== organizationId || event.siteId !== siteId) return false;
+      if (parsed.monitoredUrlId && event.monitoredUrlId !== parsed.monitoredUrlId) return false;
+      if (parsed.source && event.source !== parsed.source) return false;
+      if (parsed.severity && event.severity !== parsed.severity) return false;
+      return true;
+    })
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+    .slice(0, parsed.limit ?? 50)
+    .map((event) => ({
+      ...event,
+      monitoredUrlLabel: event.monitoredUrlId
+        ? (monitoredUrlsById.get(event.monitoredUrlId)?.label ??
+          monitoredUrlsById.get(event.monitoredUrlId)?.url ??
+          null)
+        : null
+    }));
+}
+
+export function listRegressionsForSite(
+  userId: string,
+  organizationId: string,
+  siteId: string,
+  options?: RegressionListOptions
+): Regression[] {
+  const parsed: RegressionListQuery = regressionListQuerySchema.parse(options ?? {});
+
+  requireOrganizationAccess({
+    userId,
+    organizationId,
+    permission: "monitoring:read"
+  });
+
+  const store = getDevStore();
+  const monitoredUrlsById = new Map(store.monitoredUrls.map((monitoredUrl) => [monitoredUrl.id, monitoredUrl]));
+
+  return store.regressions
+    .filter((regression) => {
+      if (regression.organizationId !== organizationId || regression.siteId !== siteId) return false;
+      if (parsed.status && regression.status !== parsed.status) return false;
+      return true;
+    })
+    .sort((left, right) => right.detectedAt.localeCompare(left.detectedAt))
+    .slice(0, parsed.limit ?? 50)
+    .map((regression) => ({
+      ...regression,
+      monitoredUrlLabel: regression.monitoredUrlId
+        ? (monitoredUrlsById.get(regression.monitoredUrlId)?.label ??
+          monitoredUrlsById.get(regression.monitoredUrlId)?.url ??
+          null)
+        : null
+    }));
+}
+
+export function updateRegressionStatus(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  regressionId: string;
+  status: Regression["status"];
+}): Regression {
+  const parsed: UpdateRegressionStatusInput = updateRegressionStatusSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const regression = store.regressions.find(
+    (candidate) =>
+      candidate.id === parsed.regressionId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!regression) {
+    throw new Error("REGRESSION_NOT_FOUND");
+  }
+
+  if (regression.status === parsed.status) {
+    return regression;
+  }
+
+  const timestamp = nowIso();
+  const previousStatus = regression.status;
+  regression.status = parsed.status;
+  regression.resolvedAt = parsed.status === "RESOLVED" ? timestamp : null;
+  regression.updatedAt = timestamp;
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "regression.status_updated",
+    entityType: "Regression",
+    entityId: regression.id,
+    metadata: {
+      siteId: parsed.siteId,
+      previousStatus,
+      status: regression.status
+    }
+  });
+
+  return regression;
 }
 
 /**
@@ -3001,6 +3704,260 @@ export function retryBulkOperation(
   return withBulkOperationDerivedFields(operation, store.activityLogs);
 }
 
+export async function requestOperationApproval(
+  input: RequestOperationApprovalInput & { user: AppUser }
+): Promise<{ approval: OperationApprovalSummary; emailDelivery: EmailDeliveryStatus }> {
+  const parsed = requestOperationApprovalSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "content_operation:confirm"
+  });
+
+  const operation = store.bulkOperations.find(
+    (candidate) =>
+      candidate.id === parsed.operationId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "DRY_RUN_PASSED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const site = store.sites.find((candidate) => candidate.id === parsed.siteId);
+  const organization = store.organizations.find(
+    (candidate) => candidate.id === parsed.organizationId
+  );
+
+  if (!site || !organization) {
+    throw new Error("SITE_NOT_FOUND");
+  }
+
+  for (const existing of store.operationApprovals) {
+    if (existing.bulkOperationId === operation.id && existing.status === "PENDING") {
+      existing.status = "EXPIRED";
+    }
+  }
+
+  const issued = createOperationApprovalToken();
+  const timestamp = nowIso();
+  const record: StoreOperationApproval = {
+    id: randomUUID(),
+    bulkOperationId: operation.id,
+    organizationId: parsed.organizationId,
+    tokenHash: issued.tokenHash,
+    status: "PENDING",
+    approverEmail: parsed.approverEmail,
+    requestedByUserId: input.user.id,
+    expiresAt: issued.expiresAt.toISOString(),
+    respondedAt: null,
+    createdAt: timestamp
+  };
+  store.operationApprovals.push(record);
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "bulk_operation.approval_requested",
+    entityType: "BulkOperation",
+    entityId: operation.id,
+    metadata: {
+      siteId: parsed.siteId,
+      approverEmail: parsed.approverEmail
+    }
+  });
+
+  const approveUrl = buildOperationApprovalUrl(issued.token);
+  const emailDelivery = await sendWorkspaceAlertEmail({
+    to: parsed.approverEmail,
+    organizationName: organization.name,
+    title: `Review requested: ${operation.type.replaceAll("_", " ").toLowerCase()}`,
+    body: `${input.user.email} is requesting your approval to apply a safe operation on ${site.name} (${site.url}). Review the details and approve or decline before anything changes.`,
+    actionUrl: approveUrl
+  });
+
+  return { approval: mapOperationApprovalSummary(record, approveUrl), emailDelivery };
+}
+
+export function getPublicOperationApproval(token: string): PublicOperationApproval | null {
+  const store = getDevStore();
+  const tokenHash = hashOperationApprovalToken(token);
+  const approval = store.operationApprovals.find((candidate) => candidate.tokenHash === tokenHash);
+
+  if (!approval) {
+    return null;
+  }
+
+  const effectiveStatus =
+    approval.status === "PENDING" && new Date(approval.expiresAt).getTime() < Date.now()
+      ? "EXPIRED"
+      : approval.status;
+
+  return buildPublicOperationApproval(approval, effectiveStatus, store);
+}
+
+export function respondToOperationApproval(
+  input: RespondToOperationApprovalInput
+): PublicOperationApproval {
+  const parsed = respondToOperationApprovalSchema.parse(input);
+  const store = getDevStore();
+  const tokenHash = hashOperationApprovalToken(parsed.token);
+  const approval = store.operationApprovals.find((candidate) => candidate.tokenHash === tokenHash);
+
+  if (!approval) {
+    throw new Error("OPERATION_APPROVAL_NOT_FOUND");
+  }
+
+  if (approval.status !== "PENDING") {
+    throw new Error("OPERATION_APPROVAL_ALREADY_RESOLVED");
+  }
+
+  if (new Date(approval.expiresAt).getTime() < Date.now()) {
+    approval.status = "EXPIRED";
+    throw new Error("OPERATION_APPROVAL_EXPIRED");
+  }
+
+  const operation = store.bulkOperations.find(
+    (candidate) => candidate.id === approval.bulkOperationId
+  );
+
+  if (!operation) {
+    throw new Error("BULK_OPERATION_NOT_FOUND");
+  }
+
+  if (operation.status !== "DRY_RUN_PASSED") {
+    throw new Error("BULK_OPERATION_NOT_READY");
+  }
+
+  const timestamp = nowIso();
+
+  if (parsed.decision === "APPROVED") {
+    const items = store.bulkOperationItems.filter(
+      (item) => item.bulkOperationId === operation.id
+    );
+
+    operation.status = "CONFIRMED";
+    operation.confirmedAt = timestamp;
+    operation.updatedAt = timestamp;
+
+    for (const item of items) {
+      item.status = "CONFIRMED";
+      item.error = null;
+      item.updatedAt = timestamp;
+    }
+
+    operation.items = items;
+    writeActivityLog({
+      organizationId: operation.organizationId,
+      userId: null,
+      action: "bulk_operation.confirmed",
+      entityType: "BulkOperation",
+      entityId: operation.id,
+      metadata: {
+        siteId: operation.siteId,
+        type: operation.type,
+        itemCount: items.length,
+        noMutation: true,
+        viaClientApproval: true,
+        approvalId: approval.id
+      }
+    });
+  } else {
+    writeActivityLog({
+      organizationId: operation.organizationId,
+      userId: null,
+      action: "bulk_operation.approval_declined",
+      entityType: "BulkOperation",
+      entityId: operation.id,
+      metadata: {
+        siteId: operation.siteId,
+        approvalId: approval.id
+      }
+    });
+  }
+
+  approval.status = parsed.decision;
+  approval.respondedAt = timestamp;
+
+  return buildPublicOperationApproval(approval, approval.status, store);
+}
+
+function mapOperationApprovalSummary(
+  approval: StoreOperationApproval,
+  approveUrl: string | null
+): OperationApprovalSummary {
+  return {
+    id: approval.id,
+    status: approval.status,
+    approverEmail: approval.approverEmail,
+    approveUrl,
+    expiresAt: approval.expiresAt,
+    respondedAt: approval.respondedAt,
+    createdAt: approval.createdAt
+  };
+}
+
+function buildPublicOperationApproval(
+  approval: StoreOperationApproval,
+  status: OperationApprovalStatus,
+  store: DevStoreState
+): PublicOperationApproval {
+  const operation = store.bulkOperations.find(
+    (candidate) => candidate.id === approval.bulkOperationId
+  );
+  const site = operation ? store.sites.find((candidate) => candidate.id === operation.siteId) : undefined;
+  const organization = store.organizations.find(
+    (candidate) => candidate.id === approval.organizationId
+  );
+
+  return {
+    status,
+    expiresAt: approval.expiresAt,
+    organizationName: organization?.name ?? "",
+    siteName: site?.name ?? "",
+    siteUrl: site?.url ?? "",
+    operationType: operation?.type ?? "",
+    itemCount: operation?.items.length ?? 0,
+    previewSummary: summarizePreviewForApprovalDev(operation?.preview),
+    dryRunSummary: summarizeDryRunForApprovalDev(operation?.dryRunResult)
+  };
+}
+
+function summarizePreviewForApprovalDev(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const summary = (value as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary : null;
+}
+
+function summarizeDryRunForApprovalDev(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const result = value as {
+    status?: unknown;
+    passedItems?: unknown;
+    failedItems?: unknown;
+    noMutation?: unknown;
+  };
+  const status = typeof result.status === "string" ? result.status : "passed";
+  const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
+  const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
+  const writeState =
+    result.noMutation === true ? "no WordPress writes" : "WordPress writes deferred";
+
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
+}
+
 function withBulkOperationDerivedFields(
   operation: BulkOperation,
   activityLogs: ActivityLog[]
@@ -3019,6 +3976,11 @@ function withBulkOperationDerivedFields(
     .map((log) => readBulkOperationRetryModeFromMetadata(log.metadata))
     .find((retryMode): retryMode is BulkOperationRetryMode => retryMode !== null);
 
+  const store = getDevStore();
+  const latestApproval = store.operationApprovals
+    .filter((approval) => approval.bulkOperationId === operation.id)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+
   return {
     ...operation,
     retryMode: inferBulkOperationRetryMode({
@@ -3027,7 +3989,20 @@ function withBulkOperationDerivedFields(
       latestRetryMode,
       items: operation.items
     }),
-    itemStatusSummary: summarizeBulkOperationItemStatuses(operation.items)
+    itemStatusSummary: summarizeBulkOperationItemStatuses(operation.items),
+    approval: latestApproval
+      ? mapOperationApprovalSummary(
+          {
+            ...latestApproval,
+            status:
+              latestApproval.status === "PENDING" &&
+              new Date(latestApproval.expiresAt).getTime() < Date.now()
+                ? "EXPIRED"
+                : latestApproval.status
+          },
+          null
+        )
+      : null
   };
 }
 
@@ -3278,6 +4253,7 @@ export function inviteMember(input: InviteMemberInputWithUser): InviteResult {
     userId: invitedUser.id,
     role: parsed.role,
     status: "INVITED",
+    siteScope: parsed.siteScope ?? [],
     invitedEmail: parsed.email,
     inviteExpiresAt: invite.expiresAt.toISOString()
   };
@@ -3500,6 +4476,47 @@ export function updateMemberRole(input: UpdateMemberRoleInputWithUser): Organiza
   return mapMemberSummary(member, user);
 }
 
+export function updateMemberSiteScope(
+  input: UpdateMemberSiteScopeInputWithUser
+): OrganizationMemberSummary {
+  const parsed: UpdateMemberSiteScopeInput = updateMemberSiteScopeSchema.parse(input);
+  const store = getDevStore();
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "members:manage"
+  });
+
+  const member = store.members.find(
+    (candidate) =>
+      candidate.id === parsed.memberId && candidate.organizationId === parsed.organizationId
+  );
+
+  if (!member) {
+    throw new Error("MEMBER_NOT_FOUND");
+  }
+
+  if (member.role === "OWNER") {
+    throw new Error("OWNER_ROLE_IS_PROTECTED");
+  }
+
+  member.siteScope = parsed.siteScope;
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "member.site_scope_updated",
+    entityType: "OrganizationMember",
+    entityId: member.id,
+    metadata: {
+      siteCount: parsed.siteScope.length
+    }
+  });
+
+  const user = store.users.find((candidate) => candidate.id === member.userId);
+
+  return mapMemberSummary(member, user);
+}
+
 export function addMemberForTest(input: {
   organizationId: string;
   userId: string;
@@ -3510,7 +4527,8 @@ export function addMemberForTest(input: {
     organizationId: input.organizationId,
     userId: input.userId,
     role: input.role,
-    status: "ACTIVE"
+    status: "ACTIVE",
+    siteScope: []
   };
 
   getDevStore().members.push(member);
@@ -3647,6 +4665,7 @@ function mapMemberSummary(
     userId: member.userId,
     role: member.role,
     status: member.status,
+    siteScope: member.siteScope,
     email: user?.email ?? member.invitedEmail ?? "unknown@example.com",
     name: user?.name ?? null,
     invitedEmail: member.invitedEmail ?? null,

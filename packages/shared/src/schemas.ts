@@ -74,16 +74,25 @@ export const assignableMemberRoleSchema = z.enum([
   "BILLING_MANAGER"
 ]);
 
+export const memberSiteScopeSchema = z.array(siteIdSchema).max(200);
+
 export const inviteMemberSchema = z.object({
   organizationId: organizationIdSchema,
   email: authEmailSchema,
-  role: assignableMemberRoleSchema
+  role: assignableMemberRoleSchema,
+  siteScope: memberSiteScopeSchema.optional()
 });
 
 export const updateMemberRoleSchema = z.object({
   organizationId: organizationIdSchema,
   memberId: z.string().uuid(),
   role: assignableMemberRoleSchema
+});
+
+export const updateMemberSiteScopeSchema = z.object({
+  organizationId: organizationIdSchema,
+  memberId: z.string().uuid(),
+  siteScope: memberSiteScopeSchema
 });
 
 export const inviteTokenSchema = z.string().trim().min(32).max(256);
@@ -181,6 +190,25 @@ export const pluginSyncBatchSchema = z.object({
   cursor: z.string().max(512).nullable(),
   items: z.array(pluginSyncItemSchema).max(250)
 });
+
+export const pluginSystemEventSchema = z
+  .object({
+    type: z.string().trim().min(1).max(64),
+    title: z.string().trim().min(1).max(200),
+    oldValue: z.unknown().nullable().optional(),
+    newValue: z.unknown().nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+    occurredAt: z.string().datetime()
+  })
+  .strict();
+
+export const pluginSystemEventBatchSchema = z
+  .object({
+    organizationId: organizationIdSchema,
+    siteId: siteIdSchema,
+    events: z.array(pluginSystemEventSchema).min(1).max(50)
+  })
+  .strict();
 
 export const backlogTaskFromCandidateSchema = z.object({
   organizationId: organizationIdSchema,
@@ -356,6 +384,20 @@ export const bulkOperationStartSchema = z.object({
   operationId: z.string().uuid()
 });
 
+export const requestOperationApprovalSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  operationId: z.string().uuid(),
+  approverEmail: authEmailSchema
+});
+
+export const operationApprovalTokenSchema = z.string().trim().min(32).max(256);
+
+export const respondToOperationApprovalSchema = z.object({
+  token: operationApprovalTokenSchema,
+  decision: z.enum(["APPROVED", "DECLINED"])
+});
+
 export const bulkOperationResultStatusSchema = z.enum(["COMPLETED", "FAILED"]);
 
 export const bulkOperationResultItemSchema = z.object({
@@ -447,6 +489,7 @@ export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchem
 export type AssignableMemberRole = z.infer<typeof assignableMemberRoleSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type UpdateMemberSiteScopeInput = z.infer<typeof updateMemberSiteScopeSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 export type EmailVerificationConfirmInput = z.infer<typeof emailVerificationConfirmSchema>;
 export type PluginConnectionChallengeCreateInput = z.infer<
@@ -456,6 +499,8 @@ export type PluginConnectionExchangeInput = z.infer<typeof pluginConnectionExcha
 export type PluginConnectionDisconnectInput = z.infer<typeof pluginConnectionDisconnectSchema>;
 export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
 export type PluginSyncBatch = z.infer<typeof pluginSyncBatchSchema>;
+export type PluginSystemEvent = z.infer<typeof pluginSystemEventSchema>;
+export type PluginSystemEventBatch = z.infer<typeof pluginSystemEventBatchSchema>;
 export type BacklogTaskFromCandidateInput = z.infer<typeof backlogTaskFromCandidateSchema>;
 export type BacklogTaskFromAuditIssueInput = z.infer<typeof backlogTaskFromAuditIssueSchema>;
 export type BacklogTasksFromAuditInput = z.infer<typeof backlogTasksFromAuditSchema>;
@@ -469,6 +514,8 @@ export type BacklogTaskOutcomeUpdateInput = z.infer<typeof backlogTaskOutcomeUpd
 export type BulkOperationDryRunInput = z.infer<typeof bulkOperationDryRunSchema>;
 export type BulkOperationConfirmInput = z.infer<typeof bulkOperationConfirmSchema>;
 export type BulkOperationStartInput = z.infer<typeof bulkOperationStartSchema>;
+export type RequestOperationApprovalInput = z.infer<typeof requestOperationApprovalSchema>;
+export type RespondToOperationApprovalInput = z.infer<typeof respondToOperationApprovalSchema>;
 export type BulkOperationResultInput = z.infer<typeof bulkOperationResultSchema>;
 export type BulkOperationRollbackInput = z.infer<typeof bulkOperationRollbackSchema>;
 export type BulkOperationRetryInput = z.infer<typeof bulkOperationRetrySchema>;
@@ -485,3 +532,69 @@ export type BillingCheckoutCreateInput = z.infer<typeof billingCheckoutCreateSch
 export type UpdateAuditIssueStatusInput = z.infer<typeof updateAuditIssueStatusSchema>;
 export type UpdateBacklogTaskAssignmentInput = z.infer<typeof updateBacklogTaskAssignmentSchema>;
 export type UpdateBacklogTaskStatusInput = z.infer<typeof updateBacklogTaskStatusSchema>;
+
+export const createMonitoredUrlSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  url: z.string().trim().url().max(2048),
+  label: z.string().trim().min(1).max(160).optional()
+});
+
+export type CreateMonitoredUrlInput = z.infer<typeof createMonitoredUrlSchema>;
+
+export const rescanMonitoredUrlSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid()
+});
+
+export type RescanMonitoredUrlInput = z.infer<typeof rescanMonitoredUrlSchema>;
+
+export const updateMonitoredUrlStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid(),
+  isActive: z.boolean()
+});
+
+export type UpdateMonitoredUrlStatusInput = z.infer<typeof updateMonitoredUrlStatusSchema>;
+
+export const updateMonitoredUrlLabelSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid(),
+  label: z.string().trim().min(1).max(160).optional()
+});
+
+export type UpdateMonitoredUrlLabelInput = z.infer<typeof updateMonitoredUrlLabelSchema>;
+
+export const eventSourceSchema = z.enum(["WORDPRESS", "CRAWLER", "GSC", "SYSTEM"]);
+
+export const eventSeveritySchema = z.enum(["INFO", "WARNING", "CRITICAL"]);
+
+export const eventListQuerySchema = z.object({
+  monitoredUrlId: z.string().uuid().optional(),
+  source: eventSourceSchema.optional(),
+  severity: eventSeveritySchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional()
+});
+
+export type EventListQuery = z.infer<typeof eventListQuerySchema>;
+
+export const regressionStatusSchema = z.enum(["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"]);
+
+export const regressionListQuerySchema = z.object({
+  status: regressionStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional()
+});
+
+export type RegressionListQuery = z.infer<typeof regressionListQuerySchema>;
+
+export const updateRegressionStatusSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  regressionId: z.string().uuid(),
+  status: regressionStatusSchema
+});
+
+export type UpdateRegressionStatusInput = z.infer<typeof updateRegressionStatusSchema>;

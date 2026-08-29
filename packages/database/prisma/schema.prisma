@@ -88,6 +88,26 @@ enum BulkOperationStatus {
   ROLLED_BACK
 }
 
+enum EventSource {
+  WORDPRESS
+  CRAWLER
+  GSC
+  SYSTEM
+}
+
+enum EventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum RegressionStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
 model User {
   id                        String               @id @default(uuid())
   email                     String               @unique
@@ -109,6 +129,7 @@ model User {
   assignedTasks  BacklogTask[]        @relation("AssignedTasks")
   activityLogs   ActivityLog[]
   deliveryPreferences DeliveryPreference[]
+  requestedOperationApprovals OperationApproval[]
 }
 
 model Session {
@@ -174,6 +195,7 @@ model OrganizationMember {
   userId             String
   role               Role
   status             MemberStatus @default(ACTIVE)
+  siteScope          String[]     @default([])
   invitedEmail       String?
   inviteTokenHash    String?      @unique
   inviteExpiresAt    DateTime?
@@ -249,6 +271,9 @@ model Site {
   backlogTasks         BacklogTask[]
   bulkOperations       BulkOperation[]
   integrations         Integration[]
+  monitoredUrls        MonitoredUrl[]
+  events               Event[]
+  regressions          Regression[]
 
   @@unique([organizationId, url])
   @@index([organizationId, status])
@@ -444,8 +469,32 @@ model BulkOperation {
   updatedAt      DateTime            @updatedAt
   site           Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
   items          BulkOperationItem[]
+  approvals      OperationApproval[]
 
   @@index([organizationId, siteId, status])
+}
+
+enum OperationApprovalStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  EXPIRED
+}
+
+model OperationApproval {
+  id                String                   @id @default(uuid())
+  bulkOperationId   String
+  tokenHash         String                   @unique
+  status            OperationApprovalStatus  @default(PENDING)
+  approverEmail     String?
+  requestedByUserId String?
+  respondedAt       DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime                 @default(now())
+  bulkOperation     BulkOperation            @relation(fields: [bulkOperationId], references: [id], onDelete: Cascade)
+  requestedBy       User?                    @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([bulkOperationId])
 }
 
 model BulkOperationItem {
@@ -565,4 +614,113 @@ model UsageMetric {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, metric, periodStart])
+}
+
+model MonitoredUrl {
+  id             String         @id @default(uuid())
+  organizationId String
+  siteId         String
+  url            String
+  urlHash        String
+  label          String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  site           Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  snapshots      UrlSnapshot[]
+  events         Event[]
+  regressions    Regression[]
+
+  @@unique([siteId, urlHash])
+  @@index([organizationId, siteId, isActive])
+}
+
+model UrlSnapshot {
+  id                String       @id @default(uuid())
+  monitoredUrlId    String
+  organizationId    String
+  siteId            String
+  isBaseline        Boolean      @default(false)
+  httpStatus        Int?
+  finalUrl          String?
+  responseTimeMs    Int?
+  title             String?
+  metaDescription   String?
+  h1                String?
+  canonical         String?
+  metaRobots        String?
+  xRobotsTag        String?
+  hasStructuredData Boolean?
+  hasGa4            Boolean?
+  hasGtm            Boolean?
+  contentHash       String?
+  htmlHash          String?
+  extra             Json?
+  capturedAt        DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  monitoredUrl      MonitoredUrl @relation(fields: [monitoredUrlId], references: [id], onDelete: Cascade)
+
+  @@index([monitoredUrlId, capturedAt])
+  @@index([organizationId, siteId, capturedAt])
+}
+
+model Event {
+  id              String            @id @default(uuid())
+  organizationId  String
+  siteId          String
+  monitoredUrlId  String?
+  source          EventSource
+  type            String
+  severity        EventSeverity     @default(INFO)
+  title           String
+  oldValue        Json?
+  newValue        Json?
+  metadata        Json?
+  occurredAt      DateTime
+  detectedAt      DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  site            Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  monitoredUrl    MonitoredUrl?     @relation(fields: [monitoredUrlId], references: [id], onDelete: Cascade)
+  regressionLinks RegressionEvent[]
+
+  @@index([organizationId, siteId, occurredAt])
+  @@index([siteId, type])
+  @@index([siteId, severity])
+  @@index([monitoredUrlId, occurredAt])
+}
+
+model Regression {
+  id             String            @id @default(uuid())
+  organizationId String
+  siteId         String
+  monitoredUrlId String?
+  fingerprint    String
+  status         RegressionStatus  @default(OPEN)
+  severity       EventSeverity
+  title          String
+  summary        String
+  metrics        Json?
+  detectedAt     DateTime          @default(now())
+  resolvedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  site           Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  monitoredUrl   MonitoredUrl?     @relation(fields: [monitoredUrlId], references: [id], onDelete: Cascade)
+  events         RegressionEvent[]
+
+  @@unique([organizationId, siteId, fingerprint])
+  @@index([organizationId, siteId, status])
+  @@index([siteId, detectedAt])
+}
+
+model RegressionEvent {
+  id           String     @id @default(uuid())
+  regressionId String
+  eventId      String
+  role         String     @default("contributing")
+  createdAt    DateTime   @default(now())
+  regression   Regression @relation(fields: [regressionId], references: [id], onDelete: Cascade)
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([regressionId, eventId])
 }

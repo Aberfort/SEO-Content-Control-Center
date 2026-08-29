@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
 import {
@@ -23,19 +25,29 @@ import {
   bulkOperationStartSchema,
   buildWorkspaceDeliverableSummary,
   clientReportQuerySchema,
+  createMonitoredUrlSchema,
   deliveryPreferenceUpdateSchema,
+  eventListQuerySchema,
   hasPermission,
   inviteMemberSchema,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  regressionListQuerySchema,
+  rescanMonitoredUrlSchema,
+  requestOperationApprovalSchema,
   resolveCommercialAccess,
+  respondToOperationApprovalSchema,
   siteCreateSchema,
   updateAuditIssueStatusSchema,
   updateBacklogTaskAssignmentSchema,
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
+  updateMemberSiteScopeSchema,
+  updateMonitoredUrlLabelSchema,
+  updateMonitoredUrlStatusSchema,
+  updateRegressionStatusSchema,
   type AcceptInviteInput,
   type AssistantRecommendationListQuery,
   type AuditIssueListQuery,
@@ -56,17 +68,27 @@ import {
   type ClientReportQuery,
   type CommercialAccess,
   type ContentTrustEvidence,
+  type CreateMonitoredUrlInput,
   type DeliveryPreferenceUpdateInput,
+  type EventListQuery,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type RegressionListQuery,
+  type RequestOperationApprovalInput,
+  type RescanMonitoredUrlInput,
+  type RespondToOperationApprovalInput,
   type SiteCreateInput,
   type UpdateAuditIssueStatusInput,
   type UpdateBacklogTaskAssignmentInput,
+  type UpdateRegressionStatusInput,
   type UpdateBacklogTaskStatusInput,
-  type UpdateMemberRoleInput
+  type UpdateMemberRoleInput,
+  type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlLabelInput,
+  type UpdateMonitoredUrlStatusInput
 } from "@sccc/shared";
 
 import {
@@ -89,12 +111,23 @@ import {
   listBacklogTaskActivity as listDevBacklogTaskActivity,
   listAuditIssuesForAudit as listDevAuditIssuesForAudit,
   listAuditsForSite as listDevAuditsForSite,
+  createMonitoredUrlForSite as createDevMonitoredUrlForSite,
+  listEventsForSite as listDevEventsForSite,
+  listMonitoredUrlsForSite as listDevMonitoredUrlsForSite,
+  listRegressionsForSite as listDevRegressionsForSite,
+  updateRegressionStatus as updateDevRegressionStatus,
+  rescanMonitoredUrl as rescanDevMonitoredUrl,
+  updateMonitoredUrlLabel as updateDevMonitoredUrlLabel,
+  updateMonitoredUrlStatus as updateDevMonitoredUrlStatus,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
   listBulkOperationsForSite as listDevBulkOperationsForSite,
   confirmBulkOperation as confirmDevBulkOperation,
   finishBulkOperation as finishDevBulkOperation,
   retryBulkOperation as retryDevBulkOperation,
+  requestOperationApproval as requestDevOperationApproval,
+  getPublicOperationApproval as getDevPublicOperationApproval,
+  respondToOperationApproval as respondToDevOperationApproval,
   rollbackBulkOperation as rollbackDevBulkOperation,
   runBulkOperationDryRun as runDevBulkOperationDryRun,
   startBulkOperation as startDevBulkOperation,
@@ -123,6 +156,7 @@ import {
   updateNotificationReadState as updateDevNotificationReadState,
   updateDeliveryPreference as updateDevDeliveryPreference,
   updateMemberRole as updateDevMemberRole,
+  updateMemberSiteScope as updateDevMemberSiteScope,
   selectGscConnectionProperty as selectDevGscConnectionProperty,
   replaceGscSearchInsights as replaceDevGscSearchInsights,
   upsertGscDailyMetrics as upsertDevGscDailyMetrics,
@@ -174,7 +208,7 @@ import {
   sortBillingPlans
 } from "./billing-plans";
 import { buildBillingActions } from "./billing-actions";
-import { sendWorkspaceAlertEmail } from "./email";
+import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
 import { assertBillingFeatureAvailable, buildBillingFeatureGates } from "./billing-feature-gates";
 import {
   aiCreditLimitNotificationType,
@@ -205,9 +239,15 @@ import {
   enqueueBulkOperationExecutionJob,
   enqueueBulkOperationRollbackJob
 } from "./bulk-operation-queue";
+import { enqueueMonitoringCreateSnapshotJob } from "./monitored-url-queue";
 import { buildGscConnectAction, isGscOAuthConfigured } from "./gsc-oauth";
 import { buildInviteUrl, createInviteToken, hashInviteToken } from "./invite-token";
 import { trackAnalyticsEvent } from "./observability";
+import {
+  buildOperationApprovalUrl,
+  createOperationApprovalToken,
+  hashOperationApprovalToken
+} from "./operation-approval-token";
 import type {
   ActivityLog,
   AppUser,
@@ -238,6 +278,7 @@ import type {
   BulkOperationRetryMode,
   ClientReport,
   DeliveryPreference,
+  EventListOptions,
   GscConnectionSecret,
   GscConnectionOverview,
   GscConnectionSummary,
@@ -248,17 +289,24 @@ import type {
   GscSearchInsightInput,
   GscSearchInsightSyncResult,
   InviteResult,
+  MonitoredUrl,
   NotificationBulkUpdateResult,
   Notification,
   NotificationListOptions,
+  OperationApprovalSummary,
   OrganizationMemberSummary,
   OrganizationSummary,
+  PublicOperationApproval,
+  Regression,
+  RegressionListOptions,
   Site,
   SyncedContentBacklogCandidate,
   SyncedContentList,
   SyncedContentListOptions,
   SyncedContentItem,
-  SyncedContentMetadata
+  SyncedContentMetadata,
+  TimelineEvent,
+  UrlSnapshot
 } from "./types";
 
 type CreateOrganizationInput = {
@@ -277,6 +325,26 @@ type CreateAuditForSiteInput = {
   user: AppUser;
   organizationId: string;
   siteId: string;
+};
+
+type CreateMonitoredUrlForSiteInput = CreateMonitoredUrlInput & {
+  user: AppUser;
+};
+
+type RescanMonitoredUrlInputWithUser = RescanMonitoredUrlInput & {
+  user: AppUser;
+};
+
+type UpdateMonitoredUrlStatusInputWithUser = UpdateMonitoredUrlStatusInput & {
+  user: AppUser;
+};
+
+type UpdateMonitoredUrlLabelInputWithUser = UpdateMonitoredUrlLabelInput & {
+  user: AppUser;
+};
+
+type UpdateRegressionStatusInputWithUser = UpdateRegressionStatusInput & {
+  user: AppUser;
 };
 
 type CreateBacklogTaskFromCandidateInput = BacklogTaskFromCandidateInput & {
@@ -339,11 +407,16 @@ type RetryBulkOperationInput = BulkOperationRetryInput & {
   user: AppUser;
 };
 
+type RequestOperationApprovalInputWithUser = RequestOperationApprovalInput & {
+  user: AppUser;
+};
+
 type InviteMemberInputWithUser = {
   user: AppUser;
   organizationId: string;
   email: string;
   role: InviteMemberInput["role"];
+  siteScope?: string[];
 };
 
 type UpdateMemberRoleInputWithUser = {
@@ -351,6 +424,13 @@ type UpdateMemberRoleInputWithUser = {
   organizationId: string;
   memberId: string;
   role: UpdateMemberRoleInput["role"];
+};
+
+type UpdateMemberSiteScopeInputWithUser = {
+  user: AppUser;
+  organizationId: string;
+  memberId: string;
+  siteScope: string[];
 };
 
 type MemberMutationInputWithUser = {
@@ -517,6 +597,28 @@ type AppRepository = {
     options?: AuditIssueListOptions
   ): Promise<AuditIssue[]>;
   updateAuditIssueStatus(input: UpdateAuditIssueStatusInputWithUser): Promise<AuditIssue>;
+  listMonitoredUrlsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string
+  ): Promise<MonitoredUrl[]>;
+  createMonitoredUrlForSite(input: CreateMonitoredUrlForSiteInput): Promise<MonitoredUrl>;
+  rescanMonitoredUrl(input: RescanMonitoredUrlInputWithUser): Promise<MonitoredUrl>;
+  updateMonitoredUrlStatus(input: UpdateMonitoredUrlStatusInputWithUser): Promise<MonitoredUrl>;
+  updateMonitoredUrlLabel(input: UpdateMonitoredUrlLabelInputWithUser): Promise<MonitoredUrl>;
+  listEventsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: EventListOptions
+  ): Promise<TimelineEvent[]>;
+  listRegressionsForSite(
+    userId: string,
+    organizationId: string,
+    siteId: string,
+    options?: RegressionListOptions
+  ): Promise<Regression[]>;
+  updateRegressionStatus(input: UpdateRegressionStatusInputWithUser): Promise<Regression>;
   getSyncedContentItem(
     userId: string,
     organizationId: string,
@@ -573,6 +675,14 @@ type AppRepository = {
   finishBulkOperation(input: FinishBulkOperationInput): Promise<BulkOperation>;
   rollbackBulkOperation(input: RollbackBulkOperationInput): Promise<BulkOperation>;
   retryBulkOperation(input: RetryBulkOperationInput): Promise<BulkOperation>;
+  requestOperationApproval(input: RequestOperationApprovalInputWithUser): Promise<{
+    approval: OperationApprovalSummary;
+    emailDelivery: EmailDeliveryStatus;
+  }>;
+  getPublicOperationApproval(token: string): Promise<PublicOperationApproval | null>;
+  respondToOperationApproval(
+    input: RespondToOperationApprovalInput
+  ): Promise<PublicOperationApproval>;
   listMembersForOrganization(
     userId: string,
     organizationId: string
@@ -582,6 +692,9 @@ type AppRepository = {
   cancelInvite(input: MemberMutationInputWithUser): Promise<OrganizationMemberSummary>;
   acceptInvite(input: AcceptInviteInputWithUser): Promise<OrganizationMemberSummary>;
   updateMemberRole(input: UpdateMemberRoleInputWithUser): Promise<OrganizationMemberSummary>;
+  updateMemberSiteScope(
+    input: UpdateMemberSiteScopeInputWithUser
+  ): Promise<OrganizationMemberSummary>;
 };
 
 export function getAppRepository(): AppRepository {
@@ -684,6 +797,30 @@ const devStoreRepository: AppRepository = {
   async updateAuditIssueStatus(input) {
     return updateDevAuditIssueStatus(input);
   },
+  async listMonitoredUrlsForSite(userId, organizationId, siteId) {
+    return listDevMonitoredUrlsForSite(userId, organizationId, siteId);
+  },
+  async createMonitoredUrlForSite(input) {
+    return createDevMonitoredUrlForSite(input);
+  },
+  async rescanMonitoredUrl(input) {
+    return rescanDevMonitoredUrl(input);
+  },
+  async updateMonitoredUrlStatus(input) {
+    return updateDevMonitoredUrlStatus(input);
+  },
+  async updateMonitoredUrlLabel(input) {
+    return updateDevMonitoredUrlLabel(input);
+  },
+  async listEventsForSite(userId, organizationId, siteId, options) {
+    return listDevEventsForSite(userId, organizationId, siteId, options);
+  },
+  async listRegressionsForSite(userId, organizationId, siteId, options) {
+    return listDevRegressionsForSite(userId, organizationId, siteId, options);
+  },
+  async updateRegressionStatus(input) {
+    return updateDevRegressionStatus(input);
+  },
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     return getDevSyncedContentItem(userId, organizationId, siteId, contentItemId);
   },
@@ -744,6 +881,15 @@ const devStoreRepository: AppRepository = {
   async retryBulkOperation(input) {
     return retryDevBulkOperation(input);
   },
+  async requestOperationApproval(input) {
+    return requestDevOperationApproval(input);
+  },
+  async getPublicOperationApproval(token) {
+    return getDevPublicOperationApproval(token);
+  },
+  async respondToOperationApproval(input) {
+    return respondToDevOperationApproval(input);
+  },
   async listMembersForOrganization(userId, organizationId) {
     return listDevMembersForOrganization(userId, organizationId);
   },
@@ -761,6 +907,9 @@ const devStoreRepository: AppRepository = {
   },
   async updateMemberRole(input) {
     return updateDevMemberRole(input);
+  },
+  async updateMemberSiteScope(input) {
+    return updateDevMemberSiteScope(input);
   }
 };
 
@@ -801,7 +950,11 @@ const prismaRepository: AppRepository = {
       slug: membership.organization.slug,
       createdAt: membership.organization.createdAt.toISOString(),
       role: membership.role,
-      sites: membership.organization.sites.map(mapSite),
+      siteScope: membership.siteScope,
+      sites: (membership.siteScope.length > 0
+        ? membership.organization.sites.filter((site) => membership.siteScope.includes(site.id))
+        : membership.organization.sites
+      ).map(mapSite),
       activityLogs: membership.organization.activityLogs.map(mapActivityLog)
     }));
   },
@@ -918,6 +1071,8 @@ const prismaRepository: AppRepository = {
       },
       include: {
         sites: {
+          where:
+            membership.siteScope.length > 0 ? { id: { in: membership.siteScope } } : undefined,
           orderBy: {
             createdAt: "desc"
           }
@@ -941,6 +1096,7 @@ const prismaRepository: AppRepository = {
       slug: organization.slug,
       createdAt: organization.createdAt.toISOString(),
       role: membership.role,
+      siteScope: membership.siteScope,
       sites: organization.sites.map(mapSite),
       activityLogs: organization.activityLogs.map(mapActivityLog)
     };
@@ -1030,7 +1186,7 @@ const prismaRepository: AppRepository = {
   },
 
   async listSitesForOrganization(userId, organizationId) {
-    await requireDbOrganizationAccess({
+    const membership = await requireDbOrganizationAccess({
       userId,
       organizationId,
       permission: "site:read"
@@ -1038,7 +1194,8 @@ const prismaRepository: AppRepository = {
 
     const sites = await prisma.site.findMany({
       where: {
-        organizationId
+        organizationId,
+        ...(membership.siteScope.length > 0 ? { id: { in: membership.siteScope } } : {})
       },
       orderBy: {
         createdAt: "desc"
@@ -1641,7 +1798,7 @@ const prismaRepository: AppRepository = {
     const generatedAt = new Date();
     const summaries = await Promise.all(
       sites.map(async (site) => {
-        const [issues, tasks, operations] = await Promise.all([
+        const [issues, tasks, operations, regressions] = await Promise.all([
           prisma.auditIssue.findMany({
             where: { organizationId, siteId: site.id },
             select: {
@@ -1666,6 +1823,10 @@ const prismaRepository: AppRepository = {
           prisma.bulkOperation.findMany({
             where: { organizationId, siteId: site.id },
             select: { status: true, updatedAt: true }
+          }),
+          prisma.regression.findMany({
+            where: { organizationId, siteId: site.id },
+            select: { status: true, detectedAt: true }
           })
         ]);
 
@@ -1678,7 +1839,8 @@ const prismaRepository: AppRepository = {
           generatedAt,
           issues,
           tasks,
-          operations
+          operations,
+          regressions
         });
       })
     );
@@ -1697,6 +1859,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1790,6 +1953,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1827,6 +1991,7 @@ const prismaRepository: AppRepository = {
     const membership = await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -1875,6 +2040,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -1938,6 +2104,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -1994,6 +2161,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "integration:manage"
     });
 
@@ -2025,6 +2193,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2056,6 +2225,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -2142,6 +2312,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2202,6 +2373,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "integration:manage"
     });
     assertEntitlement(await getDbCommercialAccess(input.organizationId), "gscImpact");
@@ -2298,6 +2470,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -2480,6 +2653,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "audit:read"
     });
 
@@ -2519,6 +2693,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: input.organizationId,
+      siteId: input.siteId,
       permission: "audit:run"
     });
 
@@ -2715,6 +2890,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "audit:read"
     });
 
@@ -2795,6 +2971,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "audit:run"
     });
 
@@ -2846,10 +3023,412 @@ const prismaRepository: AppRepository = {
     return mapAuditIssue(updated);
   },
 
+  async listMonitoredUrlsForSite(userId, organizationId, siteId) {
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const monitoredUrls = await prisma.monitoredUrl.findMany({
+      where: { organizationId, siteId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        snapshots: {
+          orderBy: { capturedAt: "desc" },
+          take: 1
+        }
+      }
+    });
+
+    return monitoredUrls.map((record) => mapMonitoredUrl(record, record.snapshots[0] ?? null));
+  },
+
+  async createMonitoredUrlForSite(input) {
+    const parsed: CreateMonitoredUrlInput = createMonitoredUrlSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: parsed.siteId, organizationId: parsed.organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const activeCount = await prisma.monitoredUrl.count({
+      where: { organizationId: parsed.organizationId, siteId: parsed.siteId, isActive: true }
+    });
+    const maxMonitoredUrls = Number.parseInt(
+      process.env.SCCC_MAX_MONITORED_URLS_PER_SITE ?? "10",
+      10
+    );
+
+    if (activeCount >= (Number.isFinite(maxMonitoredUrls) ? maxMonitoredUrls : 10)) {
+      throw new Error("MONITORED_URL_LIMIT_REACHED");
+    }
+
+    const urlHash = hashMonitoredUrl(parsed.url);
+    let created;
+
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const record = await tx.monitoredUrl.create({
+          data: {
+            organizationId: parsed.organizationId,
+            siteId: parsed.siteId,
+            url: parsed.url,
+            urlHash,
+            label: parsed.label ?? null
+          }
+        });
+
+        await tx.activityLog.create({
+          data: {
+            organizationId: parsed.organizationId,
+            userId: input.user.id,
+            action: "monitored_url.created",
+            entityType: "MonitoredUrl",
+            entityId: record.id,
+            metadata: { siteId: parsed.siteId, url: parsed.url }
+          }
+        });
+
+        return record;
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new Error("MONITORED_URL_ALREADY_EXISTS");
+      }
+
+      throw error;
+    }
+
+    await enqueueMonitoringCreateSnapshotJob({
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      monitoredUrlId: created.id
+    }).catch(() => undefined);
+
+    return mapMonitoredUrl(created, null);
+  },
+
+  async rescanMonitoredUrl(input) {
+    const parsed: RescanMonitoredUrlInput = rescanMonitoredUrlSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const record = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        snapshots: {
+          orderBy: { capturedAt: "desc" },
+          take: 1
+        }
+      }
+    });
+
+    if (!record) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    await enqueueMonitoringCreateSnapshotJob({
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      monitoredUrlId: record.id
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async updateMonitoredUrlStatus(input) {
+    const parsed: UpdateMonitoredUrlStatusInput = updateMonitoredUrlStatusSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const existing = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    if (parsed.isActive && !existing.isActive) {
+      const activeCount = await prisma.monitoredUrl.count({
+        where: { organizationId: parsed.organizationId, siteId: parsed.siteId, isActive: true }
+      });
+      const maxMonitoredUrls = Number.parseInt(
+        process.env.SCCC_MAX_MONITORED_URLS_PER_SITE ?? "10",
+        10
+      );
+
+      if (activeCount >= (Number.isFinite(maxMonitoredUrls) ? maxMonitoredUrls : 10)) {
+        throw new Error("MONITORED_URL_LIMIT_REACHED");
+      }
+    }
+
+    const record = await prisma.$transaction(async (tx) => {
+      const updated = await tx.monitoredUrl.update({
+        where: { id: existing.id },
+        data: { isActive: parsed.isActive },
+        include: {
+          snapshots: {
+            orderBy: { capturedAt: "desc" },
+            take: 1
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: parsed.isActive ? "monitored_url.resumed" : "monitored_url.paused",
+          entityType: "MonitoredUrl",
+          entityId: updated.id,
+          metadata: { siteId: parsed.siteId, url: updated.url }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async updateMonitoredUrlLabel(input) {
+    const parsed: UpdateMonitoredUrlLabelInput = updateMonitoredUrlLabelSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const existing = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    const record = await prisma.$transaction(async (tx) => {
+      const updated = await tx.monitoredUrl.update({
+        where: { id: existing.id },
+        data: { label: parsed.label ?? null },
+        include: {
+          snapshots: {
+            orderBy: { capturedAt: "desc" },
+            take: 1
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "monitored_url.label_updated",
+          entityType: "MonitoredUrl",
+          entityId: updated.id,
+          metadata: { siteId: parsed.siteId, url: updated.url, label: updated.label }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async listEventsForSite(userId, organizationId, siteId, options) {
+    const parsed: EventListQuery = eventListQuerySchema.parse(options ?? {});
+
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const events = await prisma.event.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(parsed.monitoredUrlId ? { monitoredUrlId: parsed.monitoredUrlId } : {}),
+        ...(parsed.source ? { source: parsed.source } : {}),
+        ...(parsed.severity ? { severity: parsed.severity } : {})
+      },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: parsed.limit ?? 50,
+      include: {
+        monitoredUrl: {
+          select: { url: true, label: true }
+        }
+      }
+    });
+
+    return events.map(mapEvent);
+  },
+
+  async listRegressionsForSite(userId, organizationId, siteId, options) {
+    const parsed: RegressionListQuery = regressionListQuerySchema.parse(options ?? {});
+
+    await requireDbOrganizationAccess({
+      userId,
+      organizationId,
+      siteId,
+      permission: "monitoring:read"
+    });
+
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, organizationId }
+    });
+
+    if (!site) {
+      throw new Error("SITE_NOT_FOUND");
+    }
+
+    const regressions = await prisma.regression.findMany({
+      where: {
+        organizationId,
+        siteId,
+        ...(parsed.status ? { status: parsed.status } : {})
+      },
+      orderBy: [{ detectedAt: "desc" }, { id: "desc" }],
+      take: parsed.limit ?? 50,
+      include: {
+        monitoredUrl: {
+          select: { url: true, label: true }
+        },
+        events: {
+          select: { eventId: true }
+        }
+      }
+    });
+
+    return regressions.map(mapRegression);
+  },
+
+  async updateRegressionStatus(input) {
+    const parsed: UpdateRegressionStatusInput = updateRegressionStatusSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const regressionInclude = {
+      monitoredUrl: {
+        select: { url: true, label: true }
+      },
+      events: {
+        select: { eventId: true }
+      }
+    } as const;
+    const regression = await prisma.regression.findFirst({
+      where: {
+        id: parsed.regressionId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: regressionInclude
+    });
+
+    if (!regression) {
+      throw new Error("REGRESSION_NOT_FOUND");
+    }
+
+    if (regression.status === parsed.status) {
+      return mapRegression(regression);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.regression.update({
+        where: { id: regression.id },
+        data: {
+          status: parsed.status,
+          resolvedAt: parsed.status === "RESOLVED" ? new Date() : null
+        },
+        include: regressionInclude
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "regression.status_updated",
+          entityType: "Regression",
+          entityId: next.id,
+          metadata: {
+            siteId: parsed.siteId,
+            previousStatus: regression.status,
+            status: next.status
+          }
+        }
+      });
+
+      return next;
+    });
+
+    return mapRegression(updated);
+  },
+
   async getSyncedContentItem(userId, organizationId, siteId, contentItemId) {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2871,6 +3450,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "site:read"
     });
 
@@ -2916,6 +3496,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3044,6 +3625,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
     const existing = await prisma.backlogTask.findFirst({
@@ -3093,6 +3675,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3169,6 +3752,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3327,6 +3911,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3437,6 +4022,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3495,6 +4081,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3589,6 +4176,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3624,6 +4212,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "backlog:read"
     });
 
@@ -3655,6 +4244,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "backlog:update"
     });
 
@@ -3707,6 +4297,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId,
       organizationId,
+      siteId: siteId,
       permission: "content_operation:preview"
     });
 
@@ -3801,17 +4392,50 @@ const prismaRepository: AppRepository = {
       }
     }
 
-    return operations.map((operation) =>
-      mapBulkOperation(
+    const approvals =
+      operationIds.length > 0
+        ? await prisma.operationApproval.findMany({
+            where: {
+              bulkOperationId: { in: operationIds }
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          })
+        : [];
+    const latestApprovalByOperationId = new Map<string, (typeof approvals)[number]>();
+
+    for (const approval of approvals) {
+      if (!latestApprovalByOperationId.has(approval.bulkOperationId)) {
+        latestApprovalByOperationId.set(approval.bulkOperationId, approval);
+      }
+    }
+
+    return operations.map((operation) => {
+      const approval = latestApprovalByOperationId.get(operation.id);
+
+      return mapBulkOperation(
         operation,
         inferBulkOperationRetryMode({
           status: operation.status,
           hasRollbackLifecycle: rollbackOperationIds.has(operation.id),
           latestRetryMode: retryModeByOperationId.get(operation.id),
           items: operation.items
-        })
-      )
-    );
+        }),
+        approval
+          ? mapOperationApproval(
+              {
+                ...approval,
+                status:
+                  approval.status === "PENDING" && approval.expiresAt.getTime() < Date.now()
+                    ? "EXPIRED"
+                    : approval.status
+              },
+              null
+            )
+          : null
+      );
+    });
   },
 
   async createBulkOperationPreview(input) {
@@ -3819,6 +4443,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:preview"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -3923,6 +4548,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:preview"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4005,6 +4631,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4028,50 +4655,8 @@ const prismaRepository: AppRepository = {
       throw new Error("BULK_OPERATION_NOT_READY");
     }
 
-    const operation = await prisma.$transaction(async (tx) => {
-      await tx.bulkOperationItem.updateMany({
-        where: {
-          bulkOperationId: existing.id
-        },
-        data: {
-          status: "CONFIRMED",
-          error: null
-        }
-      });
-      const updated = await tx.bulkOperation.update({
-        where: {
-          id: existing.id
-        },
-        data: {
-          status: "CONFIRMED",
-          confirmedAt: new Date()
-        },
-        include: {
-          items: {
-            orderBy: {
-              createdAt: "asc"
-            }
-          }
-        }
-      });
-
-      await tx.activityLog.create({
-        data: {
-          organizationId: parsed.organizationId,
-          userId: input.user.id,
-          action: "bulk_operation.confirmed",
-          entityType: "BulkOperation",
-          entityId: updated.id,
-          metadata: {
-            siteId: parsed.siteId,
-            type: updated.type,
-            itemCount: updated.items.length,
-            noMutation: true
-          }
-        }
-      });
-
-      return updated;
+    const operation = await applyBulkOperationConfirmedTransition(existing, input.user.id, {
+      siteId: parsed.siteId
     });
 
     return mapBulkOperation(operation);
@@ -4082,6 +4667,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4193,6 +4779,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
 
@@ -4315,6 +4902,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4429,6 +5017,7 @@ const prismaRepository: AppRepository = {
     await requireDbOrganizationAccess({
       userId: input.user.id,
       organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
       permission: "content_operation:confirm"
     });
     assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
@@ -4569,6 +5158,201 @@ const prismaRepository: AppRepository = {
     return mapBulkOperation(operation, retryMode);
   },
 
+  async requestOperationApproval(input) {
+    const parsed: RequestOperationApprovalInput = requestOperationApprovalSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "content_operation:confirm"
+    });
+    assertEntitlement(await getDbCommercialAccess(parsed.organizationId), "safeOperations");
+
+    const operation = await prisma.bulkOperation.findFirst({
+      where: {
+        id: parsed.operationId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      },
+      include: {
+        site: true
+      }
+    });
+
+    if (!operation) {
+      throw new Error("BULK_OPERATION_NOT_FOUND");
+    }
+
+    if (operation.status !== "DRY_RUN_PASSED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const organization = await prisma.organization.findUnique({
+      where: { id: parsed.organizationId }
+    });
+
+    if (!organization) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
+
+    const issued = createOperationApprovalToken();
+
+    const approval = await prisma.$transaction(async (tx) => {
+      await tx.operationApproval.updateMany({
+        where: {
+          bulkOperationId: operation.id,
+          status: "PENDING"
+        },
+        data: {
+          status: "EXPIRED"
+        }
+      });
+
+      const created = await tx.operationApproval.create({
+        data: {
+          bulkOperationId: operation.id,
+          tokenHash: issued.tokenHash,
+          approverEmail: parsed.approverEmail ?? null,
+          requestedByUserId: input.user.id,
+          expiresAt: issued.expiresAt
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "bulk_operation.approval_requested",
+          entityType: "BulkOperation",
+          entityId: operation.id,
+          metadata: {
+            siteId: parsed.siteId,
+            approverEmail: parsed.approverEmail ?? null
+          }
+        }
+      });
+
+      return created;
+    });
+
+    const approveUrl = buildOperationApprovalUrl(issued.token);
+    const emailDelivery = await sendWorkspaceAlertEmail({
+      to: parsed.approverEmail,
+      organizationName: organization.name,
+      title: `Review requested: ${operation.type.replaceAll("_", " ").toLowerCase()}`,
+      body: `${input.user.email} is requesting your approval to apply a safe operation on ${operation.site.name} (${operation.site.url}). Review the details and approve or decline before anything changes.`,
+      actionUrl: approveUrl
+    });
+
+    return { approval: mapOperationApproval(approval, approveUrl), emailDelivery };
+  },
+
+  async getPublicOperationApproval(token) {
+    const tokenHash = hashOperationApprovalToken(token);
+    const approval = await prisma.operationApproval.findUnique({
+      where: { tokenHash },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    if (!approval) {
+      return null;
+    }
+
+    const effectiveStatus =
+      approval.status === "PENDING" && approval.expiresAt.getTime() < Date.now()
+        ? "EXPIRED"
+        : approval.status;
+
+    return mapPublicOperationApproval(approval, effectiveStatus);
+  },
+
+  async respondToOperationApproval(input) {
+    const parsed: RespondToOperationApprovalInput =
+      respondToOperationApprovalSchema.parse(input);
+    const tokenHash = hashOperationApprovalToken(parsed.token);
+
+    const approval = await prisma.operationApproval.findUnique({
+      where: { tokenHash },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    if (!approval) {
+      throw new Error("OPERATION_APPROVAL_NOT_FOUND");
+    }
+
+    if (approval.status !== "PENDING") {
+      throw new Error("OPERATION_APPROVAL_ALREADY_RESOLVED");
+    }
+
+    if (approval.expiresAt.getTime() < Date.now()) {
+      await prisma.operationApproval.update({
+        where: { id: approval.id },
+        data: { status: "EXPIRED" }
+      });
+      throw new Error("OPERATION_APPROVAL_EXPIRED");
+    }
+
+    if (approval.bulkOperation.status !== "DRY_RUN_PASSED") {
+      throw new Error("BULK_OPERATION_NOT_READY");
+    }
+
+    const respondedAt = new Date();
+
+    if (parsed.decision === "APPROVED") {
+      await applyBulkOperationConfirmedTransition(approval.bulkOperation, null, {
+        siteId: approval.bulkOperation.siteId,
+        viaClientApproval: true,
+        approvalId: approval.id
+      });
+    } else {
+      await prisma.activityLog.create({
+        data: {
+          organizationId: approval.bulkOperation.organizationId,
+          userId: null,
+          action: "bulk_operation.approval_declined",
+          entityType: "BulkOperation",
+          entityId: approval.bulkOperation.id,
+          metadata: {
+            siteId: approval.bulkOperation.siteId,
+            approvalId: approval.id
+          }
+        }
+      });
+    }
+
+    const updatedApproval = await prisma.operationApproval.update({
+      where: { id: approval.id },
+      data: {
+        status: parsed.decision,
+        respondedAt
+      },
+      include: {
+        bulkOperation: {
+          include: {
+            site: { include: { organization: true } },
+            items: true
+          }
+        }
+      }
+    });
+
+    return mapPublicOperationApproval(updatedApproval, updatedApproval.status);
+  },
+
   async listMembersForOrganization(userId, organizationId) {
     await requireDbOrganizationAccess({
       userId,
@@ -4652,6 +5436,7 @@ const prismaRepository: AppRepository = {
             userId: invitedUser.id,
             role: parsed.role,
             status: "INVITED",
+            siteScope: parsed.siteScope ?? [],
             invitedEmail: parsed.email,
             inviteTokenHash: invite.tokenHash,
             inviteExpiresAt: invite.expiresAt
@@ -4955,8 +5740,128 @@ const prismaRepository: AppRepository = {
     });
 
     return mapMember(member);
+  },
+
+  async updateMemberSiteScope(input) {
+    const parsed: UpdateMemberSiteScopeInput = updateMemberSiteScopeSchema.parse(input);
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      permission: "members:manage"
+    });
+
+    const existing = await prisma.organizationMember.findFirst({
+      where: {
+        id: parsed.memberId,
+        organizationId: parsed.organizationId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MEMBER_NOT_FOUND");
+    }
+
+    if (existing.role === "OWNER") {
+      throw new Error("OWNER_ROLE_IS_PROTECTED");
+    }
+
+    if (parsed.siteScope.length > 0) {
+      const validSiteCount = await prisma.site.count({
+        where: {
+          organizationId: parsed.organizationId,
+          id: { in: parsed.siteScope }
+        }
+      });
+
+      if (validSiteCount !== new Set(parsed.siteScope).size) {
+        throw new Error("SITE_NOT_FOUND");
+      }
+    }
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.organizationMember.update({
+        where: {
+          id: parsed.memberId
+        },
+        data: {
+          siteScope: parsed.siteScope
+        },
+        include: {
+          user: true
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "member.site_scope_updated",
+          entityType: "OrganizationMember",
+          entityId: updated.id,
+          metadata: {
+            siteCount: parsed.siteScope.length
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMember(member);
   }
 };
+
+async function applyBulkOperationConfirmedTransition(
+  existing: { id: string; organizationId: string; type: string },
+  activityUserId: string | null,
+  activityMetadata: Record<string, unknown>
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.bulkOperationItem.updateMany({
+      where: {
+        bulkOperationId: existing.id
+      },
+      data: {
+        status: "CONFIRMED",
+        error: null
+      }
+    });
+    const updated = await tx.bulkOperation.update({
+      where: {
+        id: existing.id
+      },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date()
+      },
+      include: {
+        items: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        organizationId: existing.organizationId,
+        userId: activityUserId,
+        action: "bulk_operation.confirmed",
+        entityType: "BulkOperation",
+        entityId: updated.id,
+        metadata: {
+          type: updated.type,
+          itemCount: updated.items.length,
+          noMutation: true,
+          ...activityMetadata
+        }
+      }
+    });
+
+    return updated;
+  });
+}
 
 async function ensureDbUser(user: AppUser): Promise<void> {
   await prisma.user.upsert({
@@ -4979,6 +5884,7 @@ async function requireDbOrganizationAccess(input: {
   userId: string;
   organizationId: string;
   permission: Permission;
+  siteId?: string;
 }) {
   const membership = await prisma.organizationMember.findFirst({
     where: {
@@ -4993,13 +5899,19 @@ async function requireDbOrganizationAccess(input: {
   }
 
   assertPermission(membership.role, input.permission);
+
+  if (input.siteId && membership.siteScope.length > 0 && !membership.siteScope.includes(input.siteId)) {
+    throw new Error("SITE_ACCESS_DENIED");
+  }
+
   return membership;
 }
 
 export async function canAccessOrganization(
   userId: string,
   organizationId: string,
-  permission: Permission
+  permission: Permission,
+  siteId?: string
 ): Promise<boolean> {
   const membership = await prisma.organizationMember.findFirst({
     where: {
@@ -5009,7 +5921,15 @@ export async function canAccessOrganization(
     }
   });
 
-  return membership ? hasPermission(membership.role, permission) : false;
+  if (!membership || !hasPermission(membership.role, permission)) {
+    return false;
+  }
+
+  if (siteId && membership.siteScope.length > 0 && !membership.siteScope.includes(siteId)) {
+    return false;
+  }
+
+  return true;
 }
 
 async function uniqueSlug(baseSlug: string): Promise<string> {
@@ -6043,6 +6963,154 @@ function mapAudit(
   };
 }
 
+function hashMonitoredUrl(url: string): string {
+  return createHash("sha256").update(url.trim()).digest("hex");
+}
+
+type DbUrlSnapshot = {
+  id: string;
+  monitoredUrlId: string;
+  isBaseline: boolean;
+  httpStatus: number | null;
+  finalUrl: string | null;
+  responseTimeMs: number | null;
+  title: string | null;
+  metaDescription: string | null;
+  h1: string | null;
+  canonical: string | null;
+  metaRobots: string | null;
+  xRobotsTag: string | null;
+  hasStructuredData: boolean | null;
+  hasGa4: boolean | null;
+  hasGtm: boolean | null;
+  contentHash: string | null;
+  htmlHash: string | null;
+  capturedAt: Date;
+};
+
+function mapUrlSnapshot(snapshot: DbUrlSnapshot): UrlSnapshot {
+  return {
+    id: snapshot.id,
+    monitoredUrlId: snapshot.monitoredUrlId,
+    isBaseline: snapshot.isBaseline,
+    httpStatus: snapshot.httpStatus,
+    finalUrl: snapshot.finalUrl,
+    responseTimeMs: snapshot.responseTimeMs,
+    title: snapshot.title,
+    metaDescription: snapshot.metaDescription,
+    h1: snapshot.h1,
+    canonical: snapshot.canonical,
+    metaRobots: snapshot.metaRobots,
+    xRobotsTag: snapshot.xRobotsTag,
+    hasStructuredData: snapshot.hasStructuredData,
+    hasGa4: snapshot.hasGa4,
+    hasGtm: snapshot.hasGtm,
+    contentHash: snapshot.contentHash,
+    htmlHash: snapshot.htmlHash,
+    capturedAt: snapshot.capturedAt.toISOString()
+  };
+}
+
+function mapMonitoredUrl(
+  monitoredUrl: {
+    id: string;
+    organizationId: string;
+    siteId: string;
+    url: string;
+    label: string | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  latestSnapshot: DbUrlSnapshot | null
+): MonitoredUrl {
+  return {
+    id: monitoredUrl.id,
+    organizationId: monitoredUrl.organizationId,
+    siteId: monitoredUrl.siteId,
+    url: monitoredUrl.url,
+    label: monitoredUrl.label,
+    isActive: monitoredUrl.isActive,
+    createdAt: monitoredUrl.createdAt.toISOString(),
+    updatedAt: monitoredUrl.updatedAt.toISOString(),
+    latestSnapshot: latestSnapshot ? mapUrlSnapshot(latestSnapshot) : null
+  };
+}
+
+function mapEvent(event: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrl: { url: string; label: string | null } | null;
+  source: TimelineEvent["source"];
+  type: string;
+  severity: TimelineEvent["severity"];
+  title: string;
+  oldValue: unknown;
+  newValue: unknown;
+  metadata: unknown;
+  occurredAt: Date;
+  detectedAt: Date;
+}): TimelineEvent {
+  return {
+    id: event.id,
+    organizationId: event.organizationId,
+    siteId: event.siteId,
+    monitoredUrlId: event.monitoredUrlId,
+    monitoredUrlLabel: event.monitoredUrl ? (event.monitoredUrl.label ?? event.monitoredUrl.url) : null,
+    source: event.source,
+    type: event.type,
+    severity: event.severity,
+    title: event.title,
+    oldValue: event.oldValue,
+    newValue: event.newValue,
+    metadata: event.metadata,
+    occurredAt: event.occurredAt.toISOString(),
+    detectedAt: event.detectedAt.toISOString()
+  };
+}
+
+function mapRegression(regression: {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrl: { url: string; label: string | null } | null;
+  fingerprint: string;
+  status: Regression["status"];
+  severity: Regression["severity"];
+  title: string;
+  summary: string;
+  metrics: unknown;
+  events: Array<{ eventId: string }>;
+  detectedAt: Date;
+  resolvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): Regression {
+  return {
+    id: regression.id,
+    organizationId: regression.organizationId,
+    siteId: regression.siteId,
+    monitoredUrlId: regression.monitoredUrlId,
+    monitoredUrlLabel: regression.monitoredUrl
+      ? (regression.monitoredUrl.label ?? regression.monitoredUrl.url)
+      : null,
+    fingerprint: regression.fingerprint,
+    status: regression.status,
+    severity: regression.severity,
+    title: regression.title,
+    summary: regression.summary,
+    metrics: regression.metrics,
+    eventIds: regression.events.map((event) => event.eventId),
+    detectedAt: regression.detectedAt.toISOString(),
+    resolvedAt: regression.resolvedAt?.toISOString() ?? null,
+    createdAt: regression.createdAt.toISOString(),
+    updatedAt: regression.updatedAt.toISOString()
+  };
+}
+
 async function buildAuditIssueSummariesForAudits(
   auditIds: string[]
 ): Promise<Map<string, AuditIssueSummary>> {
@@ -6364,7 +7432,8 @@ function mapBulkOperation(
       backlogTask?: { title: string; url: string } | null;
     }>;
   },
-  retryMode?: BulkOperationRetryMode | null
+  retryMode?: BulkOperationRetryMode | null,
+  approval?: OperationApprovalSummary | null
 ): BulkOperation {
   const items = operation.items?.map(mapBulkOperationItem) ?? [];
 
@@ -6386,8 +7455,90 @@ function mapBulkOperation(
         status: operation.status,
         items
       }),
-    itemStatusSummary: summarizeBulkOperationItemStatuses(items)
+    itemStatusSummary: summarizeBulkOperationItemStatuses(items),
+    approval: approval ?? null
   };
+}
+
+function mapOperationApproval(
+  approval: {
+    id: string;
+    status: OperationApprovalSummary["status"];
+    approverEmail: string | null;
+    expiresAt: Date;
+    respondedAt: Date | null;
+    createdAt: Date;
+  },
+  approveUrl: string | null
+): OperationApprovalSummary {
+  return {
+    id: approval.id,
+    status: approval.status,
+    approverEmail: approval.approverEmail,
+    approveUrl,
+    expiresAt: approval.expiresAt.toISOString(),
+    respondedAt: approval.respondedAt?.toISOString() ?? null,
+    createdAt: approval.createdAt.toISOString()
+  };
+}
+
+function mapPublicOperationApproval(
+  approval: {
+    expiresAt: Date;
+    bulkOperation: {
+      type: string;
+      preview: unknown;
+      dryRunResult: unknown;
+      items: Array<{ id: string }>;
+      site: {
+        name: string;
+        url: string;
+        organization: { name: string };
+      };
+    };
+  },
+  status: PublicOperationApproval["status"]
+): PublicOperationApproval {
+  return {
+    status,
+    expiresAt: approval.expiresAt.toISOString(),
+    organizationName: approval.bulkOperation.site.organization.name,
+    siteName: approval.bulkOperation.site.name,
+    siteUrl: approval.bulkOperation.site.url,
+    operationType: approval.bulkOperation.type,
+    itemCount: approval.bulkOperation.items.length,
+    previewSummary: summarizePreviewForApproval(approval.bulkOperation.preview),
+    dryRunSummary: summarizeDryRunForApproval(approval.bulkOperation.dryRunResult)
+  };
+}
+
+function summarizePreviewForApproval(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const summary = (value as { summary?: unknown }).summary;
+  return typeof summary === "string" ? summary : null;
+}
+
+function summarizeDryRunForApproval(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const result = value as {
+    status?: unknown;
+    passedItems?: unknown;
+    failedItems?: unknown;
+    noMutation?: unknown;
+  };
+  const status = typeof result.status === "string" ? result.status : "passed";
+  const passedItems = typeof result.passedItems === "number" ? result.passedItems : 0;
+  const failedItems = typeof result.failedItems === "number" ? result.failedItems : 0;
+  const writeState =
+    result.noMutation === true ? "no WordPress writes" : "WordPress writes deferred";
+
+  return `Dry run ${status}: ${passedItems} passed, ${failedItems} failed, ${writeState}.`;
 }
 
 function summarizeBulkOperationItemStatuses(
@@ -6540,6 +7691,7 @@ function mapMember(member: {
   userId: string;
   role: OrganizationMemberSummary["role"];
   status: OrganizationMemberSummary["status"];
+  siteScope: string[];
   invitedEmail: string | null;
   inviteExpiresAt?: Date | null;
   inviteAcceptedAt?: Date | null;
@@ -6556,6 +7708,7 @@ function mapMember(member: {
     userId: member.userId,
     role: member.role,
     status: member.status,
+    siteScope: member.siteScope,
     email: member.user.email,
     name: member.user.name,
     invitedEmail: member.invitedEmail,

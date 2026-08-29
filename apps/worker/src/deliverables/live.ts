@@ -93,7 +93,7 @@ export function buildLiveWorkspaceDigestDeps(
       const siteSummaries: SiteDeliverableSummary[] = [];
 
       for (const site of organization.sites) {
-        const [issues, tasks, operations] = await Promise.all([
+        const [issues, tasks, operations, regressions] = await Promise.all([
           prisma.auditIssue.findMany({
             where: { organizationId: organization.id, siteId: site.id },
             select: {
@@ -118,6 +118,10 @@ export function buildLiveWorkspaceDigestDeps(
           prisma.bulkOperation.findMany({
             where: { organizationId: organization.id, siteId: site.id },
             select: { status: true, updatedAt: true }
+          }),
+          prisma.regression.findMany({
+            where: { organizationId: organization.id, siteId: site.id },
+            select: { status: true, detectedAt: true }
           })
         ]);
 
@@ -131,7 +135,8 @@ export function buildLiveWorkspaceDigestDeps(
             generatedAt,
             issues,
             tasks,
-            operations
+            operations,
+            regressions
           })
         );
       }
@@ -211,7 +216,7 @@ export function buildLiveWorkspaceDigestDeps(
             organizationId: organization.id,
             type: "deliverable.weekly_digest",
             title: `Weekly digest ${input.startDate} to ${input.endDate}`,
-            body: `${summary.totals.newCriticalFindings} new critical, ${summary.totals.significantTrafficDrops} traffic drops, ${summary.totals.completedTasks} completed, ${summary.totals.overdueTasks} overdue.`
+            body: `${summary.totals.newCriticalFindings} new critical, ${summary.totals.significantTrafficDrops} traffic drops, ${summary.totals.completedTasks} completed, ${summary.totals.overdueTasks} overdue, ${summary.totals.openRegressions} open regressions.`
           }
         }),
         ...(summary.totals.overdueTasks > 0
@@ -280,7 +285,7 @@ async function deliverDigestEmail(input: {
 export async function deliverWorkspaceAlert(input: {
   env?: NodeJS.ProcessEnv;
   organizationId: string;
-  preference: "failedOperationAlerts";
+  preference: "failedOperationAlerts" | "trafficDropAlerts";
   title: string;
   body: string;
   actionPath: string;
@@ -299,7 +304,11 @@ export async function deliverWorkspaceAlert(input: {
               email: true,
               deliveryPreferences: {
                 where: { organizationId: input.organizationId },
-                select: { emailEnabled: true, failedOperationAlerts: true }
+                select: {
+                  emailEnabled: true,
+                  failedOperationAlerts: true,
+                  trafficDropAlerts: true
+                }
               }
             }
           }
@@ -385,6 +394,8 @@ function composeDigestText(summary: WorkspaceDeliverableSummary, settingsUrl: st
     `Unresolved risks: ${summary.totals.unresolvedRisks}`,
     `Overdue tasks: ${summary.totals.overdueTasks}`,
     `Failed safe operations: ${summary.totals.failedOperations}`,
+    `New regressions: ${summary.totals.newRegressions}`,
+    `Open regressions: ${summary.totals.openRegressions}`,
     `Improved outcomes: ${summary.totals.outcomes.improved}`,
     `Verified task improvements: ${summary.totals.taskOutcomes.improved}`,
     `Tasks awaiting verification: ${summary.totals.taskOutcomes.awaitingVerification}`,
@@ -419,6 +430,7 @@ function summarizeSite(input: {
     outcomeVerifiedAt: Date | null;
   }>;
   operations: Array<{ status: string; updatedAt: Date }>;
+  regressions: Array<{ status: string; detectedAt: Date }>;
 }): SiteDeliverableSummary {
   const inside = (value: Date) => value >= input.start && value < input.endExclusive;
   const outcomes: SiteDeliverableSummary["outcomes"] = {
@@ -478,6 +490,8 @@ function summarizeSite(input: {
     failedOperations: input.operations.filter(
       (operation) => operation.status === "FAILED" && inside(operation.updatedAt)
     ).length,
+    newRegressions: input.regressions.filter((regression) => inside(regression.detectedAt)).length,
+    openRegressions: input.regressions.filter((regression) => regression.status === "OPEN").length,
     outcomes,
     taskOutcomes
   };

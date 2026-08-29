@@ -26,6 +26,7 @@ import { sendEmailVerificationEmail, sendInviteEmail, sendPasswordResetEmail } f
 import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
 import { syncGscSearchInsightsForSite } from "@/lib/gsc-insights";
 import { syncGscDailyMetricsForSite } from "@/lib/gsc-metrics";
+import { buildMonitoringCrawlRateLimitKey } from "@/lib/monitoring-rate-limit";
 import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
 import {
   createPluginConnectionChallenge,
@@ -269,11 +270,13 @@ export async function inviteMemberAction(
       "invite-send",
       `${user.id}:${String(formData.get("organizationId") ?? "")}:${String(formData.get("email") ?? "")}`
     );
+    const siteScope = formData.getAll("siteIds").map((value) => String(value));
     const invite = await repository.inviteMember({
       user,
       organizationId: String(formData.get("organizationId") ?? ""),
       email: String(formData.get("email") ?? ""),
-      role: String(formData.get("role") ?? "VIEWER") as never
+      role: String(formData.get("role") ?? "VIEWER") as never,
+      siteScope: siteScope.length > 0 ? siteScope : undefined
     });
     const organization = await repository.getOrganizationSummary(
       user.id,
@@ -414,6 +417,29 @@ export async function updateMemberRoleAction(
   redirect("/");
 }
 
+export async function updateMemberSiteScopeAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await assertServerActionSameOrigin();
+    await repository.updateMemberSiteScope({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      memberId: String(formData.get("memberId") ?? ""),
+      siteScope: formData.getAll("siteIds").map((value) => String(value))
+    });
+  } catch (error) {
+    return actionError(error, "Could not update site access.");
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
 export async function createAuditForSiteAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();
@@ -428,6 +454,104 @@ export async function createAuditForSiteAction(formData: FormData): Promise<void
 
   revalidatePath("/");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function createMonitoredUrlAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertMonitoringCrawlServerActionRateLimit(user.id, formData, "create");
+    await repository.createMonitoredUrlForSite({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      url: String(formData.get("url") ?? ""),
+      label: String(formData.get("label") ?? "") || undefined
+    });
+  } catch (error) {
+    return actionError(error, "Could not add the monitored URL.");
+  }
+
+  revalidatePath("/");
+  redirect(String(formData.get("redirectTo") ?? "/monitoring"));
+}
+
+export async function rescanMonitoredUrlAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+
+  await assertServerActionSameOrigin();
+  await assertMonitoringCrawlServerActionRateLimit(user.id, formData, "rescan");
+  await repository.rescanMonitoredUrl({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    monitoredUrlId: String(formData.get("monitoredUrlId") ?? "")
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
+export async function updateMonitoredUrlStatusAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+
+  await assertServerActionSameOrigin();
+  await repository.updateMonitoredUrlStatus({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    monitoredUrlId: String(formData.get("monitoredUrlId") ?? ""),
+    isActive: String(formData.get("isActive") ?? "") === "true"
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
+export async function updateMonitoredUrlLabelAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+  const label = String(formData.get("label") ?? "").trim();
+
+  await assertServerActionSameOrigin();
+  await repository.updateMonitoredUrlLabel({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    monitoredUrlId: String(formData.get("monitoredUrlId") ?? ""),
+    label: label || undefined
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
+export async function updateRegressionStatusAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+
+  await assertServerActionSameOrigin();
+  await repository.updateRegressionStatus({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    regressionId: String(formData.get("regressionId") ?? ""),
+    status: String(formData.get("status") ?? "OPEN") as never
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
 }
 
 export async function updateAuditIssueStatusAction(formData: FormData): Promise<void> {
@@ -660,6 +784,65 @@ export async function startBulkOperationAction(formData: FormData): Promise<void
 
   revalidatePath("/");
   redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function requestClientApprovalAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit(
+      "operation-approval-request",
+      `${user.id}:${String(formData.get("operationId") ?? "")}`
+    );
+    const { emailDelivery } = await repository.requestOperationApproval({
+      user,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      operationId: String(formData.get("operationId") ?? ""),
+      approverEmail: String(formData.get("approverEmail") ?? "")
+    });
+
+    if (emailDelivery.status === "failed") {
+      return {
+        ok: false,
+        message: "Approval was requested, but the email could not be sent."
+      };
+    }
+  } catch (error) {
+    return actionError(error, "Could not request client approval.");
+  }
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/");
+}
+
+export async function respondToClientApprovalAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const repository = getAppRepository();
+  const token = String(formData.get("token") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("operation-approval-respond", token);
+    await repository.respondToOperationApproval({
+      token,
+      decision: decision as never
+    });
+  } catch (error) {
+    return actionError(error, "Could not record your response.");
+  }
+
+  revalidatePath(`/approve/${token}`);
+  redirect(`/approve/${token}`);
 }
 
 export async function finishBulkOperationAction(formData: FormData): Promise<void> {
@@ -1001,6 +1184,27 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "MONITORED_URL_ALREADY_EXISTS") {
+    return {
+      ok: false,
+      message: "This URL is already monitored."
+    };
+  }
+
+  if (error instanceof Error && error.message === "MONITORED_URL_LIMIT_REACHED") {
+    return {
+      ok: false,
+      message: "This site has reached its monitored URL limit."
+    };
+  }
+
+  if (error instanceof Error && error.message === "MONITORED_URL_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "Monitored URL was not found."
+    };
+  }
+
   if (error instanceof Error && error.message === "BILLING_TRIAL_EXPIRED") {
     return {
       ok: false,
@@ -1240,6 +1444,41 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "BULK_OPERATION_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This operation was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BULK_OPERATION_NOT_READY") {
+    return {
+      ok: false,
+      message: "This operation is no longer ready for that action."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "This approval link is invalid."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_ALREADY_RESOLVED") {
+    return {
+      ok: false,
+      message: "This request has already been responded to."
+    };
+  }
+
+  if (error instanceof Error && error.message === "OPERATION_APPROVAL_EXPIRED") {
+    return {
+      ok: false,
+      message: "This approval link has expired."
+    };
+  }
+
   return {
     ok: false,
     message: fallback
@@ -1294,6 +1533,23 @@ async function assertBulkOperationServerActionRateLimit(
       organizationId: String(formData.get("organizationId") ?? ""),
       siteId: String(formData.get("siteId") ?? ""),
       operationId: String(formData.get("operationId") ?? "") || undefined,
+      action
+    })
+  );
+}
+
+async function assertMonitoringCrawlServerActionRateLimit(
+  userId: string,
+  formData: FormData,
+  action: string
+): Promise<void> {
+  await assertServerActionRateLimit(
+    "monitoring-crawl",
+    buildMonitoringCrawlRateLimitKey({
+      userId,
+      organizationId: String(formData.get("organizationId") ?? ""),
+      siteId: String(formData.get("siteId") ?? ""),
+      monitoredUrlId: String(formData.get("monitoredUrlId") ?? "") || undefined,
       action
     })
   );

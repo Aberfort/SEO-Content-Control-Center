@@ -27,7 +27,9 @@ export const permissions = [
   "backlog:update",
   "content_operation:preview",
   "content_operation:confirm",
-  "integration:manage"
+  "integration:manage",
+  "monitoring:read",
+  "monitoring:manage"
 ] as const;
 
 export type Permission = (typeof permissions)[number];
@@ -45,7 +47,9 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
     "backlog:update",
     "content_operation:preview",
     "content_operation:confirm",
-    "integration:manage"
+    "integration:manage",
+    "monitoring:read",
+    "monitoring:manage"
   ],
   EDITOR: [
     "organization:read",
@@ -53,10 +57,18 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
     "audit:read",
     "backlog:read",
     "backlog:update",
-    "content_operation:preview"
+    "content_operation:preview",
+    "monitoring:read"
   ],
-  WRITER: ["organization:read", "site:read", "audit:read", "backlog:read", "backlog:update"],
-  VIEWER: ["organization:read", "site:read", "audit:read", "backlog:read"],
+  WRITER: [
+    "organization:read",
+    "site:read",
+    "audit:read",
+    "backlog:read",
+    "backlog:update",
+    "monitoring:read"
+  ],
+  VIEWER: ["organization:read", "site:read", "audit:read", "backlog:read", "monitoring:read"],
   BILLING_MANAGER: ["organization:read", "billing:read", "billing:manage"]
 } satisfies Record<Role, readonly Permission[]>;
 

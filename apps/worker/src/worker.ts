@@ -9,6 +9,8 @@ import {
   gscScheduleCronPattern,
   gscScheduleJobId,
   jobNames,
+  monitoringScheduleCronPattern,
+  monitoringScheduleJobId,
   queueNames,
   type QueueName
 } from "@sccc/queue";
@@ -39,6 +41,15 @@ import {
 } from "./gsc/handlers";
 import { buildLiveGscScheduleDeps, buildLiveGscSyncDeps, isGscWorkerConfigured } from "./gsc/live";
 import {
+  createMonitoringCreateSnapshotHandler,
+  createMonitoringScheduleScanHandler
+} from "./monitoring/handlers";
+import {
+  buildLiveMonitoringScheduleDeps,
+  buildLiveMonitoringSnapshotDeps,
+  isMonitoringWorkerConfigured
+} from "./monitoring/live";
+import {
   buildWorkerHealthSnapshot,
   collectQueueMetrics,
   parseWorkerHealthPort,
@@ -60,6 +71,7 @@ export type WorkerProcess = {
   gscSyncEnabled: boolean;
   bulkOperationExecutionEnabled: boolean;
   deliverablesEnabled: boolean;
+  monitoringEnabled: boolean;
   sentryEnabled: boolean;
   analyticsEnabled: boolean;
   healthPort: number | null;
@@ -307,6 +319,41 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     });
   }
 
+  const monitoringEnabled = isMonitoringWorkerConfigured(env);
+
+  if (monitoringEnabled) {
+    const monitoringQueue = createQueueProducer(queueNames.monitoring, connection);
+    closers.push(() => monitoringQueue.close());
+
+    registry.register(
+      jobNames.monitoringCreateSnapshot,
+      createMonitoringCreateSnapshotHandler(buildLiveMonitoringSnapshotDeps())
+    );
+    registry.register(
+      jobNames.monitoringScheduleScan,
+      createMonitoringScheduleScanHandler(
+        buildLiveMonitoringScheduleDeps(async (job) => {
+          await monitoringQueue.add(job.name, job.data, { jobId: job.jobId });
+        })
+      )
+    );
+    createQueueWorker(queueNames.monitoring);
+    await monitoringQueue.add(
+      jobNames.monitoringScheduleScan,
+      {},
+      {
+        jobId: monitoringScheduleJobId,
+        repeat: { pattern: monitoringScheduleCronPattern },
+        attempts: defaultJobOptions.attempts
+      }
+    );
+  } else {
+    logWorkerEvent("warn", "worker.monitoring_disabled", {
+      workerId,
+      hint: "Set DATABASE_URL to enable monitored URL snapshot scanning."
+    });
+  }
+
   const healthPort = parseWorkerHealthPort(env.SCCC_WORKER_HEALTH_PORT);
   let healthServer: Awaited<ReturnType<typeof startWorkerHealthServer>> | null = null;
 
@@ -349,6 +396,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
     deliverablesEnabled,
+    monitoringEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,
@@ -361,6 +409,7 @@ export async function startWorker(input: StartWorkerInput): Promise<WorkerProces
     gscSyncEnabled,
     bulkOperationExecutionEnabled,
     deliverablesEnabled,
+    monitoringEnabled,
     sentryEnabled: observability.sentry.enabled,
     analyticsEnabled: observability.analytics.enabled,
     healthPort: healthServer?.port ?? null,

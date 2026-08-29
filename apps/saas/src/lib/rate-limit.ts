@@ -6,9 +6,14 @@ export type RateLimitPolicy =
   | "invite-accept"
   | "invite-send"
   | "bulk-operation"
+  | "monitoring-crawl"
+  | "operation-approval-request"
+  | "operation-approval-respond"
   | "plugin-challenge"
   | "plugin-exchange"
   | "plugin-sync"
+  | "plugin-system-events"
+  | "plugin-monitoring-read"
   | "plugin-disconnect"
   | "billing-webhook";
 
@@ -67,6 +72,18 @@ const rateLimitPolicies = {
     limit: 120,
     windowMs: 1000 * 60 * 15
   },
+  "monitoring-crawl": {
+    limit: 30,
+    windowMs: 1000 * 60 * 15
+  },
+  "operation-approval-request": {
+    limit: 30,
+    windowMs: 1000 * 60 * 60
+  },
+  "operation-approval-respond": {
+    limit: 20,
+    windowMs: 1000 * 60 * 15
+  },
   "plugin-challenge": {
     limit: 30,
     windowMs: 1000 * 60 * 15
@@ -76,6 +93,14 @@ const rateLimitPolicies = {
     windowMs: 1000 * 60 * 15
   },
   "plugin-sync": {
+    limit: 120,
+    windowMs: 1000 * 60 * 60
+  },
+  "plugin-system-events": {
+    limit: 300,
+    windowMs: 1000 * 60 * 60
+  },
+  "plugin-monitoring-read": {
     limit: 120,
     windowMs: 1000 * 60 * 60
   },

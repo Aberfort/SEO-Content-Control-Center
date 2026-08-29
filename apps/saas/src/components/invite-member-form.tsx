@@ -3,9 +3,12 @@
 import { useActionState } from "react";
 
 import { inviteMemberAction, type ActionState } from "@/app/actions";
+import { SiteScopeFields } from "@/components/site-scope-fields";
+import type { Site } from "@/lib/types";
 
 type InviteMemberFormProps = {
   organizationId: string;
+  sites: Site[];
 };
 
 const initialState: ActionState = {
@@ -22,7 +25,7 @@ const roles = [
   ["BILLING_MANAGER", "Billing Manager"]
 ] as const;
 
-export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {
+export function InviteMemberForm({ organizationId, sites }: InviteMemberFormProps) {
   const [state, formAction, isPending] = useActionState(inviteMemberAction, initialState);
 
   return (
@@ -42,10 +45,13 @@ export function InviteMemberForm({ organizationId }: InviteMemberFormProps) {
           ))}
         </select>
       </label>
-      {!state.ok ? <p className="form-error">{state.message}</p> : null}
       <button className="button" type="submit" disabled={isPending}>
         {isPending ? "Inviting..." : "Invite"}
       </button>
+      <div className="invite-member-extra">
+        <SiteScopeFields sites={sites} />
+        {!state.ok ? <p className="form-error">{state.message}</p> : null}
+      </div>
     </form>
   );
 }

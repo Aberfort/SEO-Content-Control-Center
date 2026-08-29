@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import { getLatestPluginRelease } from "@sccc/storage";
 import { CheckCircle2, Download, KeyRound, Link2, Power, Puzzle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
+import { getPluginObjectStore } from "../../lib/plugin-release";
 import { pageMetadata } from "../../lib/site";
+
+const fallbackPluginMeta = { version: "0.8.1", sizeLabel: "55 KB" };
 
 export const metadata: Metadata = pageMetadata({
   title: "Download the WordPress Plugin",
@@ -48,7 +52,13 @@ const installSteps = [
   }
 ];
 
-export default function DownloadPage() {
+export default async function DownloadPage() {
+  const store = getPluginObjectStore();
+  const manifest = store ? await getLatestPluginRelease(store) : null;
+  const pluginMeta = manifest
+    ? { version: manifest.version, sizeLabel: formatKilobytes(manifest.sizeBytes) }
+    : fallbackPluginMeta;
+
   return (
     <main>
       <PageIntro
@@ -70,17 +80,13 @@ export default function DownloadPage() {
           <div className="plugin-download-info">
             <strong>Content Signal</strong>
             <div className="plugin-meta-row">
-              <span className="plugin-meta">Version 0.8.1</span>
+              <span className="plugin-meta">Version {pluginMeta.version}</span>
               <span className="plugin-meta">WordPress 6.4+</span>
               <span className="plugin-meta">PHP 8.1+</span>
-              <span className="plugin-meta">55 KB</span>
+              <span className="plugin-meta">{pluginMeta.sizeLabel}</span>
             </div>
           </div>
-          <a
-            className="button button-dark"
-            href="/downloads/content-signal-seo-content-audit-0.8.1.zip"
-            download
-          >
+          <a className="button button-dark" href="/api/plugin/download">
             Download plugin
             <Download size={17} />
           </a>
@@ -149,4 +155,8 @@ export default function DownloadPage() {
       />
     </main>
   );
+}
+
+function formatKilobytes(sizeBytes: number): string {
+  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
 }

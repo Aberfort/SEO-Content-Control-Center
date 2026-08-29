@@ -25,6 +25,7 @@ export type OrganizationMember = {
   userId: string;
   role: Role;
   status: "ACTIVE" | "INVITED" | "SUSPENDED" | "CANCELED";
+  siteScope: string[];
   invitedEmail?: string | null;
   inviteExpiresAt?: string | null;
   inviteAcceptedAt?: string | null;
@@ -616,6 +617,30 @@ export type BulkOperationItemStatusSummary = {
   other: number;
 };
 
+export type OperationApprovalStatus = "PENDING" | "APPROVED" | "DECLINED" | "EXPIRED";
+
+export type OperationApprovalSummary = {
+  id: string;
+  status: OperationApprovalStatus;
+  approverEmail: string | null;
+  approveUrl: string | null;
+  expiresAt: string;
+  respondedAt: string | null;
+  createdAt: string;
+};
+
+export type PublicOperationApproval = {
+  status: OperationApprovalStatus;
+  expiresAt: string;
+  organizationName: string;
+  siteName: string;
+  siteUrl: string;
+  operationType: string;
+  itemCount: number;
+  previewSummary: string | null;
+  dryRunSummary: string | null;
+};
+
 export type BulkOperation = {
   id: string;
   organizationId: string;
@@ -630,6 +655,7 @@ export type BulkOperation = {
   items: BulkOperationItem[];
   retryMode?: BulkOperationRetryMode | null;
   itemStatusSummary?: BulkOperationItemStatusSummary;
+  approval?: OperationApprovalSummary | null;
 };
 
 export type BulkOperationListOptions = {
@@ -639,6 +665,91 @@ export type BulkOperationListOptions = {
 
 export type OrganizationSummary = Organization & {
   role: Role;
+  siteScope: string[];
   sites: Site[];
   activityLogs: ActivityLog[];
+};
+
+export type UrlSnapshotFields = {
+  httpStatus: number | null;
+  finalUrl: string | null;
+  responseTimeMs: number | null;
+  title: string | null;
+  metaDescription: string | null;
+  h1: string | null;
+  canonical: string | null;
+  metaRobots: string | null;
+  xRobotsTag: string | null;
+  hasStructuredData: boolean | null;
+  hasGa4: boolean | null;
+  hasGtm: boolean | null;
+  contentHash: string | null;
+  htmlHash: string | null;
+};
+
+export type UrlSnapshot = UrlSnapshotFields & {
+  id: string;
+  monitoredUrlId: string;
+  isBaseline: boolean;
+  capturedAt: string;
+};
+
+export type MonitoredUrl = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  url: string;
+  label: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestSnapshot: UrlSnapshot | null;
+};
+
+export type TimelineEvent = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrlLabel: string | null;
+  source: "WORDPRESS" | "CRAWLER" | "GSC" | "SYSTEM";
+  type: string;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  oldValue: unknown;
+  newValue: unknown;
+  metadata: unknown;
+  occurredAt: string;
+  detectedAt: string;
+};
+
+export type EventListOptions = {
+  monitoredUrlId?: string;
+  source?: TimelineEvent["source"];
+  severity?: TimelineEvent["severity"];
+  limit?: number;
+};
+
+export type Regression = {
+  id: string;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string | null;
+  monitoredUrlLabel: string | null;
+  fingerprint: string;
+  status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "DISMISSED";
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  summary: string;
+  metrics: unknown;
+  eventIds: string[];
+  detectedAt: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RegressionListOptions = {
+  status?: Regression["status"];
+  limit?: number;
 };

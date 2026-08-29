@@ -686,6 +686,51 @@
   color: var(--sccc-green-900);
 }
 
+.sccc-regression-severity,
+.sccc-regression-status {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+}
+
+.sccc-regression-severity-critical {
+  background: var(--sccc-red-100);
+  color: var(--sccc-red-700);
+}
+
+.sccc-regression-severity-warning {
+  background: var(--sccc-yellow-100);
+  color: var(--sccc-yellow-800);
+}
+
+.sccc-regression-severity-info {
+  background: var(--sccc-blue-100);
+  color: var(--sccc-blue-700);
+}
+
+.sccc-regression-status-open {
+  background: var(--sccc-yellow-100);
+  color: var(--sccc-yellow-800);
+}
+
+.sccc-regression-status-acknowledged {
+  background: var(--sccc-blue-100);
+  color: var(--sccc-blue-700);
+}
+
+.sccc-regression-status-resolved {
+  background: var(--sccc-green-100);
+  color: var(--sccc-green-900);
+}
+
+.sccc-regression-status-dismissed {
+  background: oklch(94% 0.012 245);
+  color: var(--sccc-muted);
+}
+
 .sccc-evidence-hint,
 .sccc-safe-hint {
   display: block;

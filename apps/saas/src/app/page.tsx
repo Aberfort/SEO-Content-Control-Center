@@ -1,4 +1,5 @@
 import {
+  Activity,
   Building2,
   ClipboardList,
   Gauge,
@@ -25,6 +26,7 @@ import {
   createBulkOperationPreviewAction,
   disconnectPluginConnectionAction,
   markAllNotificationsReadAction,
+  rescanMonitoredUrlAction,
   rollbackBulkOperationAction,
   runBulkOperationDryRunAction,
   retryBulkOperationAction,
@@ -36,8 +38,12 @@ import {
   updateBacklogTaskOutcomeAction,
   updateBacklogTaskStatusAction,
   updateDeliveryPreferenceAction,
-  updateNotificationReadStateAction
+  updateMonitoredUrlLabelAction,
+  updateMonitoredUrlStatusAction,
+  updateNotificationReadStateAction,
+  updateRegressionStatusAction
 } from "@/app/actions";
+import { CreateMonitoredUrlForm } from "@/components/create-monitored-url-form";
 import { CreateOrganizationForm } from "@/components/create-organization-form";
 import { CreateSiteForm } from "@/components/create-site-form";
 import { DashboardCommandCenter } from "@/components/dashboard-command-center";
@@ -62,8 +68,10 @@ import { InviteActionsForm } from "@/components/invite-actions-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { LogoutButton } from "@/components/logout-button";
 import { MemberRoleForm } from "@/components/member-role-form";
+import { MemberSiteScopeForm } from "@/components/member-site-scope-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { PluginChallengeForm } from "@/components/plugin-challenge-form";
+import { RequestClientApprovalForm } from "@/components/request-client-approval-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
 import { getCurrentUser } from "@/lib/auth";
@@ -77,13 +85,17 @@ import { buildOnboardingChecklist } from "@/lib/onboarding-checklist";
 import { getTwoFactorStatusForUser } from "@/lib/two-factor";
 import type {
   BillingSubscription,
+  BulkOperation,
   BulkOperationItem,
   BulkOperationStatus,
   GscConnectionOverview,
   GscDailyMetric,
   GscSearchInsight,
+  MonitoredUrl,
+  Regression,
   Site,
-  SyncedContentMetadata
+  SyncedContentMetadata,
+  TimelineEvent
 } from "@/lib/types";
 
 export const navItems = [
@@ -91,6 +103,7 @@ export const navItems = [
   { label: "Sites", href: "/sites", view: "sites", icon: Globe2 },
   { label: "Content", href: "/content", view: "content", icon: ClipboardList },
   { label: "Audits", href: "/audits", view: "audits", icon: ShieldCheck },
+  { label: "Monitoring", href: "/monitoring", view: "monitoring", icon: Activity },
   { label: "Backlog", href: "/backlog", view: "backlog", icon: ListChecks },
   { label: "Settings", href: "/settings", view: "settings", icon: Settings2 }
 ] as const;
@@ -107,6 +120,10 @@ const pageDetails = {
   audits: {
     title: "Audits",
     description: "Run metadata audits and work through site issues."
+  },
+  monitoring: {
+    title: "Monitoring",
+    description: "Track monitored URLs and see what changed on the site, and when."
   },
   backlog: {
     title: "Backlog",
@@ -125,6 +142,7 @@ const workspacePaths: Record<WorkspaceView, string> = {
   sites: "/sites",
   content: "/content",
   audits: "/audits",
+  monitoring: "/monitoring",
   backlog: "/backlog",
   settings: "/settings"
 };
@@ -160,6 +178,7 @@ const contentStatuses = [
 
 const backlogStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "SNOOZED", "IGNORED"] as const;
 const backlogSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+const regressionStatuses = ["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const;
 const auditIssueStatuses = ["OPEN", "IGNORED", "RESOLVED", "SNOOZED"] as const;
 const billingStatuses = ["success", "cancel", "error", "portal_return"] as const;
 const gscStatuses = [
@@ -201,6 +220,8 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     status: readEnumQueryParam(params, "backlogStatus", backlogStatuses),
     severity: readEnumQueryParam(params, "backlogSeverity", backlogSeverities)
   };
+  const regressionStatusFilter =
+    readEnumQueryParam(params, "regressionStatus", regressionStatuses) ?? "OPEN";
   const auditIssueFilters = {
     query: readQueryParam(params, "auditIssueQ"),
     status: readEnumQueryParam(params, "auditIssueStatus", auditIssueStatuses),
@@ -224,6 +245,21 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     : false;
   const canReadBilling = activeOrganization
     ? hasPermission(activeOrganization.role, "billing:read")
+    : false;
+  const canReadBacklog = activeOrganization
+    ? hasPermission(activeOrganization.role, "backlog:read")
+    : false;
+  const canReadAudit = activeOrganization
+    ? hasPermission(activeOrganization.role, "audit:read")
+    : false;
+  const canPreviewContentOperation = activeOrganization
+    ? hasPermission(activeOrganization.role, "content_operation:preview")
+    : false;
+  const canReadMonitoring = activeOrganization
+    ? hasPermission(activeOrganization.role, "monitoring:read")
+    : false;
+  const canManageMonitoring = activeOrganization
+    ? hasPermission(activeOrganization.role, "monitoring:manage")
     : false;
   const billingOverview =
     activeOrganization && canReadBilling
@@ -299,7 +335,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
       }
     : null;
   const syncedContent =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadSite
       ? await repository.listSyncedContentForSite(
           user.id,
           activeOrganization.id,
@@ -312,7 +348,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           total: 0
         };
   const backlogTasks =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadBacklog
       ? await repository.listBacklogTasksForSite(
           user.id,
           activeOrganization.id,
@@ -342,13 +378,13 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           }
         };
   const bulkOperations =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canPreviewContentOperation
       ? await repository.listBulkOperationsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 5
         })
       : [];
   const auditRuns =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadAudit
       ? await repository.listAuditsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 5
         })
@@ -381,8 +417,37 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
         )
       : [];
   const auditIssueSummary = buildAuditIssueSummary(auditIssueSummaryItems);
+  const monitoredUrls: MonitoredUrl[] =
+    activeOrganization && activeSite && canReadMonitoring
+      ? await repository.listMonitoredUrlsForSite(user.id, activeOrganization.id, activeSite.id)
+      : [];
+  const timelineEvents: TimelineEvent[] =
+    activeOrganization && activeSite && canReadMonitoring
+      ? await repository.listEventsForSite(user.id, activeOrganization.id, activeSite.id, {
+          limit: 50
+        })
+      : [];
+  const regressions: Regression[] =
+    activeOrganization && activeSite && canReadMonitoring
+      ? await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
+          status: regressionStatusFilter
+        })
+      : [];
+  // Dedicated open-regression count for the Overview dashboard, independent
+  // of whatever status filter the Monitoring view happens to be showing.
+  const openRegressionsForDashboard: Regression[] =
+    activeOrganization && activeSite && canReadMonitoring
+      ? regressionStatusFilter === "OPEN"
+        ? regressions
+        : await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
+            status: "OPEN"
+          })
+      : [];
+  const criticalOpenRegressionCount = openRegressionsForDashboard.filter(
+    (regression) => regression.severity === "CRITICAL"
+  ).length;
   const selectedContentItem =
-    activeOrganization && activeSite && selectedContentId
+    activeOrganization && activeSite && selectedContentId && canReadSite
       ? await repository.getSyncedContentItem(
           user.id,
           activeOrganization.id,
@@ -428,7 +493,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
   const reportEndDate = new Date().toISOString().slice(0, 10);
   const reportStartDate = shiftDateOnly(reportEndDate, -6);
   const assistantRecommendationList =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadBacklog
       ? await repository.listAssistantRecommendationsForSite(
           user.id,
           activeOrganization.id,
@@ -488,6 +553,9 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
             backlogSummary={backlogTasks.summary}
             gscOverview={gscOverview}
             activity={latestActivity}
+            monitoredUrlCount={monitoredUrls.length}
+            openRegressionCount={openRegressionsForDashboard.length}
+            criticalRegressionCount={criticalOpenRegressionCount}
           />
         ) : (
           <header className="workspace-page-header">
@@ -1966,6 +2034,378 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           </section>
         ) : null}
 
+        {view === "monitoring" ? (
+          <section className="panel empty-state" aria-labelledby="monitoring-title">
+            <div className="section-heading">
+              <div>
+                <h2 id="monitoring-title">Monitored URLs</h2>
+                <p>
+                  Baseline snapshots and change detection for the URLs that matter most on this
+                  site.
+                </p>
+              </div>
+              <span className="metric-pill">{monitoredUrls.length} monitored</span>
+            </div>
+
+            {activeOrganization && activeSite ? (
+              <>
+                {canManageMonitoring ? (
+                  <CreateMonitoredUrlForm
+                    organizationId={activeOrganization.id}
+                    siteId={activeSite.id}
+                    redirectTo={buildViewHref({ site: activeSite.id })}
+                  />
+                ) : null}
+
+                {monitoredUrls.length > 0 ? (
+                  <div className="table-wrap">
+                    <table className="audit-table">
+                      <thead>
+                        <tr>
+                          <th>URL</th>
+                          <th>Status</th>
+                          <th>HTTP</th>
+                          <th>Title</th>
+                          <th>Canonical</th>
+                          <th>Last checked</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monitoredUrls.map((monitoredUrl) => (
+                          <tr key={monitoredUrl.id}>
+                            <td>
+                              <strong>{monitoredUrl.label ?? monitoredUrl.url}</strong>
+                              <span className="stacked-meta">{monitoredUrl.url}</span>
+                              {canManageMonitoring ? (
+                                <form
+                                  className="monitored-url-label-form"
+                                  action={updateMonitoredUrlLabelAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={activeOrganization.id}
+                                  />
+                                  <input name="siteId" type="hidden" value={activeSite.id} />
+                                  <input
+                                    name="monitoredUrlId"
+                                    type="hidden"
+                                    value={monitoredUrl.id}
+                                  />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({ site: activeSite.id })}
+                                  />
+                                  <input
+                                    name="label"
+                                    type="text"
+                                    placeholder="Add a label"
+                                    defaultValue={monitoredUrl.label ?? ""}
+                                    maxLength={160}
+                                    aria-label={`Label for ${monitoredUrl.url}`}
+                                  />
+                                  <button className="text-button" type="submit">
+                                    Save label
+                                  </button>
+                                </form>
+                              ) : null}
+                            </td>
+                            <td>
+                              <span className="status-pill">
+                                {monitoredUrl.isActive ? "Active" : "Paused"}
+                              </span>
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.httpStatus ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.title ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot?.canonical ?? (
+                                <span className="muted-text">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              {monitoredUrl.latestSnapshot ? (
+                                <time dateTime={monitoredUrl.latestSnapshot.capturedAt}>
+                                  {formatDateTime(monitoredUrl.latestSnapshot.capturedAt)}
+                                </time>
+                              ) : (
+                                <span className="muted-text">Scan queued</span>
+                              )}
+                            </td>
+                            <td>
+                              {canManageMonitoring ? (
+                                <div className="audit-actions">
+                                  {monitoredUrl.isActive ? (
+                                    <form action={rescanMonitoredUrlAction}>
+                                      <input
+                                        name="organizationId"
+                                        type="hidden"
+                                        value={activeOrganization.id}
+                                      />
+                                      <input name="siteId" type="hidden" value={activeSite.id} />
+                                      <input
+                                        name="monitoredUrlId"
+                                        type="hidden"
+                                        value={monitoredUrl.id}
+                                      />
+                                      <input
+                                        name="redirectTo"
+                                        type="hidden"
+                                        value={buildViewHref({ site: activeSite.id })}
+                                      />
+                                      <button className="text-button" type="submit">
+                                        Rescan
+                                      </button>
+                                    </form>
+                                  ) : null}
+                                  <form action={updateMonitoredUrlStatusAction}>
+                                    <input
+                                      name="organizationId"
+                                      type="hidden"
+                                      value={activeOrganization.id}
+                                    />
+                                    <input name="siteId" type="hidden" value={activeSite.id} />
+                                    <input
+                                      name="monitoredUrlId"
+                                      type="hidden"
+                                      value={monitoredUrl.id}
+                                    />
+                                    <input
+                                      name="isActive"
+                                      type="hidden"
+                                      value={monitoredUrl.isActive ? "false" : "true"}
+                                    />
+                                    <input
+                                      name="redirectTo"
+                                      type="hidden"
+                                      value={buildViewHref({ site: activeSite.id })}
+                                    />
+                                    <button className="text-button" type="submit">
+                                      {monitoredUrl.isActive ? "Pause" : "Resume"}
+                                    </button>
+                                  </form>
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="empty-copy">No monitored URLs yet for this site.</p>
+                )}
+
+                <div className="audit-issue-panel" aria-labelledby="monitoring-regressions-title">
+                  <div className="section-heading">
+                    <div>
+                      <h3 id="monitoring-regressions-title">Regressions</h3>
+                      <p>
+                        Correlation, not proof — review the linked evidence before treating this as
+                        confirmed.
+                      </p>
+                    </div>
+                    <span className="metric-pill">
+                      {regressions.length} {regressionStatusFilter.toLowerCase()}
+                    </span>
+                  </div>
+
+                  <form className="regression-filters" action={routePath} method="get">
+                    <input name="site" type="hidden" value={activeSite.id} />
+                    <label>
+                      <span>Status</span>
+                      <select name="regressionStatus" defaultValue={regressionStatusFilter}>
+                        {regressionStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="secondary-button" type="submit">
+                      Filter
+                    </button>
+                  </form>
+
+                  {regressions.length > 0 ? (
+                    <div className="table-wrap">
+                      <table className="audit-table">
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Regression</th>
+                            <th>URL</th>
+                            <th>Detected</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {regressions.map((regression) => {
+                            const otherStatuses = (
+                              ["OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"] as const
+                            ).filter((status) => status !== regression.status);
+
+                            return (
+                              <tr key={regression.id}>
+                                <td>
+                                  <span
+                                    className={`severity-pill severity-${
+                                      regression.severity === "INFO"
+                                        ? "low"
+                                        : regression.severity === "WARNING"
+                                          ? "medium"
+                                          : "critical"
+                                    }`}
+                                  >
+                                    {regression.severity.toLowerCase()}
+                                  </span>
+                                </td>
+                                <td>
+                                  <strong>{regression.title}</strong>
+                                  <span className="stacked-meta">{regression.summary}</span>
+                                </td>
+                                <td>
+                                  {regression.monitoredUrlLabel ?? (
+                                    <span className="muted-text">Site-wide</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <time dateTime={regression.detectedAt}>
+                                    {formatDateTime(regression.detectedAt)}
+                                  </time>
+                                </td>
+                                <td>
+                                  {canManageMonitoring ? (
+                                    <div className="audit-actions">
+                                      {otherStatuses.map((status) => (
+                                        <form key={status} action={updateRegressionStatusAction}>
+                                          <input
+                                            name="organizationId"
+                                            type="hidden"
+                                            value={activeOrganization.id}
+                                          />
+                                          <input name="siteId" type="hidden" value={activeSite.id} />
+                                          <input
+                                            name="regressionId"
+                                            type="hidden"
+                                            value={regression.id}
+                                          />
+                                          <input name="status" type="hidden" value={status} />
+                                          <input
+                                            name="redirectTo"
+                                            type="hidden"
+                                            value={buildViewHref({
+                                              site: activeSite.id,
+                                              regressionStatus: regressionStatusFilter
+                                            })}
+                                          />
+                                          <button className="text-button" type="submit">
+                                            {status === "OPEN"
+                                              ? "Reopen"
+                                              : status === "ACKNOWLEDGED"
+                                                ? "Acknowledge"
+                                                : status === "RESOLVED"
+                                                  ? "Resolve"
+                                                  : "Dismiss"}
+                                          </button>
+                                        </form>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-copy">
+                      No {regressionStatusFilter.toLowerCase()} regressions for this site.
+                    </p>
+                  )}
+                </div>
+
+                <div className="audit-issue-panel" aria-labelledby="monitoring-timeline-title">
+                  <div className="section-heading">
+                    <div>
+                      <h3 id="monitoring-timeline-title">Timeline</h3>
+                      <p>What changed on this site, and when.</p>
+                    </div>
+                  </div>
+
+                  {timelineEvents.length > 0 ? (
+                    <div className="table-wrap">
+                      <table className="audit-table">
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Severity</th>
+                            <th>Event</th>
+                            <th>URL</th>
+                            <th>Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {timelineEvents.map((event) => (
+                            <tr key={event.id}>
+                              <td>
+                                <time dateTime={event.occurredAt}>
+                                  {formatDateTime(event.occurredAt)}
+                                </time>
+                              </td>
+                              <td>
+                                <span
+                                  className={`severity-pill severity-${
+                                    event.severity === "INFO"
+                                      ? "low"
+                                      : event.severity === "WARNING"
+                                        ? "medium"
+                                        : "critical"
+                                  }`}
+                                >
+                                  {event.severity.toLowerCase()}
+                                </span>
+                              </td>
+                              <td>{event.title}</td>
+                              <td>
+                                {event.monitoredUrlLabel ?? (
+                                  <span className="muted-text">Site-wide</span>
+                                )}
+                              </td>
+                              <td>
+                                <span className="stacked-meta">
+                                  {formatChangeValue(event.oldValue)} →{" "}
+                                  {formatChangeValue(event.newValue)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-copy">
+                      No changes detected yet. Add a monitored URL to start building a timeline.
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyState icon={Activity}>Add a WordPress site before monitoring URLs.</EmptyState>
+            )}
+          </section>
+        ) : null}
+
         {view === "backlog" ? (
           <section className="panel empty-state" aria-labelledby="backlog-title">
             <div className="section-heading">
@@ -2546,6 +2986,20 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                               </button>
                             </form>
                           ) : null}
+                          {operation.status === "DRY_RUN_PASSED" &&
+                          (!operation.approval || operation.approval.status !== "PENDING") ? (
+                            <RequestClientApprovalForm
+                              operationId={operation.id}
+                              organizationId={operation.organizationId}
+                              redirectTo={buildViewHref({ site: activeSite.id })}
+                              siteId={operation.siteId}
+                            />
+                          ) : null}
+                          {operation.approval ? (
+                            <p className="client-approval-status">
+                              {formatOperationApprovalStatus(operation.approval)}
+                            </p>
+                          ) : null}
                           {operation.status === "CONFIRMED" ? (
                             <form action={startBulkOperationAction}>
                               <input
@@ -2888,7 +3342,10 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
 
               {activeOrganization ? (
                 <>
-                  <InviteMemberForm organizationId={activeOrganization.id} />
+                  <InviteMemberForm
+                    organizationId={activeOrganization.id}
+                    sites={activeOrganization.sites}
+                  />
                   <div className="table-wrap members-table">
                     <table>
                       <thead>
@@ -2896,6 +3353,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                           <th>Member</th>
                           <th>Status</th>
                           <th>Role</th>
+                          <th>Site access</th>
                           <th>Invite</th>
                         </tr>
                       </thead>
@@ -2914,6 +3372,13 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                                 organizationId={activeOrganization.id}
                                 member={member}
                                 currentUserId={user.id}
+                              />
+                            </td>
+                            <td>
+                              <MemberSiteScopeForm
+                                organizationId={activeOrganization.id}
+                                member={member}
+                                sites={activeOrganization.sites}
                               />
                             </td>
                             <td>
@@ -3360,6 +3825,23 @@ function formatBulkOperationRetryMode(retryMode: unknown, status: string): strin
   return "";
 }
 
+function formatOperationApprovalStatus(approval: NonNullable<BulkOperation["approval"]>): string {
+  const email = approval.approverEmail ?? "the client";
+
+  switch (approval.status) {
+    case "PENDING":
+      return `Awaiting client approval — sent to ${email}, expires ${formatDateTime(approval.expiresAt)}.`;
+    case "APPROVED":
+      return `Approved by ${email} on ${formatDateTime(approval.respondedAt ?? approval.expiresAt)}.`;
+    case "DECLINED":
+      return `Declined by ${email} on ${formatDateTime(approval.respondedAt ?? approval.expiresAt)}.`;
+    case "EXPIRED":
+      return `Approval link sent to ${email} expired without a response.`;
+    default:
+      return "";
+  }
+}
+
 function buildBulkOperationSteps(status: BulkOperationStatus) {
   const labels = ["Review", "Dry run", "Confirm", "Execute", "Verify"];
   const activeIndex: Record<BulkOperationStatus, number> = {
@@ -3597,6 +4079,22 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatChangeValue(value: unknown): string {
+  if (value === null || typeof value === "undefined") {
+    return "—";
+  }
+
+  if (typeof value === "string") {
+    return value.length > 0 ? value : "—";
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
 }
 
 function formatPlanPrice(plan: { code: string; monthlyPrice: number }): string {

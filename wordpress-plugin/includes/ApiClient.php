@@ -80,7 +80,7 @@ final class ApiClient {
 		$path      = '/api/plugin/sync';
 		$body      = $this->buildSyncBody( $connection, $items, $cursor );
 		$timestamp = time();
-		$headers   = $this->buildSignedHeaders( $connection, $path, $body, $timestamp );
+		$headers   = $this->buildSignedHeaders( $connection, 'POST', $path, $body, $timestamp );
 		$response  = wp_remote_post(
 			$this->buildApiUrl( $connection['endpoint'], $path ),
 			array(
@@ -106,12 +106,58 @@ final class ApiClient {
 
 	/**
 	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 * @param array<string,mixed>                                                                        $event
+	 */
+	public function sendSystemEvent( array $connection, array $event ): void {
+		$path      = '/api/plugin/system-events';
+		$body      = $this->buildSystemEventBody( $connection, $event );
+		$timestamp = time();
+		$headers   = $this->buildSignedHeaders( $connection, 'POST', $path, $body, $timestamp );
+		$response  = wp_remote_post(
+			$this->buildApiUrl( $connection['endpoint'], $path ),
+			array(
+				'headers' => array_merge(
+					array(
+						'Content-Type' => 'application/json',
+					),
+					$headers
+				),
+				'body'    => $body,
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new RuntimeException( 'system_event_failed' );
+		}
+
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			throw new RuntimeException( 'system_event_failed' );
+		}
+	}
+
+	/**
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 * @param array<string,mixed>                                                                        $event
+	 */
+	public function buildSystemEventBody( array $connection, array $event ): string {
+		return $this->encodeJson(
+			array(
+				'organizationId' => $connection['organization_id'],
+				'siteId'         => $connection['site_id'],
+				'events'         => array( $event ),
+			)
+		);
+	}
+
+	/**
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
 	 */
 	public function sendDisconnect( array $connection ): void {
 		$path      = '/api/plugin/connections/disconnect';
 		$body      = $this->buildDisconnectBody( $connection );
 		$timestamp = time();
-		$headers   = $this->buildSignedHeaders( $connection, $path, $body, $timestamp );
+		$headers   = $this->buildSignedHeaders( $connection, 'POST', $path, $body, $timestamp );
 		$response  = wp_remote_post(
 			$this->buildApiUrl( $connection['endpoint'], $path ),
 			array(
@@ -133,6 +179,46 @@ final class ApiClient {
 		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
 			throw new RuntimeException( 'disconnect_failed' );
 		}
+	}
+
+	/**
+	 * @param array{organization_id:string,site_id:string,token:string,endpoint:string,connected_at:int} $connection
+	 * @return array{monitoredUrlCount:int,openRegressionCount:int,criticalOpenRegressionCount:int,recentRegressions:array<int,array<string,mixed>>}
+	 */
+	public function fetchMonitoringSummary( array $connection ): array {
+		$path      = '/api/plugin/monitoring-summary';
+		$timestamp = time();
+		$headers   = $this->buildSignedHeaders( $connection, 'GET', $path, '', $timestamp );
+		$response  = wp_remote_get(
+			$this->buildApiUrl( $connection['endpoint'], $path ),
+			array(
+				'headers' => $headers,
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new RuntimeException( 'monitoring_summary_failed' );
+		}
+
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			throw new RuntimeException( 'monitoring_summary_failed' );
+		}
+
+		$payload = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( ! is_array( $payload ) || empty( $payload['data'] ) || ! is_array( $payload['data'] ) ) {
+			throw new RuntimeException( 'monitoring_summary_failed' );
+		}
+
+		$data = $payload['data'];
+
+		return array(
+			'monitoredUrlCount'           => isset( $data['monitoredUrlCount'] ) ? (int) $data['monitoredUrlCount'] : 0,
+			'openRegressionCount'         => isset( $data['openRegressionCount'] ) ? (int) $data['openRegressionCount'] : 0,
+			'criticalOpenRegressionCount' => isset( $data['criticalOpenRegressionCount'] ) ? (int) $data['criticalOpenRegressionCount'] : 0,
+			'recentRegressions'           => is_array( $data['recentRegressions'] ?? null ) ? $data['recentRegressions'] : array(),
+		);
 	}
 
 	public function buildApiUrl( string $endpoint, string $path ): string {
@@ -174,6 +260,7 @@ final class ApiClient {
 	 */
 	public function buildSignedHeaders(
 		array $connection,
+		string $method,
 		string $path,
 		string $body,
 		int $timestamp
@@ -181,7 +268,7 @@ final class ApiClient {
 		return array(
 			'X-SCCC-Site-Id'   => $connection['site_id'],
 			'X-SCCC-Timestamp' => (string) $timestamp,
-			'X-SCCC-Signature' => $this->requestSigner->sign( 'POST', $path, $timestamp, $body, $connection['token'] ),
+			'X-SCCC-Signature' => $this->requestSigner->sign( $method, $path, $timestamp, $body, $connection['token'] ),
 			'X-SCCC-Token'     => $connection['token'],
 		);
 	}

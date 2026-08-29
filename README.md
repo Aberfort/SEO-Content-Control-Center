@@ -10,6 +10,7 @@ Find the WordPress pages costing you traffic and turn them into an actionable SE
 - `packages/shared` - shared TypeScript domain types, RBAC, plans, and validation helpers.
 - `packages/queue` - queue names, job contracts, and BullMQ connection helpers.
 - `packages/gsc` - framework-agnostic Google Search Console client and token encryption helpers.
+- `packages/monitoring` - framework-agnostic URL monitoring toolkit: SSRF-guarded crawler, HTML signal extraction, and snapshot-diff-to-events logic.
 - `packages/database` - Prisma schema, migrations, and seed entry points.
 - `wordpress-plugin` - production WordPress plugin skeleton.
 - `docs` - integration guides and product documentation.
@@ -83,12 +84,14 @@ The Dockerfile has separate `saas`, `marketing`, `worker`, and `migrate` targets
 - Optional daily/weekly scheduling, latest-run comparison, CSV export, and WordPress Dashboard/Site Health integration.
 - Optional SaaS connection for Search Console evidence, a shared team backlog, and audit history.
 - Signed, review-first metadata operations for Yoast/Rank Math (title, meta description, canonical, noindex/nofollow) with preview, dry run, explicit confirmation, and rollback.
+- Reports its own lifecycle changes (plugin installed/activated/deactivated/updated/deleted, theme activated/updated, WordPress core updated) to the connected SaaS site timeline, with a persisted version baseline so the first observed change has a real before/after diff.
 
 **SaaS platform**
 
 - Multi-tenant organizations with role-based access, invites, and full activity logging.
 - Google Search Console integration: OAuth connection, property discovery, and traffic-loss/opportunity detection.
 - Prioritized backlog generated from content health signals and Search Console evidence.
+- URL monitoring with SSRF-guarded baseline/rescan crawls, a normalized change-event timeline (title, canonical, robots, GA4/GTM, HTTP status, content, and response-time changes), and a deterministic regression engine that correlates those changes with Search Console traffic drops into "possible cause" alerts.
 - Review-first safe operations: preview, dry run, explicit confirmation, worker-executed WordPress write, and rollback.
 - Stripe billing with checkout, customer portal, webhooks, and plan-based feature gates.
 - Optional AI-assisted recommendation summaries with a deterministic fallback when unconfigured.

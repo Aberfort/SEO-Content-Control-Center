@@ -9,7 +9,7 @@ set -euo pipefail
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-default_matrix="wordpress:php8.1-apache wordpress:php8.2-apache wordpress:php8.3-apache wordpress:6.8-php8.2-apache"
+default_matrix="wordpress:php8.1-apache wordpress:php8.2-apache wordpress:php8.3-apache wordpress:php8.4-apache wordpress:7.0-php8.2-apache"
 matrix="${SCCC_WP_MATRIX:-${default_matrix}}"
 
 if [[ "${SCCC_SKIP_PACKAGE:-0}" == "1" ]]; then
