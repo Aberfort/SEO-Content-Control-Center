@@ -13,6 +13,7 @@ export type RateLimitPolicy =
   | "plugin-exchange"
   | "plugin-sync"
   | "plugin-system-events"
+  | "plugin-monitoring-read"
   | "plugin-disconnect"
   | "billing-webhook";
 
@@ -97,6 +98,10 @@ const rateLimitPolicies = {
   },
   "plugin-system-events": {
     limit: 300,
+    windowMs: 1000 * 60 * 60
+  },
+  "plugin-monitoring-read": {
+    limit: 120,
     windowMs: 1000 * 60 * 60
   },
   "plugin-disconnect": {

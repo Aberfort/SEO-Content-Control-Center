@@ -262,6 +262,33 @@ if (! function_exists('wp_remote_post')) {
     }
 }
 
+if (! function_exists('wp_remote_get')) {
+    $GLOBALS['sccc_test_remote_gets'] = [];
+    $GLOBALS['sccc_test_remote_get_response'] = ['response' => ['code' => 200], 'body' => '{}'];
+
+    /**
+     * @param array<string,mixed> $args
+     * @return array{response:array{code:int},body?:string}
+     */
+    function wp_remote_get(string $url, array $args = []): array
+    {
+        $GLOBALS['sccc_test_remote_gets'][] = [
+            'url' => $url,
+            'headers' => (array) ($args['headers'] ?? []),
+        ];
+
+        return $GLOBALS['sccc_test_remote_get_response'];
+    }
+
+    /**
+     * @param array{response:array{code:int},body?:string} $response
+     */
+    function wp_remote_retrieve_body(array $response): string
+    {
+        return (string) ($response['body'] ?? '');
+    }
+}
+
 if (! class_exists('WP_Error')) {
     class WP_Error
     {
@@ -765,19 +792,100 @@ if (! str_contains($sync_body_with_items, '"seoPlugin":"yoast"')) {
     exit(1);
 }
 
-$headers = $api_client->buildSignedHeaders($connection, '/api/plugin/sync', $sync_body, $timestamp);
+$headers = $api_client->buildSignedHeaders($connection, 'POST', '/api/plugin/sync', $sync_body, $timestamp);
 
 if (empty($headers['X-SCCC-Signature']) || empty($headers['X-SCCC-Token']) || 'secret' !== $headers['X-SCCC-Token']) {
     fwrite(STDERR, "ApiClient signed headers failed.\n");
     exit(1);
 }
 
-$disconnect_headers = $api_client->buildSignedHeaders($connection, '/api/plugin/connections/disconnect', $disconnect_body, $timestamp);
+$disconnect_headers = $api_client->buildSignedHeaders($connection, 'POST', '/api/plugin/connections/disconnect', $disconnect_body, $timestamp);
 
 if (! $signer->verify('POST', '/api/plugin/connections/disconnect', $timestamp, $disconnect_body, 'secret', $disconnect_headers['X-SCCC-Signature'])) {
     fwrite(STDERR, "ApiClient disconnect signed headers failed.\n");
     exit(1);
 }
+
+$get_headers = $api_client->buildSignedHeaders($connection, 'GET', '/api/plugin/monitoring-summary', '', $timestamp);
+
+if (! $signer->verify('GET', '/api/plugin/monitoring-summary', $timestamp, '', 'secret', $get_headers['X-SCCC-Signature'])) {
+    fwrite(STDERR, "ApiClient GET signed headers failed.\n");
+    exit(1);
+}
+
+if ($get_headers['X-SCCC-Signature'] === $headers['X-SCCC-Signature']) {
+    fwrite(STDERR, "ApiClient GET and POST signatures must differ when the method changes.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_remote_gets'] = [];
+$GLOBALS['sccc_test_remote_get_response'] = [
+    'response' => ['code' => 200],
+    'body' => wp_json_encode([
+        'data' => [
+            'monitoredUrlCount' => 3,
+            'openRegressionCount' => 1,
+            'criticalOpenRegressionCount' => 1,
+            'recentRegressions' => [
+                [
+                    'id' => '33333333-3333-4333-8333-333333333333',
+                    'title' => 'Page started returning HTTP 404',
+                    'summary' => 'The monitored URL stopped responding with a successful status code.',
+                    'severity' => 'CRITICAL',
+                    'status' => 'OPEN',
+                    'detectedAt' => '2026-08-26T10:00:00.000Z',
+                ],
+            ],
+        ],
+    ]),
+];
+
+$monitoring_summary = $api_client->fetchMonitoringSummary($connection);
+
+if (
+    3 !== $monitoring_summary['monitoredUrlCount']
+    || 1 !== $monitoring_summary['openRegressionCount']
+    || 1 !== $monitoring_summary['criticalOpenRegressionCount']
+    || 1 !== count($monitoring_summary['recentRegressions'])
+    || 'CRITICAL' !== $monitoring_summary['recentRegressions'][0]['severity']
+) {
+    fwrite(STDERR, "ApiClient fetchMonitoringSummary did not parse the platform response correctly.\n");
+    exit(1);
+}
+
+if (1 !== count($GLOBALS['sccc_test_remote_gets'])) {
+    fwrite(STDERR, "ApiClient fetchMonitoringSummary did not issue exactly one GET request.\n");
+    exit(1);
+}
+
+$monitoring_request = $GLOBALS['sccc_test_remote_gets'][0];
+
+if ('https://app.example.com/api/plugin/monitoring-summary' !== $monitoring_request['url']) {
+    fwrite(STDERR, "ApiClient fetchMonitoringSummary requested the wrong URL.\n");
+    exit(1);
+}
+
+if (empty($monitoring_request['headers']['X-SCCC-Signature']) || empty($monitoring_request['headers']['X-SCCC-Token'])) {
+    fwrite(STDERR, "ApiClient fetchMonitoringSummary did not sign its request.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_remote_get_response'] = ['response' => ['code' => 500], 'body' => ''];
+$monitoring_summary_failed = false;
+
+try {
+    $api_client->fetchMonitoringSummary($connection);
+} catch (RuntimeException $exception) {
+    $monitoring_summary_failed = 'monitoring_summary_failed' === $exception->getMessage();
+}
+
+if (! $monitoring_summary_failed) {
+    fwrite(STDERR, "ApiClient fetchMonitoringSummary did not reject a non-200 platform response.\n");
+    exit(1);
+}
+
+$GLOBALS['sccc_test_remote_gets'] = [];
+$GLOBALS['sccc_test_remote_get_response'] = ['response' => ['code' => 200], 'body' => '{}'];
 
 $admin_page = new SCCC\Plugin\AdminPage();
 

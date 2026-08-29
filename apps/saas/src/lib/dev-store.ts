@@ -39,6 +39,7 @@ import {
   updateBacklogTaskAssignmentSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateMonitoredUrlLabelSchema,
   updateMonitoredUrlStatusSchema,
   updateRegressionStatusSchema,
   type AcceptInviteInput,
@@ -77,16 +78,21 @@ import {
   type UpdateBacklogTaskAssignmentInput,
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlLabelInput,
   type UpdateMonitoredUrlStatusInput,
   type UpdateRegressionStatusInput
 } from "@sccc/shared";
 import {
+  computePageTrafficSignal,
   computeTrafficSignal,
   crawlUrl,
   detectRegressions,
   diffSnapshots,
   extractSignals,
-  type DailyMetricPoint
+  normalizeUrl as normalizeMonitoringUrl,
+  type DailyMetricPoint,
+  type PageInsightRow,
+  type TrafficSignal
 } from "@sccc/monitoring";
 
 import { sendWorkspaceAlertEmail, type EmailDeliveryStatus } from "./email";
@@ -1859,7 +1865,7 @@ async function captureDevSnapshot(input: {
   const candidates = detectRegressions({
     monitoredUrlId: input.monitoredUrlId,
     events: persistedEvents,
-    siteTraffic: buildDevSiteTrafficSignal(store, input.siteId),
+    siteTraffic: buildDevTrafficSignal(store, input.siteId, input.url),
     recentWordPressEvents: buildDevRecentWordPressEvents(store, input.siteId, timestamp)
   });
 
@@ -1904,6 +1910,80 @@ async function captureDevSnapshot(input: {
       createdAt: timestamp
     });
   }
+}
+
+/**
+ * Matches the SaaS dashboard's own page-traffic-loss comparison window
+ * (apps/saas/src/lib/gsc-traffic-loss.ts) and apps/worker/src/monitoring/live.ts's
+ * getPageTrafficSignal, so the dev-store fallback path correlates regressions
+ * the same way the Prisma-backed worker does instead of only ever using the
+ * coarser site-wide signal.
+ */
+const devTrafficSignalWindowDays = 7;
+
+function buildDevTrafficSignal(
+  store: DevStoreState,
+  siteId: string,
+  url: string
+): TrafficSignal | null {
+  return buildDevPageTrafficSignal(store, siteId, url) ?? buildDevSiteTrafficSignal(store, siteId);
+}
+
+/**
+ * Mirrors getPageTrafficSignal in apps/worker/src/monitoring/live.ts: compares
+ * the monitored URL's own Search Console page-level insights (most recent
+ * range vs. the same range shifted back a week) when a matching baseline
+ * exists. Returns null — not a "no signal" result — so the caller falls back
+ * to the site-wide signal instead of silently reporting no decline.
+ */
+function buildDevPageTrafficSignal(
+  store: DevStoreState,
+  siteId: string,
+  url: string
+): TrafficSignal | null {
+  const normalizedTarget = normalizeMonitoringUrl(url);
+
+  if (!normalizedTarget) {
+    return null;
+  }
+
+  const siteInsights = store.gscSearchInsights.filter((insight) => insight.siteId === siteId);
+
+  if (siteInsights.length === 0) {
+    return null;
+  }
+
+  const latestRange = [...siteInsights].sort((left, right) =>
+    right.startDate.localeCompare(left.startDate)
+  )[0]!;
+  const baselineStart = shiftDateOnly(latestRange.startDate, -devTrafficSignalWindowDays);
+  const baselineEnd = shiftDateOnly(latestRange.endDate, -devTrafficSignalWindowDays);
+
+  const baselineRows: PageInsightRow[] = siteInsights
+    .filter(
+      (insight) =>
+        insight.propertyUrl === latestRange.propertyUrl &&
+        insight.startDate === baselineStart &&
+        insight.endDate === baselineEnd &&
+        normalizeMonitoringUrl(insight.page) === normalizedTarget
+    )
+    .map((insight) => ({ clicks: insight.clicks, position: insight.position }));
+
+  if (baselineRows.length === 0) {
+    return null;
+  }
+
+  const currentRows: PageInsightRow[] = siteInsights
+    .filter(
+      (insight) =>
+        insight.propertyUrl === latestRange.propertyUrl &&
+        insight.startDate === latestRange.startDate &&
+        insight.endDate === latestRange.endDate &&
+        normalizeMonitoringUrl(insight.page) === normalizedTarget
+    )
+    .map((insight) => ({ clicks: insight.clicks, position: insight.position }));
+
+  return computePageTrafficSignal(currentRows, baselineRows);
 }
 
 function buildDevSiteTrafficSignal(store: DevStoreState, siteId: string) {
@@ -2142,6 +2222,48 @@ export function updateMonitoredUrlStatus(input: {
     entityType: "MonitoredUrl",
     entityId: monitoredUrl.id,
     metadata: { siteId: parsed.siteId, url: monitoredUrl.url }
+  });
+
+  return withLatestSnapshot(store, monitoredUrl);
+}
+
+export function updateMonitoredUrlLabel(input: {
+  user: AppUser;
+  organizationId: string;
+  siteId: string;
+  monitoredUrlId: string;
+  label?: string;
+}): MonitoredUrl {
+  const parsed: UpdateMonitoredUrlLabelInput = updateMonitoredUrlLabelSchema.parse(input);
+
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: parsed.organizationId,
+    permission: "monitoring:manage"
+  });
+
+  const store = getDevStore();
+  const monitoredUrl = store.monitoredUrls.find(
+    (candidate) =>
+      candidate.id === parsed.monitoredUrlId &&
+      candidate.organizationId === parsed.organizationId &&
+      candidate.siteId === parsed.siteId
+  );
+
+  if (!monitoredUrl) {
+    throw new Error("MONITORED_URL_NOT_FOUND");
+  }
+
+  monitoredUrl.label = parsed.label ?? null;
+  monitoredUrl.updatedAt = nowIso();
+
+  writeActivityLog({
+    organizationId: parsed.organizationId,
+    userId: input.user.id,
+    action: "monitored_url.label_updated",
+    entityType: "MonitoredUrl",
+    entityId: monitoredUrl.id,
+    metadata: { siteId: parsed.siteId, url: monitoredUrl.url, label: monitoredUrl.label }
   });
 
   return withLatestSnapshot(store, monitoredUrl);

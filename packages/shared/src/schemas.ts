@@ -559,6 +559,15 @@ export const updateMonitoredUrlStatusSchema = z.object({
 
 export type UpdateMonitoredUrlStatusInput = z.infer<typeof updateMonitoredUrlStatusSchema>;
 
+export const updateMonitoredUrlLabelSchema = z.object({
+  organizationId: organizationIdSchema,
+  siteId: siteIdSchema,
+  monitoredUrlId: z.string().uuid(),
+  label: z.string().trim().min(1).max(160).optional()
+});
+
+export type UpdateMonitoredUrlLabelInput = z.infer<typeof updateMonitoredUrlLabelSchema>;
+
 export const eventSourceSchema = z.enum(["WORDPRESS", "CRAWLER", "GSC", "SYSTEM"]);
 
 export const eventSeveritySchema = z.enum(["INFO", "WARNING", "CRITICAL"]);

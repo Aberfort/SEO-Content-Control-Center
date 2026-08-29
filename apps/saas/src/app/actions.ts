@@ -517,6 +517,25 @@ export async function updateMonitoredUrlStatusAction(formData: FormData): Promis
   redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
 }
 
+export async function updateMonitoredUrlLabelAction(formData: FormData): Promise<void> {
+  const { user } = await requireCurrentUser();
+  const repository = getAppRepository();
+  const redirectTo = String(formData.get("redirectTo") ?? "/monitoring");
+  const label = String(formData.get("label") ?? "").trim();
+
+  await assertServerActionSameOrigin();
+  await repository.updateMonitoredUrlLabel({
+    user,
+    organizationId: String(formData.get("organizationId") ?? ""),
+    siteId: String(formData.get("siteId") ?? ""),
+    monitoredUrlId: String(formData.get("monitoredUrlId") ?? ""),
+    label: label || undefined
+  });
+
+  revalidatePath("/");
+  redirect(redirectTo.startsWith("/") ? redirectTo : "/monitoring");
+}
+
 export async function updateRegressionStatusAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
   const repository = getAppRepository();

@@ -45,6 +45,7 @@ import {
   updateBacklogTaskStatusSchema,
   updateMemberRoleSchema,
   updateMemberSiteScopeSchema,
+  updateMonitoredUrlLabelSchema,
   updateMonitoredUrlStatusSchema,
   updateRegressionStatusSchema,
   type AcceptInviteInput,
@@ -86,6 +87,7 @@ import {
   type UpdateBacklogTaskStatusInput,
   type UpdateMemberRoleInput,
   type UpdateMemberSiteScopeInput,
+  type UpdateMonitoredUrlLabelInput,
   type UpdateMonitoredUrlStatusInput
 } from "@sccc/shared";
 
@@ -115,6 +117,7 @@ import {
   listRegressionsForSite as listDevRegressionsForSite,
   updateRegressionStatus as updateDevRegressionStatus,
   rescanMonitoredUrl as rescanDevMonitoredUrl,
+  updateMonitoredUrlLabel as updateDevMonitoredUrlLabel,
   updateMonitoredUrlStatus as updateDevMonitoredUrlStatus,
   listBacklogTaskComments as listDevBacklogTaskComments,
   listBacklogTasksForSite as listDevBacklogTasksForSite,
@@ -333,6 +336,10 @@ type RescanMonitoredUrlInputWithUser = RescanMonitoredUrlInput & {
 };
 
 type UpdateMonitoredUrlStatusInputWithUser = UpdateMonitoredUrlStatusInput & {
+  user: AppUser;
+};
+
+type UpdateMonitoredUrlLabelInputWithUser = UpdateMonitoredUrlLabelInput & {
   user: AppUser;
 };
 
@@ -598,6 +605,7 @@ type AppRepository = {
   createMonitoredUrlForSite(input: CreateMonitoredUrlForSiteInput): Promise<MonitoredUrl>;
   rescanMonitoredUrl(input: RescanMonitoredUrlInputWithUser): Promise<MonitoredUrl>;
   updateMonitoredUrlStatus(input: UpdateMonitoredUrlStatusInputWithUser): Promise<MonitoredUrl>;
+  updateMonitoredUrlLabel(input: UpdateMonitoredUrlLabelInputWithUser): Promise<MonitoredUrl>;
   listEventsForSite(
     userId: string,
     organizationId: string,
@@ -800,6 +808,9 @@ const devStoreRepository: AppRepository = {
   },
   async updateMonitoredUrlStatus(input) {
     return updateDevMonitoredUrlStatus(input);
+  },
+  async updateMonitoredUrlLabel(input) {
+    return updateDevMonitoredUrlLabel(input);
   },
   async listEventsForSite(userId, organizationId, siteId, options) {
     return listDevEventsForSite(userId, organizationId, siteId, options);
@@ -3210,6 +3221,57 @@ const prismaRepository: AppRepository = {
           entityType: "MonitoredUrl",
           entityId: updated.id,
           metadata: { siteId: parsed.siteId, url: updated.url }
+        }
+      });
+
+      return updated;
+    });
+
+    return mapMonitoredUrl(record, record.snapshots[0] ?? null);
+  },
+
+  async updateMonitoredUrlLabel(input) {
+    const parsed: UpdateMonitoredUrlLabelInput = updateMonitoredUrlLabelSchema.parse(input);
+
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: parsed.organizationId,
+      siteId: parsed.siteId,
+      permission: "monitoring:manage"
+    });
+
+    const existing = await prisma.monitoredUrl.findFirst({
+      where: {
+        id: parsed.monitoredUrlId,
+        organizationId: parsed.organizationId,
+        siteId: parsed.siteId
+      }
+    });
+
+    if (!existing) {
+      throw new Error("MONITORED_URL_NOT_FOUND");
+    }
+
+    const record = await prisma.$transaction(async (tx) => {
+      const updated = await tx.monitoredUrl.update({
+        where: { id: existing.id },
+        data: { label: parsed.label ?? null },
+        include: {
+          snapshots: {
+            orderBy: { capturedAt: "desc" },
+            take: 1
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: parsed.organizationId,
+          userId: input.user.id,
+          action: "monitored_url.label_updated",
+          entityType: "MonitoredUrl",
+          entityId: updated.id,
+          metadata: { siteId: parsed.siteId, url: updated.url, label: updated.label }
         }
       });
 

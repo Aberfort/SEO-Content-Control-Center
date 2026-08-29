@@ -1950,6 +1950,29 @@ th {
   outline: 3px solid #c7ebe5;
 }
 
+.monitored-url-label-form {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.monitored-url-label-form input[type="text"] {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 4px 8px;
+  width: 160px;
+}
+
+.monitored-url-label-form input[type="text"]:focus {
+  border-color: var(--accent);
+  outline: 3px solid #c7ebe5;
+}
+
 .audit-table {
   min-width: 760px;
 }

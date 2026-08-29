@@ -1504,6 +1504,46 @@ describe("app repository", () => {
       })
     ).rejects.toThrow("MONITORED_URL_NOT_FOUND");
 
+    const relabeled = await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      label: "Renamed test URL"
+    });
+
+    expect(relabeled.label).toBe("Renamed test URL");
+
+    const cleared = await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id
+    });
+
+    expect(cleared.label).toBeNull();
+
+    // Restore the original label so later assertions in this test (which
+    // expect the timeline's monitoredUrlLabel to reflect the record created
+    // at the top of the test) still hold.
+    await repository.updateMonitoredUrlLabel({
+      user,
+      organizationId: organization.id,
+      siteId: site.id,
+      monitoredUrlId: monitoredUrl.id,
+      label: "Blocked test URL"
+    });
+
+    await expect(
+      repository.updateMonitoredUrlLabel({
+        user,
+        organizationId: organization.id,
+        siteId: site.id,
+        monitoredUrlId: "00000000-0000-4000-8000-000000000999",
+        label: "Does not matter"
+      })
+    ).rejects.toThrow("MONITORED_URL_NOT_FOUND");
+
     const occurredAt = "2026-08-26T10:00:00.000Z";
     getDevStore().events.push(
       {

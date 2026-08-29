@@ -66,7 +66,8 @@ jobs:
           - wordpress:php8.1-apache
           - wordpress:php8.2-apache
           - wordpress:php8.3-apache
-          - wordpress:6.8-php8.2-apache
+          - wordpress:php8.4-apache
+          - wordpress:7.0-php8.2-apache
 
     steps:
       - uses: actions/checkout@v4

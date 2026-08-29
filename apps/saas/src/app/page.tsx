@@ -38,6 +38,7 @@ import {
   updateBacklogTaskOutcomeAction,
   updateBacklogTaskStatusAction,
   updateDeliveryPreferenceAction,
+  updateMonitoredUrlLabelAction,
   updateMonitoredUrlStatusAction,
   updateNotificationReadStateAction,
   updateRegressionStatusAction
@@ -245,6 +246,18 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
   const canReadBilling = activeOrganization
     ? hasPermission(activeOrganization.role, "billing:read")
     : false;
+  const canReadBacklog = activeOrganization
+    ? hasPermission(activeOrganization.role, "backlog:read")
+    : false;
+  const canReadAudit = activeOrganization
+    ? hasPermission(activeOrganization.role, "audit:read")
+    : false;
+  const canPreviewContentOperation = activeOrganization
+    ? hasPermission(activeOrganization.role, "content_operation:preview")
+    : false;
+  const canReadMonitoring = activeOrganization
+    ? hasPermission(activeOrganization.role, "monitoring:read")
+    : false;
   const canManageMonitoring = activeOrganization
     ? hasPermission(activeOrganization.role, "monitoring:manage")
     : false;
@@ -322,7 +335,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
       }
     : null;
   const syncedContent =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadSite
       ? await repository.listSyncedContentForSite(
           user.id,
           activeOrganization.id,
@@ -335,7 +348,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           total: 0
         };
   const backlogTasks =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadBacklog
       ? await repository.listBacklogTasksForSite(
           user.id,
           activeOrganization.id,
@@ -365,13 +378,13 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
           }
         };
   const bulkOperations =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canPreviewContentOperation
       ? await repository.listBulkOperationsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 5
         })
       : [];
   const auditRuns =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadAudit
       ? await repository.listAuditsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 5
         })
@@ -405,17 +418,17 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
       : [];
   const auditIssueSummary = buildAuditIssueSummary(auditIssueSummaryItems);
   const monitoredUrls: MonitoredUrl[] =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadMonitoring
       ? await repository.listMonitoredUrlsForSite(user.id, activeOrganization.id, activeSite.id)
       : [];
   const timelineEvents: TimelineEvent[] =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadMonitoring
       ? await repository.listEventsForSite(user.id, activeOrganization.id, activeSite.id, {
           limit: 50
         })
       : [];
   const regressions: Regression[] =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadMonitoring
       ? await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
           status: regressionStatusFilter
         })
@@ -423,7 +436,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
   // Dedicated open-regression count for the Overview dashboard, independent
   // of whatever status filter the Monitoring view happens to be showing.
   const openRegressionsForDashboard: Regression[] =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadMonitoring
       ? regressionStatusFilter === "OPEN"
         ? regressions
         : await repository.listRegressionsForSite(user.id, activeOrganization.id, activeSite.id, {
@@ -434,7 +447,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
     (regression) => regression.severity === "CRITICAL"
   ).length;
   const selectedContentItem =
-    activeOrganization && activeSite && selectedContentId
+    activeOrganization && activeSite && selectedContentId && canReadSite
       ? await repository.getSyncedContentItem(
           user.id,
           activeOrganization.id,
@@ -480,7 +493,7 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
   const reportEndDate = new Date().toISOString().slice(0, 10);
   const reportStartDate = shiftDateOnly(reportEndDate, -6);
   const assistantRecommendationList =
-    activeOrganization && activeSite
+    activeOrganization && activeSite && canReadBacklog
       ? await repository.listAssistantRecommendationsForSite(
           user.id,
           activeOrganization.id,
@@ -2064,6 +2077,40 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                             <td>
                               <strong>{monitoredUrl.label ?? monitoredUrl.url}</strong>
                               <span className="stacked-meta">{monitoredUrl.url}</span>
+                              {canManageMonitoring ? (
+                                <form
+                                  className="monitored-url-label-form"
+                                  action={updateMonitoredUrlLabelAction}
+                                >
+                                  <input
+                                    name="organizationId"
+                                    type="hidden"
+                                    value={activeOrganization.id}
+                                  />
+                                  <input name="siteId" type="hidden" value={activeSite.id} />
+                                  <input
+                                    name="monitoredUrlId"
+                                    type="hidden"
+                                    value={monitoredUrl.id}
+                                  />
+                                  <input
+                                    name="redirectTo"
+                                    type="hidden"
+                                    value={buildViewHref({ site: activeSite.id })}
+                                  />
+                                  <input
+                                    name="label"
+                                    type="text"
+                                    placeholder="Add a label"
+                                    defaultValue={monitoredUrl.label ?? ""}
+                                    maxLength={160}
+                                    aria-label={`Label for ${monitoredUrl.url}`}
+                                  />
+                                  <button className="text-button" type="submit">
+                                    Save label
+                                  </button>
+                                </form>
+                              ) : null}
                             </td>
                             <td>
                               <span className="status-pill">

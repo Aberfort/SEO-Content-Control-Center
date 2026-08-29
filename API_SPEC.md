@@ -953,6 +953,34 @@ Event `type` values emitted by the plugin today: `plugin_installed`, `plugin_act
 
 Required headers and signature input: identical to `/api/plugin/sync` above.
 
+`GET /api/plugin/monitoring-summary`
+
+Read-only counterpart to the sync/system-events endpoints above, letting the plugin poll a compact monitoring/regression summary for its own site so the WordPress admin's Monitoring tab can show it without a user ever signing into the SaaS. Authenticated the same signed-request way (same headers, same `WordPressConnection` lookup); the signature input's `METHOD` is `GET` and `BODY` is the empty string, both already supported since `authenticatePluginSyncRequest` reads the request's actual HTTP method rather than assuming `POST`. No request body.
+
+Response:
+
+```json
+{
+  "data": {
+    "monitoredUrlCount": 3,
+    "openRegressionCount": 1,
+    "criticalOpenRegressionCount": 1,
+    "recentRegressions": [
+      {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "title": "Page started returning HTTP 404",
+        "summary": "The monitored URL stopped responding with a successful status code.",
+        "severity": "CRITICAL",
+        "status": "OPEN",
+        "detectedAt": "2026-08-26T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+`recentRegressions` returns up to 5 regressions for the site, newest first, regardless of status (so the plugin can show recently-resolved ones too, not only open ones). Rate limited under `plugin-monitoring-read` (120 requests/hour per site, mirroring `plugin-sync`).
+
 `GET /api/organizations/:organizationId/sites/:siteId/content`
 
 Lists synced WordPress content items for a tenant-scoped site.

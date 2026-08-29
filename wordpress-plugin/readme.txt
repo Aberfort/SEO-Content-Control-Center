@@ -4,7 +4,7 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.8.1
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,11 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [Content Signal Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.9.0 =
+
+* Added a Monitoring tab (visible once the platform is connected) showing monitored URL count, open regressions, and the 5 most recent regressions with severity/status, backed by a new signed `GET /api/plugin/monitoring-summary` platform call.
+* Certification matrix now covers PHP 8.4 and WordPress 7.0 (`wordpress:php8.4-apache`, `wordpress:7.0-php8.2-apache`), replacing the WordPress 6.8 pin.
 
 = 0.8.1 =
 

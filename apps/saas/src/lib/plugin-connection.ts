@@ -470,6 +470,87 @@ export async function acceptPluginSystemEventBatch(input: {
   };
 }
 
+export type PluginMonitoringSummary = {
+  monitoredUrlCount: number;
+  openRegressionCount: number;
+  criticalOpenRegressionCount: number;
+  recentRegressions: Array<{
+    id: string;
+    title: string;
+    summary: string;
+    severity: "INFO" | "WARNING" | "CRITICAL";
+    status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "DISMISSED";
+    detectedAt: string;
+  }>;
+};
+
+/**
+ * Read-only counterpart to acceptPluginSyncBatch/acceptPluginSystemEventBatch:
+ * lets the plugin poll a compact monitoring/regression summary for its own
+ * site so the WordPress admin can surface it, using the same signed-request
+ * authentication (authenticatePluginSyncRequest already reads the request's
+ * actual HTTP method, so it works unchanged for this GET).
+ */
+export async function getPluginMonitoringSummary(
+  authentication: PluginSyncAuthentication
+): Promise<PluginMonitoringSummary> {
+  const [monitoredUrlCount, openRegressionCount, criticalOpenRegressionCount, recentRegressions] =
+    await Promise.all([
+      prisma.monitoredUrl.count({
+        where: {
+          organizationId: authentication.organizationId,
+          siteId: authentication.siteId,
+          isActive: true
+        }
+      }),
+      prisma.regression.count({
+        where: {
+          organizationId: authentication.organizationId,
+          siteId: authentication.siteId,
+          status: "OPEN"
+        }
+      }),
+      prisma.regression.count({
+        where: {
+          organizationId: authentication.organizationId,
+          siteId: authentication.siteId,
+          status: "OPEN",
+          severity: "CRITICAL"
+        }
+      }),
+      prisma.regression.findMany({
+        where: {
+          organizationId: authentication.organizationId,
+          siteId: authentication.siteId
+        },
+        orderBy: { detectedAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          summary: true,
+          severity: true,
+          status: true,
+          detectedAt: true
+        }
+      })
+    ]);
+
+  return {
+    monitoredUrlCount,
+    openRegressionCount,
+    criticalOpenRegressionCount,
+    recentRegressions: recentRegressions.map((regression) => ({
+      id: regression.id,
+      title: regression.title,
+      summary: regression.summary,
+      severity: regression.severity,
+      status: regression.status,
+      detectedAt: regression.detectedAt.toISOString()
+    }))
+  };
+}
+
 function toNullableJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (value === null || typeof value === "undefined") {
     return Prisma.JsonNull;
