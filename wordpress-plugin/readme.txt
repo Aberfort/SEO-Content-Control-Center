@@ -4,11 +4,11 @@ Tags: seo, search-console, content-audit, workflow
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.0
+Stable tag: 0.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Audit posts and pages for missing SEO metadata, noindex risk, thin or stale content, and internal-link gaps. Runs locally, no account required.
+Audit posts, pages, and other public content types (including WooCommerce products) for missing SEO metadata, noindex risk, thin or stale content, and internal-link gaps. Runs locally, no account required.
 
 == Description ==
 
@@ -16,7 +16,7 @@ Content Signal is a read-only WordPress content health audit that works alongsid
 
 The free local audit can:
 
-* scan published posts and pages in bounded background batches;
+* scan published posts, pages, and other public content types (including WooCommerce products) in bounded background batches;
 * find published content marked noindex;
 * find missing SEO titles and meta descriptions;
 * flag canonicals that point to another URL;
@@ -105,6 +105,13 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 See the [Content Signal Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
+
+= 0.9.1 =
+
+* The local audit now scans every public post type (not just posts and pages), including WooCommerce products and other custom post types. Attachments stay excluded.
+* The content-type filter and the type label shown next to each finding are now built from what a site actually has, instead of a fixed Posts/Pages list.
+* Fixed the dismiss button on the top feedback notice overflowing past the box's rounded corner.
+* The Platform connection tab now explains that the team platform is in private beta and links to a request-access page, instead of showing bare "Platform URL" and "Connection challenge" fields with nowhere to get them from.
 
 = 0.9.0 =
 

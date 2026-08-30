@@ -44,7 +44,7 @@ final class ContentCollector {
 		$boundedLimit = max( 1, min( $limit, self::MAX_BATCH_SIZE ) );
 		$query        = new \WP_Query(
 			array(
-				'post_type'      => array( 'post', 'page' ),
+				'post_type'      => $this->publicPostTypes(),
 				'post_status'    => array( 'publish', 'draft', 'pending', 'future', 'private' ),
 				'posts_per_page' => $boundedLimit,
 				'offset'         => max( 0, $offset ),
@@ -76,6 +76,24 @@ final class ContentCollector {
 	}
 
 	/**
+	 * Public post types, including custom ones (e.g. WooCommerce `product`).
+	 * Attachments are excluded: they are auto-generated media pages, not
+	 * content someone writes and manages for SEO.
+	 *
+	 * @return array<int,string>
+	 */
+	private function publicPostTypes(): array {
+		if ( ! function_exists( 'get_post_types' ) ) {
+			return array( 'post', 'page' );
+		}
+
+		$types = get_post_types( array( 'public' => true ), 'names' );
+		$types = array_values( array_diff( $types, array( 'attachment' ) ) );
+
+		return array() === $types ? array( 'post', 'page' ) : $types;
+	}
+
+	/**
 	 * @param object{id:int|string,ID?:int|string,post_type?:string,post_title?:string,post_status?:string,post_modified_gmt?:string,post_date_gmt?:string,post_author?:int|string,post_content?:string} $post
 	 * @return array{externalId:string,type:string,url:string,title:string|null,status:string,modifiedAt:string,metadata:array<string,mixed>}
 	 */
@@ -92,7 +110,7 @@ final class ContentCollector {
 
 		return array(
 			'externalId' => $postType . ':' . $id,
-			'type'       => $this->mapPostType( $postType ),
+			'type'       => $postType,
 			'url'        => $url,
 			'title'      => '' === $title ? null : $title,
 			'status'     => $status,
@@ -122,14 +140,6 @@ final class ContentCollector {
 			$this->countLinks( $post, $url ),
 			$this->readSeoMetadata( $postId, $postTitle )
 		);
-	}
-
-	private function mapPostType( string $postType ): string {
-		if ( 'post' === $postType || 'page' === $postType ) {
-			return $postType;
-		}
-
-		return 'custom_post_type';
 	}
 
 	private function formatDateTime( string $value ): string {
