@@ -8,7 +8,7 @@ Stable tag: 0.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Audit posts, pages, and other public content types (including WooCommerce products) for missing SEO metadata, noindex risk, thin or stale content, and internal-link gaps. Runs locally, no account required.
+Audit posts, pages, and other public content types for missing SEO metadata, noindex risk, and thin content. Runs locally, no account required.
 
 == Description ==
 
