@@ -321,11 +321,14 @@
 }
 
 .sccc-feedback {
+  align-items: center;
   border: 1px solid var(--sccc-line);
   border-radius: 8px;
   box-shadow: none;
+  display: flex;
   margin: 0 0 var(--sccc-space-lg);
-  padding: 4px 42px 4px 6px;
+  min-height: 44px;
+  padding: 10px 48px 10px 12px;
 }
 
 .sccc-feedback p {
