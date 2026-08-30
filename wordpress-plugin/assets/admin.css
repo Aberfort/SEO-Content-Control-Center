@@ -321,11 +321,14 @@
 }
 
 .sccc-feedback {
+  align-items: center;
   border: 1px solid var(--sccc-line);
   border-radius: 8px;
   box-shadow: none;
+  display: flex;
   margin: 0 0 var(--sccc-space-lg);
-  padding: 4px 42px 4px 6px;
+  min-height: 44px;
+  padding: 10px 48px 10px 12px;
 }
 
 .sccc-feedback p {
@@ -790,6 +793,46 @@
   grid-template-columns: minmax(320px, 1.25fr) minmax(260px, 0.75fr);
   margin-top: var(--sccc-space-2xl);
   max-width: 980px;
+}
+
+.sccc-connect-primary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sccc-space-xl);
+}
+
+.sccc-beta-notice {
+  background: var(--sccc-canvas);
+  border: 1px solid var(--sccc-line);
+  border-radius: 8px;
+  padding: var(--sccc-space-xl);
+}
+
+.sccc-beta-notice strong {
+  color: var(--sccc-ink);
+  display: block;
+  margin-bottom: var(--sccc-space-xs);
+}
+
+.sccc-beta-notice p {
+  color: var(--sccc-muted);
+  margin: 0 0 var(--sccc-space-lg);
+}
+
+.sccc-connect-existing {
+  border: 1px solid var(--sccc-line);
+  border-radius: 8px;
+  padding: var(--sccc-space-lg) var(--sccc-space-xl);
+}
+
+.sccc-connect-existing summary {
+  color: var(--sccc-ink);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sccc-connect-existing[open] summary {
+  margin-bottom: var(--sccc-space-lg);
 }
 
 .sccc-connect-form {

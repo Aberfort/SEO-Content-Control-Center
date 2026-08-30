@@ -67,7 +67,7 @@ const featureGroups = [
     icon: ShieldCheck,
     label: "Operate",
     title: "Make supported WordPress changes with a visible safety chain.",
-    body: "SEO title and meta-description operations move through preview, validation, dry run, confirmation, execution, and recorded outcome.",
+    body: "SEO title, meta description, canonical URL, and indexability (noindex/nofollow) operations move through preview, validation, dry run, confirmation, execution, and recorded outcome.",
     points: [
       "Explicit confirmation before execution",
       "Signed requests to the WordPress apply endpoint",
@@ -81,7 +81,7 @@ const operationalFeatures = [
   {
     icon: UsersRound,
     title: "Role-based collaboration",
-    body: "Owner, Admin, Member, and Viewer permissions keep sensitive connections and operations appropriately scoped."
+    body: "Seven roles, from Owner and Admin down to SEO Manager, Editor, Writer, Billing Manager, and Viewer, keep sensitive connections and operations scoped to the right people, with access scopable to specific sites per member."
   },
   {
     icon: History,

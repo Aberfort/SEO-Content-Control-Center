@@ -549,7 +549,8 @@ final class AdminPage {
 		$postType   = $filtersNonceValid ? $this->readQueryValue( 'sccc_type' ) : '';
 		$visibility = $filtersNonceValid ? $this->readQueryValue( 'sccc_visibility' ) : '';
 		$change     = $filtersNonceValid ? $this->readQueryValue( 'sccc_change' ) : '';
-		$rows       = $this->filterRows( $this->flattenFindings( $items ), $search, $severity, $issue, $postType, $visibility, $change );
+		$allRows    = $this->flattenFindings( $items );
+		$rows       = $this->filterRows( $allRows, $search, $severity, $issue, $postType, $visibility, $change );
 		$page       = $filtersNonceValid ? max( 1, (int) $this->readQueryValue( 'paged' ) ) : 1;
 		$totalPages = max( 1, (int) ceil( count( $rows ) / self::PAGE_SIZE ) );
 		$page       = min( $page, $totalPages );
@@ -585,10 +586,7 @@ final class AdminPage {
 				'sccc_type',
 				$postType,
 				__( 'All content types', 'content-signal-seo-content-audit' ),
-				array(
-					'post' => __( 'Posts', 'content-signal-seo-content-audit' ),
-					'page' => __( 'Pages', 'content-signal-seo-content-audit' ),
-				)
+				$this->contentTypeOptions( $allRows )
 			);
 			?>
 			<?php
@@ -656,7 +654,7 @@ final class AdminPage {
 		<tr class="<?php echo true === ( $row['ignored'] ?? false ) ? 'sccc-finding-ignored' : ''; ?>">
 			<td>
 				<strong><?php echo esc_html( (string) ( $row['title'] ?: __( 'Untitled content', 'content-signal-seo-content-audit' ) ) ); ?></strong>
-				<div class="row-actions visible"><?php echo esc_html( (string) ( $row['type'] ?? '' ) ); ?></div>
+				<div class="row-actions visible"><?php echo esc_html( $this->postTypeLabel( (string) ( $row['type'] ?? '' ) ) ); ?></div>
 			</td>
 			<td>
 				<span class="sccc-severity sccc-severity-<?php echo esc_attr( (string) $row['severity'] ); ?>"><?php echo esc_html( $this->severityLabel( (string) $row['severity'] ) ); ?></span>
@@ -731,21 +729,31 @@ final class AdminPage {
 			</div>
 			<?php if ( null === $connection ) : ?>
 				<div class="sccc-connect-layout">
-					<form class="sccc-connect-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-						<input type="hidden" name="action" value="sccc_exchange_connection" />
-						<?php wp_nonce_field( 'sccc_exchange_connection' ); ?>
-						<div class="sccc-field-group">
-							<label for="sccc_endpoint"><?php echo esc_html__( 'Platform URL', 'content-signal-seo-content-audit' ); ?></label>
-							<input id="sccc_endpoint" name="sccc_endpoint" type="url" placeholder="https://app.example.com" autocomplete="url" required />
-							<p><?php echo esc_html__( 'Use the URL of your Content Signal workspace.', 'content-signal-seo-content-audit' ); ?></p>
+					<div class="sccc-connect-primary">
+						<div class="sccc-beta-notice">
+							<strong><?php echo esc_html__( 'Private beta', 'content-signal-seo-content-audit' ); ?></strong>
+							<p><?php echo esc_html__( 'The Content Signal team platform is invite-only while we finish testing with a small group of sites. Request access and we will follow up by email.', 'content-signal-seo-content-audit' ); ?></p>
+							<a class="button button-primary" href="https://getcontentsignal.com/demo" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Request early access', 'content-signal-seo-content-audit' ); ?></a>
 						</div>
-						<div class="sccc-field-group">
-							<label for="sccc_challenge"><?php echo esc_html__( 'Connection challenge', 'content-signal-seo-content-audit' ); ?></label>
-							<input id="sccc_challenge" name="sccc_challenge" type="password" autocomplete="one-time-code" required />
-							<p><?php echo esc_html__( 'Generate this one-time challenge from the Sites page in the platform.', 'content-signal-seo-content-audit' ); ?></p>
-						</div>
-						<?php submit_button( __( 'Connect platform', 'content-signal-seo-content-audit' ), 'primary', 'submit', false ); ?>
-					</form>
+						<details class="sccc-connect-existing">
+							<summary><?php echo esc_html__( 'Already have an invite? Connect your site', 'content-signal-seo-content-audit' ); ?></summary>
+							<form class="sccc-connect-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<input type="hidden" name="action" value="sccc_exchange_connection" />
+								<?php wp_nonce_field( 'sccc_exchange_connection' ); ?>
+								<div class="sccc-field-group">
+									<label for="sccc_endpoint"><?php echo esc_html__( 'Platform URL', 'content-signal-seo-content-audit' ); ?></label>
+									<input id="sccc_endpoint" name="sccc_endpoint" type="url" placeholder="https://app.example.com" autocomplete="url" required />
+									<p><?php echo esc_html__( 'The URL of your Content Signal workspace, from your invite email.', 'content-signal-seo-content-audit' ); ?></p>
+								</div>
+								<div class="sccc-field-group">
+									<label for="sccc_challenge"><?php echo esc_html__( 'Connection challenge', 'content-signal-seo-content-audit' ); ?></label>
+									<input id="sccc_challenge" name="sccc_challenge" type="password" autocomplete="one-time-code" required />
+									<p><?php echo esc_html__( 'Generate this one-time challenge from the Sites page in the platform, after signing in.', 'content-signal-seo-content-audit' ); ?></p>
+								</div>
+								<?php submit_button( __( 'Connect platform', 'content-signal-seo-content-audit' ), 'primary', 'submit', false ); ?>
+							</form>
+						</details>
+					</div>
 					<aside class="sccc-connect-benefits" aria-label="<?php echo esc_attr__( 'Platform capabilities', 'content-signal-seo-content-audit' ); ?>">
 						<strong><?php echo esc_html__( 'What the connection adds', 'content-signal-seo-content-audit' ); ?></strong>
 						<ul>
@@ -1004,6 +1012,42 @@ final class AdminPage {
 				}
 			)
 		);
+	}
+
+	/**
+	 * Content types present in the current findings, labeled for display.
+	 * Built from the findings rather than the site's registered post types
+	 * so the dropdown never offers a type with nothing to filter to.
+	 *
+	 * @param array<int,array<string,mixed>> $rows
+	 * @return array<string,string>
+	 */
+	private function contentTypeOptions( array $rows ): array {
+		$types = array();
+
+		foreach ( $rows as $row ) {
+			$type = (string) ( $row['type'] ?? '' );
+
+			if ( '' !== $type && ! isset( $types[ $type ] ) ) {
+				$types[ $type ] = $this->postTypeLabel( $type );
+			}
+		}
+
+		asort( $types );
+
+		return $types;
+	}
+
+	private function postTypeLabel( string $postType ): string {
+		if ( function_exists( 'get_post_type_object' ) ) {
+			$object = get_post_type_object( $postType );
+
+			if ( null !== $object && isset( $object->labels->name ) ) {
+				return (string) $object->labels->name;
+			}
+		}
+
+		return ucwords( str_replace( array( '_', '-' ), ' ', $postType ) );
 	}
 
 	/**

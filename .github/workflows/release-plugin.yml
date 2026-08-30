@@ -42,7 +42,8 @@ jobs:
       - name: Run plugin certification
         run: npm run plugin:release:certify
         env:
-          SCCC_PLUGIN_DIST_DIR: dist
+          SCCC_PLUGIN_DIST_DIR: ${{ github.workspace }}/dist
+          SCCC_FINAL_PLUGIN_SKIP_PACKAGE: "1"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
