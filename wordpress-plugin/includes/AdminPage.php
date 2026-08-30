@@ -733,7 +733,7 @@ final class AdminPage {
 						<div class="sccc-beta-notice">
 							<strong><?php echo esc_html__( 'Private beta', 'content-signal-seo-content-audit' ); ?></strong>
 							<p><?php echo esc_html__( 'The Content Signal team platform is invite-only while we finish testing with a small group of sites. Request access and we will follow up by email.', 'content-signal-seo-content-audit' ); ?></p>
-							<a class="button button-primary" href="https://seo-content-control-center-marketin.vercel.app/demo" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Request early access', 'content-signal-seo-content-audit' ); ?></a>
+							<a class="button button-primary" href="https://getcontentsignal.com/demo" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Request early access', 'content-signal-seo-content-audit' ); ?></a>
 						</div>
 						<details class="sccc-connect-existing">
 							<summary><?php echo esc_html__( 'Already have an invite? Connect your site', 'content-signal-seo-content-audit' ); ?></summary>
