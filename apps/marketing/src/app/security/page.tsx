@@ -27,7 +27,7 @@ const safeguards = [
   {
     icon: UsersRound,
     title: "Tenant isolation and RBAC",
-    body: "Every organization-scoped read and mutation verifies membership. Owner, Admin, Member, and Viewer roles constrain sensitive actions."
+    body: "Every organization-scoped read and mutation verifies membership. Seven roles (Owner, Admin, SEO Manager, Editor, Writer, Billing Manager, Viewer) constrain sensitive actions, and a member's access can be scoped down to specific sites."
   },
   {
     icon: LockKeyhole,

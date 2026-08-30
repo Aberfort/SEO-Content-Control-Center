@@ -1802,6 +1802,14 @@ svg {
   flex: 0 0 auto;
 }
 
+.plugin-download-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .plugin-download-note {
   color: var(--ink-soft);
   font-size: 13px;

@@ -8,7 +8,8 @@ import { PageIntro } from "../../components/page-intro";
 import { getPluginObjectStore } from "../../lib/plugin-release";
 import { pageMetadata } from "../../lib/site";
 
-const fallbackPluginMeta = { version: "0.8.1", sizeLabel: "55 KB" };
+const fallbackPluginMeta = { version: "0.9.1", sizeLabel: "60 KB" };
+const wordPressOrgUrl = "https://wordpress.org/plugins/content-signal-seo-content-audit/";
 
 export const metadata: Metadata = pageMetadata({
   title: "Download the WordPress Plugin",
@@ -18,19 +19,21 @@ export const metadata: Metadata = pageMetadata({
 });
 
 const capabilities = [
+  "Runs a free local SEO audit with no account or connection required",
+  "Audits every public content type, including WooCommerce products and other custom post types",
   "Exchanges a one-time connection challenge for a site-scoped connection",
   "Syncs bounded post and page metadata in paginated batches, never post bodies",
   "Schedules recurring sync through Action Scheduler, with an hourly WP-Cron fallback",
   "Shows sanitized sync history in the WordPress admin",
-  "Receives signed, review-first SEO title, meta description, and canonical repairs"
+  "Receives signed, review-first SEO title, meta description, canonical, and indexability (noindex/nofollow) repairs"
 ];
 
 const installSteps = [
   {
     icon: Download,
     marker: "1",
-    title: "Download and upload",
-    body: "Download the plugin archive, then upload it from Plugins > Add New > Upload Plugin in WordPress."
+    title: "Install the plugin",
+    body: "In WordPress, go to Plugins > Add New, search for “Content Signal,” and select Install Now — or upload the zip from the link above via Plugins > Add New > Upload Plugin."
   },
   {
     icon: Power,
@@ -42,13 +45,13 @@ const installSteps = [
     icon: KeyRound,
     marker: "3",
     title: "Create a connection challenge",
-    body: "In your SaaS workspace, create a one-time WordPress connection challenge for this site."
+    body: "The team platform is in private beta. Request access, then create a one-time WordPress connection challenge for this site from your workspace."
   },
   {
     icon: Link2,
     marker: "4",
     title: "Connect the site",
-    body: "Paste the SaaS endpoint and challenge into the plugin settings and select Connect site."
+    body: "Paste the platform URL and challenge into the plugin's Platform connection tab and select Connect platform."
   }
 ];
 
@@ -86,14 +89,25 @@ export default async function DownloadPage() {
               <span className="plugin-meta">{pluginMeta.sizeLabel}</span>
             </div>
           </div>
-          <a className="button button-dark" href="/api/plugin/download">
-            Download plugin
-            <Download size={17} />
-          </a>
+          <div className="plugin-download-actions">
+            <a
+              className="button button-dark"
+              href={wordPressOrgUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Get it from WordPress.org
+            </a>
+            <a className="button button-secondary" href="/api/plugin/download">
+              Download the zip
+              <Download size={17} />
+            </a>
+          </div>
         </div>
         <p className="plugin-download-note">
-          Manual install only for now &mdash; the plugin is under review for the WordPress.org
-          directory, so install it by uploading the archive directly until it&apos;s listed.
+          Content Signal is listed on the WordPress.org Plugin Directory. New listings can take up
+          to 72 hours to appear in search, so the link above is the fastest way to install it today
+          &mdash; or search &quot;Content Signal&quot; from Plugins &gt; Add New once it propagates.
         </p>
       </section>
 
