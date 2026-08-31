@@ -1,14 +1,14 @@
 === Content Signal — SEO Content Audit ===
 Contributors: serhiivasyliev
-Tags: seo, search-console, content-audit, workflow
+Tags: seo, seo-audit, content-audit, search-console, audit
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.1
+Stable tag: 0.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Audit posts, pages, and other public content types for missing SEO metadata, noindex risk, and thin content. Runs locally, no account required.
+Free SEO audit for WordPress content: find noindex risk, missing metadata, thin content, and orphan pages. Runs locally, no account needed.
 
 == Description ==
 
@@ -104,7 +104,17 @@ Every outbound request is signed with a per-site secret and rejected by the SaaS
 
 See the [Content Signal Terms of Service](https://getcontentsignal.com/terms) and [Privacy Policy](https://getcontentsignal.com/privacy) for how the connected SaaS handles data.
 
+== Upgrade Notice ==
+
+= 0.9.2 =
+Link and listing fix only. No changes to audit behaviour, stored data, or the platform connection.
+
 == Changelog ==
+
+= 0.9.2 =
+
+* Fixed the plugin, author, Terms of Service, and Privacy Policy links, which pointed at a deployment hostname instead of the project site at getcontentsignal.com.
+* Reworded the short description and plugin tags so the directory listing reflects what the audit actually checks.
 
 = 0.9.1 =
 
