@@ -102,7 +102,7 @@ Once connected, the plugin sends requests to the SaaS endpoint you configured in
 
 Every outbound request is signed with a per-site secret and rejected by the SaaS if tampered with. No data is sent to any third party besides the SaaS endpoint you explicitly configure.
 
-See the [Content Signal Terms of Service](https://seo-content-control-center-marketin.vercel.app/terms) and [Privacy Policy](https://seo-content-control-center-marketin.vercel.app/privacy) for how the connected SaaS handles data.
+See the [Content Signal Terms of Service](https://getcontentsignal.com/terms) and [Privacy Policy](https://getcontentsignal.com/privacy) for how the connected SaaS handles data.
 
 == Changelog ==
 

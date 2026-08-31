@@ -5230,3 +5230,177 @@ body {
     transition: none;
   }
 }
+
+/* ── SEO operations briefings (article pages) ───────────────────────────── */
+
+.briefing,
+.briefing-related {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 780px;
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.briefing-head {
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 34px;
+  padding-top: 74px;
+}
+
+.briefing-head .text-action {
+  margin-bottom: 26px;
+}
+
+.briefing-head .eyebrow {
+  display: block;
+}
+
+.briefing-head h1 {
+  font-size: 42px;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin: 14px 0 0;
+}
+
+.briefing-summary {
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 20px 0 0;
+}
+
+.briefing-meta {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 12px;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.briefing-meta small {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.briefing-body {
+  padding-bottom: 24px;
+}
+
+.briefing-body section {
+  margin-top: 44px;
+}
+
+.briefing-body h2 {
+  font-size: 23px;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+.briefing-body h3 {
+  font-size: 16px;
+  margin: 26px 0 8px;
+}
+
+.briefing-body p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.75;
+  margin: 0 0 16px;
+}
+
+.briefing-lede {
+  color: var(--ink) !important;
+  font-size: 17px !important;
+  line-height: 1.65 !important;
+  margin-top: 34px !important;
+}
+
+.briefing-body ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+.briefing-body li {
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.65;
+  padding-top: 10px;
+}
+
+.briefing-faq {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 40px;
+}
+
+.briefing-related {
+  padding-bottom: 20px;
+  padding-top: 48px;
+}
+
+.briefing-related h2 {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.briefing-related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.briefing-related li {
+  border-bottom: 1px solid var(--line);
+}
+
+.briefing-related a {
+  align-items: center;
+  color: var(--ink);
+  display: flex;
+  font-size: 15px;
+  gap: 10px;
+  justify-content: space-between;
+  line-height: 1.4;
+  padding: 18px 0;
+  text-decoration: none;
+}
+
+.briefing-related a:hover {
+  color: var(--teal);
+}
+
+.editorial-list h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.editorial-list h2 a:hover {
+  color: var(--teal);
+}
+
+.editorial-list .text-action {
+  margin-top: 14px;
+}
+
+@media (max-width: 720px) {
+  .briefing-head {
+    padding-top: 48px;
+  }
+
+  .briefing-head h1 {
+    font-size: 30px;
+  }
+
+  .briefing-summary {
+    font-size: 15px;
+  }
+}
