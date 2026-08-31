@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name: Content Signal — SEO Content Audit
- * Plugin URI: https://seo-content-control-center-marketin.vercel.app/download
+ * Plugin URI: https://getcontentsignal.com/download
  * Description: Audits WordPress content health locally and optionally connects it to evidence-backed SEO workflows.
  * Version: 0.9.1
  * Requires PHP: 8.1
  * Requires at least: 6.4
  * Author: Serhii Vasyliev
- * Author URI: https://seo-content-control-center-marketin.vercel.app
+ * Author URI: https://getcontentsignal.com
  * Text Domain: content-signal-seo-content-audit
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html

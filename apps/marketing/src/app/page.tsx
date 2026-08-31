@@ -3,14 +3,21 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { HomeReveals } from "../components/home-reveals";
+import { StructuredData } from "../components/structured-data";
+import { softwareApplicationSchema } from "../lib/schema";
 import { pageMetadata } from "../lib/site";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Content Signal for WordPress",
-  description:
-    "Find WordPress pages losing organic traffic, prioritize fixes with Search Console evidence, and run review-first SEO operations.",
-  path: "/"
-});
+export const metadata: Metadata = {
+  ...pageMetadata({
+    title: "WordPress SEO Audit and Content Operations",
+    description:
+      "Audit WordPress content for noindex risk, missing metadata, thin content, and orphan pages. Prioritize fixes with Search Console evidence. Free plugin, no account required.",
+    path: "/"
+  }),
+  title: {
+    absolute: "WordPress SEO Audit & Content Operations | Content Signal"
+  }
+};
 
 type HomeIconName =
   | "approval"
@@ -361,15 +368,17 @@ const previewRows = [
 export default function MarketingHomePage() {
   return (
     <>
+      <StructuredData id="home-software-schema" data={softwareApplicationSchema()} />
       <main className="home-redesign">
         <section className="home-hero">
           <div className="home-hero-inner">
             <div className="home-hero-copy" data-reveal>
               <span className="home-hero-kicker">WordPress SEO operations</span>
-              <h1>Find traffic leaks before they become backlog noise.</h1>
+              <h1>Run a WordPress SEO audit that ends in shipped work.</h1>
               <p>
-                Connect WordPress and Search Console evidence so teams know what to fix, who owns
-                it, and when publishing is allowed.
+                Content Signal audits every published page for noindex risk, missing metadata, thin
+                content, and orphan pages, then ranks the fixes with Google Search Console evidence
+                so teams know what to fix, who owns it, and when publishing is allowed.
               </p>
               <div className="hero-actions">
                 <Link className="button button-dark" href="/trial">

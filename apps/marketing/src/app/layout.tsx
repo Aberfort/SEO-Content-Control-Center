@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
+import { StructuredData } from "../components/structured-data";
+import { organizationSchema, websiteSchema } from "../lib/schema";
 import { marketingOrigin, siteName } from "../lib/site";
 
 import "./globals.css";
@@ -22,11 +24,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(marketingOrigin),
   title: {
-    default: "Content Signal for WordPress",
+    default: "WordPress SEO Audit & Content Operations | Content Signal",
     template: `%s | ${siteName}`
   },
   description:
-    "Find WordPress pages losing organic traffic and turn them into a prioritized SEO backlog.",
+    "Audit WordPress content for noindex risk, missing metadata, thin content, and orphan pages, then turn the findings into a prioritized SEO backlog.",
   applicationName: siteName,
   keywords: [
     "WordPress SEO",
@@ -43,15 +45,16 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Content Signal for WordPress",
+    title: "WordPress SEO Audit & Content Operations",
     description:
       "Connect WordPress and Google Search Console to prioritize SEO fixes and prove impact.",
     siteName,
+    locale: "en_US",
     url: "/"
   },
   twitter: {
     card: "summary_large_image",
-    title: "Content Signal for WordPress",
+    title: "WordPress SEO Audit & Content Operations",
     description:
       "Connect WordPress and Google Search Console to prioritize SEO fixes and prove impact."
   },
@@ -69,6 +72,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="en"
     >
       <body>
+        <StructuredData id="site-schema" data={[organizationSchema(), websiteSchema()]} />
         <SiteHeader />
         {children}
         <SiteFooter />
