@@ -89,6 +89,14 @@ async function deliverDemoLead(lead: DemoLead, userAgent: string | null): Promis
     lead
   };
 
+  console.info("[demo-lead-debug] VERCEL_ENV:", process.env.VERCEL_ENV, "NODE_ENV:", process.env.NODE_ENV);
+  console.info(
+    "[demo-lead-debug] webhookUrl present:",
+    Boolean(webhookUrl),
+    "host:",
+    webhookUrl ? safeHost(webhookUrl) : null
+  );
+
   if (!webhookUrl) {
     if (process.env.NODE_ENV === "production") {
       throw new Error("SCCC_MARKETING_LEAD_WEBHOOK_URL is not configured");
@@ -109,8 +117,18 @@ async function deliverDemoLead(lead: DemoLead, userAgent: string | null): Promis
     signal: AbortSignal.timeout(8000)
   });
 
+  console.info("[demo-lead-debug] webhook response status:", response.status);
+
   if (!response.ok) {
     throw new Error(`Lead webhook returned HTTP ${response.status}`);
+  }
+}
+
+function safeHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "invalid-url";
   }
 }
 
