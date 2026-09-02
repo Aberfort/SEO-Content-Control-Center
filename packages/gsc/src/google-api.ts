@@ -51,6 +51,24 @@ export function isGscClientConfigured(env: Environment = process.env): boolean {
   return Boolean(hasEnvValue(env.SCCC_GSC_CLIENT_ID) && hasEnvValue(env.SCCC_GSC_CLIENT_SECRET));
 }
 
+/**
+ * Reads Google's OAuth error body so the specific cause (`redirect_uri_mismatch`,
+ * `invalid_client`, `invalid_grant`) reaches the server logs. Google returns only
+ * `error` and `error_description` here, never credentials. Returns a short string
+ * and never throws: diagnostics must not mask the original failure.
+ */
+async function readGoogleErrorDetail(response: {
+  status: number;
+  text(): Promise<string>;
+}): Promise<string> {
+  try {
+    const body = await response.text();
+    return `HTTP ${response.status}: ${body.slice(0, 300)}`;
+  } catch {
+    return `HTTP ${response.status}`;
+  }
+}
+
 export async function exchangeGscAuthorizationCode(
   input: GscTokenExchangeInput
 ): Promise<{ accessToken: string; refreshToken: string }> {
@@ -75,7 +93,9 @@ export async function exchangeGscAuthorizationCode(
   });
 
   if (!response.ok) {
-    throw new Error("GSC_TOKEN_EXCHANGE_FAILED");
+    throw new Error("GSC_TOKEN_EXCHANGE_FAILED", {
+      cause: await readGoogleErrorDetail(response)
+    });
   }
 
   const payload = (await response.json()) as {

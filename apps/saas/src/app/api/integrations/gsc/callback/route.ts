@@ -72,6 +72,11 @@ export async function GET(request: Request) {
       303
     );
   } catch (error) {
+    console.error("Google Search Console OAuth callback failed", {
+      reason: error instanceof Error ? error.message : "Unknown callback error",
+      detail: error instanceof Error && error.cause ? String(error.cause) : undefined
+    });
+
     return Response.redirect(
       buildGscDashboardReturnUrl({
         origin: requestUrl.origin,
