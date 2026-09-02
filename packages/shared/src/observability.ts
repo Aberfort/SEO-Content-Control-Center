@@ -16,7 +16,7 @@ export type SentryReporter = {
 type FetchLike = (
   url: string,
   init: { method: string; headers: Record<string, string>; body: string }
-) => Promise<unknown>;
+) => Promise<{ ok: boolean; status: number }>;
 
 type CreateSentryReporterInput = {
   dsn?: string | null;
@@ -126,13 +126,17 @@ export function createSentryReporter(input: CreateSentryReporterInput): SentryRe
     const body = `${envelopeHeader}\n${itemHeader}\n${JSON.stringify(payload)}`;
 
     try {
-      await fetchFn(url, {
+      const response = await fetchFn(url, {
         method: "POST",
         headers: {
           "content-type": "application/x-sentry-envelope"
         },
         body
       });
+
+      if (!response.ok) {
+        input.onError?.(new Error(`Sentry envelope rejected with HTTP ${response.status}`));
+      }
     } catch (error) {
       input.onError?.(error);
     }

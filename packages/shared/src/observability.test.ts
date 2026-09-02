@@ -69,7 +69,7 @@ describe("createSentryReporter", () => {
       dsn: null,
       fetchFn: async () => {
         called = true;
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -86,7 +86,7 @@ describe("createSentryReporter", () => {
       now: () => new Date("2026-07-10T00:00:00.000Z"),
       fetchFn: async (url, init) => {
         requests.push({ url, body: init.body });
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -117,5 +117,18 @@ describe("createSentryReporter", () => {
 
     await expect(reporter.captureMessage("still fine")).resolves.toBeUndefined();
     expect(errors).toHaveLength(1);
+  });
+
+  it("reports an error when Sentry rejects the envelope", async () => {
+    const errors: unknown[] = [];
+    const reporter = createSentryReporter({
+      dsn,
+      onError: (error) => errors.push(error),
+      fetchFn: async () => ({ ok: false, status: 401 })
+    });
+
+    await expect(reporter.captureException(new Error("boom"))).resolves.toBeUndefined();
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toContain("401");
   });
 });

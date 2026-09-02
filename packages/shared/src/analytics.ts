@@ -18,7 +18,7 @@ export type AnalyticsClient = {
 type FetchLike = (
   url: string,
   init: { method: string; headers: Record<string, string>; body: string }
-) => Promise<unknown>;
+) => Promise<{ ok: boolean; status: number }>;
 
 type CreateAnalyticsClientInput = {
   apiKey?: string | null;
@@ -85,7 +85,7 @@ export function createAnalyticsClient(input: CreateAnalyticsClientInput): Analyt
       }
 
       try {
-        await fetchFn(`${host}/capture/`, {
+        const response = await fetchFn(`${host}/capture/`, {
           method: "POST",
           headers: {
             "content-type": "application/json"
@@ -98,6 +98,10 @@ export function createAnalyticsClient(input: CreateAnalyticsClientInput): Analyt
             })
           )
         });
+
+        if (!response.ok) {
+          input.onError?.(new Error(`PostHog capture rejected with HTTP ${response.status}`));
+        }
       } catch (error) {
         input.onError?.(error);
       }

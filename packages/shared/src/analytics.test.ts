@@ -51,7 +51,7 @@ describe("createAnalyticsClient", () => {
       apiKey: " ",
       fetchFn: async () => {
         called = true;
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -68,7 +68,7 @@ describe("createAnalyticsClient", () => {
       now: () => new Date("2026-07-10T00:00:00.000Z"),
       fetchFn: async (url, init) => {
         requests.push({ url, body: init.body });
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -92,7 +92,7 @@ describe("createAnalyticsClient", () => {
       apiKey: "phc_test",
       fetchFn: async (url) => {
         urls.push(url);
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -109,7 +109,7 @@ describe("createAnalyticsClient", () => {
       onError: (error) => errors.push(error),
       fetchFn: async () => {
         called = true;
-        return undefined;
+        return { ok: true, status: 200 };
       }
     });
 
@@ -137,5 +137,20 @@ describe("createAnalyticsClient", () => {
       client.capture({ event: "site_added", distinctId: "user-1" })
     ).resolves.toBeUndefined();
     expect(errors).toHaveLength(1);
+  });
+
+  it("reports an error when PostHog rejects the capture", async () => {
+    const errors: unknown[] = [];
+    const client = createAnalyticsClient({
+      apiKey: "phc_test",
+      onError: (error) => errors.push(error),
+      fetchFn: async () => ({ ok: false, status: 401 })
+    });
+
+    await expect(
+      client.capture({ event: "site_added", distinctId: "user-1" })
+    ).resolves.toBeUndefined();
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toContain("401");
   });
 });
