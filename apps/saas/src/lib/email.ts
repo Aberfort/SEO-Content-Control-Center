@@ -65,6 +65,25 @@ type EmailConfig =
 
 type Environment = Record<string, string | undefined>;
 
+/**
+ * SMTP failures are reported back to callers, but most call sites only care
+ * that the request itself succeeded. Log the underlying reason so a
+ * misconfigured provider is visible in runtime logs instead of failing
+ * silently.
+ */
+function smtpFailure(kind: string, error: unknown): EmailDeliveryStatus {
+  console.error("SMTP delivery failed", {
+    kind,
+    reason: error instanceof Error ? error.message : "Unknown SMTP error"
+  });
+
+  return {
+    provider: "smtp",
+    status: "failed",
+    reason: "SMTP delivery failed."
+  };
+}
+
 export async function sendInviteEmail(input: InviteEmailInput): Promise<EmailDeliveryStatus> {
   const config = resolveEmailConfig();
   const message = composeInviteEmail(input);
@@ -102,12 +121,8 @@ export async function sendInviteEmail(input: InviteEmailInput): Promise<EmailDel
       status: "sent",
       messageId: info.messageId
     };
-  } catch {
-    return {
-      provider: "smtp",
-      status: "failed",
-      reason: "SMTP delivery failed."
-    };
+  } catch (error) {
+    return smtpFailure("invite", error);
   }
 }
 
@@ -150,12 +165,8 @@ export async function sendEmailVerificationEmail(
       status: "sent",
       messageId: info.messageId
     };
-  } catch {
-    return {
-      provider: "smtp",
-      status: "failed",
-      reason: "SMTP delivery failed."
-    };
+  } catch (error) {
+    return smtpFailure("email-verification", error);
   }
 }
 
@@ -198,12 +209,8 @@ export async function sendPasswordResetEmail(
       status: "sent",
       messageId: info.messageId
     };
-  } catch {
-    return {
-      provider: "smtp",
-      status: "failed",
-      reason: "SMTP delivery failed."
-    };
+  } catch (error) {
+    return smtpFailure("password-reset", error);
   }
 }
 
@@ -246,12 +253,8 @@ export async function sendWorkspaceAlertEmail(
       status: "sent",
       messageId: info.messageId
     };
-  } catch {
-    return {
-      provider: "smtp",
-      status: "failed",
-      reason: "SMTP delivery failed."
-    };
+  } catch (error) {
+    return smtpFailure("workspace-alert", error);
   }
 }
 
