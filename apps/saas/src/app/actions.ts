@@ -180,6 +180,11 @@ export async function createBillingCheckoutSessionAction(formData: FormData): Pr
     });
     checkoutUrl = session.url;
   } catch (error) {
+    console.error("Stripe checkout session creation failed", {
+      reason: error instanceof Error ? error.message : "Unknown checkout error",
+      detail: error instanceof Error && error.cause ? String(error.cause) : undefined
+    });
+
     const state = actionError(error, "Could not create checkout session.");
     redirect(`/dashboard?billing=error&message=${encodeURIComponent(state.message)}`);
   }
