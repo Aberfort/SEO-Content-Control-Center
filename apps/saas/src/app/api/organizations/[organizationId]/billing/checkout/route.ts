@@ -67,6 +67,11 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
     }
 
+    console.error("Stripe checkout session creation failed", {
+      reason: error instanceof Error ? error.message : "Unknown checkout error",
+      detail: error instanceof Error && error.cause ? String(error.cause) : undefined
+    });
+
     return jsonError(400, "BILLING_CHECKOUT_FAILED", "Could not create checkout session.");
   }
 }

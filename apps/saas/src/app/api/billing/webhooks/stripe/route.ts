@@ -57,6 +57,10 @@ export async function POST(request: Request) {
       return jsonError(400, error.message, "Billing webhook payload could not be verified.");
     }
 
+    console.error("Stripe billing webhook processing failed", {
+      reason: error instanceof Error ? error.message : "Unknown webhook error"
+    });
+
     return jsonError(400, "BILLING_WEBHOOK_FAILED", "Billing webhook could not be processed.");
   }
 }

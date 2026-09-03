@@ -9,6 +9,25 @@ export type BillingCheckoutErrorCode =
 
 const checkoutEligiblePlanCodes = ["STARTER", "PRO", "AGENCY"] satisfies PlanCode[];
 
+/**
+ * Reads Stripe's JSON error body so the specific cause (invalid key, unknown
+ * price, inactive price) reaches the server logs instead of a bare
+ * BILLING_CHECKOUT_FAILED. Stripe returns only `error.message` here, never
+ * account credentials. Never throws: diagnostics must not mask the original
+ * failure.
+ */
+async function readStripeErrorDetail(response: {
+  status: number;
+  text(): Promise<string>;
+}): Promise<string> {
+  try {
+    const body = await response.text();
+    return `HTTP ${response.status}: ${body.slice(0, 300)}`;
+  } catch {
+    return `HTTP ${response.status}`;
+  }
+}
+
 export async function createBillingCheckoutSession(input: {
   context: BillingCheckoutContext;
   origin?: string | null;
@@ -39,13 +58,13 @@ export async function createBillingCheckoutSession(input: {
   });
 
   if (!response.ok) {
-    throw new Error("BILLING_CHECKOUT_FAILED");
+    throw new Error("BILLING_CHECKOUT_FAILED", { cause: await readStripeErrorDetail(response) });
   }
 
   const payload = (await response.json()) as { id?: unknown; url?: unknown };
 
   if (typeof payload.id !== "string" || typeof payload.url !== "string") {
-    throw new Error("BILLING_CHECKOUT_FAILED");
+    throw new Error("BILLING_CHECKOUT_FAILED", { cause: "Stripe response missing id or url" });
   }
 
   return {
