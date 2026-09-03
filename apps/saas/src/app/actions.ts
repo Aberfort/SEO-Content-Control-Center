@@ -186,7 +186,7 @@ export async function createBillingCheckoutSessionAction(formData: FormData): Pr
     });
 
     const state = actionError(error, "Could not create checkout session.");
-    redirect(`/dashboard?billing=error&message=${encodeURIComponent(state.message)}`);
+    redirect(`/settings?billing=error&message=${encodeURIComponent(state.message)}`);
   }
 
   redirect(checkoutUrl);
@@ -210,7 +210,7 @@ export async function createBillingPortalSessionAction(formData: FormData): Prom
     portalUrl = session.url;
   } catch (error) {
     const state = actionError(error, "Could not create billing portal session.");
-    redirect(`/dashboard?billing=error&message=${encodeURIComponent(state.message)}`);
+    redirect(`/settings?billing=error&message=${encodeURIComponent(state.message)}`);
   }
 
   redirect(portalUrl);
