@@ -1224,6 +1224,34 @@ function actionError(error: unknown, fallback: string): ActionState {
     };
   }
 
+  if (error instanceof Error && error.message === "BILLING_PLAN_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "Billing plan was not found. Plan records may be missing from the database."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_PROVIDER_NOT_CONFIGURED") {
+    return {
+      ok: false,
+      message: "Billing provider is not configured."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_PRICE_NOT_CONFIGURED") {
+    return {
+      ok: false,
+      message: "Checkout is not configured for this plan. Check the Stripe key and price IDs."
+    };
+  }
+
+  if (error instanceof Error && error.message === "BILLING_CHECKOUT_FAILED") {
+    return {
+      ok: false,
+      message: "Stripe rejected the checkout request. Check the server logs for the detail."
+    };
+  }
+
   if (
     error instanceof Error &&
     error.message.startsWith("PLAN_") &&
