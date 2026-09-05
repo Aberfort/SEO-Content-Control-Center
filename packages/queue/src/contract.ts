@@ -140,6 +140,12 @@ export const defaultJobOptions = {
 /**
  * Builds a deterministic job id so repeated enqueues of the same logical work
  * (same tenant, same job, same window) deduplicate instead of stacking up.
+ *
+ * Joined with `.`, not `:`: BullMQ's job validation rejects any custom jobId
+ * that contains `:` unless it splits into exactly 3 segments (a legacy
+ * compatibility rule for old repeatable jobs - see bullmq's Job.validateOptions).
+ * Every call site here builds 4+ segments, so a `:`-joined id throws
+ * "Custom Id cannot contain :" the moment the job is actually enqueued.
  */
 export function buildJobId(parts: Array<string | number>): string {
   if (parts.length === 0) {
@@ -156,7 +162,7 @@ export function buildJobId(parts: Array<string | number>): string {
 
       return normalized.replaceAll(/[^a-z0-9._-]+/g, "-");
     })
-    .join(":");
+    .join(".");
 }
 
 export const workerHeartbeatTtlSeconds = 90;

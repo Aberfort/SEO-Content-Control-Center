@@ -24,11 +24,24 @@ describe("queue contract", () => {
 
   it("builds deterministic sanitized job ids", () => {
     expect(buildJobId(["GSC", "Org 1", "site_2", "2026-07-09"])).toBe(
-      "gsc:org-1:site_2:2026-07-09"
+      "gsc.org-1.site_2.2026-07-09"
     );
     expect(buildJobId(["gsc", "org 1", "site_2", "2026-07-09"])).toBe(
       buildJobId(["GSC", "Org 1", "site_2", "2026-07-09"])
     );
+  });
+
+  it("never produces a colon, regardless of part count", () => {
+    // BullMQ rejects a custom jobId containing ':' unless it splits into
+    // exactly 3 segments (bullmq's Job.validateOptions). Every real call site
+    // builds 4+ segments, so this id must never contain ':' at all.
+    for (const parts of [
+      ["weekly-digest", "org-1", "2026-08-01", "2026-08-07"],
+      ["monitoring", "create-snapshot", "org-1", "site-1", "url-1", "1699999999"],
+      ["bulk-operation", "execute", "org-1", "site-1", "op-1"]
+    ]) {
+      expect(buildJobId(parts)).not.toContain(":");
+    }
   });
 
   it("rejects empty job id parts", () => {
