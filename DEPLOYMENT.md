@@ -36,6 +36,21 @@ In production, `DATABASE_URL` must be supplied by the environment or secret mana
 - Worker process.
 - WordPress plugin release artifact.
 
+## Serverless Function Region
+
+`apps/saas/vercel.json` pins SaaS functions to `fra1` (Frankfurt) to match the
+Neon Postgres region (`eu-central-1`). Do not remove this without moving the
+database too.
+
+The workspace page issues a large number of repository calls per render, so
+every millisecond of database round-trip latency is multiplied by that count.
+On Vercel's default region (`iad1`, Washington DC) each query crossed the
+Atlantic and the authenticated page took ~13s to render; co-locating the
+function with the database removes that entirely.
+
+Verify after deploy: the second segment of the `x-vercel-id` response header is
+the execution region and should read `fra1`.
+
 ## Portable Docker Compose Deployment
 
 The repository includes a portable single-server Docker packaging path for staging or an initial production host:
