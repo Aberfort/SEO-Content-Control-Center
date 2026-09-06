@@ -1,10 +1,10 @@
 === Content Signal — SEO Content Audit ===
 Contributors: serhiivasyliev
-Tags: seo, seo-audit, content-audit, search-console, audit
+Tags: seo, seo-audit, content-audit, search-console, orphan-pages, thin-content, internal-linking, noindex, yoast, rank-math, content-health, audit
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.2
+Stable tag: 0.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,10 +106,17 @@ See the [Content Signal Terms of Service](https://getcontentsignal.com/terms) an
 
 == Upgrade Notice ==
 
+= 0.9.3 =
+Directory listing tags only. No changes to audit behaviour, stored data, or the platform connection.
+
 = 0.9.2 =
 Link and listing fix only. No changes to audit behaviour, stored data, or the platform connection.
 
 == Changelog ==
+
+= 0.9.3 =
+
+* Expanded the directory listing tags (orphan pages, thin content, internal linking, noindex, Yoast, Rank Math, content health) so the audit's actual checks are searchable on WordPress.org.
 
 = 0.9.2 =
 

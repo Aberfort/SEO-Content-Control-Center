@@ -3,7 +3,7 @@
  * Plugin Name: Content Signal — SEO Content Audit
  * Plugin URI: https://getcontentsignal.com/download
  * Description: Audits WordPress content health locally and optionally connects it to evidence-backed SEO workflows.
- * Version: 0.9.2
+ * Version: 0.9.3
  * Requires PHP: 8.1
  * Requires at least: 6.4
  * Author: Serhii Vasyliev
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SCCC_PLUGIN_FILE', __FILE__ );
 define( 'SCCC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'SCCC_PLUGIN_VERSION', '0.9.2' );
+define( 'SCCC_PLUGIN_VERSION', '0.9.3' );
 
 $sccc_autoload = SCCC_PLUGIN_DIR . 'vendor/autoload.php';
 
