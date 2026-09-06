@@ -5,12 +5,12 @@ import { captureMarketingEvent } from "../../../../lib/analytics";
 import { getPluginObjectStore } from "../../../../lib/plugin-release";
 import { anonymousDistinctId, visitorIdCookieName } from "../../../../lib/visitor";
 
-const staticFallbackPath = "/downloads/content-signal-seo-content-audit-0.8.1.zip";
+const staticFallbackPath = "/downloads/content-signal-seo-content-audit-0.9.2.zip";
 
 export async function GET(request: NextRequest) {
   const store = getPluginObjectStore();
   const manifest = store ? await getLatestPluginRelease(store) : null;
-  const version = manifest?.version ?? "0.8.1-static-fallback";
+  const version = manifest?.version ?? "0.9.2-static-fallback";
 
   await captureMarketingEvent({
     event: "plugin_downloaded",
