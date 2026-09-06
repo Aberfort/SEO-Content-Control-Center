@@ -598,8 +598,8 @@ export default function MarketingHomePage() {
                 Supported SEO metadata changes stay bounded from the first preview through the final
                 WordPress result.
               </p>
-              <Link className="inline-link" href="/security">
-                Review the safeguards <HomeIcon name="arrow" size={16} />
+              <Link className="inline-link" href="/safe-operations">
+                See how execution works <HomeIcon name="arrow" size={16} />
               </Link>
             </div>
             <div className="home-safeguard-grid">

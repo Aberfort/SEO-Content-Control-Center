@@ -7,6 +7,7 @@ import {
   Layers3,
   Menu,
   PlugZap,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
   UsersRound
@@ -36,6 +37,12 @@ const megaSections = [
         label: "Product overview",
         description: "Inventory, evidence, backlog, and approvals.",
         icon: Layers3
+      },
+      {
+        href: "/safe-operations",
+        label: "Safe operations",
+        description: "Preview, dry run, confirm, and roll back every change.",
+        icon: RotateCcw
       },
       {
         href: "/features",
