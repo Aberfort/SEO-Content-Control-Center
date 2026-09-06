@@ -17,6 +17,10 @@ const content: SolutionPageContent = {
   eyebrow: "For SEO agencies",
   title: "Run every client SEO workflow with evidence, ownership, and boundaries intact.",
   body: "Separate organizations and sites without separating the work from its context. Give account, strategy, and delivery teams one structured place to decide and move client SEO work forward.",
+  relatedReading: {
+    label: "Read: Running one SEO backlog across every client site",
+    href: "/blog/agency-multi-site-seo-backlog"
+  },
   proof: [
     { value: "Client-scoped", label: "Organizations, sites, and records" },
     { value: "Role-aware", label: "Controls for sensitive actions" },

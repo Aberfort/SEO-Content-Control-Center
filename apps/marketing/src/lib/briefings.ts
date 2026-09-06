@@ -385,7 +385,7 @@ export const briefings: Briefing[] = [
           "It is safe when it is review-first: bounded scope, a preview of the exact change, explicit confirmation, retained previous values, and an audit trail. Unattended bulk writes are not."
       }
     ],
-    related: ["wordpress-seo-audit-checklist", "search-console-traffic-drop"]
+    related: ["wordpress-seo-audit-checklist", "search-console-traffic-drop", "agency-multi-site-seo-backlog"]
   },
   {
     slug: "yoast-rank-math-together",
@@ -464,6 +464,83 @@ export const briefings: Briefing[] = [
       }
     ],
     related: ["wordpress-seo-audit-checklist", "seo-backlog-prioritization"]
+  },
+  {
+    slug: "agency-multi-site-seo-backlog",
+    category: "Agencies",
+    title: "Running one SEO backlog across every client site",
+    metaTitle: "Running One SEO Backlog Across Every Client Site",
+    metaDescription:
+      "Managing SEO across client sites usually means N spreadsheets and whichever client shouts loudest. Here's how to run one shared, prioritized backlog instead.",
+    summary:
+      "Impact-over-effort scoring works inside one site. Across a client portfolio, the harder problem is capacity: whose work gets done this week, and on what basis.",
+    published: "2026-09-06",
+    updated: "2026-09-06",
+    readingTime: "6 min read",
+    intro: [
+      "A single-site SEO backlog has one failure mode: findings that never become tasks. A multi-client one has a second failure mode layered on top of the first, and it's the one that actually burns agency capacity: whichever client emails the most, or has the most senior contact, absorbs the week, while a quieter account's page losing 40% of its clicks sits untouched.",
+      "The scoring mechanics for turning a finding into a task don't change across clients. What changes is the queue that scoring feeds, and whether it's one queue or a dozen disconnected ones."
+    ],
+    sections: [
+      {
+        heading: "The default is a spreadsheet per client, and it's the problem",
+        paragraphs: [
+          "Most agencies end up with one tracker per client because that's how the client relationship is scoped: separate contracts, separate reporting, separate Slack channels. It feels natural to keep the work separate too.",
+          "The cost shows up at the team level, not the client level. A strategist covering eight accounts can't compare a Client A page down 40% against a Client C thin-content flag without opening eight tools. So the comparison doesn't happen, and capacity gets allocated by who asked most recently instead of by what actually matters."
+        ]
+      },
+      {
+        heading: "Score across the whole portfolio, not per client",
+        paragraphs: [
+          "The impact-over-effort framework for turning findings into tasks doesn't need to change for agency work. What needs to change is its scope: run it across every connected site at once, not once per client, so a genuinely high-impact page surfaces near the top of the queue regardless of which client it belongs to.",
+          "That doesn't mean every client's work competes in one undifferentiated pile forever. It means the default view is the honest one — ranked by impact and effort across the portfolio — and client-level filtering is a lens on top of it, not the only way to see the work."
+        ]
+      },
+      {
+        heading: "Decide the capacity model on purpose",
+        paragraphs: [
+          "Two approaches both work, and the failure is not picking either one deliberately. Pure impact ranking sends capacity to whichever client's pages are losing the most traffic this month, which is efficient but can starve a smaller retainer for weeks at a stretch. A capacity floor per client — a guaranteed minimum slice of hours regardless of ranking — protects every relationship but blunts the portfolio-level prioritization that made a shared queue worth building in the first place.",
+          "Most agencies land somewhere between the two: a small guaranteed floor per client, with everything above it ranked by impact across the whole book. The specific split matters less than making the decision visible instead of letting it default to whoever complained most recently."
+        ]
+      },
+      {
+        heading: "Reporting is a byproduct, not a second job",
+        paragraphs: [
+          "If the backlog and the client report live in different places, someone rebuilds the report by hand every cycle, which is exactly the kind of manual step that gets skipped under deadline pressure. A report generated from the same evidence and outcome data the backlog already tracks — found, prioritized, fixed, verified — stays accurate because there's no second copy to fall out of sync.",
+          "Content Signal's site- and workspace-level HTML and CSV client reports are built from that same evidence trail, not a separate export someone maintains by hand."
+        ]
+      },
+      {
+        heading: "What this doesn't solve yet",
+        paragraphs: [
+          "One honest limit worth stating: roles apply at the organization level today, not per site. A team member with backlog access can see every connected site in that organization. If a subcontractor needs to be scoped to exactly one client and nothing else, the current workaround is a separate organization for that client, not a role you can assign inside a shared one.",
+          "Site-level role scoping is on the roadmap, not shipped. Worth knowing before you build a workflow that assumes it exists."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Should each client have a separate backlog?",
+        answer:
+          "Keep one shared, portfolio-wide queue as the default view, with client-level filtering on top of it. A backlog per client recreates the comparison problem this whole approach is meant to solve."
+      },
+      {
+        question: "How do you stop one loud client from eating all your team's capacity?",
+        answer:
+          "Decide the capacity model on purpose — a small guaranteed floor per client with everything above it ranked by impact across the portfolio is a common middle ground. The failure mode is not choosing, not which model you pick."
+      },
+      {
+        question: "Can clients see their own backlog without a platform login?",
+        answer:
+          "Not as a no-login portal today. Site- and workspace-level HTML or CSV reports can be generated and sent to a client from the same evidence the backlog tracks."
+      },
+      {
+        question: "Can I scope a team member to just one client's site?",
+        answer:
+          "Not yet as a role scoped to a single site — roles apply across the whole organization today. The current workaround is a separate organization per client that needs that isolation."
+      }
+    ],
+    related: ["seo-backlog-prioritization", "wordpress-seo-audit-checklist"]
   }
 ];
 

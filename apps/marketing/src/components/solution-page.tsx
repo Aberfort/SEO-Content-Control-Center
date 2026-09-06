@@ -13,6 +13,8 @@ export type SolutionPageContent = {
   eyebrow: string;
   title: string;
   body: string;
+  /** Optional link to a supporting blog post, shown under the outcomes list. */
+  relatedReading?: { label: string; href: string };
   proof: Array<{
     value: string;
     label: string;
@@ -96,6 +98,11 @@ export function SolutionPage({ content }: { content: SolutionPageContent }) {
         <div>
           <span className="eyebrow">What stays visible</span>
           <h2>A queue that preserves the decisions around the work.</h2>
+          {content.relatedReading ? (
+            <p className="section-note">
+              <Link href={content.relatedReading.href}>{content.relatedReading.label}</Link>
+            </p>
+          ) : null}
         </div>
         <ul>
           {content.outcomes.map((outcome) => (
