@@ -26,11 +26,9 @@ import {
   buildWorkspaceDeliverableSummary,
   clientReportQuerySchema,
   createMonitoredUrlSchema,
-  createPlanGrantCodeSchema,
   deliveryPreferenceUpdateSchema,
   eventListQuerySchema,
   generatePlanGrantCode,
-  getPlanGrantCodeStatus,
   hasPermission,
   inviteMemberSchema,
   isGrantablePlanCode,
@@ -39,7 +37,6 @@ import {
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
-  redeemPlanGrantCodeSchema,
   regressionListQuerySchema,
   rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
@@ -1653,7 +1650,9 @@ const prismaRepository: AppRepository = {
   async createPlanGrantCode(input) {
     const grant = await prisma.planGrantCode.create({
       data: {
-        code: generatePlanGrantCode(() => randomBytes(16)),
+        // Stored normalized (dash-free) -- redemption also normalizes what
+        // the user types before comparing, so this is what has to match.
+        code: normalizePlanGrantCode(generatePlanGrantCode(() => randomBytes(16))),
         planCode: input.planCode,
         recipientEmail: input.recipientEmail ?? null,
         note: input.note ?? null,

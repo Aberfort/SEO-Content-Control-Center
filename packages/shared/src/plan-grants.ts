@@ -49,9 +49,25 @@ export function generatePlanGrantCode(randomBytes: () => Uint8Array): string {
 }
 
 /** Uppercases and strips everything but alphanumerics, so "qx9m 2vbd" and
- * "QX9M-2VBD" (and a pasted stray space or lowercase) look up the same row. */
+ * "QX9M-2VBD" (and a pasted stray space or lowercase) look up the same row.
+ * This is also the form the code is stored in -- storage and lookup both
+ * normalize, so dashes are purely a display concern (see
+ * formatPlanGrantCodeForDisplay). */
 export function normalizePlanGrantCode(input: string): string {
   return input.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** Re-inserts the "XXXX-XXXX-XXXX" grouping for display (email, admin
+ * table) from a normalized, dash-free stored code. */
+export function formatPlanGrantCodeForDisplay(code: string): string {
+  const chars = normalizePlanGrantCode(code);
+  const groups: string[] = [];
+
+  for (let i = 0; i < chars.length; i += codeSegmentLength) {
+    groups.push(chars.slice(i, i + codeSegmentLength));
+  }
+
+  return groups.join("-");
 }
 
 export const createPlanGrantCodeSchema = z.object({

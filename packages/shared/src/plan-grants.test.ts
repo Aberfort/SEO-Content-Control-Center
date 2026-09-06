@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createPlanGrantCodeSchema,
+  formatPlanGrantCodeForDisplay,
   generatePlanGrantCode,
   getPlanGrantCodeStatus,
   isGrantablePlanCode,
@@ -27,6 +28,17 @@ describe("normalizePlanGrantCode", () => {
   it("uppercases and strips separators/whitespace so lookups are forgiving", () => {
     expect(normalizePlanGrantCode("qx9m-2vbd-7f3k")).toBe("QX9M2VBD7F3K");
     expect(normalizePlanGrantCode(" QX9M 2VBD 7F3K ")).toBe("QX9M2VBD7F3K");
+  });
+});
+
+describe("formatPlanGrantCodeForDisplay", () => {
+  it("re-groups a stored, dash-free code for display", () => {
+    expect(formatPlanGrantCodeForDisplay("QX9M2VBD7F3K")).toBe("QX9M-2VBD-7F3K");
+  });
+
+  it("round-trips through normalize -- what's displayed is what gets looked up", () => {
+    const display = formatPlanGrantCodeForDisplay("QX9M2VBD7F3K");
+    expect(normalizePlanGrantCode(display)).toBe("QX9M2VBD7F3K");
   });
 });
 

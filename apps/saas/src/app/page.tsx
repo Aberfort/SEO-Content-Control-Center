@@ -71,6 +71,7 @@ import { MemberRoleForm } from "@/components/member-role-form";
 import { MemberSiteScopeForm } from "@/components/member-site-scope-form";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { PluginChallengeForm } from "@/components/plugin-challenge-form";
+import { RedeemPlanGrantForm } from "@/components/redeem-plan-grant-form";
 import { RequestClientApprovalForm } from "@/components/request-client-approval-form";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { getAppRepository } from "@/lib/app-repository";
@@ -3425,7 +3426,12 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                     </div>
                     <div>
                       <small>Status</small>
-                      <strong>{formatSubscriptionStatus(billingOverview.subscription)}</strong>
+                      <strong>
+                        {formatSubscriptionStatus(billingOverview.subscription)}
+                        {billingOverview.subscription?.provider === "grant" ? (
+                          <span className="metric-pill plan-grant-badge"> Granted</span>
+                        ) : null}
+                      </strong>
                       <span>{formatSubscriptionPeriod(billingOverview.subscription)}</span>
                     </div>
                     <div className="billing-action-cell">
@@ -3450,6 +3456,10 @@ export async function WorkspacePage({ searchParams, view }: WorkspacePageProps) 
                       )}
                     </div>
                   </div>
+
+                  {activeOrganization ? (
+                    <RedeemPlanGrantForm organizationId={activeOrganization.id} />
+                  ) : null}
 
                   <div className="billing-gate-grid">
                     {billingOverview.featureGates.map((gate) => (

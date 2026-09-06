@@ -133,6 +133,10 @@ function buildPortalDisabledReason(input: {
     return "Your role can not manage billing.";
   }
 
+  if (input.subscription?.provider === "grant") {
+    return "This plan was granted directly -- no billing portal is needed.";
+  }
+
   if (!input.subscription || input.subscription.provider !== "stripe") {
     return "No paid subscription is connected.";
   }

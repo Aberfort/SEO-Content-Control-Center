@@ -7,6 +7,7 @@ import {
   billingCheckoutCreateSchema,
   createPlanGrantCodeSchema,
   deliveryPreferenceUpdateSchema,
+  formatPlanGrantCodeForDisplay,
   redeemPlanGrantCodeSchema,
   type BacklogTaskOutcomeUpdateInput
 } from "@sccc/shared";
@@ -422,7 +423,7 @@ export async function createPlanGrantAction(
     if (parsed.recipientEmail) {
       const emailDelivery = await sendPlanGrantEmail({
         to: parsed.recipientEmail,
-        code: grant.code,
+        code: formatPlanGrantCodeForDisplay(grant.code),
         planName: grantablePlanDisplayNames[parsed.planCode],
         redeemUrl: buildPlanGrantRedeemUrl(grant.code)
       });
@@ -442,14 +443,11 @@ export async function createPlanGrantAction(
   redirect("/admin/grants");
 }
 
-export async function revokePlanGrantAction(
-  _previousState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
+export async function revokePlanGrantAction(formData: FormData): Promise<void> {
   const { user } = await requireCurrentUser();
 
   if (!isPlatformAdmin(user.email)) {
-    return { ok: false, message: "Not authorized." };
+    redirect("/");
   }
 
   try {
@@ -457,7 +455,8 @@ export async function revokePlanGrantAction(
     const repository = getAppRepository();
     await repository.revokePlanGrantCode(String(formData.get("id") ?? ""));
   } catch (error) {
-    return actionError(error, "Could not revoke the code.");
+    const state = actionError(error, "Could not revoke the code.");
+    redirect(`/admin/grants?error=${encodeURIComponent(state.message)}`);
   }
 
   revalidatePath("/admin/grants");
@@ -1314,6 +1313,34 @@ function actionError(error: unknown, fallback: string): ActionState {
     return {
       ok: false,
       message: "Organization was not found."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PLAN_GRANT_CODE_NOT_FOUND") {
+    return {
+      ok: false,
+      message: "That code doesn't match any plan grant."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PLAN_GRANT_CODE_REVOKED") {
+    return {
+      ok: false,
+      message: "That code has been revoked."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PLAN_GRANT_CODE_ALREADY_REDEEMED") {
+    return {
+      ok: false,
+      message: "That code has already been redeemed."
+    };
+  }
+
+  if (error instanceof Error && error.message === "PLAN_GRANT_CODE_EMAIL_MISMATCH") {
+    return {
+      ok: false,
+      message: "This code was issued for a different email address."
     };
   }
 

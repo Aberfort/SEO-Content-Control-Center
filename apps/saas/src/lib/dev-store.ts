@@ -25,7 +25,6 @@ import {
   deliveryPreferenceUpdateSchema,
   eventListQuerySchema,
   generatePlanGrantCode,
-  getPlanGrantCodeStatus,
   hasPermission,
   inviteMemberSchema,
   normalizePlanGrantCode,
@@ -428,7 +427,9 @@ export function createPlanGrantCode(input: {
   const store = getDevStore();
   const grant: PlanGrantCode = {
     id: randomUUID(),
-    code: generatePlanGrantCode(() => randomBytes(16)),
+    // Stored normalized (dash-free) -- redemption also normalizes what the
+    // user types before comparing, so this is what has to match.
+    code: normalizePlanGrantCode(generatePlanGrantCode(() => randomBytes(16))),
     planCode: input.planCode,
     recipientEmail: input.recipientEmail ?? null,
     note: input.note ?? null,
