@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3, Download } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -145,6 +145,7 @@ export default async function BriefingPage({ params }: BriefingPageProps) {
       ) : null}
 
       <section className="editorial-cta">
+        <Download size={22} />
         <div>
           <strong>Run the audit on your own site.</strong>
           <p>

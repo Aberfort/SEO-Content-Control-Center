@@ -885,17 +885,20 @@ svg {
 }
 
 .faq-section {
-  display: grid;
-  gap: 70px;
-  grid-template-columns: minmax(280px, 0.7fr) minmax(420px, 1.3fr);
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
 
 .faq-list {
   border-top: 1px solid var(--line-strong);
+  column-gap: 56px;
+  columns: 2;
 }
 
 .faq-list details {
   border-bottom: 1px solid var(--line-strong);
+  break-inside: avoid;
   padding: 22px 0;
 }
 
@@ -3142,7 +3145,6 @@ h3 {
   }
 
   .split-heading,
-  .faq-section,
   .trial-note,
   .disclosure-section,
   .form-page,
@@ -3151,6 +3153,14 @@ h3 {
   .footer-inner {
     gap: 38px;
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .faq-section {
+    gap: 38px;
+  }
+
+  .faq-list {
+    columns: 1;
   }
 
   .product-boundaries,

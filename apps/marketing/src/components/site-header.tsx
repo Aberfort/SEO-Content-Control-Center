@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { appUrl } from "../lib/site";
+import { NavMenuAutoClose } from "./nav-menu-auto-close";
 
 const quickNavigation = [
   { href: "/product", label: "Product" },
@@ -117,6 +118,7 @@ export function SiteHeader() {
 
   return (
     <header className="site-header">
+      <NavMenuAutoClose />
       <div className="header-inner">
         <Link className="brand" href="/" aria-label="Content Signal home">
           <span className="brand-mark" aria-hidden="true">
