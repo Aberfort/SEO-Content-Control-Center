@@ -1,6 +1,6 @@
 === Content Signal — SEO Content Audit ===
 Contributors: serhiivasyliev
-Tags: seo, seo-audit, content-audit, search-console, orphan-pages, thin-content, internal-linking, noindex, yoast, rank-math, content-health, audit
+Tags: seo-audit, thin-content, noindex, yoast, rank-math
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
@@ -116,7 +116,7 @@ Link and listing fix only. No changes to audit behaviour, stored data, or the pl
 
 = 0.9.3 =
 
-* Expanded the directory listing tags (orphan pages, thin content, internal linking, noindex, Yoast, Rank Math, content health) so the audit's actual checks are searchable on WordPress.org.
+* Replaced the directory listing tags with the 5 WordPress.org honors (seo-audit, thin-content, noindex, yoast, rank-math) so the audit's actual checks are searchable; the plugin's first attempt at this listed 12, and everything past the 5th was silently ignored.
 
 = 0.9.2 =
 
