@@ -5,7 +5,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   billingCheckoutCreateSchema,
+  createPlanGrantCodeSchema,
   deliveryPreferenceUpdateSchema,
+  redeemPlanGrantCodeSchema,
   type BacklogTaskOutcomeUpdateInput
 } from "@sccc/shared";
 import { ZodError } from "zod";
@@ -22,12 +24,18 @@ import { createBillingCheckoutSession } from "@/lib/billing-checkout";
 import { createBillingPortalSession } from "@/lib/billing-portal";
 import { buildBulkOperationRateLimitKey } from "@/lib/bulk-operation-rate-limit";
 import { assertServerActionSameOrigin, isCsrfError } from "@/lib/csrf";
-import { sendEmailVerificationEmail, sendInviteEmail, sendPasswordResetEmail } from "@/lib/email";
+import {
+  sendEmailVerificationEmail,
+  sendInviteEmail,
+  sendPasswordResetEmail,
+  sendPlanGrantEmail
+} from "@/lib/email";
 import { createEmailVerificationRequestForUser } from "@/lib/email-verification";
 import { syncGscSearchInsightsForSite } from "@/lib/gsc-insights";
 import { syncGscDailyMetricsForSite } from "@/lib/gsc-metrics";
 import { buildMonitoringCrawlRateLimitKey } from "@/lib/monitoring-rate-limit";
 import { createPasswordResetRequest, resetPasswordWithToken } from "@/lib/password-reset";
+import { isPlatformAdmin } from "@/lib/platform-admin";
 import {
   createPluginConnectionChallenge,
   disconnectPluginConnection
@@ -375,6 +383,133 @@ export async function cancelInviteAction(
 
   revalidatePath("/");
   redirect("/");
+}
+
+/**
+ * Platform-owner tools: hand out a plan (even Starter, free) without a
+ * Stripe subscription. Gated by SCCC_PLATFORM_ADMIN_EMAILS, not any
+ * organization role -- an org OWNER/ADMIN has no access to these three
+ * actions no matter which organization they manage.
+ */
+export async function createPlanGrantAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+
+  if (!isPlatformAdmin(user.email)) {
+    return { ok: false, message: "Not authorized." };
+  }
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("plan-grant-create", user.id);
+
+    const parsed = createPlanGrantCodeSchema.parse({
+      planCode: String(formData.get("planCode") ?? ""),
+      recipientEmail: String(formData.get("recipientEmail") ?? ""),
+      note: String(formData.get("note") ?? "")
+    });
+
+    const repository = getAppRepository();
+    const grant = await repository.createPlanGrantCode({
+      createdByUserId: user.id,
+      planCode: parsed.planCode,
+      recipientEmail: parsed.recipientEmail,
+      note: parsed.note
+    });
+
+    if (parsed.recipientEmail) {
+      const emailDelivery = await sendPlanGrantEmail({
+        to: parsed.recipientEmail,
+        code: grant.code,
+        planName: grantablePlanDisplayNames[parsed.planCode],
+        redeemUrl: buildPlanGrantRedeemUrl(grant.code)
+      });
+
+      if (emailDelivery.status === "failed") {
+        return {
+          ok: false,
+          message: `Code ${grant.code} was created, but the email could not be sent.`
+        };
+      }
+    }
+  } catch (error) {
+    return actionError(error, "Could not create the plan grant code.");
+  }
+
+  revalidatePath("/admin/grants");
+  redirect("/admin/grants");
+}
+
+export async function revokePlanGrantAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+
+  if (!isPlatformAdmin(user.email)) {
+    return { ok: false, message: "Not authorized." };
+  }
+
+  try {
+    await assertServerActionSameOrigin();
+    const repository = getAppRepository();
+    await repository.revokePlanGrantCode(String(formData.get("id") ?? ""));
+  } catch (error) {
+    return actionError(error, "Could not revoke the code.");
+  }
+
+  revalidatePath("/admin/grants");
+  redirect("/admin/grants");
+}
+
+export async function redeemPlanGrantCodeAction(
+  _previousState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user } = await requireCurrentUser();
+  let successMessage = "";
+
+  try {
+    await assertServerActionSameOrigin();
+    await assertServerActionRateLimit("plan-grant-redeem", user.id);
+
+    const parsed = redeemPlanGrantCodeSchema.parse({
+      organizationId: String(formData.get("organizationId") ?? ""),
+      code: String(formData.get("code") ?? "")
+    });
+
+    const repository = getAppRepository();
+    const result = await repository.redeemPlanGrantCode({
+      user,
+      organizationId: parsed.organizationId,
+      code: parsed.code
+    });
+
+    revalidatePath("/");
+    successMessage = `${result.planName} plan activated.`;
+  } catch (error) {
+    // Returned (not thrown) so useActionState can show it inline without a
+    // redirect -- redirect() throws internally to interrupt rendering, and
+    // calling it inside this catch would make this same block swallow it.
+    return actionError(error, "That code could not be redeemed.");
+  }
+
+  redirect(`/settings?billing=success&message=${encodeURIComponent(successMessage)}`);
+}
+
+const grantablePlanDisplayNames: Record<string, string> = {
+  STARTER: "Starter",
+  PRO: "Pro",
+  AGENCY: "Agency"
+};
+
+function buildPlanGrantRedeemUrl(code: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const url = new URL("/", baseUrl);
+  url.searchParams.set("planGrantCode", code);
+  return url.toString();
 }
 
 export async function acceptInviteAction(

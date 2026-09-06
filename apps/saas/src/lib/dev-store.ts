@@ -419,6 +419,121 @@ function getActiveDevSubscription(organizationId: string): BillingSubscription |
   return subscription ? normalizeLocalTrialStatus(subscription) : null;
 }
 
+export function createPlanGrantCode(input: {
+  createdByUserId: string;
+  planCode: GrantablePlanCode;
+  recipientEmail?: string;
+  note?: string;
+}): PlanGrantCode {
+  const store = getDevStore();
+  const grant: PlanGrantCode = {
+    id: randomUUID(),
+    code: generatePlanGrantCode(() => randomBytes(16)),
+    planCode: input.planCode,
+    recipientEmail: input.recipientEmail ?? null,
+    note: input.note ?? null,
+    createdByUserId: input.createdByUserId,
+    createdAt: nowIso(),
+    revokedAt: null,
+    redeemedAt: null,
+    redeemedByOrgId: null,
+    redeemedByUserId: null
+  };
+
+  store.planGrantCodes.push(grant);
+  return grant;
+}
+
+export function listPlanGrantCodes(): PlanGrantCode[] {
+  return [...getDevStore().planGrantCodes].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt)
+  );
+}
+
+export function revokePlanGrantCode(id: string): void {
+  const grant = getDevStore().planGrantCodes.find((candidate) => candidate.id === id);
+
+  if (!grant) {
+    throw new Error("PLAN_GRANT_CODE_NOT_FOUND");
+  }
+
+  if (grant.redeemedAt) {
+    throw new Error("PLAN_GRANT_CODE_ALREADY_REDEEMED");
+  }
+
+  grant.revokedAt = nowIso();
+}
+
+export function redeemPlanGrantCode(input: {
+  user: AppUser;
+  organizationId: string;
+  code: string;
+}): { planCode: PlanCode; planName: string } {
+  requireOrganizationAccess({
+    userId: input.user.id,
+    organizationId: input.organizationId,
+    permission: "billing:manage"
+  });
+
+  const store = getDevStore();
+  const normalized = normalizePlanGrantCode(input.code);
+  const grant = store.planGrantCodes.find(
+    (candidate) => normalizePlanGrantCode(candidate.code) === normalized
+  );
+
+  if (!grant) {
+    throw new Error("PLAN_GRANT_CODE_NOT_FOUND");
+  }
+
+  if (grant.revokedAt) {
+    throw new Error("PLAN_GRANT_CODE_REVOKED");
+  }
+
+  if (grant.redeemedAt) {
+    throw new Error("PLAN_GRANT_CODE_ALREADY_REDEEMED");
+  }
+
+  if (
+    grant.recipientEmail &&
+    grant.recipientEmail.toLowerCase() !== input.user.email.toLowerCase()
+  ) {
+    throw new Error("PLAN_GRANT_CODE_EMAIL_MISMATCH");
+  }
+
+  const plan = findBillingPlan(buildFallbackBillingPlans(), grant.planCode);
+  const grantedAt = new Date();
+  const subscription: BillingSubscription = {
+    id: randomUUID(),
+    organizationId: input.organizationId,
+    status: "ACTIVE",
+    plan,
+    trialEndsAt: null,
+    currentPeriodEnd: null,
+    provider: "grant",
+    createdAt: grantedAt.toISOString(),
+    updatedAt: grantedAt.toISOString()
+  };
+
+  store.subscriptions.push(subscription);
+  grant.redeemedAt = grantedAt.toISOString();
+  grant.redeemedByOrgId = input.organizationId;
+  grant.redeemedByUserId = input.user.id;
+
+  writeActivityLog({
+    organizationId: input.organizationId,
+    userId: input.user.id,
+    action: "billing.plan_granted",
+    entityType: "Subscription",
+    entityId: subscription.id,
+    metadata: {
+      planCode: plan.code,
+      grantCodeId: grant.id
+    }
+  });
+
+  return { planCode: plan.code, planName: plan.name };
+}
+
 function getDevCommercialGateBlock(subscription: BillingSubscription | null) {
   const trialExpiryGateBlock = getLocalTrialExpiryGateBlock(subscription);
   if (trialExpiryGateBlock) return trialExpiryGateBlock;

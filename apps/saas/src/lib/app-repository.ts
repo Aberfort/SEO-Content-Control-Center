@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@sccc/database";
@@ -1648,6 +1648,132 @@ const prismaRepository: AppRepository = {
 
       throw error;
     }
+  },
+
+  async createPlanGrantCode(input) {
+    const grant = await prisma.planGrantCode.create({
+      data: {
+        code: generatePlanGrantCode(() => randomBytes(16)),
+        planCode: input.planCode,
+        recipientEmail: input.recipientEmail ?? null,
+        note: input.note ?? null,
+        createdByUserId: input.createdByUserId
+      }
+    });
+
+    return mapPlanGrantCode(grant);
+  },
+
+  async listPlanGrantCodes() {
+    const grants = await prisma.planGrantCode.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+
+    return grants.map(mapPlanGrantCode);
+  },
+
+  async revokePlanGrantCode(id) {
+    const grant = await prisma.planGrantCode.findUnique({ where: { id } });
+
+    if (!grant) {
+      throw new Error("PLAN_GRANT_CODE_NOT_FOUND");
+    }
+
+    if (grant.redeemedAt) {
+      throw new Error("PLAN_GRANT_CODE_ALREADY_REDEEMED");
+    }
+
+    await prisma.planGrantCode.update({
+      where: { id },
+      data: { revokedAt: new Date() }
+    });
+  },
+
+  async redeemPlanGrantCode(input) {
+    await requireDbOrganizationAccess({
+      userId: input.user.id,
+      organizationId: input.organizationId,
+      permission: "billing:manage"
+    });
+
+    const normalized = normalizePlanGrantCode(input.code);
+
+    return prisma.$transaction(async (tx) => {
+      const grant = await tx.planGrantCode.findUnique({ where: { code: normalized } });
+
+      if (!grant) {
+        throw new Error("PLAN_GRANT_CODE_NOT_FOUND");
+      }
+
+      if (grant.revokedAt) {
+        throw new Error("PLAN_GRANT_CODE_REVOKED");
+      }
+
+      if (grant.redeemedAt) {
+        throw new Error("PLAN_GRANT_CODE_ALREADY_REDEEMED");
+      }
+
+      if (
+        grant.recipientEmail &&
+        grant.recipientEmail.toLowerCase() !== input.user.email.toLowerCase()
+      ) {
+        throw new Error("PLAN_GRANT_CODE_EMAIL_MISMATCH");
+      }
+
+      if (!isGrantablePlanCode(grant.planCode)) {
+        throw new Error("PLAN_GRANT_CODE_INVALID_PLAN");
+      }
+
+      const plan = await tx.plan.upsert({
+        where: { code: grant.planCode },
+        update: {},
+        create: {
+          code: grant.planCode,
+          // Only reached if the DB was never seeded (see prisma/seed.ts) --
+          // normally this upsert just returns the already-seeded row as-is.
+          name: grantablePlanDisplayNames[grant.planCode],
+          monthlyPrice: 0,
+          limits: planLimits[grant.planCode],
+          isActive: true
+        }
+      });
+
+      const subscription = await tx.subscription.create({
+        data: {
+          organizationId: input.organizationId,
+          planId: plan.id,
+          status: "ACTIVE",
+          currentPeriodEnd: null,
+          provider: "grant",
+          providerId: grant.id
+        }
+      });
+
+      await tx.planGrantCode.update({
+        where: { id: grant.id },
+        data: {
+          redeemedAt: subscription.createdAt,
+          redeemedByOrgId: input.organizationId,
+          redeemedByUserId: input.user.id
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId: input.organizationId,
+          userId: input.user.id,
+          action: "billing.plan_granted",
+          entityType: "Subscription",
+          entityId: subscription.id,
+          metadata: {
+            planCode: plan.code,
+            grantCodeId: grant.id
+          }
+        }
+      });
+
+      return { planCode: grant.planCode, planName: plan.name };
+    });
   },
 
   async listNotificationsForOrganization(userId, organizationId, options) {
@@ -6902,6 +7028,40 @@ function mapBillingPlan(plan: {
 
 function isBillingPlan(plan: BillingPlan | null): plan is BillingPlan {
   return plan !== null;
+}
+
+const grantablePlanDisplayNames: Record<GrantablePlanCode, string> = {
+  STARTER: "Starter",
+  PRO: "Pro",
+  AGENCY: "Agency"
+};
+
+function mapPlanGrantCode(grant: {
+  id: string;
+  code: string;
+  planCode: string;
+  recipientEmail: string | null;
+  note: string | null;
+  createdByUserId: string;
+  createdAt: Date;
+  revokedAt: Date | null;
+  redeemedAt: Date | null;
+  redeemedByOrgId: string | null;
+  redeemedByUserId: string | null;
+}): PlanGrantCode {
+  return {
+    id: grant.id,
+    code: grant.code,
+    planCode: grant.planCode as PlanCode,
+    recipientEmail: grant.recipientEmail,
+    note: grant.note,
+    createdByUserId: grant.createdByUserId,
+    createdAt: grant.createdAt.toISOString(),
+    revokedAt: grant.revokedAt?.toISOString() ?? null,
+    redeemedAt: grant.redeemedAt?.toISOString() ?? null,
+    redeemedByOrgId: grant.redeemedByOrgId,
+    redeemedByUserId: grant.redeemedByUserId
+  };
 }
 
 function mapBillingSubscription(subscription: {
