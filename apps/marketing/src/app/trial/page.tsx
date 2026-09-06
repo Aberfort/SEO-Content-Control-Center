@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowRight, Check, LockKeyhole } from "lucide-react";
 
-import { appUrl, pageMetadata } from "../../lib/site";
+import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "Start a 14-Day Trial",
@@ -24,7 +24,6 @@ const trialIncludes = [
 export default async function TrialPage({ searchParams }: TrialPageProps) {
   const params = (await searchParams) ?? {};
   const selectedPlan = normalizePlan(readParam(params.plan));
-  const registerUrl = appUrl("/auth/register");
 
   return (
     <main className="trial-page">
@@ -52,7 +51,7 @@ export default async function TrialPage({ searchParams }: TrialPageProps) {
           Enter your work email and continue to the SaaS signup. You will set a password before any
           site connection is created.
         </p>
-        <form className="trial-form" action={registerUrl} method="get">
+        <form className="trial-form" action="/api/trial/start" method="get">
           <label htmlFor="trial-email">Work email</label>
           <input
             id="trial-email"

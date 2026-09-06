@@ -1,8 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
+import { captureMarketingEvent } from "../lib/analytics";
 import { parseDemoLead, type DemoLead, type DemoLeadActionState } from "../lib/demo-lead";
+import { anonymousDistinctId, visitorIdCookieName } from "../lib/visitor";
 
 const rateLimitWindowMs = 15 * 60 * 1000;
 const rateLimitMaxRequests = 5;
@@ -62,6 +64,7 @@ export async function submitDemoLeadAction(
 
   try {
     await deliverDemoLead(parsed.data, requestHeaders.get("user-agent"));
+    await captureDemoRequested(parsed.data);
     return successState;
   } catch (error) {
     console.error("Marketing demo lead delivery failed", {
@@ -112,6 +115,25 @@ async function deliverDemoLead(lead: DemoLead, userAgent: string | null): Promis
   if (!response.ok) {
     throw new Error(`Lead webhook returned HTTP ${response.status}`);
   }
+}
+
+/**
+ * Fires the `demo_requested` funnel event. Only qualifying fields go into
+ * PostHog properties — never the lead's name, email, company, or notes.
+ */
+async function captureDemoRequested(lead: DemoLead): Promise<void> {
+  const cookieStore = await cookies();
+  const distinctId = cookieStore.get(visitorIdCookieName)?.value || anonymousDistinctId();
+
+  await captureMarketingEvent({
+    event: "demo_requested",
+    distinctId,
+    properties: {
+      role: lead.role,
+      siteCount: lead.siteCount,
+      topic: lead.topic
+    }
+  });
 }
 
 function readClientKey(requestHeaders: Headers): string {

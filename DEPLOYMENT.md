@@ -168,6 +168,7 @@ The certification harness seeds the plugin connection directly (the way a comple
 - `SCCC_MARKETING_LEAD_WEBHOOK_SECRET` optionally adds an `Authorization: Bearer ...` header. Store it in the deployment secret manager.
 - Without a webhook, development logs the lead payload locally for testing; production shows an explicit delivery error and does not claim the request was received.
 - Product, integration, audience, resource, changelog, contact, and service-information pages are static routes and require no additional runtime configuration. The service-information page is not a public real-time monitor; do not make uptime claims there without adding a separate monitoring integration.
+- `POSTHOG_KEY` (and optional `POSTHOG_HOST`) enable marketing funnel analytics: `landing_view`/`pricing_view` pageviews from middleware, plus `demo_requested`, `trial_started`, and `plugin_downloaded` conversion events, all captured server-side with no client-side tracking script. The marketing app is a **separate Vercel project** from the SaaS app — this key must be set on the marketing project too, not inherited from the SaaS project's env vars. Without it, capture is a silent no-op and funnel events simply never appear in PostHog.
 
 ## Assistant AI Provider
 
