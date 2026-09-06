@@ -6,7 +6,7 @@ import { PageIntro } from "../../components/page-intro";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Contact",
+  title: "Contact Sales & Support",
   description:
     "Choose the right conversation for a Content Signal demo, workflow evaluation, or security review.",
   path: "/contact"

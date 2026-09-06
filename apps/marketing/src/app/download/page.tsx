@@ -5,7 +5,9 @@ import Link from "next/link";
 
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
+import { StructuredData } from "../../components/structured-data";
 import { getPluginObjectStore } from "../../lib/plugin-release";
+import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 const fallbackPluginMeta = { version: "0.9.3", sizeLabel: "61 KB" };
@@ -64,6 +66,14 @@ export default async function DownloadPage() {
 
   return (
     <main>
+      <StructuredData
+        id="download-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Download the plugin", path: "/download" }
+        ])}
+      />
+
       <PageIntro
         eyebrow="WordPress plugin"
         title="Connect your WordPress site in minutes."

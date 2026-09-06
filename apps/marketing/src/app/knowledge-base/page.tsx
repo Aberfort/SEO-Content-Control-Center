@@ -3,6 +3,8 @@ import { ArrowRight, BookOpenCheck, PlugZap, ShieldCheck, Workflow } from "lucid
 import Link from "next/link";
 
 import { PageIntro } from "../../components/page-intro";
+import { StructuredData } from "../../components/structured-data";
+import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
@@ -42,6 +44,14 @@ const guides = [
 export default function KnowledgeBasePage() {
   return (
     <main>
+      <StructuredData
+        id="knowledge-base-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Knowledge base", path: "/knowledge-base" }
+        ])}
+      />
+
       <PageIntro
         eyebrow="Knowledge base"
         title="The working model behind evidence-backed SEO operations."

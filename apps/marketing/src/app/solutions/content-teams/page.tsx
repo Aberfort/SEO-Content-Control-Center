@@ -12,6 +12,8 @@ export const metadata: Metadata = pageMetadata({
 });
 
 const content: SolutionPageContent = {
+  navLabel: "Content teams",
+  path: "/solutions/content-teams",
   eyebrow: "For content and editorial teams",
   title: "Give the people improving pages the context to make the next edit count.",
   body: "Move from an ambiguous audit export to a focused queue of pages, evidence, recommendations, owners, and completion states that editorial teams can work through together.",

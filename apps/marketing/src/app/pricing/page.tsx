@@ -5,10 +5,12 @@ import Link from "next/link";
 
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
+import { StructuredData } from "../../components/structured-data";
+import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Pricing",
+  title: "WordPress SEO Operations Pricing",
   description:
     "Compare Starter, Pro, Agency, and Enterprise plans for WordPress SEO operations, with a 14-day trial for one live site.",
   path: "/pricing"
@@ -74,6 +76,14 @@ const comparisonRows: Array<{
 export default function PricingPage() {
   return (
     <main>
+      <StructuredData
+        id="pricing-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Pricing", path: "/pricing" }
+        ])}
+      />
+
       <PageIntro
         eyebrow="Plans that match your operating scale"
         title="Start with one site. Expand when the workflow earns it."

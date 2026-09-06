@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   ...pageMetadata({
     title: "WordPress SEO Audit and Content Operations",
     description:
-      "Audit WordPress content for noindex risk, missing metadata, thin content, and orphan pages. Prioritize fixes with Search Console evidence. Free plugin, no account required.",
+      "Audit WordPress for noindex risk, missing metadata, thin content, and orphan pages, then prioritize fixes with Search Console evidence. Free, no account.",
     path: "/"
   }),
   title: {

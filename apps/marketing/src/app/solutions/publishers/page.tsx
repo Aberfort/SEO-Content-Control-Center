@@ -12,6 +12,8 @@ export const metadata: Metadata = pageMetadata({
 });
 
 const content: SolutionPageContent = {
+  navLabel: "Publishers",
+  path: "/solutions/publishers",
   eyebrow: "For publishers",
   title: "Keep high-volume publishing SEO work tied to traffic evidence and accountable decisions.",
   body: "A growing WordPress inventory needs more than a periodic audit. Connect content context, performance signals, and a practical queue so the team can decide which pages deserve attention now.",

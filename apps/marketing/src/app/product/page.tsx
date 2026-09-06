@@ -5,14 +5,49 @@ import Link from "next/link";
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
 import { ProductPreview } from "../../components/product-preview";
+import { StructuredData } from "../../components/structured-data";
+import { breadcrumbSchema, faqSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Product Overview",
+  title: "WordPress SEO Operations Overview",
   description:
     "See how Content Signal connects WordPress metadata and Search Console evidence to a review-first SEO workflow.",
   path: "/product"
 });
+
+const faqEntries = [
+  {
+    question: "Does Content Signal replace Yoast or Rank Math?",
+    answer:
+      "No. Content Signal is an operations layer, not an SEO plugin replacement. It reads supported Yoast and Rank Math metadata fields and writes back only through the same preview, dry run, and confirmation process described above."
+  },
+  {
+    question: "Does the free WordPress audit require an account or send data anywhere?",
+    answer:
+      "No. The local content health audit runs entirely inside WordPress with no account, API key, or external request. Nothing leaves the site until an administrator explicitly connects the optional platform."
+  },
+  {
+    question: "Does the audit or sync ever modify posts or SEO metadata on its own?",
+    answer:
+      "No. The local audit is read-only. Connected platform writes stay inside the same preview, dry run, explicit confirmation, and rollback path used for every supported operation."
+  },
+  {
+    question: "What does the plugin actually sync to the platform?",
+    answer:
+      "Bounded post and page metadata: URL, title, status, author, word count, link counts, supported SEO fields, and the latest audit's active findings. Post bodies, the full link graph, and ignored findings never leave WordPress."
+  },
+  {
+    question: "Who can see and approve a proposed change?",
+    answer:
+      "Every organization, site, member, and operation record is scoped by tenant and role, and a supported SEO change only reaches WordPress after a person explicitly confirms it."
+  },
+  {
+    question: "What happens if I deactivate or delete the plugin?",
+    answer:
+      "Deactivating removes recurring and queued sync jobs. Deleting also removes the local audit results, sync log, and stored connection token. Disconnect from the settings page first if you also need to invalidate the connection on the platform side."
+  }
+];
 
 const stages = [
   {
@@ -44,6 +79,17 @@ const stages = [
 export default function ProductPage() {
   return (
     <main>
+      <StructuredData
+        id="product-schema"
+        data={[
+          faqSchema(faqEntries),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Product", path: "/product" }
+          ])
+        ]}
+      />
+
       <PageIntro
         eyebrow="The product"
         title="An operating system for WordPress SEO work, not another disconnected audit."
@@ -108,6 +154,25 @@ export default function ProductPage() {
             <strong>Writes stay controlled.</strong> The product does not auto-publish content;
             supported SEO metadata operations are deliberately constrained and review-first.
           </p>
+        </div>
+      </section>
+
+      <section className="section faq-section">
+        <div className="section-heading">
+          <span className="eyebrow">Common questions</span>
+          <h2>What the platform does and doesn&rsquo;t do.</h2>
+          <p>
+            Straight answers about the free audit, the optional platform connection, and the
+            review-first controls around every supported change.
+          </p>
+        </div>
+        <div className="faq-list">
+          {faqEntries.map((entry) => (
+            <details key={entry.question}>
+              <summary>{entry.question}</summary>
+              <p>{entry.answer}</p>
+            </details>
+          ))}
         </div>
       </section>
 

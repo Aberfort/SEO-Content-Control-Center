@@ -12,6 +12,8 @@ export const metadata: Metadata = pageMetadata({
 });
 
 const content: SolutionPageContent = {
+  navLabel: "Agencies",
+  path: "/solutions/agencies",
   eyebrow: "For SEO agencies",
   title: "Run every client SEO workflow with evidence, ownership, and boundaries intact.",
   body: "Separate organizations and sites without separating the work from its context. Give account, strategy, and delivery teams one structured place to decide and move client SEO work forward.",

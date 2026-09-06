@@ -11,7 +11,7 @@ import { marketingOrigin, pageMetadata } from "../../lib/site";
 export const metadata: Metadata = pageMetadata({
   title: "WordPress SEO Operations Briefings",
   description:
-    "Practical guides on auditing WordPress content, diagnosing Search Console traffic drops, fixing orphan pages, and turning findings into a prioritized SEO backlog.",
+    "Practical guides on auditing WordPress content, diagnosing traffic drops, fixing orphan pages, and building a prioritized SEO backlog.",
   path: "/blog"
 });
 

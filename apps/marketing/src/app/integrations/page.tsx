@@ -12,6 +12,8 @@ import Link from "next/link";
 
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
+import { StructuredData } from "../../components/structured-data";
+import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
@@ -53,6 +55,14 @@ const integrations = [
 export default function IntegrationsPage() {
   return (
     <main>
+      <StructuredData
+        id="integrations-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Integrations", path: "/integrations" }
+        ])}
+      />
+
       <PageIntro
         eyebrow="Integrations"
         title="Two source systems, one accountable SEO workflow."

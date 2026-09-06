@@ -17,9 +17,9 @@ import { PageIntro } from "../../components/page-intro";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Security",
+  title: "WordPress SEO Security & Controls",
   description:
-    "Review the tenant isolation, access controls, encrypted credentials, TOTP two-factor authentication, audit logs, and safe-operation controls behind Content Signal.",
+    "Review the tenant isolation, access controls, encrypted credentials, 2FA, audit logs, and safe-operation controls behind Content Signal.",
   path: "/security"
 });
 

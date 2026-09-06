@@ -17,6 +17,8 @@ import Link from "next/link";
 import { CtaBand } from "../../components/cta-band";
 import { PageIntro } from "../../components/page-intro";
 import { ProductPreview } from "../../components/product-preview";
+import { StructuredData } from "../../components/structured-data";
+import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
@@ -113,6 +115,14 @@ const operationalFeatures = [
 export default function FeaturesPage() {
   return (
     <main>
+      <StructuredData
+        id="features-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Features", path: "/features" }
+        ])}
+      />
+
       <PageIntro
         eyebrow="Product capabilities"
         title="From traffic signal to verified SEO work."

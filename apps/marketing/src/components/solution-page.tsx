@@ -1,10 +1,15 @@
 import { ArrowRight, Check, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import { breadcrumbSchema } from "../lib/schema";
 import { CtaBand } from "./cta-band";
 import { PageIntro } from "./page-intro";
+import { StructuredData } from "./structured-data";
 
 export type SolutionPageContent = {
+  /** Short breadcrumb label, e.g. "Agencies" — distinct from the long page `title`. */
+  navLabel: string;
+  path: string;
   eyebrow: string;
   title: string;
   body: string;
@@ -29,6 +34,14 @@ export type SolutionPageContent = {
 export function SolutionPage({ content }: { content: SolutionPageContent }) {
   return (
     <main>
+      <StructuredData
+        id="solution-breadcrumb-schema"
+        data={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: content.navLabel, path: content.path }
+        ])}
+      />
+
       <PageIntro
         eyebrow={content.eyebrow}
         title={content.title}
