@@ -143,7 +143,7 @@ export const briefings: Briefing[] = [
           "Thin content is a length signal you can measure automatically. Low quality is a judgment about usefulness. Automated audits find the first and give a human the shortlist for the second."
       }
     ],
-    related: ["search-console-traffic-drop", "orphan-pages-wordpress"]
+    related: ["search-console-traffic-drop", "orphan-pages-wordpress", "yoast-rank-math-together"]
   },
   {
     slug: "search-console-traffic-drop",
@@ -386,6 +386,84 @@ export const briefings: Briefing[] = [
       }
     ],
     related: ["wordpress-seo-audit-checklist", "search-console-traffic-drop"]
+  },
+  {
+    slug: "yoast-rank-math-together",
+    category: "Plugins",
+    title: "Can you run Yoast and Rank Math together on WordPress?",
+    metaTitle: "Yoast and Rank Math Together: What Really Happens",
+    metaDescription:
+      "Running Yoast and Rank Math at once causes duplicate meta tags and schema. Here's what actually conflicts, and what can safely run alongside either one.",
+    summary:
+      "Running two full SEO plugins at once causes real, well-documented conflicts. A tool that reads existing metadata instead of managing it is a different thing entirely, and the difference is worth knowing before you assume both cause the same problem.",
+    published: "2026-09-06",
+    updated: "2026-09-06",
+    readingTime: "5 min read",
+    intro: [
+      "Every comparison of Yoast and Rank Math frames the decision as pick one, then migrate away from the other. That advice is correct, but it answers a narrower question than the one people are actually asking when they search for this. The real question is usually: does anything else break if I add a second tool on top of whichever one I already have?",
+      "Those are two different claims. The first is well established. The second depends entirely on what the second tool actually does."
+    ],
+    sections: [
+      {
+        heading: "What actually breaks when two SEO plugins run at once",
+        paragraphs: [
+          "Yoast and Rank Math both hook into the same handful of places: the document head, the XML sitemap endpoint, the redirect layer, and the post-edit meta box. When both are active, both try to own them.",
+          "The visible symptom is usually duplicate or conflicting output — two sets of title and meta description tags competing for the same page, two Article or Organization schema blocks in the markup, or two XML sitemaps at different URLs with different page counts. Which plugin's version actually wins often comes down to hook priority and load order, not anything you configured on purpose."
+        ],
+        bullets: [
+          "Duplicate title/meta description tags in the rendered head",
+          "Conflicting or duplicated JSON-LD schema blocks",
+          "Two redirect managers intercepting the same 404s",
+          "Two XML sitemaps submitted at different URLs"
+        ]
+      },
+      {
+        heading: "Why disabling overlapping modules doesn't fully fix it",
+        paragraphs: [
+          "Both plugins let you turn off individual modules — Rank Math's redirection module, Yoast's XML sitemap, and so on. That narrows the damage but doesn't remove it: whichever plugin stays active still adds its own meta box to every post-edit screen, so an editor sees two SEO panels and has no reliable way to know which one is actually live for that field.",
+          "This is a workflow problem as much as a technical one. The fix that actually holds is running one plugin for the whole site, not two plugins with most of one turned off."
+        ]
+      },
+      {
+        heading: "If you're migrating from one to the other",
+        paragraphs: [
+          "Rank Math ships a built-in importer that reads Yoast's stored data, including redirects, so most migrations don't mean starting from zero. Run the importer, then spot-check a sample of pages against the original Yoast values before you deactivate Yoast.",
+          "Once you've verified the import, deactivate the old plugin fully rather than leaving it installed-but-inactive indefinitely. A deactivated plugin doesn't execute, but an ambiguous half-migrated state invites exactly the meta-box confusion described above for as long as both stay installed."
+        ]
+      },
+      {
+        heading: "What can actually sit alongside either one",
+        paragraphs: [
+          "The conflicts above all come from two tools trying to own the same fields. A tool that only reads whichever plugin's fields are already populated, and writes back to those same fields through an explicit, reviewed step instead of registering its own competing meta box, doesn't create the same collision — there's still exactly one place the title and meta description live.",
+          "That's the distinction worth checking for, whatever tool you're evaluating: does it add a second, parallel set of SEO fields, or does it operate on the one set that Yoast or Rank Math already owns?"
+        ]
+      },
+      {
+        heading: "Where this shows up in an audit workflow",
+        paragraphs: [
+          "Content Signal's local WordPress audit reads whichever plugin's title, meta description, and canonical fields are actually set, with the other left as a documented fallback, and never installs a second competing meta box. When a supported fix is available, it proposes a change to the same field through a preview and explicit confirmation, rather than owning it outright.",
+          "That's a narrower promise than \"works with everything,\" and it's the one that avoids the problem the rest of this guide is about."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Should I ever run two full SEO plugins on the same site?",
+        answer:
+          "No. Pick one to own titles, meta descriptions, canonicals, sitemaps, and schema for the whole site. Two plugins reading or writing those same fields produce duplicate tags and unpredictable output order."
+      },
+      {
+        question: "Can Content Signal replace Yoast or Rank Math?",
+        answer:
+          "No. It isn't a metadata plugin. It reads whichever one is installed and proposes bounded, reviewed changes back through the same fields instead of owning them itself."
+      },
+      {
+        question: "Does adding an audit layer change my existing Yoast or Rank Math data?",
+        answer:
+          "Not on its own. A read-only audit only inspects the fields that are already there, and any supported write still requires an explicit, separate confirmation."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "seo-backlog-prioritization"]
   }
 ];
 
