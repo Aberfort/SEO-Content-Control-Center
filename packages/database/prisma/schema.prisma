@@ -252,6 +252,27 @@ model BillingWebhookEvent {
   @@index([organizationId, processedAt])
 }
 
+// Owner-issued codes that grant a plan without a Stripe subscription (comps,
+// partner accounts, press). Redeeming one creates a Subscription row with
+// provider "grant" -- resolveCommercialAccess treats any non-null provider
+// as a real (non-trial) subscription, so a granted plan gets full access
+// through the existing entitlement path with no special-casing there.
+model PlanGrantCode {
+  id               String    @id @default(uuid())
+  code             String    @unique
+  planCode         String
+  recipientEmail   String?
+  note             String?
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  revokedAt        DateTime?
+  redeemedAt       DateTime?
+  redeemedByOrgId  String?
+  redeemedByUserId String?
+
+  @@index([createdAt])
+}
+
 model Site {
   id                   String               @id @default(uuid())
   organizationId       String

@@ -17,6 +17,13 @@ export type EmailDeliveryStatus =
       reason: string;
     };
 
+export type PlanGrantEmailInput = {
+  to: string;
+  code: string;
+  planName: string;
+  redeemUrl: string;
+};
+
 export type InviteEmailInput = {
   to: string;
   inviteUrl: string;
@@ -82,6 +89,48 @@ function smtpFailure(kind: string, error: unknown): EmailDeliveryStatus {
     status: "failed",
     reason: "SMTP delivery failed."
   };
+}
+
+export async function sendPlanGrantEmail(input: PlanGrantEmailInput): Promise<EmailDeliveryStatus> {
+  const config = resolveEmailConfig();
+  const message = composePlanGrantEmail(input);
+
+  if (config.transport === "noop") {
+    return {
+      provider: "noop",
+      status: "skipped",
+      reason: "Email transport is disabled."
+    };
+  }
+
+  try {
+    const transport = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user
+        ? {
+            user: config.user,
+            pass: config.password ?? ""
+          }
+        : undefined
+    });
+    const info = await transport.sendMail({
+      from: config.from,
+      to: input.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html
+    });
+
+    return {
+      provider: "smtp",
+      status: "sent",
+      messageId: info.messageId
+    };
+  } catch (error) {
+    return smtpFailure("plan-grant", error);
+  }
 }
 
 export async function sendInviteEmail(input: InviteEmailInput): Promise<EmailDeliveryStatus> {
@@ -256,6 +305,29 @@ export async function sendWorkspaceAlertEmail(
   } catch (error) {
     return smtpFailure("workspace-alert", error);
   }
+}
+
+export function composePlanGrantEmail(input: PlanGrantEmailInput) {
+  const subject = `Your ${input.planName} plan on Content Signal`;
+  const text = [
+    `You've been given the ${input.planName} plan on Content Signal, no payment required.`,
+    "",
+    `Code: ${input.code}`,
+    "",
+    `Redeem it here: ${input.redeemUrl}`,
+    "",
+    "Sign in (or create an account) and enter the code from your organization's Billing settings."
+  ].join("\n");
+  const html = `
+    <p>You&rsquo;ve been given the <strong>${escapeHtml(
+      input.planName
+    )}</strong> plan on Content Signal, no payment required.</p>
+    <p style="font-size:20px;letter-spacing:2px;"><strong>${escapeHtml(input.code)}</strong></p>
+    <p><a href="${escapeHtml(input.redeemUrl)}">Redeem it here</a></p>
+    <p>Sign in (or create an account) and enter the code from your organization&rsquo;s Billing settings.</p>
+  `;
+
+  return { subject, text, html };
 }
 
 export function composeInviteEmail(input: InviteEmailInput) {

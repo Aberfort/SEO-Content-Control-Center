@@ -4,9 +4,9 @@ import { prisma } from "../src/client";
 
 const plans = [
   { code: "TRIAL", name: "Trial", monthlyPrice: 0 },
-  { code: "STARTER", name: "Starter", monthlyPrice: 4900 },
-  { code: "PRO", name: "Pro", monthlyPrice: 14900 },
-  { code: "AGENCY", name: "Agency", monthlyPrice: 39900 },
+  { code: "STARTER", name: "Starter", monthlyPrice: 3900 },
+  { code: "PRO", name: "Pro", monthlyPrice: 9900 },
+  { code: "AGENCY", name: "Agency", monthlyPrice: 24900 },
   { code: "ENTERPRISE", name: "Enterprise", monthlyPrice: 0 }
 ] as const;
 

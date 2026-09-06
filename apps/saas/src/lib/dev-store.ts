@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import {
   acceptInviteSchema,
@@ -24,8 +24,11 @@ import {
   createMonitoredUrlSchema,
   deliveryPreferenceUpdateSchema,
   eventListQuerySchema,
+  generatePlanGrantCode,
+  getPlanGrantCodeStatus,
   hasPermission,
   inviteMemberSchema,
+  normalizePlanGrantCode,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
@@ -66,8 +69,10 @@ import {
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
+  type GrantablePlanCode,
   type Permission,
   type PlanCode,
+  type PlanGrantCode,
   type RegressionListQuery,
   type RequestOperationApprovalInput,
   type RescanMonitoredUrlInput,
@@ -218,6 +223,7 @@ type DevStoreState = {
   notifications: Notification[];
   deliveryPreferences: DeliveryPreference[];
   subscriptions: BillingSubscription[];
+  planGrantCodes: PlanGrantCode[];
   gscConnections: StoreGscConnection[];
   gscDailyMetrics: GscDailyMetric[];
   gscSearchInsights: GscSearchInsight[];
@@ -352,6 +358,7 @@ function initialState(): DevStoreState {
     notifications: [],
     deliveryPreferences: [],
     subscriptions: [],
+    planGrantCodes: [],
     gscConnections: [],
     gscDailyMetrics: [],
     gscSearchInsights: [],

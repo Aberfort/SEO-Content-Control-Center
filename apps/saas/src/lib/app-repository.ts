@@ -26,14 +26,20 @@ import {
   buildWorkspaceDeliverableSummary,
   clientReportQuerySchema,
   createMonitoredUrlSchema,
+  createPlanGrantCodeSchema,
   deliveryPreferenceUpdateSchema,
   eventListQuerySchema,
+  generatePlanGrantCode,
+  getPlanGrantCodeStatus,
   hasPermission,
   inviteMemberSchema,
+  isGrantablePlanCode,
+  normalizePlanGrantCode,
   notificationListQuerySchema,
   notificationReadUpdateSchema,
   organizationCreateSchema,
   planLimits,
+  redeemPlanGrantCodeSchema,
   regressionListQuerySchema,
   rescanMonitoredUrlSchema,
   requestOperationApprovalSchema,
@@ -71,11 +77,13 @@ import {
   type CreateMonitoredUrlInput,
   type DeliveryPreferenceUpdateInput,
   type EventListQuery,
+  type GrantablePlanCode,
   type InviteMemberInput,
   type NotificationListQuery,
   type NotificationReadUpdateInput,
   type Permission,
   type PlanCode,
+  type PlanGrantCode,
   type RegressionListQuery,
   type RequestOperationApprovalInput,
   type RescanMonitoredUrlInput,
@@ -160,7 +168,11 @@ import {
   selectGscConnectionProperty as selectDevGscConnectionProperty,
   replaceGscSearchInsights as replaceDevGscSearchInsights,
   upsertGscDailyMetrics as upsertDevGscDailyMetrics,
-  upsertGscConnection as upsertDevGscConnection
+  upsertGscConnection as upsertDevGscConnection,
+  createPlanGrantCode as createDevPlanGrantCode,
+  listPlanGrantCodes as listDevPlanGrantCodes,
+  revokePlanGrantCode as revokeDevPlanGrantCode,
+  redeemPlanGrantCode as redeemDevPlanGrantCode
 } from "./dev-store";
 import {
   buildSyncedContentBacklogCandidates,
@@ -501,6 +513,24 @@ type ReplaceGscSearchInsightsInput = {
   insights: GscSearchInsightInput[];
 };
 
+type CreatePlanGrantCodeInput = {
+  createdByUserId: string;
+  planCode: GrantablePlanCode;
+  recipientEmail?: string;
+  note?: string;
+};
+
+type RedeemPlanGrantCodeInput = {
+  user: AppUser;
+  organizationId: string;
+  code: string;
+};
+
+type RedeemPlanGrantCodeResult = {
+  planCode: PlanCode;
+  planName: string;
+};
+
 type AppRepository = {
   listOrganizationSummariesForUser(user: AppUser): Promise<OrganizationSummary[]>;
   createOrganization(input: CreateOrganizationInput): Promise<OrganizationSummary>;
@@ -518,6 +548,10 @@ type AppRepository = {
   getBillingCheckoutContext(input: BillingCheckoutContextInput): Promise<BillingCheckoutContext>;
   getBillingPortalContext(input: BillingPortalContextInput): Promise<BillingPortalContext>;
   applyBillingWebhookUpdate(input: StripeBillingWebhookUpdate): Promise<BillingWebhookApplyResult>;
+  createPlanGrantCode(input: CreatePlanGrantCodeInput): Promise<PlanGrantCode>;
+  listPlanGrantCodes(): Promise<PlanGrantCode[]>;
+  revokePlanGrantCode(id: string): Promise<void>;
+  redeemPlanGrantCode(input: RedeemPlanGrantCodeInput): Promise<RedeemPlanGrantCodeResult>;
   listNotificationsForOrganization(
     userId: string,
     organizationId: string,
@@ -733,6 +767,18 @@ const devStoreRepository: AppRepository = {
   },
   async applyBillingWebhookUpdate(input) {
     return applyDevBillingWebhookUpdate(input);
+  },
+  async createPlanGrantCode(input) {
+    return createDevPlanGrantCode(input);
+  },
+  async listPlanGrantCodes() {
+    return listDevPlanGrantCodes();
+  },
+  async revokePlanGrantCode(id) {
+    return revokeDevPlanGrantCode(id);
+  },
+  async redeemPlanGrantCode(input) {
+    return redeemDevPlanGrantCode(input);
   },
   async listNotificationsForOrganization(userId, organizationId, options) {
     return listDevNotificationsForOrganization(userId, organizationId, options);

@@ -4,9 +4,9 @@ import type { BillingPlan } from "./types";
 
 const fallbackPlanMeta = {
   TRIAL: { name: "Trial", monthlyPrice: 0 },
-  STARTER: { name: "Starter", monthlyPrice: 4900 },
-  PRO: { name: "Pro", monthlyPrice: 14900 },
-  AGENCY: { name: "Agency", monthlyPrice: 39900 },
+  STARTER: { name: "Starter", monthlyPrice: 3900 },
+  PRO: { name: "Pro", monthlyPrice: 9900 },
+  AGENCY: { name: "Agency", monthlyPrice: 24900 },
   ENTERPRISE: { name: "Enterprise", monthlyPrice: 0 }
 } satisfies Record<PlanCode, { name: string; monthlyPrice: number }>;
 

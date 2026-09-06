@@ -589,7 +589,7 @@ smoke.
 4. Натисни **+ Add product**.
 5. Product name: `Starter`.
 6. Pricing model: **Standard pricing**.
-7. Price: `49.00`.
+7. Price: `39.00`.
 8. Currency: `USD`.
 9. Billing period: **Monthly**.
 10. Натисни **Save product**.
@@ -600,9 +600,9 @@ smoke.
 
 | Product | Monthly price | Env                         |
 | ------- | ------------: | --------------------------- |
-| Starter |         `$49` | `SCCC_STRIPE_PRICE_STARTER` |
-| Pro     |        `$149` | `SCCC_STRIPE_PRICE_PRO`     |
-| Agency  |        `$399` | `SCCC_STRIPE_PRICE_AGENCY`  |
+| Starter |         `$39` | `SCCC_STRIPE_PRICE_STARTER` |
+| Pro     |         `$99` | `SCCC_STRIPE_PRICE_PRO`     |
+| Agency  |        `$249` | `SCCC_STRIPE_PRICE_AGENCY`  |
 
 ### Отримати Stripe secret key
 

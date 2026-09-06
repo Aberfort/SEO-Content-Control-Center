@@ -20,16 +20,16 @@ export const planLimits = {
     sites: 1,
     urlsPerSite: 5000,
     users: 3,
-    aiCredits: 0
+    aiCredits: 100
   },
   PRO: {
-    sites: 5,
+    sites: 3,
     urlsPerSite: 50000,
     users: 10,
     aiCredits: 500
   },
   AGENCY: {
-    sites: 50,
+    sites: 15,
     urlsPerSite: 250000,
     users: 50,
     aiCredits: 2500

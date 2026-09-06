@@ -29,14 +29,14 @@ const plans: PublicPlan[] = [
   {
     code: "STARTER",
     name: "Starter",
-    price: "$49",
+    price: "$39",
     cadence: "per month",
     description: "For a focused team operating one WordPress site."
   },
   {
     code: "PRO",
     name: "Pro",
-    price: "$149",
+    price: "$99",
     cadence: "per month",
     description: "For in-house teams and publishers managing a growing portfolio.",
     recommended: true
@@ -44,7 +44,7 @@ const plans: PublicPlan[] = [
   {
     code: "AGENCY",
     name: "Agency",
-    price: "$399",
+    price: "$249",
     cadence: "per month",
     description: "For agencies standardizing delivery across client sites."
   },

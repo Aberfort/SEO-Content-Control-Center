@@ -15,7 +15,9 @@ export type RateLimitPolicy =
   | "plugin-system-events"
   | "plugin-monitoring-read"
   | "plugin-disconnect"
-  | "billing-webhook";
+  | "billing-webhook"
+  | "plan-grant-create"
+  | "plan-grant-redeem";
 
 export class RateLimitError extends Error {
   readonly retryAfterSeconds: number;
@@ -111,6 +113,16 @@ const rateLimitPolicies = {
   "billing-webhook": {
     limit: 300,
     windowMs: 1000 * 60 * 5
+  },
+  "plan-grant-create": {
+    limit: 30,
+    windowMs: 1000 * 60 * 60
+  },
+  "plan-grant-redeem": {
+    // Codes are 12 random chars from a 33-char alphabet -- this just slows
+    // down brute-forcing, the real defense is the keyspace.
+    limit: 10,
+    windowMs: 1000 * 60 * 15
   }
 } satisfies Record<RateLimitPolicy, { limit: number; windowMs: number }>;
 

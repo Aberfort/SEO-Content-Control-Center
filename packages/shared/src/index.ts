@@ -8,3 +8,4 @@ export * from "./plugin-signing";
 export * from "./deliverables";
 export * from "./content-trust";
 export * from "./entitlements";
+export * from "./plan-grants";
