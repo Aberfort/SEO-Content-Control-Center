@@ -3,7 +3,8 @@ import {
   createQueueProducer,
   createQueueRedisConnection,
   jobNames,
-  queueNames
+  queueNames,
+  resolveQueueRedisUrl
 } from "@sccc/queue";
 
 export type MonitoringSnapshotEnqueueResult =
@@ -24,7 +25,7 @@ export async function enqueueMonitoringCreateSnapshotJob(input: {
   monitoredUrlId: string;
   env?: Environment;
 }): Promise<MonitoringSnapshotEnqueueResult> {
-  const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
+  const redisUrl = resolveQueueRedisUrl(input.env ?? process.env);
 
   if (!redisUrl) {
     return {

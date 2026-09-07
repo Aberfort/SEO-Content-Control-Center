@@ -1,12 +1,14 @@
+import { resolveQueueRedisUrl } from "@sccc/queue";
+
 import { logWorkerEvent, serializeError } from "./logger";
 import { startWorker } from "./worker";
 
 async function main(): Promise<void> {
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = resolveQueueRedisUrl();
 
   if (!redisUrl) {
     logWorkerEvent("error", "worker.missing_redis_url", {
-      hint: "Set REDIS_URL before starting the worker process."
+      hint: "Set SCCC_QUEUE_REDIS_URL (or REDIS_URL) before starting the worker process."
     });
     process.exitCode = 1;
     return;

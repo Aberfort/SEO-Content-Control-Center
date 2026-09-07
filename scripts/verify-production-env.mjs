@@ -246,6 +246,11 @@ function validateProductionEnv(env, options) {
   validateUrl(env, reporter, "REDIS_URL", {
     allowedProtocols: ["redis:", "rediss:"]
   });
+  if (hasValue(env.SCCC_QUEUE_REDIS_URL)) {
+    validateUrl(env, reporter, "SCCC_QUEUE_REDIS_URL", {
+      allowedProtocols: ["redis:", "rediss:"]
+    });
+  }
   requireValue(env, reporter, "SCCC_DATA_STORE", {
     allowedValues: ["prisma"],
     noPlaceholder: false

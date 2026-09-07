@@ -62,6 +62,7 @@ fi
 
 database_url="${SCCC_SERVER_DATABASE_URL:-$(read_env_value DATABASE_URL || true)}"
 redis_url="${SCCC_SERVER_REDIS_URL:-$(read_env_value REDIS_URL || true)}"
+queue_redis_url="${SCCC_SERVER_QUEUE_REDIS_URL:-$(read_env_value SCCC_QUEUE_REDIS_URL || true)}"
 saas_url="${SCCC_SERVER_SAAS_URL:-$(read_env_value NEXT_PUBLIC_APP_URL || true)}"
 marketing_url="${SCCC_SERVER_MARKETING_URL:-$(read_env_value NEXT_PUBLIC_MARKETING_URL || true)}"
 worker_health_url="${SCCC_SERVER_WORKER_HEALTH_URL:-${SCCC_SMOKE_WORKER_HEALTH_URL:-}}"
@@ -86,6 +87,11 @@ else
 
   log "checking Redis PING"
   node scripts/check-redis-url.mjs "${redis_url}"
+
+  if [[ -n "${queue_redis_url}" ]]; then
+    log "checking queue Redis PING (SCCC_QUEUE_REDIS_URL)"
+    node scripts/check-redis-url.mjs "${queue_redis_url}"
+  fi
 fi
 
 if [[ "${skip_plugin_check}" == "true" ]]; then

@@ -3,7 +3,8 @@ import {
   createQueueProducer,
   createQueueRedisConnection,
   jobNames,
-  queueNames
+  queueNames,
+  resolveQueueRedisUrl
 } from "@sccc/queue";
 
 export type BulkOperationExecutionEnqueueResult =
@@ -26,7 +27,7 @@ export async function enqueueBulkOperationExecutionJob(input: {
   operationId: string;
   env?: Environment;
 }): Promise<BulkOperationExecutionEnqueueResult> {
-  const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
+  const redisUrl = resolveQueueRedisUrl(input.env ?? process.env);
 
   if (!redisUrl) {
     return {
@@ -81,7 +82,7 @@ export async function enqueueBulkOperationRollbackJob(input: {
   operationId: string;
   env?: Environment;
 }): Promise<BulkOperationRollbackEnqueueResult> {
-  const redisUrl = input.env?.REDIS_URL?.trim() ?? process.env.REDIS_URL?.trim();
+  const redisUrl = resolveQueueRedisUrl(input.env ?? process.env);
 
   if (!redisUrl) {
     return {

@@ -26,7 +26,8 @@ or still contain placeholders.
 | `NEXT_PUBLIC_APP_URL`       | Yes      | Platform | Public SaaS HTTPS origin, no path. Also a Docker build arg.                                    |
 | `NEXT_PUBLIC_MARKETING_URL` | Yes      | Platform | Public marketing HTTPS origin, no path. Must differ from SaaS origin. Also a Docker build arg. |
 | `DATABASE_URL`              | Yes      | Platform | PostgreSQL URL used by SaaS, worker, and migration runner. Use managed Postgres in production. |
-| `REDIS_URL`                 | Yes      | Platform | Redis or TLS Redis URL for BullMQ queues and multi-instance rate limits.                       |
+| `REDIS_URL`                 | Yes      | Platform | Redis or TLS Redis URL for multi-instance rate limits, and the BullMQ queue/worker default when `SCCC_QUEUE_REDIS_URL` is unset. |
+| `SCCC_QUEUE_REDIS_URL`      | Optional | Platform | Separate Redis URL for BullMQ queues/workers (producers in the SaaS app and `@sccc/worker`). BullMQ keeps a constantly-polling connection open (job fetch, stalled-job checks, lock renewal, heartbeats), which is a poor fit for a per-command-billed/limited Redis (e.g. Upstash free tier). Point this at a flat-rate Redis instance to keep that traffic off `REDIS_URL`; falls back to `REDIS_URL` when unset. |
 | `SCCC_DATA_STORE`           | Yes      | Platform | Must be `prisma`; production must not use the in-memory store.                                 |
 | `SCCC_RATE_LIMIT_STORE`     | Optional | Platform | Leave empty for Redis-backed limits. `memory` is local/single-instance only.                   |
 | `SCCC_WORKER_HEALTH_PORT`   | Yes      | Platform | Private worker health listener port. Keep behind localhost, VPN, or private load balancer.     |
