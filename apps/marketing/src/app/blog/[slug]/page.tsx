@@ -126,6 +126,14 @@ export default async function BriefingPage({ params }: BriefingPageProps) {
               </div>
             ))}
           </section>
+
+          {briefing.checkerCta ? (
+            <p className="section-note">
+              Check whether a single URL has this problem right now, free, at the{" "}
+              <Link href="/tools/page-checker">page checker</Link>. To catch it across every
+              published post and page, <Link href="/download">install the free plugin</Link>.
+            </p>
+          ) : null}
         </div>
       </article>
 

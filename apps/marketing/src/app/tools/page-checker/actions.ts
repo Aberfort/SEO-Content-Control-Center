@@ -45,7 +45,12 @@ export async function checkPageAction(
 
     const signals = extractSignals(crawl.html);
     const approxWordCount = approximateWordCount(crawl.html);
-    const findings = evaluateFindings({ httpStatus: crawl.httpStatus, signals, approxWordCount });
+    const findings = evaluateFindings({
+      httpStatus: crawl.httpStatus,
+      signals,
+      approxWordCount,
+      xRobotsTag: crawl.xRobotsTag
+    });
 
     await captureCheckerUsed(parsed.url, findings);
 

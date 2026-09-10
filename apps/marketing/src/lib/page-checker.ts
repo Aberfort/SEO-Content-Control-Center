@@ -74,8 +74,9 @@ export function evaluateFindings(input: {
   httpStatus: number;
   signals: ExtractedSignals;
   approxWordCount: number;
+  xRobotsTag: string | null;
 }): Finding[] {
-  const { httpStatus, signals, approxWordCount } = input;
+  const { httpStatus, signals, approxWordCount, xRobotsTag } = input;
   const findings: Finding[] = [];
 
   if (httpStatus < 200 || httpStatus >= 300) {
@@ -107,6 +108,17 @@ export function evaluateFindings(input: {
       detail: signals.metaRobots
         ? `Meta robots is set to "${signals.metaRobots}", which allows indexing.`
         : "No meta robots tag was found, which defaults to indexable."
+    });
+  }
+
+  const headerBlocksIndexing = xRobotsTag?.toLowerCase().includes("noindex") ?? false;
+
+  if (headerBlocksIndexing) {
+    findings.push({
+      id: "x-robots-tag",
+      severity: "critical",
+      label: "Blocked by an X-Robots-Tag header",
+      detail: `The HTTP response sent "X-Robots-Tag: ${xRobotsTag}". This is invisible in the page source and in most SEO plugins — it's usually set at the server or CDN level, often a leftover from a staging environment's blanket noindex rule.`
     });
   }
 

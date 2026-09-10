@@ -23,6 +23,13 @@ export type Briefing = {
   sections: BriefingSection[];
   faq: BriefingFaq[];
   related: string[];
+  /**
+   * Shows a one-line note pointing to the free single-URL page checker,
+   * for posts about a symptom that tool actually catches (noindex, missing
+   * metadata, thin content). Omit for posts where a one-page check isn't
+   * the relevant next action.
+   */
+  checkerCta?: boolean;
 };
 
 export const briefings: Briefing[] = [
@@ -143,7 +150,12 @@ export const briefings: Briefing[] = [
           "Thin content is a length signal you can measure automatically. Low quality is a judgment about usefulness. Automated audits find the first and give a human the shortlist for the second."
       }
     ],
-    related: ["search-console-traffic-drop", "orphan-pages-wordpress", "yoast-rank-math-together"]
+    related: [
+      "accidentally-noindexed-wordpress-content",
+      "search-console-traffic-drop",
+      "orphan-pages-wordpress"
+    ],
+    checkerCta: true
   },
   {
     slug: "search-console-traffic-drop",
@@ -541,6 +553,300 @@ export const briefings: Briefing[] = [
       }
     ],
     related: ["seo-backlog-prioritization", "wordpress-seo-audit-checklist"]
+  },
+  {
+    slug: "accidentally-noindexed-wordpress-content",
+    category: "Indexability",
+    title: "How to find every accidentally noindexed page on a WordPress site",
+    metaTitle: "Find Accidentally Noindexed Pages in WordPress",
+    metaDescription:
+      "A noindex directive on a published page is invisible in normal browsing. Where it actually comes from, how to check one URL, and how to find every one.",
+    summary:
+      "Noindex is a single word in a meta tag or an HTTP header, and nothing about a normal page view shows you it's there. Here's where it actually comes from and how to find every instance, not just the one you already suspect.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "5 min read",
+    intro: [
+      "A page can be published, linked from your navigation, and still carry a directive telling search engines to skip it entirely. Nothing in the WordPress editor flags this. The post looks exactly like every other published post.",
+      "This isn't rare. It's the most common way a site loses pages from Google without anyone noticing until traffic on that page quietly goes to zero."
+    ],
+    sections: [
+      {
+        heading: "The three places noindex actually comes from",
+        paragraphs: [
+          "Noindex reaches a page through one of three unrelated mechanisms, and knowing which one you're dealing with changes where you look.",
+          "The most common is WordPress's own site-wide setting: Settings → Reading → \"Discourage search engines from indexing this site.\" It's meant for a site still in development, and it adds a noindex directive to every page's <head> until someone unchecks it — which is easy to forget after a staging-to-production launch.",
+          "The second is a per-post toggle in whichever SEO plugin is active — Yoast's \"Allow search engines to show this Post in search results?\" or Rank Math's equivalent robots-meta control. Set intentionally on one post, it's usually fine. Set by a bulk-edit action, an import script that carried a default value, or a copy-paste from a template post, it silently spreads.",
+          "The third is easy to miss entirely: an X-Robots-Tag HTTP response header, set at the server or CDN layer rather than in WordPress at all. It never appears in the page source, and most SEO plugins have no way to see it because they only control what WordPress renders into the page. It's a common leftover from a staging environment's blanket noindex rule that didn't get removed at launch."
+        ]
+      },
+      {
+        heading: "Checking one URL",
+        paragraphs: [
+          "For the first two mechanisms, view the page source and search for <meta name=\"robots\">. If it contains noindex, that's your answer, and it tells you nothing about which of the two settings caused it — you'd still need to check Settings → Reading and the post's own SEO panel.",
+          "The X-Robots-Tag header won't show up there at all, since it's a response header, not markup. Content Signal's free page checker reads both in one fetch — the meta tag and the response header — and tells you which one is actually blocking the page, since they call for different fixes."
+        ]
+      },
+      {
+        heading: "Why Search Console's URL Inspection isn't the same check",
+        paragraphs: [
+          "Google Search Console's Live Test reflects what Google's crawler saw the last time it visited, which can lag the page's current state by days. If you just fixed a noindex tag, Search Console may still show the old, blocked result until the next crawl.",
+          "Checking the live page directly tells you what's being served right now. Both views matter — one tells you what's true today, the other tells you what Google currently believes."
+        ]
+      },
+      {
+        heading: "Why checking pages one at a time doesn't scale",
+        paragraphs: [
+          "A single bulk-edit action, a theme migration, or a plugin update with a changed default can noindex dozens of posts in one step, and there's no notification when it happens. The only way to know is to check — and checking a few hundred published posts one URL at a time isn't something anyone actually does on a recurring basis."
+        ],
+        bullets: [
+          "A staging clone pushed to production with \"Discourage search engines\" still checked.",
+          "A bulk-edit action applied to the wrong filtered view of posts.",
+          "An SEO plugin migration that reset per-post robots settings to a new default.",
+          "A CDN rule written for a maintenance window that never got removed."
+        ]
+      },
+      {
+        heading: "What the free plugin adds",
+        paragraphs: [
+          "The free Content Signal WordPress plugin scans every published post and page locally, no account or external request, and flags every one where the SEO metadata contains a noindex directive on content that's supposed to be public. It compares each scan against the previous one, so a newly introduced noindex shows up as a new finding instead of disappearing into a static list.",
+          "It reads the same per-post and site-wide settings the plugin-toggle and site-wide checkbox mechanisms control — it doesn't fetch each page's HTTP headers, since that would require an external request the local audit deliberately avoids. That's exactly the gap the page checker's server-header check fills for a single URL you already suspect."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "If I fix a noindex tag, does the page come back to Google immediately?",
+        answer:
+          "No. Removing the directive only makes the page eligible for indexing again — Google still needs to recrawl it. Request indexing for the specific URL in Search Console to speed that up rather than waiting for the next scheduled crawl."
+      },
+      {
+        question: "Can a page be noindexed for some search engines and not others?",
+        answer:
+          "Only through robots.txt rules scoped to a specific crawler's user-agent. A meta robots or X-Robots-Tag noindex directive applies to every compliant crawler that reads it — there's no per-engine version of that mechanism."
+      },
+      {
+        question: "Does the site-wide \"Discourage search engines\" checkbox noindex pages retroactively, or only going forward?",
+        answer:
+          "It's not retroactive in the sense of deleting anything — it's a live setting that adds the noindex directive to every page render for as long as it stays checked. Unchecking it removes the directive from the very next page load; no historical cleanup is needed."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "wordpress-canonical-tag-wrong", "orphan-pages-wordpress"],
+    checkerCta: true
+  },
+  {
+    slug: "wordpress-pages-missing-meta-description",
+    category: "Metadata",
+    title: "How to find every WordPress page missing a meta description",
+    metaTitle: "Find WordPress Pages Missing a Meta Description",
+    metaDescription:
+      "A missing meta description hands Google full control of your search snippet. How to check one URL, and how to find every page across a site that's missing one.",
+    summary:
+      "Every page without a written meta description gets a snippet Google assembles on its own, usually the first sentences it finds. Here's how to check one page, and why that check needs to run across the whole site, not one URL at a time.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "4 min read",
+    intro: [
+      "A meta description doesn't affect ranking directly. It affects whether the person who already found your result in the SERP decides to click it — and when it's missing, you hand that decision entirely to an algorithm assembling a snippet from whatever text it finds first.",
+      "On most WordPress sites this isn't one or two forgotten posts. It's whatever fraction of the archive was published before someone started filling the field in consistently, plus every new post from a contributor who doesn't know the field exists."
+    ],
+    sections: [
+      {
+        heading: "What actually happens when it's missing",
+        paragraphs: [
+          "Google generates a snippet from page content it judges most relevant to the query — sometimes the opening paragraph, sometimes a sentence from further down the page, sometimes a mix. It's frequently serviceable and occasionally an out-of-context fragment that undersells the page.",
+          "The difference matters most on pages that already rank. A written description doesn't change position, but it changes the pitch a searcher reads before clicking, which is the entire lever a static meta description controls."
+        ]
+      },
+      {
+        heading: "Checking one URL",
+        paragraphs: [
+          "View the page source and look for <meta name=\"description\">. If the tag is absent, or its content attribute is empty, there's nothing for Google to prefer over its own extraction.",
+          "Content Signal's free page checker does this same read in one fetch, and also flags a description that's technically present but too short or long enough to truncate in results — a present-but-unusable description is a different problem from a missing one, worth distinguishing."
+        ]
+      },
+      {
+        heading: "Where the gaps concentrate",
+        paragraphs: [
+          "On sites that adopted an SEO plugin partway through their history, the gap usually isn't random — it clusters in the oldest content, published before the field became part of the publishing habit.",
+          "It also clusters around custom post types. WooCommerce products, portfolio items, and other non-standard content types are easy for an SEO plugin's default template to miss unless someone explicitly configured a fallback pattern for that type."
+        ],
+        bullets: [
+          "Sort candidates by impressions, not by publish date — a five-year-old post with real search visibility is worth ten minutes; a five-year-old post with none isn't.",
+          "Check custom post types separately from posts and pages; they're the most commonly overlooked category.",
+          "Prioritize pages ranking outside the top 3, where snippet quality has the most influence on whether a searcher scrolls past a stronger-looking competitor."
+        ]
+      },
+      {
+        heading: "Finding every instance across a site",
+        paragraphs: [
+          "A one-URL check answers the question for a page you already suspect. It doesn't tell you how many others share the problem, and manually opening view-source on a few hundred posts isn't a workflow anyone sustains.",
+          "The free Content Signal WordPress plugin scans every published post, page, and custom post type locally and flags each one with an empty or missing meta description field, alongside the rest of the content-health picture — no account, no external request, no per-URL manual check."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Does writing a meta description improve ranking?",
+        answer:
+          "Not directly — it isn't a ranking signal Google's algorithm scores. Its effect is on click-through rate for a page that's already visible in results, which is a real but separate lever from ranking position."
+      },
+      {
+        question: "Will Google always use the meta description I write?",
+        answer:
+          "No. Google rewrites descriptions for a large share of results when it judges a different snippet better matches the specific query. Writing one improves your odds on stable, high-intent queries; it doesn't guarantee the snippet you see in preview."
+      },
+      {
+        question: "Is there an ideal meta description length?",
+        answer:
+          "Aim for roughly 120-158 characters. Shorter wastes available space; longer risks truncation, which usually cuts the sentence mid-thought rather than at a natural break."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "accidentally-noindexed-wordpress-content", "seo-backlog-prioritization"],
+    checkerCta: true
+  },
+  {
+    slug: "wordpress-canonical-tag-wrong",
+    category: "Metadata",
+    title: "How to check whether a WordPress canonical tag points to the wrong URL",
+    metaTitle: "Check a WordPress Canonical Tag for Errors",
+    metaDescription:
+      "A canonical tag pointing at the wrong URL tells Google to rank a different page instead. How to check a single URL and find every conflict across a site.",
+    summary:
+      "A canonical tag is a direct instruction: index this other URL instead of the one you're looking at. Correct for real duplicates, and quietly self-defeating everywhere else. Here's how to check one page and how conflicts spread across a site.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "5 min read",
+    intro: [
+      "A canonical tag tells Google which URL should be treated as the authoritative version when the same or similar content is reachable at more than one address. Google generally respects it, which is exactly why a wrong one is dangerous — it's not a suggestion Google occasionally ignores, it's an instruction it usually follows.",
+      "Most canonical problems aren't intentional. They're a side effect of a migration, a theme change, or a plugin setting nobody revisited after it did its job once."
+    ],
+    sections: [
+      {
+        heading: "What a wrong canonical actually does",
+        paragraphs: [
+          "When Page A's canonical points to Page B, Google consolidates ranking signals toward B and generally won't show A in results, even if A is the version you actually want visible. If B doesn't exist, has been redirected elsewhere, or is a weaker page, you've effectively asked Google to stop ranking your good page in favor of a broken or worse one.",
+          "This is correct behavior for genuine duplicates — a printer-friendly version, a tracking-parameter variant, a paginated comment page. It's actively harmful anywhere else."
+        ]
+      },
+      {
+        heading: "The three patterns that show up most often",
+        paragraphs: [
+          "A stale canonical survives a URL change. The post's slug changed, or the site moved to a new domain, but the canonical tag still points at the old address — sometimes one that now 404s.",
+          "A cross-domain canonical survives a staging-to-production launch. A canonical set to point at a staging or preview host during development never gets updated, and production content quietly tells Google to rank the staging copy instead.",
+          "A plugin or theme default applies a canonical pattern nobody chose deliberately — some SEO plugins offer a bulk canonical rule for a post type or taxonomy that made sense for one section and gets silently inherited somewhere it shouldn't."
+        ]
+      },
+      {
+        heading: "Checking one URL",
+        paragraphs: [
+          "View source and look for <link rel=\"canonical\">. Compare the href value against the page's own address, accounting for protocol (http vs https) and trailing slashes, which can look like a mismatch and not actually be one.",
+          "A canonical that matches the page's own URL is self-referencing and almost always correct — it's the deliberate default most SEO plugins set automatically. The ones worth investigating point somewhere else entirely."
+        ]
+      },
+      {
+        heading: "Finding conflicts across a whole site",
+        paragraphs: [
+          "A migration or plugin change rarely affects one URL. It tends to touch every post in a category, a whole custom post type, or every page published before a specific date — which means a single stale canonical you find by hand is usually a symptom of a pattern, not an isolated mistake.",
+          "The free Content Signal WordPress plugin flags every published page whose canonical points somewhere other than itself, locally and in bounded background batches, so a pattern shows up as a cluster of findings instead of one report you happened to notice."
+        ],
+        bullets: [
+          "Cross-domain canonicals get priority — they're the most likely to be pointing at a dead or wrong host entirely.",
+          "Group findings by the date they were likely introduced; a cluster around one migration date confirms the root cause.",
+          "Fix the source (the migration script, the plugin default) alongside the individual pages, or the pattern reappears on the next import."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Does every page need an explicit canonical tag?",
+        answer:
+          "Not strictly — Google can infer a self-canonical when none is present. Most SEO plugins set one automatically for exactly this reason, and it's a cheap, low-risk default rather than a requirement."
+      },
+      {
+        question: "Will Google always obey a canonical tag?",
+        answer:
+          "Usually, but not unconditionally — it's treated as a strong signal, not an absolute directive. Google can choose a different canonical if other signals (like the actual backlink pattern) strongly disagree, but that's the exception, not something to rely on as a safety net."
+      },
+      {
+        question: "Can a canonical pointing at a 404 hurt more than a missing canonical?",
+        answer:
+          "Yes. A missing canonical defaults to self-referencing behavior. A canonical pointing at a dead URL can suppress the working page without a working alternative for Google to consolidate toward — closer to accidentally deindexing the page."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "accidentally-noindexed-wordpress-content", "orphan-pages-wordpress"],
+    checkerCta: true
+  },
+  {
+    slug: "wordpress-thin-content-how-to-find",
+    category: "Content quality",
+    title: "How to find thin content on a WordPress site before it costs you rankings",
+    metaTitle: "Find Thin Content on a WordPress Site",
+    metaDescription:
+      "Word count isn't a ranking factor, but it's a reliable proxy for whether a page can compete. How to spot thin content on one page and across a whole site.",
+    summary:
+      "A page doesn't need to be long to rank, but an informational page competing against 1,200-word results at 150 words is competing on substance it doesn't have. Here's how to find those pages before they quietly stop showing up.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "5 min read",
+    intro: [
+      "Word count itself isn't something Google scores. Treating it as a proxy for substance is still useful, because a page that says less than the results it's competing against usually loses on merit, not on a technicality.",
+      "Thin content accumulates the same way orphan pages do: a post written to fill a content calendar slot, a category page auto-generated with no unique framing, a page that used to be longer before a redesign trimmed it."
+    ],
+    sections: [
+      {
+        heading: "Why word count works as a proxy",
+        paragraphs: [
+          "An informational query usually has an implicit bar for what a complete answer covers. A 1,500-word competing result probably addresses several sub-questions a searcher has; a 150-word page on the same topic almost certainly doesn't, regardless of how well it's written.",
+          "This doesn't mean longer always wins — a page that directly answers a narrow, specific query in 200 words can outperform a padded 2,000-word competitor. The floor exists for the broad, informational middle of most content, not for every query type."
+        ]
+      },
+      {
+        heading: "Checking one page",
+        paragraphs: [
+          "There's no view-source trick for word count the way there is for a meta tag — you're estimating from the visible body text. Content Signal's free page checker fetches the page once and returns an approximate count, useful as a quick sanity check against a rough floor of roughly 300 words for informational content.",
+          "Treat that number as a signal to investigate, not a verdict. A 280-word page that fully answers a narrow question is fine. A 280-word page attempting a broad topic almost certainly isn't."
+        ]
+      },
+      {
+        heading: "The honest fix isn't always \"add more words\"",
+        paragraphs: [
+          "Padding a thin page with restated sentences doesn't fix the underlying problem — Google's language understanding isn't fooled by volume without substance, and readers notice immediately.",
+          "Three real options exist for a genuinely thin page: expand it with content that actually adds coverage the topic needs, merge it into a stronger page that already covers the ground and redirect, or remove it if it serves no real purpose. Doing nothing is the only option that keeps the crawl cost without any of the benefit."
+        ],
+        bullets: [
+          "Expand when the topic deserves standalone coverage and the gaps are addressable.",
+          "Merge when a stronger page already covers the same ground — redirect the weaker one in.",
+          "Remove when neither applies and the page has no search visibility to protect."
+        ]
+      },
+      {
+        heading: "Finding thin pages across a whole site",
+        paragraphs: [
+          "A handful of thin pages found by spot-checking rarely represents the real scope. Content produced in a batch — a burst of short news posts, an auto-generated set of location or category pages, an early-stage content calendar before editorial standards tightened — tends to be thin as a group.",
+          "The free Content Signal WordPress plugin flags every published post and page under a configurable word-count floor, locally, across the whole site in bounded background batches, so the pattern is visible as a list instead of something you have to notice page by page."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Is there a universal minimum word count for good SEO?",
+        answer:
+          "No. A reasonable floor for competitive informational content sits around 300 words, but transactional, reference, and narrowly-scoped pages can rank well far below that. Treat any specific number as a screening heuristic, not a rule."
+      },
+      {
+        question: "Can a page be too long?",
+        answer:
+          "Length itself doesn't penalize a page, but padding a thin topic to hit a word count usually produces worse content — repeated points, diluted keyword relevance, and a slower page. The goal is matching depth to what the topic actually needs."
+      },
+      {
+        question: "Does thin content get penalized, or does it just fail to rank?",
+        answer:
+          "For most pages it's the latter — it simply loses to more complete competitors rather than triggering an explicit penalty. The exception is content thin enough to look auto-generated or purely duplicative, which can draw closer scrutiny under Google's broader content-quality systems."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "orphan-pages-wordpress", "seo-backlog-prioritization"],
+    checkerCta: true
   }
 ];
 
