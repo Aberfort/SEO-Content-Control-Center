@@ -16,6 +16,7 @@ export default function PrivacyPage() {
       eyebrow="Legal"
       title="Privacy Policy"
       summary="This policy explains the categories of information processed by Content Signal and the choices available to account holders and website visitors."
+      effectiveDate="September 10, 2026"
       sections={[
         {
           title: "1. Information we collect",
@@ -32,18 +33,32 @@ export default function PrivacyPage() {
                 Search Console properties and performance rows, encrypted integration tokens, audit
                 findings, backlog tasks, operation history, and support or demo request content.
               </p>
+              <p>
+                The free page checker tool processes the URL you submit only to fetch and evaluate
+                that page. We retain only the hostname (not the full URL, query string, or path) and
+                a count of the issues found, for our own product analytics — never the page&rsquo;s
+                content or the complete address you submitted.
+              </p>
             </>
           )
         },
         {
           title: "2. How we use information",
           content: (
-            <p>
-              We use information to authenticate users, maintain tenant-isolated workspaces, sync
-              connected services, run requested audits and operations, enforce plan limits, deliver
-              notifications, investigate failures, protect the service, process billing, and respond
-              to sales or support requests.
-            </p>
+            <>
+              <p>
+                We use information to authenticate users, maintain tenant-isolated workspaces, sync
+                connected services, run requested audits and operations, enforce plan limits, deliver
+                notifications, investigate failures, protect the service, process billing, and respond
+                to sales or support requests.
+              </p>
+              <p>
+                We may publish aggregated, de-identified statistics derived from free-tool usage — for
+                example, what share of checked pages had a given issue — provided the underlying data
+                has been stripped of anything that could identify a specific site or submitter. We do
+                not publish or share any individual site&rsquo;s URL, findings, or account data.
+              </p>
+            </>
           )
         },
         {

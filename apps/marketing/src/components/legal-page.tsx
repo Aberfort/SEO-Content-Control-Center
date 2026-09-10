@@ -10,16 +10,24 @@ type LegalPageProps = {
   title: string;
   summary: string;
   sections: LegalSection[];
+  /** Defaults to the original effective date so pages that haven't materially changed are unaffected. */
+  effectiveDate?: string;
 };
 
-export function LegalPage({ eyebrow, title, summary, sections }: LegalPageProps) {
+export function LegalPage({
+  eyebrow,
+  title,
+  summary,
+  sections,
+  effectiveDate = "July 10, 2026"
+}: LegalPageProps) {
   return (
     <main className="legal-layout">
       <header className="legal-intro">
         <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         <p>{summary}</p>
-        <small>Effective July 10, 2026</small>
+        <small>Effective {effectiveDate}</small>
       </header>
       <div className="legal-content">
         {sections.map((section) => (
