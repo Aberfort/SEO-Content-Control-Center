@@ -3,6 +3,18 @@ import { marketingOrigin, siteName } from "./site";
 const organizationId = `${marketingOrigin}/#organization`;
 const websiteId = `${marketingOrigin}/#website`;
 
+/**
+ * Other profiles that are unambiguously the same entity as this Organization.
+ * Only add a URL here once it is live and actually represents this brand —
+ * `sameAs` is a disambiguation signal to search engines, so a placeholder or
+ * dead link does more harm than omitting it. Add the GitHub organization and
+ * LinkedIn company page here once they exist.
+ */
+const sameAs = [
+  "https://wordpress.org/plugins/content-signal-seo-content-audit/",
+  "https://profiles.wordpress.org/serhiivasyliev/"
+];
+
 export function organizationSchema(): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -13,6 +25,7 @@ export function organizationSchema(): Record<string, unknown> {
     logo: `${marketingOrigin}/icon.svg`,
     description:
       "Review-first SEO operations for WordPress: content audit evidence, Search Console signals, and a prioritized team backlog.",
+    sameAs,
     contactPoint: [
       {
         "@type": "ContactPoint",
