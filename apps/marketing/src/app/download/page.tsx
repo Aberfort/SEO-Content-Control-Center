@@ -10,7 +10,7 @@ import { getPluginObjectStore } from "../../lib/plugin-release";
 import { breadcrumbSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
-const fallbackPluginMeta = { version: "0.9.3", sizeLabel: "61 KB" };
+const fallbackPluginMeta = { version: "0.9.4", sizeLabel: "63 KB" };
 const wordPressOrgUrl = "https://wordpress.org/plugins/content-signal-seo-content-audit/";
 
 export const metadata: Metadata = pageMetadata({

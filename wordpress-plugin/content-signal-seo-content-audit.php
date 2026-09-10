@@ -3,7 +3,7 @@
  * Plugin Name: Content Signal — SEO Content Audit
  * Plugin URI: https://getcontentsignal.com/download
  * Description: Audits WordPress content health locally and optionally connects it to evidence-backed SEO workflows.
- * Version: 0.9.3
+ * Version: 0.9.4
  * Requires PHP: 8.1
  * Requires at least: 6.4
  * Author: Serhii Vasyliev
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SCCC_PLUGIN_FILE', __FILE__ );
 define( 'SCCC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'SCCC_PLUGIN_VERSION', '0.9.3' );
+define( 'SCCC_PLUGIN_VERSION', '0.9.4' );
 
 $sccc_autoload = SCCC_PLUGIN_DIR . 'vendor/autoload.php';
 
@@ -46,6 +46,7 @@ if ( file_exists( $sccc_autoload ) ) {
 	require_once SCCC_PLUGIN_DIR . 'includes/LocalAuditRunner.php';
 	require_once SCCC_PLUGIN_DIR . 'includes/PlatformConversion.php';
 	require_once SCCC_PLUGIN_DIR . 'includes/SystemEventReporter.php';
+	require_once SCCC_PLUGIN_DIR . 'includes/ReviewNudge.php';
 }
 
 add_action(
@@ -57,13 +58,15 @@ add_action(
 		$contentCollector   = new SCCC\Plugin\ContentCollector();
 		$localAuditStore    = new SCCC\Plugin\LocalAuditStore();
 		$localAuditSettings = new SCCC\Plugin\LocalAuditSettings();
+		$reviewNudge        = new SCCC\Plugin\ReviewNudge();
 		$localAuditRunner   = new SCCC\Plugin\LocalAuditRunner(
 			$contentCollector,
 			new SCCC\Plugin\LocalAuditEngine(),
 			$localAuditStore,
 			SCCC\Plugin\ContentCollector::BATCH_SIZE,
 			new SCCC\Plugin\LocalLinkGraph(),
-			$localAuditSettings
+			$localAuditSettings,
+			$reviewNudge
 		);
 		$plugin             = new SCCC\Plugin\Plugin(
 			$connectionStore,
@@ -72,7 +75,8 @@ add_action(
 				$localAuditSettings,
 				$localAuditRunner,
 				$connectionStore,
-				new SCCC\Plugin\PlatformConversion()
+				new SCCC\Plugin\PlatformConversion(),
+				$reviewNudge
 			),
 			new SCCC\Plugin\SyncScheduler(
 				$connectionStore,
@@ -85,7 +89,8 @@ add_action(
 			$localAuditRunner,
 			$apiClient,
 			new SCCC\Plugin\SafeOperationEndpoint( $connectionStore, $requestSigner ),
-			new SCCC\Plugin\SystemEventReporter( $connectionStore, $apiClient )
+			new SCCC\Plugin\SystemEventReporter( $connectionStore, $apiClient ),
+			$reviewNudge
 		);
 		$plugin->register();
 	}

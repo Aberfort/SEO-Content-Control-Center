@@ -419,6 +419,7 @@ require_once __DIR__ . '/../includes/LocalAuditRunner.php';
 require_once __DIR__ . '/../includes/PlatformConversion.php';
 require_once __DIR__ . '/../includes/AdminPage.php';
 require_once __DIR__ . '/../includes/SystemEventReporter.php';
+require_once __DIR__ . '/../includes/ReviewNudge.php';
 
 $signer = new SCCC\Plugin\RequestSigner();
 $api_client = new SCCC\Plugin\ApiClient($signer);
@@ -1102,6 +1103,67 @@ if (
     fwrite(STDERR, "LocalAuditRunner did not persist a complete paginated audit.\n");
     exit(1);
 }
+
+// LocalAuditRunner::run() lazily defaults to a real ReviewNudge when none is
+// injected, and both touch the same named option — so a completed run above
+// must have already recorded one completed audit for the nudge.
+$review_nudge_state_after_run = get_option('sccc_review_nudge');
+
+if (
+    ! is_array($review_nudge_state_after_run)
+    || 1 !== ($review_nudge_state_after_run['completed_audits'] ?? null)
+    || true === ($review_nudge_state_after_run['dismissed'] ?? null)
+) {
+    fwrite(STDERR, "LocalAuditRunner did not record a completed audit with ReviewNudge.\n");
+    exit(1);
+}
+
+delete_option('sccc_review_nudge');
+$review_nudge = new SCCC\Plugin\ReviewNudge();
+
+if ($review_nudge->shouldShow()) {
+    fwrite(STDERR, "ReviewNudge showed before reaching its threshold.\n");
+    exit(1);
+}
+
+$review_nudge->recordCompletedAudit();
+$review_nudge->recordCompletedAudit();
+
+if ($review_nudge->shouldShow()) {
+    fwrite(STDERR, "ReviewNudge showed before its third completed audit.\n");
+    exit(1);
+}
+
+$review_nudge->recordCompletedAudit();
+
+if (! $review_nudge->shouldShow()) {
+    fwrite(STDERR, "ReviewNudge did not show after its third completed audit.\n");
+    exit(1);
+}
+
+$review_nudge->dismiss();
+
+if ($review_nudge->shouldShow()) {
+    fwrite(STDERR, "ReviewNudge kept showing after being dismissed.\n");
+    exit(1);
+}
+
+// Re-read from a fresh instance (real option round trip, not in-memory state)
+// and confirm a dismissal actually stops the counter for good.
+$review_nudge_after_dismiss = new SCCC\Plugin\ReviewNudge();
+$review_nudge_after_dismiss->recordCompletedAudit();
+$review_nudge_state_after_dismiss = get_option('sccc_review_nudge');
+
+if (
+    true !== ($review_nudge_state_after_dismiss['dismissed'] ?? null)
+    || 3 !== ($review_nudge_state_after_dismiss['completed_audits'] ?? null)
+    || $review_nudge_after_dismiss->shouldShow()
+) {
+    fwrite(STDERR, "ReviewNudge resumed counting after being dismissed.\n");
+    exit(1);
+}
+
+delete_option('sccc_review_nudge');
 
 $connection_store->save(
     $connection['organization_id'],

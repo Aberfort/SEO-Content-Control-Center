@@ -22,7 +22,8 @@ final class Plugin {
 		private readonly LocalAuditRunner $localAuditRunner,
 		private readonly ApiClient $apiClient,
 		private readonly SafeOperationEndpoint $safeOperationEndpoint,
-		private readonly SystemEventReporter $systemEventReporter
+		private readonly SystemEventReporter $systemEventReporter,
+		private readonly ReviewNudge $reviewNudge
 	) {
 	}
 
@@ -36,6 +37,7 @@ final class Plugin {
 		add_action( 'admin_post_sccc_save_local_audit_schedule', array( $this->localAuditRunner, 'handleScheduleRequest' ) );
 		add_action( 'admin_post_sccc_export_local_audit', array( $this->adminPage, 'exportAuditCsv' ) );
 		add_action( 'admin_post_sccc_update_finding_rule', array( $this->adminPage, 'handleFindingRule' ) );
+		add_action( 'admin_post_sccc_dismiss_review_nudge', array( $this->reviewNudge, 'handleDismiss' ) );
 		add_action( 'sccc_run_manual_sync', array( $this->syncScheduler, 'runSync' ) );
 		add_action( 'sccc_run_incremental_sync', array( $this->syncScheduler, 'runSync' ) );
 		add_action( LocalAuditRunner::HOOK, array( $this->localAuditRunner, 'run' ) );

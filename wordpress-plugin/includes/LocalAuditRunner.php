@@ -26,7 +26,8 @@ final class LocalAuditRunner {
 		private readonly LocalAuditStore $store,
 		private readonly int $batchSize = ContentCollector::BATCH_SIZE,
 		private readonly ?LocalLinkGraph $linkGraph = null,
-		private readonly ?LocalAuditSettings $settings = null
+		private readonly ?LocalAuditSettings $settings = null,
+		private readonly ?ReviewNudge $reviewNudge = null
 	) {
 	}
 
@@ -110,6 +111,7 @@ final class LocalAuditRunner {
 			$items = $this->linkGraph()->analyze( $items );
 			$items = $this->applyIgnoredRules( $items );
 			$this->store->complete( $items, $this->engine->summarize( $items ) );
+			$this->reviewNudge()->recordCompletedAudit();
 		} catch ( \Throwable $error ) {
 			$this->store->fail( $error->getMessage() );
 		}
@@ -241,6 +243,10 @@ final class LocalAuditRunner {
 
 	private function linkGraph(): LocalLinkGraph {
 		return $this->linkGraph ?? new LocalLinkGraph();
+	}
+
+	private function reviewNudge(): ReviewNudge {
+		return $this->reviewNudge ?? new ReviewNudge();
 	}
 
 	private function settings(): LocalAuditSettings {

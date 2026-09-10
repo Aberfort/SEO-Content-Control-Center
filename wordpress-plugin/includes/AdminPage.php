@@ -22,7 +22,8 @@ final class AdminPage {
 		private readonly ?LocalAuditSettings $auditSettings = null,
 		private readonly ?LocalAuditRunner $auditRunner = null,
 		private readonly ?ConnectionStore $connectionStore = null,
-		private readonly ?PlatformConversion $platformConversion = null
+		private readonly ?PlatformConversion $platformConversion = null,
+		private readonly ?ReviewNudge $reviewNudge = null
 	) {
 	}
 
@@ -101,6 +102,24 @@ final class AdminPage {
 					<?php if ( null !== $notice ) : ?>
 						<div class="notice notice-<?php echo esc_attr( $notice['type'] ); ?> is-dismissible sccc-feedback sccc-feedback-<?php echo esc_attr( $notice['type'] ); ?>">
 							<p><?php echo esc_html( $notice['message'] ); ?></p>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( 'health' === $tab && $this->reviewNudge()->shouldShow() ) : ?>
+						<div class="notice notice-info sccc-feedback sccc-review-nudge">
+							<p>
+								<?php echo esc_html__( 'Glad this is catching real issues on your site. If it has saved you time, a quick WordPress.org review helps other site owners find it.', 'content-signal-seo-content-audit' ); ?>
+							</p>
+							<p class="sccc-review-nudge-actions">
+								<a class="button button-primary" href="<?php echo esc_url( ReviewNudge::REVIEW_URL ); ?>" target="_blank" rel="noopener noreferrer">
+									<?php echo esc_html__( 'Leave a review', 'content-signal-seo-content-audit' ); ?>
+								</a>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="sccc-review-nudge-dismiss">
+									<input type="hidden" name="action" value="sccc_dismiss_review_nudge" />
+									<?php wp_nonce_field( 'sccc_dismiss_review_nudge' ); ?>
+									<button type="submit" class="button-link"><?php echo esc_html__( 'No thanks', 'content-signal-seo-content-audit' ); ?></button>
+								</form>
+							</p>
 						</div>
 					<?php endif; ?>
 
@@ -1169,6 +1188,10 @@ final class AdminPage {
 
 	private function conversion(): PlatformConversion {
 		return $this->platformConversion ?? new PlatformConversion();
+	}
+
+	private function reviewNudge(): ReviewNudge {
+		return $this->reviewNudge ?? new ReviewNudge();
 	}
 
 	private function formatTimestamp( int $timestamp ): string {

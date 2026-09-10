@@ -4,7 +4,7 @@ Tags: seo-audit, thin-content, noindex, yoast, rank-math
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.9.3
+Stable tag: 0.9.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,6 +106,9 @@ See the [Content Signal Terms of Service](https://getcontentsignal.com/terms) an
 
 == Upgrade Notice ==
 
+= 0.9.4 =
+Adds a dismissible review request after your third completed audit. No changes to audit behaviour, stored data, or the platform connection.
+
 = 0.9.3 =
 Directory listing tags only. No changes to audit behaviour, stored data, or the platform connection.
 
@@ -113,6 +116,10 @@ Directory listing tags only. No changes to audit behaviour, stored data, or the 
 Link and listing fix only. No changes to audit behaviour, stored data, or the platform connection.
 
 == Changelog ==
+
+= 0.9.4 =
+
+* After your third completed local audit, the Content Health tab shows a one-time, dismissible note asking for a WordPress.org review. Dismiss it once and it never returns; running more audits before the third never shows it early.
 
 = 0.9.3 =
 

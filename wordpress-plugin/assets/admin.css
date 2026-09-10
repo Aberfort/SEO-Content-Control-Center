@@ -346,6 +346,35 @@
   border-color: oklch(86% 0.05 27);
 }
 
+.sccc-review-nudge {
+  align-items: flex-start;
+  background: var(--sccc-blue-100);
+  border-color: oklch(82% 0.06 248);
+  flex-direction: column;
+  gap: var(--sccc-space-sm);
+  min-height: 0;
+  padding: var(--sccc-space-lg) 48px var(--sccc-space-lg) var(--sccc-space-lg);
+}
+
+.sccc-review-nudge p {
+  font-weight: 400;
+  margin: 0;
+}
+
+.sccc-review-nudge-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--sccc-space-md);
+}
+
+.sccc-review-nudge-dismiss {
+  margin: 0;
+}
+
+.sccc-review-nudge-dismiss .button-link {
+  color: var(--sccc-blue-700);
+}
+
 .sccc-audit-schedule {
   align-items: center;
   background: var(--sccc-canvas);
