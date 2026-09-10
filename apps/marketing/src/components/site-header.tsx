@@ -8,6 +8,7 @@ import {
   Menu,
   PlugZap,
   RotateCcw,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   UsersRound
@@ -91,6 +92,12 @@ const megaSections = [
   {
     title: "Resources",
     links: [
+      {
+        href: "/tools/page-checker",
+        label: "Free page checker",
+        description: "Check any URL for noindex risk and metadata issues.",
+        icon: ScanSearch
+      },
       {
         href: "/knowledge-base",
         label: "Knowledge base",

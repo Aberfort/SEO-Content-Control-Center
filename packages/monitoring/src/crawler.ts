@@ -15,7 +15,7 @@ export type CrawlOptions = {
   userAgent?: string;
 };
 
-const defaultUserAgent = "ContentSignalBot/1.0 (+https://contentsignal.app/bot)";
+const defaultUserAgent = "ContentSignalBot/1.0 (+https://getcontentsignal.com/bot)";
 
 /**
  * Fetches a monitored URL for snapshotting. Every hop (including redirects)

@@ -41,6 +41,12 @@ const routes: RouteEntry[] = [
     changeFrequency: "monthly",
     lastModified: "2026-08-31"
   },
+  {
+    path: "/tools/page-checker",
+    priority: 0.85,
+    changeFrequency: "monthly",
+    lastModified: "2026-09-10"
+  },
   { path: "/blog", priority: 0.7, changeFrequency: "weekly", lastModified: "2026-08-31" },
   { path: "/knowledge-base", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-08-31" },
   { path: "/security", priority: 0.6, changeFrequency: "monthly", lastModified: "2026-07-10" },
@@ -49,6 +55,7 @@ const routes: RouteEntry[] = [
   { path: "/status", priority: 0.4, changeFrequency: "monthly", lastModified: "2026-07-10" },
   { path: "/demo", priority: 0.6, changeFrequency: "yearly", lastModified: "2026-07-10" },
   { path: "/trial", priority: 0.6, changeFrequency: "yearly", lastModified: "2026-07-10" },
+  { path: "/bot", priority: 0.2, changeFrequency: "yearly", lastModified: "2026-09-10" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: "2026-07-10" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: "2026-07-10" },
   { path: "/cookies", priority: 0.3, changeFrequency: "yearly", lastModified: "2026-07-10" }

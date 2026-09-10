@@ -4,23 +4,10 @@ import { cookies, headers } from "next/headers";
 
 import { captureMarketingEvent } from "../lib/analytics";
 import { parseDemoLead, type DemoLead, type DemoLeadActionState } from "../lib/demo-lead";
+import { consumeRateLimit, readClientKey } from "../lib/rate-limit";
 import { anonymousDistinctId, visitorIdCookieName } from "../lib/visitor";
 
-const rateLimitWindowMs = 15 * 60 * 1000;
-const rateLimitMaxRequests = 5;
-
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-const globalWithDemoRateLimits = globalThis as typeof globalThis & {
-  scccDemoRateLimits?: Map<string, RateLimitBucket>;
-};
-
-const demoRateLimits =
-  globalWithDemoRateLimits.scccDemoRateLimits ??
-  (globalWithDemoRateLimits.scccDemoRateLimits = new Map<string, RateLimitBucket>());
+const demoRateLimit = { windowMs: 15 * 60 * 1000, maxRequests: 5 };
 
 export async function submitDemoLeadAction(
   _previousState: DemoLeadActionState,
@@ -55,7 +42,7 @@ export async function submitDemoLeadAction(
   const requestHeaders = await headers();
   const clientKey = readClientKey(requestHeaders);
 
-  if (!consumeDemoRateLimit(clientKey, Date.now())) {
+  if (!consumeRateLimit("demo", clientKey, demoRateLimit)) {
     return {
       status: "error",
       message: "Too many demo requests. Please wait 15 minutes and try again."
@@ -136,36 +123,3 @@ async function captureDemoRequested(lead: DemoLead): Promise<void> {
   });
 }
 
-function readClientKey(requestHeaders: Headers): string {
-  const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwardedFor || requestHeaders.get("x-real-ip")?.trim() || "unknown";
-}
-
-function consumeDemoRateLimit(key: string, now: number): boolean {
-  const existing = demoRateLimits.get(key);
-
-  if (!existing || existing.resetAt <= now) {
-    demoRateLimits.set(key, { count: 1, resetAt: now + rateLimitWindowMs });
-    pruneRateLimits(now);
-    return true;
-  }
-
-  if (existing.count >= rateLimitMaxRequests) {
-    return false;
-  }
-
-  existing.count += 1;
-  return true;
-}
-
-function pruneRateLimits(now: number): void {
-  if (demoRateLimits.size < 500) {
-    return;
-  }
-
-  for (const [key, bucket] of demoRateLimits) {
-    if (bucket.resetAt <= now) {
-      demoRateLimits.delete(key);
-    }
-  }
-}

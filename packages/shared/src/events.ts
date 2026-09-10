@@ -4,6 +4,7 @@ export const analyticsEvents = [
   "demo_requested",
   "trial_started",
   "plugin_downloaded",
+  "page_checker_used",
   "signup_completed",
   "organization_created",
   "site_added",

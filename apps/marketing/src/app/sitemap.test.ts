@@ -19,7 +19,9 @@ describe("marketing sitemap", () => {
         expect.stringMatching(/\/blog$/),
         expect.stringMatching(/\/changelog$/),
         expect.stringMatching(/\/contact$/),
-        expect.stringMatching(/\/status$/)
+        expect.stringMatching(/\/status$/),
+        expect.stringMatching(/\/tools\/page-checker$/),
+        expect.stringMatching(/\/bot$/)
       ])
     );
     expect(new Set(urls).size).toBe(urls.length);
