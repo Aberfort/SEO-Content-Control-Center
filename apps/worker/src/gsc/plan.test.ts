@@ -20,14 +20,14 @@ describe("planGscSyncJobs", () => {
     expect(jobs[0]).toEqual({
       name: "gsc.daily-metrics.sync",
       jobId:
-        "gsc-metrics:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:2026-07-10",
+        "gsc-metrics.11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222.2026-07-10",
       data: {
         organizationId: "11111111-1111-4111-8111-111111111111",
         siteId: "22222222-2222-4222-8222-222222222222"
       }
     });
     expect(jobs[1]?.name).toBe("gsc.search-insights.sync");
-    expect(jobs[1]?.jobId).toContain("gsc-insights:");
+    expect(jobs[1]?.jobId).toContain("gsc-insights.");
   });
 
   it("keeps job ids stable for the same site and day", () => {
