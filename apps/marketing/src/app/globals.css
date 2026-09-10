@@ -5427,7 +5427,7 @@ body {
 /* ---------------------------------------------------------------------- */
 
 .checker-form {
-  align-items: start;
+  align-items: flex-end;
   display: flex;
   gap: 12px;
 }
@@ -5438,7 +5438,6 @@ body {
 
 .checker-form .form-submit {
   flex: 0 0 auto;
-  margin-top: 29px;
   min-width: 168px;
   width: auto;
 }
