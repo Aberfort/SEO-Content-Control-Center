@@ -317,9 +317,18 @@ export const briefings: Briefing[] = [
         question: "Are pages linked only from the menu still orphans?",
         answer:
           "No, but a navigation link is weak. If the page needs to rank, it also needs contextual links from related body content."
+      },
+      {
+        question: "Do Yoast or Rank Math already find orphan pages?",
+        answer:
+          "Rank Math Pro's Link Assistant can flag posts with no internal links pointing to them. Yoast Premium's internal linking suggestions tool covers similar ground. Both are premium features scoped to their own plugin's data; a WordPress-native local audit works either alongside them or as a free option if you're not on a paid tier of either."
       }
     ],
-    related: ["wordpress-seo-audit-checklist", "seo-backlog-prioritization"]
+    related: [
+      "wordpress-seo-audit-checklist",
+      "seo-backlog-prioritization",
+      "wordpress-seo-audit-without-screaming-frog"
+    ]
   },
   {
     slug: "seo-backlog-prioritization",
@@ -397,7 +406,7 @@ export const briefings: Briefing[] = [
           "It is safe when it is review-first: bounded scope, a preview of the exact change, explicit confirmation, retained previous values, and an audit trail. Unattended bulk writes are not."
       }
     ],
-    related: ["wordpress-seo-audit-checklist", "search-console-traffic-drop", "agency-multi-site-seo-backlog"]
+    related: ["yoast-seo-audit-alternative", "wordpress-seo-audit-checklist", "agency-multi-site-seo-backlog"]
   },
   {
     slug: "yoast-rank-math-together",
@@ -846,6 +855,134 @@ export const briefings: Briefing[] = [
       }
     ],
     related: ["wordpress-seo-audit-checklist", "orphan-pages-wordpress", "seo-backlog-prioritization"],
+    checkerCta: true
+  },
+  {
+    slug: "wordpress-seo-audit-without-screaming-frog",
+    category: "Comparisons",
+    title: "Do you need Screaming Frog for a WordPress content audit?",
+    metaTitle: "WordPress SEO Audit Without Screaming Frog",
+    metaDescription:
+      "Screaming Frog crawls a rendered site from the outside. A WordPress-native audit reads the database directly. When each approach is actually the right one.",
+    summary:
+      "Screaming Frog is a real, capable crawler that does things a WordPress-native audit can't. It's also not the right first tool for most single-site content audits, and knowing the difference saves a license and a learning curve.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "5 min read",
+    intro: [
+      "Screaming Frog SEO Spider is a desktop application that crawls a website the way a search engine does: it requests every page over HTTP, renders it, and follows every link it finds. That approach is genuinely necessary for some jobs and genuinely unnecessary for others, and a lot of WordPress site owners reach for it by default because it's the tool everyone recommends.",
+      "For a single WordPress site where the question is \"which of my own posts have SEO metadata problems,\" a crawler is solving the problem the hard way. WordPress already knows every post's title, meta description, canonical, and robots setting — it's in the database. A crawler has to rediscover all of that from the outside, one HTTP request at a time."
+    ],
+    sections: [
+      {
+        heading: "What Screaming Frog actually does well",
+        paragraphs: [
+          "Screaming Frog is built for exactly the cases a database-level audit can't reach: sites it doesn't have backend access to, JavaScript-rendered content that needs real browser rendering to evaluate, log file analysis to see how search engines actually crawl a site, and large-scale technical audits spanning multiple systems, not just one WordPress install.",
+          "Its free version is genuinely usable, not a crippled trial — it's capped at 500 URLs per crawl, with no time limit. The paid license (currently $279 per user per year) removes that cap and adds JavaScript rendering, scheduled crawls, and integrations with Search Console, Analytics, and Ahrefs."
+        ]
+      },
+      {
+        heading: "Where crawling is the wrong first step",
+        paragraphs: [
+          "A crawl budget is a real constraint even on the free tier — 500 URLs sounds like a lot until a mid-sized WordPress site's posts, pages, tags, categories, and paginated archives are all counted as separate crawled URLs. A site can exhaust that limit without a single blog post being scanned twice.",
+          "A crawl also can't see anything WordPress hasn't rendered into the page. Whether a post is marked noindex through a plugin setting versus a site-wide checkbox looks identical from outside — the crawler sees the resulting meta tag either way, but can't tell you why it's there or which setting to go fix."
+        ]
+      },
+      {
+        heading: "What reading the database directly gets you instead",
+        paragraphs: [
+          "The free Content Signal WordPress plugin runs inside WordPress and reads post metadata directly — no crawl, no per-page HTTP request, no 500-URL ceiling. It scans every published post and page in bounded background batches, which is a fundamentally different resource profile than fetching each one over the network.",
+          "The trade-off is scope: it only sees what's inside this one WordPress install. It has no view into a non-WordPress subdomain, a headless frontend, or how a page actually renders after client-side JavaScript runs — exactly the cases Screaming Frog is built for."
+        ],
+        bullets: [
+          "One WordPress site, content-level questions (noindex, metadata, canonicals, thin content, orphan pages) → the free local audit; no crawl budget, no install, no license.",
+          "Multiple systems, JavaScript-rendered content, log file analysis, or a technical crawl spanning more than WordPress → Screaming Frog is the right tool.",
+          "Both, on a site that's grown complex → they're not mutually exclusive. A lot of teams run both and use each for what it's actually good at."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Is Screaming Frog's free version enough for a small WordPress site?",
+        answer:
+          "Often, yes — the 500-URL cap covers plenty of smaller sites. It's larger or more URL-dense sites (extensive tag/category archives, pagination, WooCommerce product variants) that hit the ceiling faster than expected."
+      },
+      {
+        question: "Does a WordPress-native audit replace what Screaming Frog does?",
+        answer:
+          "No, and it isn't trying to. It replaces the crawl step for one specific job — content-level metadata problems on a single WordPress site — while leaving the genuinely different jobs (JS rendering, log analysis, multi-system crawls) to a real crawler."
+      },
+      {
+        question: "Why would a local audit be faster than a crawl on the same site?",
+        answer:
+          "Because it isn't fetching anything over HTTP. Reading rows from WordPress's own database is orders of magnitude cheaper than requesting, downloading, and parsing each page's full HTML response one at a time."
+      }
+    ],
+    related: ["wordpress-seo-audit-checklist", "orphan-pages-wordpress", "seo-backlog-prioritization"],
+    checkerCta: true
+  },
+  {
+    slug: "yoast-seo-audit-alternative",
+    category: "Comparisons",
+    title: "Looking for a Yoast SEO audit? Here's what Yoast checks, and what it doesn't",
+    metaTitle: "Yoast SEO Audit: What It Checks, What It Doesn't",
+    metaDescription:
+      "Yoast analyzes one post at a time in the editor. Yoast's own guidance points elsewhere for a full-site audit. Here's the actual gap, and what fills it.",
+    summary:
+      "Yoast is genuinely good at what it's built for: per-post optimization while you write. It was never built to scan your whole published site at once, and Yoast's own content says as much. Here's the actual gap and how to close it.",
+    published: "2026-09-10",
+    updated: "2026-09-10",
+    readingTime: "4 min read",
+    intro: [
+      "Yoast SEO's core feature is the analysis panel in the post editor: as you write, it checks the piece in front of you against readability and SEO best practices — title length, keyword usage, outbound links, and more. It's genuinely useful feedback, delivered at exactly the moment you can act on it.",
+      "What it isn't built to do is look at every post you've already published and tell you which ones have problems right now. That's a different job, and Yoast's own published guidance agrees: its own SEO audit article recommends crawling your site with Screaming Frog or an all-in-one tool like Semrush or Ahrefs for that broader pass — not the Yoast plugin itself."
+    ],
+    sections: [
+      {
+        heading: "What Yoast is actually built for",
+        paragraphs: [
+          "The editor-time analysis is the product. It flags missing focus keyphrases, weak title or meta description length, readability issues, and internal-linking suggestions — all scoped to the single post you have open. Premium adds a few things that reach slightly wider, like orphaned-content suggestions in the internal linking tool, but the day-to-day surface is still per-post.",
+          "None of that is a criticism — a writing-time checklist and a whole-site audit are different products solving different problems, and Yoast is a genuinely strong version of the first one."
+        ]
+      },
+      {
+        heading: "The actual gap: everything already published",
+        paragraphs: [
+          "The posts written before the editor panel existed, before someone was watching the score, or by a contributor who ignored it, don't get re-checked automatically. A site that's been publishing for a few years accumulates a real backlog of exactly the issues Yoast's editor would have caught in the moment — just never caught after the fact.",
+          "That backlog needs a different kind of check: one that runs across everything already live, not one more piece of feedback for the next post you write."
+        ]
+      },
+      {
+        heading: "What closes the gap without replacing Yoast",
+        paragraphs: [
+          "The free Content Signal WordPress plugin runs a local audit across every published post and page — including the ones written years before anyone was watching an SEO score. It reads existing Yoast metadata rather than managing it, so nothing about how Yoast works day to day changes.",
+          "It finds published content marked noindex, missing titles or descriptions, canonical conflicts, thin content, and orphan pages, then compares each scan against the last one so a newly introduced problem shows up as a new finding instead of disappearing into a static report."
+        ],
+        bullets: [
+          "Keep Yoast doing what it does well: per-post guidance while writing.",
+          "Add a whole-site scan for everything already published, including the years of content Yoast never re-checks on its own.",
+          "Nothing about Yoast's own settings or metadata changes — the audit reads, it doesn't manage."
+        ]
+      }
+    ],
+    faq: [
+      {
+        question: "Does this turn off or replace Yoast's editor analysis?",
+        answer:
+          "No. Yoast's editor panel keeps working exactly as it does today. The local audit is a separate, whole-site pass that runs independently and reads the metadata Yoast already set."
+      },
+      {
+        question: "Does Yoast Premium already do a full-site audit?",
+        answer:
+          "Not as a standalone audit dashboard. Premium adds internal-linking suggestions, including flagging some orphaned content, but the core analysis workflow is still centered on the post you're currently editing."
+      },
+      {
+        question: "If I'm happy with Yoast, why would I need anything else?",
+        answer:
+          "You might not, if every post on the site was written and reviewed with the editor panel open. Most sites with real publishing history have at least some content that predates that habit — that's the gap a separate audit is for."
+      }
+    ],
+    related: ["yoast-rank-math-together", "wordpress-seo-audit-checklist", "wordpress-seo-audit-without-screaming-frog"],
     checkerCta: true
   }
 ];
