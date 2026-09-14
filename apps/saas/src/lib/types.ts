@@ -39,6 +39,21 @@ export type OrganizationMemberSummary = OrganizationMember & {
   createdAt: string;
 };
 
+export type PlatformUserSummary = {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: string;
+  emailVerifiedAt: string | null;
+  organizations: {
+    id: string;
+    name: string;
+    role: Role;
+    status: "ACTIVE" | "INVITED" | "SUSPENDED" | "CANCELED";
+    createdAt: string;
+  }[];
+};
+
 export type InviteResult = {
   member: OrganizationMemberSummary;
   inviteUrl: string;

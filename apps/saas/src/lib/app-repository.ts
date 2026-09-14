@@ -305,6 +305,7 @@ import type {
   OperationApprovalSummary,
   OrganizationMemberSummary,
   OrganizationSummary,
+  PlatformUserSummary,
   PublicOperationApproval,
   Regression,
   RegressionListOptions,
@@ -726,6 +727,7 @@ type AppRepository = {
   updateMemberSiteScope(
     input: UpdateMemberSiteScopeInputWithUser
   ): Promise<OrganizationMemberSummary>;
+  listUsersForPlatformAdmin(): Promise<PlatformUserSummary[]>;
 };
 
 export function getAppRepository(): AppRepository {
@@ -953,6 +955,11 @@ const devStoreRepository: AppRepository = {
   },
   async updateMemberSiteScope(input) {
     return updateDevMemberSiteScope(input);
+  },
+  async listUsersForPlatformAdmin() {
+    // Dev store doesn't track signup metadata (createdAt/emailVerified) --
+    // this admin view is only meaningful against the real Postgres-backed store.
+    return [];
   }
 };
 
@@ -5979,6 +5986,37 @@ const prismaRepository: AppRepository = {
     });
 
     return mapMember(member);
+  },
+
+  async listUsersForPlatformAdmin() {
+    const users = await prisma.user.findMany({
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 500,
+      include: {
+        memberships: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt.toISOString(),
+      emailVerifiedAt: user.emailVerified ? user.emailVerified.toISOString() : null,
+      organizations: user.memberships.map((membership) => ({
+        id: membership.organization.id,
+        name: membership.organization.name,
+        role: membership.role,
+        status: membership.status,
+        createdAt: membership.organization.createdAt.toISOString()
+      }))
+    }));
   }
 };
 
