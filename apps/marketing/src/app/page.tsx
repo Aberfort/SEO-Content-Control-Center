@@ -4,8 +4,25 @@ import type { CSSProperties } from "react";
 
 import { HomeReveals } from "../components/home-reveals";
 import { StructuredData } from "../components/structured-data";
+import { findBriefing, type Briefing } from "../lib/briefings";
 import { softwareApplicationSchema } from "../lib/schema";
 import { pageMetadata } from "../lib/site";
+
+/**
+ * The four symptom guides, one per check the free page checker runs. Linked
+ * from the homepage so these pages inherit its crawl priority instead of
+ * sitting two clicks deep behind /blog.
+ */
+const homeGuideSlugs = [
+  "accidentally-noindexed-wordpress-content",
+  "wordpress-pages-missing-meta-description",
+  "wordpress-canonical-tag-wrong",
+  "wordpress-thin-content-how-to-find"
+];
+
+const homeGuides = homeGuideSlugs
+  .map((slug) => findBriefing(slug))
+  .filter((briefing): briefing is Briefing => briefing !== undefined);
 
 export const metadata: Metadata = {
   ...pageMetadata({
@@ -554,6 +571,46 @@ export default function MarketingHomePage() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="home-guides-section" aria-labelledby="home-guides-title">
+          <div className="home-section-intro" data-reveal>
+            <div>
+              <span className="eyebrow">Free guides</span>
+              <h2 id="home-guides-title">Find the problems that quietly cost rankings.</h2>
+            </div>
+            <p>
+              Four checks worth running on any WordPress site. Each guide shows how to verify one
+              page by hand, and how to catch the same problem across every published post.
+            </p>
+          </div>
+
+          <div className="home-guides-list">
+            {homeGuides.map((guide, index) => (
+              <Link
+                data-reveal
+                href={`/blog/${guide.slug}`}
+                key={guide.slug}
+                style={{ "--index": index } as CSSProperties}
+              >
+                <span className="home-guide-meta">
+                  <span>{guide.category}</span>
+                  <small>{guide.readingTime}</small>
+                </span>
+                <strong>{guide.title}</strong>
+                <small className="home-guide-summary">{guide.metaDescription}</small>
+                <span className="home-guide-action">
+                  Read the guide <HomeIcon name="arrow" size={16} />
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <p className="home-guides-note" data-reveal>
+            Want to check one URL right now? Run it through the free{" "}
+            <Link href="/tools/page-checker">page checker</Link>, or browse{" "}
+            <Link href="/blog">all briefings</Link>.
+          </p>
         </section>
 
         <section className="home-team-section">
