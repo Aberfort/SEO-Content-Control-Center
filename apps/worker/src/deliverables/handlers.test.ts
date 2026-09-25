@@ -17,7 +17,7 @@ describe("recurring deliverables", () => {
         endDate: "2026-08-09"
       }
     });
-    expect(jobs[0]?.jobId).toContain("2026-08-03:2026-08-09");
+    expect(jobs[0]?.jobId).toContain("2026-08-03.2026-08-09");
   });
 
   it("schedules and validates workspace jobs", async () => {
