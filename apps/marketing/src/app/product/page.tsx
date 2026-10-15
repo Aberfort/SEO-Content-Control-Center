@@ -10,9 +10,9 @@ import { breadcrumbSchema, faqSchema } from "../../lib/schema";
 import { pageMetadata } from "../../lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "WordPress SEO Operations Overview",
+  title: "WordPress SEO Audit and Backlog Workflow",
   description:
-    "See how Content Signal connects WordPress metadata and Search Console evidence to a review-first SEO workflow.",
+    "How Content Signal turns a WordPress SEO audit into a prioritized backlog: WordPress metadata plus Search Console evidence, with review-first fixes.",
   path: "/product"
 });
 

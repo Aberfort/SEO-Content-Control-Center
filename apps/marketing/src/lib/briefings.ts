@@ -247,19 +247,26 @@ export const briefings: Briefing[] = [
     slug: "orphan-pages-wordpress",
     category: "Internal linking",
     title: "How to find orphan pages in WordPress and decide what to do with them",
-    metaTitle: "Find Orphan Pages in WordPress (and Fix Them)",
+    metaTitle: "Orphaned Content in WordPress: Find and Fix It",
     metaDescription:
-      "Orphan pages have no inbound internal links, so they get almost no internal authority. How to find them in WordPress and choose between linking, merging, and removing.",
+      "Orphaned content is a WordPress page with no internal links pointing to it. What it is, how to find it, and when to link, merge, or remove it.",
     summary:
       "An orphan page is reachable by sitemap and nothing else. Finding them is mechanical; deciding what each one deserves is not.",
     published: "2026-08-31",
-    updated: "2026-08-31",
+    updated: "2026-10-15",
     readingTime: "5 min read",
     intro: [
       "An orphan page has no inbound internal links from anywhere on your site. It may sit in the sitemap, it may be indexed, and it will still behave like a page nobody vouched for — because structurally, nobody did.",
       "On a WordPress site that has been publishing for a few years, orphans accumulate quietly: posts that fell off the archive, landing pages built for a campaign that ended, pages whose linking hub was removed in a redesign."
     ],
     sections: [
+      {
+        heading: "What is orphaned content in WordPress?",
+        paragraphs: [
+          "Orphaned content is any post, page, or custom post type that no other page on your site links to. It is published and reachable by its URL, and it may even be in the sitemap, but nothing in your navigation, archives, or body copy points to it.",
+          "People also call these orphan pages or orphaned pages. Nothing is broken about them. They are simply disconnected from the rest of the site, which is why they are easy to miss."
+        ]
+      },
       {
         heading: "Why orphan pages underperform",
         paragraphs: [
@@ -303,6 +310,11 @@ export const briefings: Briefing[] = [
       }
     ],
     faq: [
+      {
+        question: "What is orphaned content in WordPress?",
+        answer:
+          "Any post, page, or custom post type with no internal links pointing to it from elsewhere on the site. It can still be published and indexed, but it receives no internal authority and no contextual signal about what it is for."
+      },
       {
         question: "Do orphan pages hurt the rest of my site?",
         answer:
@@ -406,19 +418,19 @@ export const briefings: Briefing[] = [
           "It is safe when it is review-first: bounded scope, a preview of the exact change, explicit confirmation, retained previous values, and an audit trail. Unattended bulk writes are not."
       }
     ],
-    related: ["yoast-seo-audit-alternative", "wordpress-seo-audit-checklist", "agency-multi-site-seo-backlog"]
+    related: ["wordpress-seo-audit-checklist", "search-console-traffic-drop", "agency-multi-site-seo-backlog"]
   },
   {
     slug: "yoast-rank-math-together",
     category: "Plugins",
     title: "Can you run Yoast and Rank Math together on WordPress?",
-    metaTitle: "Yoast and Rank Math Together: What Really Happens",
+    metaTitle: "Can You Use Yoast and Rank Math Together?",
     metaDescription:
       "Running Yoast and Rank Math at once causes duplicate meta tags and schema. Here's what actually conflicts, and what can safely run alongside either one.",
     summary:
       "Running two full SEO plugins at once causes real, well-documented conflicts. A tool that reads existing metadata instead of managing it is a different thing entirely, and the difference is worth knowing before you assume both cause the same problem.",
     published: "2026-09-06",
-    updated: "2026-09-06",
+    updated: "2026-10-15",
     readingTime: "5 min read",
     intro: [
       "Every comparison of Yoast and Rank Math frames the decision as pick one, then migrate away from the other. That advice is correct, but it answers a narrower question than the one people are actually asking when they search for this. The real question is usually: does anything else break if I add a second tool on top of whichever one I already have?",
@@ -469,6 +481,11 @@ export const briefings: Briefing[] = [
     ],
     faq: [
       {
+        question: "Can I use Rank Math and Yoast SEO together?",
+        answer:
+          "Not as two full SEO plugins on the same site. Both write title tags, meta descriptions, canonicals, schema, and sitemaps, so running both produces duplicate or conflicting output. Pick one to own those fields. A read-only audit tool that works on the fields either plugin already sets is a different case and does not collide."
+      },
+      {
         question: "Should I ever run two full SEO plugins on the same site?",
         answer:
           "No. Pick one to own titles, meta descriptions, canonicals, sitemaps, and schema for the whole site. Two plugins reading or writing those same fields produce duplicate tags and unpredictable output order."
@@ -484,7 +501,7 @@ export const briefings: Briefing[] = [
           "Not on its own. A read-only audit only inspects the fields that are already there, and any supported write still requires an explicit, separate confirmation."
       }
     ],
-    related: ["wordpress-seo-audit-checklist", "seo-backlog-prioritization"]
+    related: ["yoast-seo-audit-alternative", "wordpress-seo-audit-checklist", "seo-backlog-prioritization"]
   },
   {
     slug: "agency-multi-site-seo-backlog",
