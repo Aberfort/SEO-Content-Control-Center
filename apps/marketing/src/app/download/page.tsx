@@ -14,9 +14,9 @@ const fallbackPluginMeta = { version: "0.9.4", sizeLabel: "63 KB" };
 const wordPressOrgUrl = "https://wordpress.org/plugins/content-signal-seo-content-audit/";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Download the WordPress Plugin",
+  title: "Free WordPress SEO Audit Plugin (Download)",
   description:
-    "Download and install the Content Signal WordPress plugin to sync bounded content metadata and receive signed, review-first SEO operations.",
+    "Download the free Content Signal plugin: a local WordPress SEO audit for noindex, missing metadata, canonicals, thin content, and orphans. No account needed.",
   path: "/download"
 });
 
@@ -76,8 +76,8 @@ export default async function DownloadPage() {
 
       <PageIntro
         eyebrow="WordPress plugin"
-        title="Connect your WordPress site in minutes."
-        body="Install the Content Signal plugin to sync bounded content metadata, schedule recurring sync, and receive signed, review-first SEO operations."
+        title="A free SEO audit for your WordPress site, installed in a minute."
+        body="Content Signal scans every published post and page inside WordPress for noindex risk, missing metadata, canonical conflicts, thin content, and orphan pages — no account, no external request. Connect it later to add Search Console evidence and review-first fixes."
         actions={
           <Link className="button button-secondary" href="/demo">
             Talk to us first

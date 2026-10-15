@@ -14,7 +14,7 @@ const routes: RouteEntry[] = [
   { path: "", priority: 1, changeFrequency: "weekly", lastModified: "2026-08-31" },
   { path: "/features", priority: 0.9, changeFrequency: "monthly", lastModified: "2026-08-31" },
   { path: "/pricing", priority: 0.9, changeFrequency: "monthly", lastModified: "2026-08-31" },
-  { path: "/download", priority: 0.9, changeFrequency: "monthly", lastModified: "2026-08-31" },
+  { path: "/download", priority: 0.9, changeFrequency: "monthly", lastModified: "2026-10-15" },
   { path: "/product", priority: 0.8, changeFrequency: "monthly", lastModified: "2026-08-31" },
   {
     path: "/safe-operations",
